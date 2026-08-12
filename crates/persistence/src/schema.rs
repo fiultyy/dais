@@ -559,3 +559,159 @@ diesel::allow_tables_to_appear_in_same_query!(object_metadata, object_permission
 diesel::allow_tables_to_appear_in_same_query!(team_members, team_settings, teams,);
 diesel::allow_tables_to_appear_in_same_query!(sync_meta,);
 diesel::allow_tables_to_appear_in_same_query!(ssh_nodes, ssh_onekey_credentials, ssh_servers,);
+
+// ── Orchestration core (migration 2026-08-13-000000) ───────────────────────
+
+diesel::table! {
+    runs (id) {
+        id -> Text,
+        objective -> Text,
+        home_database -> Text,
+        coordinator_handle -> Nullable<Text>,
+        coordinator_pane_key -> Nullable<Text>,
+        consumer_generation -> Integer,
+        legacy -> Integer,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    messages (sequence) {
+        id -> Text,
+        run_id -> Text,
+        delivery_contract -> Text,
+        from_handle -> Text,
+        to_handle -> Text,
+        subject -> Text,
+        body -> Text,
+        message_type -> Text,
+        priority -> Text,
+        thread_id -> Nullable<Text>,
+        payload -> Nullable<Text>,
+        read -> Integer,
+        sequence -> Integer,
+        created_at -> Timestamp,
+        delivered_at -> Nullable<Timestamp>,
+        sender_pane_key -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
+    deliveries (id) {
+        id -> Text,
+        run_id -> Text,
+        consumer_generation -> Integer,
+        message_ids -> Text,
+        status -> Text,
+        created_at -> Timestamp,
+        acknowledged_at -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
+    worker_dispatches (dispatch_id) {
+        dispatch_id -> Text,
+        runtime_epoch -> Nullable<Text>,
+        state -> Text,
+        stage -> Text,
+        worktree_id -> Nullable<Text>,
+        agent_terminal_handle -> Nullable<Text>,
+        setup_state -> Text,
+        effects -> Text,
+        residual_resources -> Text,
+        start_options -> Text,
+        last_error -> Nullable<Text>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    tasks (id) {
+        id -> Text,
+        run_id -> Text,
+        parent_id -> Nullable<Text>,
+        created_by_terminal_handle -> Nullable<Text>,
+        created_by_pane_key -> Nullable<Text>,
+        created_by_process_incarnation -> Nullable<Text>,
+        created_by_run_generation -> Nullable<Integer>,
+        task_title -> Nullable<Text>,
+        display_name -> Nullable<Text>,
+        spec -> Text,
+        status -> Text,
+        deps -> Text,
+        result -> Nullable<Text>,
+        created_at -> Timestamp,
+        completed_at -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
+    dispatch_contexts (id) {
+        id -> Text,
+        run_id -> Text,
+        task_id -> Text,
+        contract_version -> Integer,
+        launch_token_hash -> Nullable<Text>,
+        assignee_handle -> Nullable<Text>,
+        assignee_pane_key -> Nullable<Text>,
+        capability_hash -> Nullable<Text>,
+        process_incarnation -> Nullable<Text>,
+        capability_revoked_at -> Nullable<Timestamp>,
+        status -> Text,
+        failure_count -> Integer,
+        last_failure -> Nullable<Text>,
+        dispatched_at -> Nullable<Timestamp>,
+        completed_at -> Nullable<Timestamp>,
+        created_at -> Timestamp,
+        last_heartbeat_at -> Nullable<Timestamp>,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(
+    deliveries,
+    dispatch_contexts,
+    messages,
+    runs,
+    tasks,
+    worker_dispatches,
+);
+
+// ── Decision gates (migration 2026-08-13-000100) ────────────────────────────
+
+diesel::table! {
+    decision_gates (id) {
+        id -> Text,
+        run_id -> Text,
+        task_id -> Text,
+        question -> Text,
+        options -> Text,
+        status -> Text,
+        resolution -> Nullable<Text>,
+        created_at -> Timestamp,
+        resolved_at -> Nullable<Timestamp>,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(
+    decision_gates,
+    tasks,
+);
+
+// ── Worker terminal archives (migration 2026-08-13-000200) ──────────────────
+
+diesel::table! {
+    worker_terminal_archives (dispatch_id) {
+        dispatch_id -> Text,
+        resource_id -> Text,
+        kind -> Text,
+        content -> Text,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(
+    worker_dispatches,
+    worker_terminal_archives,
+);
