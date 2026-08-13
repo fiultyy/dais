@@ -18,8 +18,8 @@ use diesel::dsl::sql;
 use diesel::sql_types::Integer;
 
 use persistence::schema::{
-    decision_gates, dispatch_contexts, messages, runs, tasks, worker_dispatches,
-    worker_terminal_archives,
+    decision_gates, dispatch_contexts, messages, orchestration_waiters, runs, tasks,
+    worker_dispatches, worker_terminal_archives,
 };
 
 use super::db::{
@@ -122,6 +122,9 @@ impl DieselOrchestrationStore {
         ))?;
         conn.batch_execute(include_str!(
             "../../../../../crates/persistence/migrations/2026-08-13-000200_add_worker_terminal_archives/up.sql"
+        ))?;
+        conn.batch_execute(include_str!(
+            "../../../../../crates/persistence/migrations/2026-08-13-000300_add_orchestration_waiters/up.sql"
         ))?;
         Ok(Self::new(conn))
     }
@@ -1096,9 +1099,55 @@ impl OrchestrationStore for DieselOrchestrationStore {
         .execute(&mut *conn)?;
         Ok(())
     }
+
+    fn upsert_waiter(
+        &self,
+        id: &str,
+        handle: &str,
+        type_filter: &str,
+        ttl_secs: i64,
+    ) -> OrchestrationResult<()> {
+        let mut conn = self.lock();
+        let expires_at = (Utc::now() + chrono::Duration::seconds(ttl_secs)).naive_utc();
+        diesel::replace_into(orchestration_waiters::table)
+            .values((
+                orchestration_waiters::id.eq(id),
+                orchestration_waiters::handle.eq(handle),
+                orchestration_waiters::type_filter.eq(type_filter),
+                orchestration_waiters::expires_at.eq(expires_at),
+            ))
+            .execute(&mut *conn)?;
+        Ok(())
+    }
+
+    fn delete_waiter(&self, id: &str) -> OrchestrationResult<()> {
+        let mut conn = self.lock();
+        diesel::delete(orchestration_waiters::table.filter(orchestration_waiters::id.eq(id)))
+            .execute(&mut *conn)?;
+        Ok(())
+    }
+
+    fn has_live_waiter(&self, handle: &str, message_type: &str) -> OrchestrationResult<bool> {
+        let mut conn = self.lock();
+        // `[]` claims all types; otherwise JSON-array substring match on the
+        // quoted type is exact enough (types are plain snake_case words).
+        let claimed = orchestration_waiters::table
+            .filter(orchestration_waiters::handle.eq(handle))
+            .filter(orchestration_waiters::expires_at.gt(Utc::now().naive_utc()))
+            .filter(
+                orchestration_waiters::type_filter
+                    .eq("[]")
+                    .or(orchestration_waiters::type_filter.like(format!("%\"{message_type}\"%"))),
+            )
+            .select(orchestration_waiters::id)
+            .first::<String>(&mut *conn)
+            .optional()?;
+        Ok(claimed.is_some())
+    }
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────
+
 
 #[cfg(test)]
 mod tests {

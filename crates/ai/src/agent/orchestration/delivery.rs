@@ -138,11 +138,19 @@ pub fn deliver_pending<S: OrchestrationStore>(
         return Ok(PushOutcome::NothingNew);
     };
 
-    // 1. Pending set (DB is the source of truth).
+    // 1. Pending set (DB is the source of truth), minus messages claimed by a
+    //    live `check --wait` waiter — the waiter/push mutual exclusion that
+    //    Orca enforces via messageTypeHasLiveWaiter (32636-32643): without
+    //    it, a blocking check and a pointer push double-consume one row.
     let pending: Vec<Message> = store
         .get_undelivered_unread(dispatch_id)?
         .into_iter()
         .filter(|m| m.sequence > state.last_pointed_sequence)
+        .filter(|m| {
+            !store
+                .has_live_waiter(dispatch_id, &m.message_type)
+                .unwrap_or(false)
+        })
         .collect();
     if pending.is_empty() {
         return Ok(PushOutcome::NothingNew);
@@ -306,5 +314,54 @@ mod tests {
         // simulated), so both remain pending; the failure changed nothing.
         assert_eq!(store.get_undelivered_unread("ctx_t4").unwrap().len(), 2);
         unregister_dispatch("ctx_t4");
+    }
+
+    #[test]
+    fn test_waiter_claim_blocks_push() {
+        let (store, exec) = setup();
+        register_dispatch("ctx_t5");
+        seed_message(&store, "ctx_t5");
+
+        // Live waiter claiming all types → push skips (mutual exclusion).
+        store.upsert_waiter("wtr_1", "ctx_t5", "[]", 60).unwrap();
+        let out = deliver_pending(&store, &exec, "ctx_t5", Some("✳ claude idle")).unwrap();
+        assert_eq!(out, PushOutcome::NothingNew);
+        assert_eq!(store.get_undelivered_unread("ctx_t5").unwrap().len(), 1);
+
+        // Claim removed → push proceeds.
+        store.delete_waiter("wtr_1").unwrap();
+        let out = deliver_pending(&store, &exec, "ctx_t5", Some("✳ claude idle")).unwrap();
+        assert_eq!(out, PushOutcome::Delivered { count: 1 });
+        unregister_dispatch("ctx_t5");
+    }
+
+    #[test]
+    fn test_expired_waiter_claim_ignored() {
+        let (store, exec) = setup();
+        register_dispatch("ctx_t6");
+        seed_message(&store, "ctx_t6");
+
+        // TTL in the past → claim is dead, push proceeds.
+        store.upsert_waiter("wtr_2", "ctx_t6", "[]", -10).unwrap();
+        let out = deliver_pending(&store, &exec, "ctx_t6", Some("✳ claude idle")).unwrap();
+        assert_eq!(out, PushOutcome::Delivered { count: 1 });
+        unregister_dispatch("ctx_t6");
+    }
+
+    #[test]
+    fn test_type_filtered_waiter_only_claims_its_type() {
+        let (store, exec) = setup();
+        register_dispatch("ctx_t7");
+        store
+            .enqueue_message("run_1", "coordinator", "ctx_t7", MessageType::Status, "a", "b")
+            .unwrap();
+
+        // Waiter claims only 'worker_done' → status message still pushes.
+        store
+            .upsert_waiter("wtr_3", "ctx_t7", "[\"worker_done\"]", 60)
+            .unwrap();
+        let out = deliver_pending(&store, &exec, "ctx_t7", Some("✳ claude idle")).unwrap();
+        assert_eq!(out, PushOutcome::Delivered { count: 1 });
+        unregister_dispatch("ctx_t7");
     }
 }

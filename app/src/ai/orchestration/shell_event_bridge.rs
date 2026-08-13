@@ -209,6 +209,18 @@ pub fn subscribe_bridge(
                 bridge.ensure_session_mailbox(*session_id, ctx);
             }
 
+            // PTY exit → retire the session mailbox (Orca
+            // retirePendingMessageDeliveryForPty: clear flight + watermark
+            // so a same-id reborn PTY never receives a stale Enter).
+            if let ModelEvent::ExitShell { session_id } = event {
+                let mailbox = ShellEventBridge::session_mailbox_handle(*session_id);
+                ::ai::agent::orchestration::delivery::unregister_dispatch(&mailbox);
+                use warpui::SingletonEntity as _;
+                crate::ai::orchestration::ViewRegistry::handle(ctx)
+                    .read(ctx, |registry, _| registry.unregister(&mailbox));
+                log::info!("orchestration: session mailbox {mailbox} retired (shell exit)");
+            }
+
             // Translate and apply.
             if let Some((dispatch_id, dcs_event)) = bridge.translate_event(event) {
                 let target = dcs_event.target_state();

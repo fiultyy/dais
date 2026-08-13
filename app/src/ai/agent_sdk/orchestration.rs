@@ -262,12 +262,64 @@ pub fn run(
             println!("{summary}");
         }
 
-        OrchestrationCommand::CheckMessages { handle } => {
+        OrchestrationCommand::CheckMessages {
+            handle,
+            wait,
+            timeout_ms,
+            message_type,
+        } => {
             // The pull path — authoritative consumer of the mailbox. The
             // push pointer (delivery.rs) only accelerates this.
+            let matches_filter = |m: &::ai::agent::orchestration::db::Message| {
+                message_type.is_empty() || message_type.contains(&m.message_type)
+            };
+
+            let mut timed_out = false;
+            if wait {
+                // Orca waitForMessage semantics (31959): register a claim so
+                // the push plane skips this mailbox's matching types (mutual
+                // exclusion), poll until match/timeout, always finish with a
+                // final same-filter re-read (timeout is not an error).
+                let waiter_id = format!("wtr_{}", uuid::Uuid::new_v4().simple());
+                let types_json = serde_json::to_string(&message_type).unwrap_or_else(|_| "[]".into());
+                let deadline = std::time::Instant::now()
+                    + std::time::Duration::from_millis(timeout_ms.max(1));
+                let claim_ttl: i64 = 15; // refreshed every poll tick
+
+                let mut matched = false;
+                while !matched {
+                    store
+                        .upsert_waiter(&waiter_id, &handle, &types_json, claim_ttl)
+                        .map_err(|e| anyhow!("{e}"))?;
+                    let unread = store.drain_inbox(&handle).map_err(|e| anyhow!("{e}"))?;
+                    if unread.iter().any(|m| matches_filter(m)) {
+                        matched = true;
+                    } else if std::time::Instant::now() >= deadline {
+                        timed_out = true;
+                        break;
+                    } else {
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                    }
+                }
+                // Always drop the claim before pulling (all Orca waiter
+                // resolutions route through removeMessageWaiter).
+                store
+                    .delete_waiter(&waiter_id)
+                    .map_err(|e| anyhow!("{e}"))?;
+                if timed_out {
+                    eprintln!("timed_out");
+                }
+            }
+
+            // Final pull with the same filter (covers the timed-out case —
+            // Orca re-reads on timeout so a waiter-filtered row is still
+            // returned, 31926-31928).
             let messages = store
                 .drain_inbox(&handle)
-                .map_err(|e| anyhow!("{e}"))?;
+                .map_err(|e| anyhow!("{e}"))?
+                .into_iter()
+                .filter(|m| matches_filter(m))
+                .collect::<Vec<_>>();
             if messages.is_empty() {
                 println!("no unread messages for {handle}");
             } else {

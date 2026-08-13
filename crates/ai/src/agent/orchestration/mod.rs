@@ -102,4 +102,26 @@ pub trait OrchestrationStore: Send + Sync {
 
     /// Mark messages delivered (pointer written to the target PTY).
     fn mark_delivered(&self, sequences: &[i32]) -> OrchestrationResult<()>;
+
+    // ── Waiters (check --wait claims; push/pull mutual exclusion) ─────
+
+    /// Upsert a waiter claim. `type_filter` is a JSON array of message types
+    /// (`[]` claims all). `ttl_secs` refreshes `expires_at`; stale claims
+    /// expire on their own (dead waiting process).
+    fn upsert_waiter(
+        &self,
+        id: &str,
+        handle: &str,
+        type_filter: &str,
+        ttl_secs: i64,
+    ) -> OrchestrationResult<()>;
+
+    /// Remove a waiter claim (waiter resolved / timed out / cancelled).
+    fn delete_waiter(&self, id: &str) -> OrchestrationResult<()>;
+
+    /// Whether a live (non-expired) waiter claims `message_type` for `handle`.
+    /// Mirrors Orca `messageTypeHasLiveWaiter` (orca-runtime.ts:32636-32643):
+    /// the push plane must skip claimed messages so a blocking check and a
+    /// pointer push cannot double-consume the same row.
+    fn has_live_waiter(&self, handle: &str, message_type: &str) -> OrchestrationResult<bool>;
 }

@@ -715,3 +715,19 @@ diesel::allow_tables_to_appear_in_same_query!(
     worker_dispatches,
     worker_terminal_archives,
 );
+
+// ── Orchestration waiters (migration 2026-08-13-000300) ─────────────────────
+
+diesel::table! {
+    orchestration_waiters (id) {
+        id -> Text,
+        handle -> Text,
+        type_filter -> Text,
+        expires_at -> Timestamp,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(
+    messages,
+    orchestration_waiters,
+);

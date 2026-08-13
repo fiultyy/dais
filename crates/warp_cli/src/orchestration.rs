@@ -160,7 +160,16 @@ pub enum OrchestrationCommand {
     /// Pull unread messages for a mailbox (the agent-side check command the
     /// pushed pointer tells the agent to run).
     CheckMessages {
-        /// Mailbox handle (dispatch id, or "orchestrator").
+        /// Mailbox handle (dispatch id, session_N, or "orchestrator").
         handle: String,
+        /// Block until a matching message arrives (default timeout 2 min).
+        #[arg(long)]
+        wait: bool,
+        /// Wait timeout in milliseconds (with --wait).
+        #[arg(long, default_value_t = 120_000)]
+        timeout_ms: u64,
+        /// Only wait for / pull this message type (repeatable).
+        #[arg(long = "type")]
+        message_type: Vec<String>,
     },
 }
