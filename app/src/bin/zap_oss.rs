@@ -55,6 +55,8 @@ fn main() -> Result<()> {
         // Agent prompt chip / toolbar 可编辑。
         FeatureFlag::AgentViewPromptChip,
         FeatureFlag::AgentToolbarEditor,
+        // 本地编排平面:P1 CLI + DB store 已接线。
+        FeatureFlag::Orchestration,
     ]);
     ChannelState::set(state);
 

@@ -23,7 +23,7 @@ use persistence::schema::{
 };
 
 use super::db::{
-    DecisionGate, DispatchContext, Message, OrchestrationError, OrchestrationResult, Task,
+    DecisionGate, DispatchContext, Message, OrchestrationError, OrchestrationResult, Run, Task,
     WorkerDispatch,
 };
 use super::output::WorkerTerminalArchive;
@@ -670,6 +670,17 @@ impl DieselOrchestrationStore {
         }
         query
             .order(decision_gates::created_at.asc())
+            .load(&mut *conn)
+            .map_err(Into::into)
+    }
+
+    // ── Run queries ──────────────────────────────────────────────────
+
+    /// List all runs, newest first.
+    pub fn list_runs(&self) -> OrchestrationResult<Vec<Run>> {
+        let mut conn = self.lock();
+        runs::table
+            .order(runs::created_at.desc())
             .load(&mut *conn)
             .map_err(Into::into)
     }

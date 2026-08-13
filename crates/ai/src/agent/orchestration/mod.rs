@@ -3,15 +3,15 @@
 //! Adaptation layers (Orca → zap):
 //! 1. **DB**: TS node:sqlite (DatabaseSync) → Diesel + SQLite migrations in `crates/persistence/`.
 //! 2. **IPC**: dual-socket NDJSON → tokio mpsc channels (single process).
-//! 3. **Agent comms**: HTTP loopback → proto streaming `SendMessageToAgent`.
-//! 4. **PTY injection**: paste bytes → `pty_controller::write_bytes()`.
-//! 5. **State detection**: window-title / OSC → DCS hook (13 variants).
+//! 3. **Agent comms**: direct DB insertion (SendMessageToAgent proto was severed).
+//! 4. **PTY injection**: `PtyExecutor` trait → `AIAgentActionType::WriteToLongRunningShellCommand`.
+//! 5. **State detection**: OSC 133 prompt markers → `DcsHookEvent` (4 variants).
 //!
-//! What is NOT ported: Coordinator autonomous loop (Orca dead code, fenced by
-//! `RETIRED_ORCHESTRATION_METHODS`), agent-hook HTTP server, daemon fork,
-//! node-pty. The caller-driven model replaces all of these.
+//! Wiring status: P1 (store + CLI) implemented. P2 (message loop + PTY bridge)
+//! and P3 (shell event detection) are pending — their traits/impls compile but
+//! have no production consumers yet.
 
-#![allow(dead_code)]
+pub mod connection;
 
 pub mod db;
 pub mod cli;

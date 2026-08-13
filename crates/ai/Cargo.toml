@@ -10,6 +10,7 @@ jemalloc = []
 local_fs = []
 test-util = []
 crash_reporting = []
+orchestration = []
 
 [dependencies]
 async-channel.workspace = true

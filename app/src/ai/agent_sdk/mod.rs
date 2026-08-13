@@ -55,6 +55,8 @@ mod model;
 pub mod output;
 mod profiles;
 mod provider;
+#[cfg(feature = "orchestration")]
+mod orchestration;
 #[cfg(test)]
 mod test_support;
 mod text_layout;
@@ -99,6 +101,8 @@ fn dispatch_command(
             }
             provider::run(ctx, global_options, provider_cmd)
         }
+        #[cfg(feature = "orchestration")]
+        CliCommand::Orchestration(orch_cmd) => orchestration::run(global_options, orch_cmd),
     }
 }
 
@@ -558,6 +562,8 @@ fn command_requires_auth(command: &CliCommand) -> bool {
         },
         CliCommand::Whoami => true,
         CliCommand::Provider(_) => true,
+        #[cfg(feature = "orchestration")]
+        CliCommand::Orchestration(_) => false,
     }
 }
 

@@ -1081,6 +1081,12 @@ fn initialize_app(
     // SshManager 操作可能撞 missing-table。
     warp_ssh_manager::set_database_path(persistence::database_file_path());
 
+    // 编排平面同样开独立写连接(WAL + busy_timeout),与 SSH 管理器同模式。
+    #[cfg(feature = "orchestration")]
+    ::ai::agent::orchestration::connection::set_database_path(
+        persistence::database_file_path(),
+    );
+
     let persistence_writer = PersistenceWriter::new(writer_handles);
 
     let model_event_sender = persistence_writer.sender();

@@ -575,6 +575,9 @@ default = [
     "ssh_tmux_wrapper",
     "onekey_prompt",
 ]
+
+# Enable the local orchestration plane (multi-agent workflow coordination).
+orchestration = ["ai/orchestration"]
 # Enable this feature to automatically perform heap profiling.  NOTE: This will
 # substantially slow down program execution.
 dhat_heap_profiling = ["dep:dhat"]
