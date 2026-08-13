@@ -255,7 +255,17 @@ pub fn run(
             )?;
             println!("action sent to {dispatch_id}");
         }
+
+        OrchestrationCommand::Assign { dispatch_id } => {
+            let summary =
+                crate::ai::orchestration::dispatch_assign::assign_to_active_pane(&dispatch_id, cx)?;
+            println!("{summary}");
+        }
     }
+
+    // CLI dispatch lives inside the app event loop; without an explicit
+    // terminate the loop keeps waiting for windows (headless hang).
+    cx.terminate_app(warpui::platform::TerminationMode::ForceTerminate, None);
 
     Ok(())
 }

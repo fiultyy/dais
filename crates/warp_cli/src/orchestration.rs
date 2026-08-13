@@ -148,4 +148,12 @@ pub enum OrchestrationCommand {
         #[arg(long)]
         interrupt: bool,
     },
+
+    /// Assign a dispatch to the active terminal pane. Registers the pane's
+    /// view + session in the orchestration registries so prompt injection,
+    /// output reading, and shell-event bridging target this terminal.
+    Assign {
+        /// Dispatch id to assign to the active pane.
+        dispatch_id: String,
+    },
 }

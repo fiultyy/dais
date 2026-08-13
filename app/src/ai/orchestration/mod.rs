@@ -205,4 +205,5 @@ pub mod shell_event_bridge;
 pub mod terminal_tail;
 
 pub mod interactive;
+pub mod dispatch_assign;
 pub mod dispatch_send;

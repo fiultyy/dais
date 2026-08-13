@@ -56,6 +56,12 @@ impl SessionDispatchMap {
         self.map.lock().get(session_id).cloned()
     }
 
+    /// Remove entries via predicate over (session_id, dispatch_id).
+    pub fn retain<F: FnMut(SessionId, &str) -> bool>(&self, mut f: F) {
+        self.map.lock().retain(|sid, did| f(*sid, did));
+    }
+
+
     /// Get a cloned handle sharing the same inner map.
     pub fn handle_clone(&self) -> SessionDispatchMap {
         self.clone()
