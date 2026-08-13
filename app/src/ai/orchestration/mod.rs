@@ -204,6 +204,7 @@ mod tests {
 pub mod block_settle;
 pub mod shell_event_bridge;
 pub mod terminal_tail;
+pub mod session_activity;
 
 pub mod interactive;
 pub mod dispatch_assign;

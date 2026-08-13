@@ -468,10 +468,12 @@ fn extract_signals_from_registry(
 /// Collects:
 /// - **title**: from `TerminalView.terminal_title_text()`.
 /// - **alt_screen_active**: from `TerminalModel.is_alt_screen_active()`.
-/// - **output_silent_for_ms**: derived from the last block's completion time,
-///   or `None` if no blocks exist / no timing data.
-/// - **since_last_precmd_ms**: `None` (not available from the view alone;
-///   future wiring point via `ShellEventBridge.last_activity`).
+/// - **output_silent_for_ms**: from the session-activity registry (time since
+///   the last shell lifecycle event) when the last block is finished; `0`
+///   while a block is executing; falls back to a conservative 1000ms
+///   estimate when the session has no registry record.
+/// - **since_last_precmd_ms**: from the session-activity registry (time since
+///   the last OSC 133 Precmd observed by the `ShellEventBridge`).
 fn extract_signals(tv: &TerminalView) -> ::ai::agent::orchestration::idle_detector::IdleSignal {
     let model = tv.model.lock();
     let title = {
@@ -480,37 +482,43 @@ fn extract_signals(tv: &TerminalView) -> ::ai::agent::orchestration::idle_detect
     };
     let alt_screen_active = model.is_alt_screen_active();
 
-    // Derive output silence: if the last visible block is finished (command
-    // completed, output rendered), use the output grid's start_time as a
-    // lower bound for when output began. Since Block lacks an Instant-
-    // based completed_at, we use a heuristic: if the last block is done,
-    // assume at least 1s of silence (safe lower bound). If the last block
-    // is still executing, silence is None (output may still be flowing).
-    // TODO: wire BlockTime.time_completed_term → Instant for precise timing.
-    let output_silent_for_ms = {
+    // (session_id, last_block_finished) — scalars only, borrowed in scope.
+    let last_block_info = {
         let block_list = model.block_list();
-        let blocks = block_list.blocks();
-        blocks
+        block_list
+            .blocks()
             .iter()
             .filter(|b| !b.is_in_band_command_block())
             .last()
-            .map(|last_block| {
-                if last_block.finished() {
-                    // Last block finished — conservative estimate: 1000ms silent.
-                    // Enough to satisfy the 800ms threshold when combined with
-                    // a recent precmd signal.
-                    1000u64
-                } else {
-                    // Last block still executing — actively producing output.
-                    0u64
-                }
-            })
+            .map(|b| (b.session_id(), b.finished()))
     };
+
+    // Session-scoped timing from the ShellEventBridge's registry.
+    let timing = last_block_info
+        .and_then(|(sid, _)| sid)
+        .map(crate::ai::orchestration::session_activity::signals_for);
+
+    let output_silent_for_ms = last_block_info.map(|(_, finished)| {
+        if !finished {
+            // Last block still executing — actively producing output.
+            0u64
+        } else {
+            // Finished: true silence = time since the last shell event
+            // (AfterBlockCompleted / Precmd). Fall back to the conservative
+            // heuristic when the session has no registry record.
+            timing
+                .as_ref()
+                .and_then(|t| t.silent_for_ms)
+                .unwrap_or(1000)
+        }
+    });
 
     ::ai::agent::orchestration::idle_detector::IdleSignal {
         title,
         alt_screen_active,
         output_silent_for_ms,
-        since_last_precmd_ms: None, // Future: wire from ShellEventBridge.last_activity
+        since_last_precmd_ms: timing
+            .as_ref()
+            .and_then(|t| t.since_last_precmd_ms),
     }
 }

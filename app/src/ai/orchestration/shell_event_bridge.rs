@@ -87,14 +87,6 @@ pub struct ShellEventBridge {
     /// Enables automatic session-mailbox registration (Orca semantics: the
     /// terminal handle IS the mailbox for cross-harness direct sends).
     weak_view: parking_lot::Mutex<Option<warpui::WeakViewHandle<crate::terminal::view::TerminalView>>>,
-    /// Timestamp of the last observed shell activity (Preexec, CommandFinished,
-    /// Precmd, etc.). Refreshed by the model-event subscription.
-    ///
-    /// Future wiring point: this will feed `since_last_precmd_ms` into
-    /// `IdleSignal` via the SessionDispatchMap lookup path. Currently recorded
-    /// but not yet consumed by the idle detector probe.
-    last_activity: parking_lot::Mutex<Option<std::time::Instant>>,
-
 }
 impl ShellEventBridge {
     pub fn new(dispatch_map: SessionDispatchMap) -> Self {
@@ -102,7 +94,6 @@ impl ShellEventBridge {
             dispatch_map,
             active_session_id: parking_lot::Mutex::new(None),
             weak_view: parking_lot::Mutex::new(None),
-            last_activity: parking_lot::Mutex::new(None),
         }
     }
 
@@ -224,22 +215,27 @@ pub fn subscribe_bridge(
             if let ModelEvent::ExitShell { session_id } = event {
                 let mailbox = ShellEventBridge::session_mailbox_handle(*session_id);
                 ::ai::agent::orchestration::delivery::unregister_dispatch(&mailbox);
+                crate::ai::orchestration::session_activity::remove(*session_id);
                 use warpui::SingletonEntity as _;
                 crate::ai::orchestration::ViewRegistry::handle(ctx)
                     .read(ctx, |registry, _| registry.unregister(&mailbox));
                 log::info!("orchestration: session mailbox {mailbox} retired (shell exit)");
             }
 
-            // Refresh last_activity timestamp on shell lifecycle events.
-            // Future: this feeds since_last_precmd_ms into IdleSignal.
-            let is_shell_activity = matches!(
-                event,
-                ModelEvent::Handler(AnsiHandlerEvent::Precmd)
-                    | ModelEvent::Handler(AnsiHandlerEvent::Preexec)
-                    | ModelEvent::AfterBlockCompleted(_)
-            );
-            if is_shell_activity {
-                *bridge.last_activity.lock() = Some(std::time::Instant::now());
+            // Publish shell lifecycle timestamps to the session-activity
+            // registry — the idle probe's source for since_last_precmd_ms
+            // and output silence (idle_detector multi-signal path).
+            if let Some(sid) = *bridge.active_session_id.lock() {
+                match event {
+                    ModelEvent::Handler(AnsiHandlerEvent::Precmd) => {
+                        crate::ai::orchestration::session_activity::record_precmd(sid);
+                    }
+                    ModelEvent::Handler(AnsiHandlerEvent::Preexec)
+                    | ModelEvent::AfterBlockCompleted(_) => {
+                        crate::ai::orchestration::session_activity::record_event(sid);
+                    }
+                    _ => {}
+                }
             }
 
 
