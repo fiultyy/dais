@@ -106,6 +106,13 @@ pub struct TerminalManager {
     #[allow(dead_code)]
     pty_controller: ModelHandle<PtyController>,
 
+    /// The manager is responsible for managing the lifetime of the
+    /// orchestration shell event bridge (keeps its model-event subscription
+    /// alive for the session).
+    #[cfg(feature = "orchestration")]
+    orchestration_bridge: Option<ModelHandle<crate::ai::orchestration::shell_event_bridge::ShellEventBridge>>,
+
+
     /// The manager is responsible for managing the lifetime of the remote server controller.
     #[expect(dead_code)]
     remote_server_controller: ModelHandle<RemoteServerController>,
@@ -202,6 +209,8 @@ impl TerminalManager {
         // Orchestration shell event bridge: translate OSC 133 / block
         // completion events into worker state transitions.
         #[cfg(feature = "orchestration")]
+        let mut orchestration_bridge: Option<warpui::ModelHandle<crate::ai::orchestration::shell_event_bridge::ShellEventBridge>> = None;
+        #[cfg(feature = "orchestration")]
         {
             use crate::features::FeatureFlag;
             use warpui::SingletonEntity as _;
@@ -213,6 +222,7 @@ impl TerminalManager {
                     .read(ctx, |m, _| m.handle_clone());
                 let bridge = ctx.add_model(|_| ShellEventBridge::new(dispatch_map));
                 subscribe_bridge(&bridge, &model_events, ctx);
+                orchestration_bridge = Some(bridge);
             }
         }
 
@@ -327,6 +337,16 @@ impl TerminalManager {
             || has_restored_command_blocks)
             && !should_use_live_appearance;
 
+        // Give the orchestration bridge the view handle so it can register
+        // the session mailbox on first shell bootstrap.
+        #[cfg(feature = "orchestration")]
+        if let Some(bridge) = &orchestration_bridge {
+            use warpui::SingletonEntity as _;
+            if crate::features::FeatureFlag::Orchestration.is_enabled() {
+                bridge.update(ctx, |b, _| b.set_view(view.downgrade()));
+            }
+        }
+
         if should_show_restoration_separator {
             model
                 .lock()
@@ -357,6 +377,8 @@ impl TerminalManager {
             #[cfg(unix)]
             terminal_attributes_poller: None,
             pty_controller,
+            #[cfg(feature = "orchestration")]
+            orchestration_bridge,
             remote_server_controller,
 
             #[cfg(feature = "integration_tests")]

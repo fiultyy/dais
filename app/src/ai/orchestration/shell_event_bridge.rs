@@ -82,6 +82,10 @@ pub struct ShellEventBridge {
     dispatch_map: SessionDispatchMap,
     /// Track the currently active session for events that don't carry session_id.
     active_session_id: parking_lot::Mutex<Option<SessionId>>,
+    /// The terminal view this bridge serves — injected after view creation.
+    /// Enables automatic session-mailbox registration (Orca semantics: the
+    /// terminal handle IS the mailbox for cross-harness direct sends).
+    weak_view: parking_lot::Mutex<Option<warpui::WeakViewHandle<crate::terminal::view::TerminalView>>>,
 }
 
 impl ShellEventBridge {
@@ -89,6 +93,43 @@ impl ShellEventBridge {
         Self {
             dispatch_map,
             active_session_id: parking_lot::Mutex::new(None),
+            weak_view: parking_lot::Mutex::new(None),
+        }
+    }
+
+    /// Attach the terminal view (call after view creation).
+    pub fn set_view(&self, view: warpui::WeakViewHandle<crate::terminal::view::TerminalView>) {
+        log::debug!("orchestration: bridge set_view called");
+        *self.weak_view.lock() = Some(view);
+    }
+
+    /// Mailbox handle for a session — the direct-send address of a terminal.
+    /// Messages enqueued `to_handle = session_{sid}` are pointer-pushed into
+    /// this terminal when its agent is idle (delivery.rs), and pulled via
+    /// `check-messages session_{sid}`.
+    pub fn session_mailbox_handle(session_id: SessionId) -> String {
+        format!("session_{}", session_id.as_u64())
+    }
+
+    /// Idempotently register the session mailbox (ViewRegistry + push
+    /// delivery) on first observation of the session. Runs on the GPUI
+    /// main thread from the model-event subscription.
+    pub fn ensure_session_mailbox(&self, session_id: SessionId, cx: &warpui::AppContext) {
+        let Some(weak) = self.weak_view.lock().clone() else {
+            return;
+        };
+        let Some(_view) = weak.upgrade(cx) else {
+            return;
+        };
+        let mailbox = Self::session_mailbox_handle(session_id);
+        use warpui::SingletonEntity as _;
+        let already = crate::ai::orchestration::ViewRegistry::handle(cx)
+            .read(cx, |registry, _| registry.get(&mailbox, cx).is_some());
+        if !already {
+            crate::ai::orchestration::ViewRegistry::handle(cx)
+                .read(cx, |registry, _| registry.register(&mailbox, weak));
+            ::ai::agent::orchestration::delivery::register_dispatch(&mailbox);
+            log::info!("orchestration: session mailbox {mailbox} registered");
         }
     }
 
@@ -154,8 +195,6 @@ impl warpui::Entity for ShellEventBridge {
 /// Subscribe the bridge to a `ModelEventDispatcher`. On each terminal model
 /// event, translate it to a `DcsHookEvent` and apply the worker state
 /// transition via the orchestration store.
-///
-/// Call this once during app initialization (per window or globally).
 pub fn subscribe_bridge(
     bridge: &warpui::ModelHandle<ShellEventBridge>,
     model_events: &warpui::ModelHandle<ModelEventDispatcher>,
@@ -163,9 +202,11 @@ pub fn subscribe_bridge(
 ) {
     bridge.update(ctx, |_, ctx| {
         ctx.subscribe_to_model(model_events, |bridge, event, ctx| {
-            // Track active session from events that carry session_id.
+            // Track active session from events that carry session_id, and
+            // idempotently register the session mailbox for direct sends.
             if let ModelEvent::Handler(AnsiHandlerEvent::Bootstrapped { session_id, .. }) = event {
                 bridge.set_active_session(*session_id);
+                bridge.ensure_session_mailbox(*session_id, ctx);
             }
 
             // Translate and apply.
