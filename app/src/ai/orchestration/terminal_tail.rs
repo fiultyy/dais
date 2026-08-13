@@ -482,36 +482,49 @@ fn extract_signals(tv: &TerminalView) -> ::ai::agent::orchestration::idle_detect
     };
     let alt_screen_active = model.is_alt_screen_active();
 
-    // (session_id, last_block_finished) — scalars only, borrowed in scope.
-    let last_block_info = {
+    // Session-scoped timing from the ShellEventBridge's registry. Session
+    // identity comes from the last non-in-band block.
+    let timing = {
         let block_list = model.block_list();
         block_list
             .blocks()
             .iter()
             .filter(|b| !b.is_in_band_command_block())
             .last()
-            .map(|b| (b.session_id(), b.finished()))
+            .and_then(|b| b.session_id())
+            .map(crate::ai::orchestration::session_activity::signals_for)
     };
 
-    // Session-scoped timing from the ShellEventBridge's registry.
-    let timing = last_block_info
-        .and_then(|(sid, _)| sid)
-        .map(crate::ai::orchestration::session_activity::signals_for);
-
-    let output_silent_for_ms = last_block_info.map(|(_, finished)| {
-        if !finished {
-            // Last block still executing — actively producing output.
+    let output_silent_for_ms = timing.map(|t| {
+        if t.executing {
+            // Shell mid-cycle (preexec side) — actively producing output.
             0u64
         } else {
-            // Finished: true silence = time since the last shell event
-            // (AfterBlockCompleted / Precmd). Fall back to the conservative
-            // heuristic when the session has no registry record.
-            timing
-                .as_ref()
-                .and_then(|t| t.silent_for_ms)
-                .unwrap_or(1000)
+            // At rest since the last observed event; true silence is the
+            // time since then. Sessions with no event record (e.g. shells
+            // that predate the bridge wiring) keep the old conservative
+            // heuristic below.
+            match t.silent_for_ms {
+                Some(ms) => ms,
+                None => conservative_block_silence(&model),
+            }
         }
     });
+
+    /// Pre-registry heuristic: a finished last block ≈ at least ~1s of
+    /// silence; an unfinished one may still be streaming.
+    fn conservative_block_silence(model: &crate::terminal::model::TerminalModel) -> u64 {
+        let block_list = model.block_list();
+        match block_list
+            .blocks()
+            .iter()
+            .filter(|b| !b.is_in_band_command_block())
+            .last()
+        {
+            Some(b) if b.finished() => 1000,
+            _ => 0,
+        }
+    }
 
     ::ai::agent::orchestration::idle_detector::IdleSignal {
         title,

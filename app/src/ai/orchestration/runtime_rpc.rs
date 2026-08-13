@@ -17,8 +17,9 @@ use serde::{Deserialize, Serialize};
 use std::io::{BufRead, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 // ---------------------------------------------------------------------------
@@ -259,14 +260,18 @@ fn dispatch_request(cmd: &str, args: &serde_json::Value) -> RpcResponse {
             })),
             error: None,
         },
+        // L2: full-command forwarding. The payload is a serialized
+        // `OrchestrationCommand`; the GUI process executes it on the GPUI
+        // thread with the same semantics as a local CLI invocation.
+        "orchestration" => dispatch_orchestration(args),
         "send-message" | "check-messages" | "check-status" => {
-            // L1 stub: tell the client to fall back to direct DB access.
-            // L2 will implement real forwarding.
+            // Legacy L1 command names — superseded by "orchestration".
+            // Kept as fallback stubs so old clients degrade gracefully.
             RpcResponse {
                 ok: true,
                 result: Some(serde_json::json!({
                     "fallback": true,
-                    "reason": "L1 stub; use direct DB path",
+                    "reason": "L1 stub; use the orchestration command",
                 })),
                 error: None,
             }
@@ -275,6 +280,188 @@ fn dispatch_request(cmd: &str, args: &serde_json::Value) -> RpcResponse {
             ok: false,
             result: None,
             error: Some(format!("unknown command: {other}")),
+        },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// L2 full-command dispatcher
+// ---------------------------------------------------------------------------
+
+use crate::ai::agent_sdk::orchestration::execute_command;
+use warp_cli::orchestration::OrchestrationCommand;
+
+/// One forwarded orchestration command awaiting GPUI-thread execution.
+pub struct DispatcherJob {
+    pub command: OrchestrationCommand,
+    pub respond: std::sync::mpsc::Sender<DispatcherResult>,
+}
+
+/// Result of executing a forwarded command on the GPUI thread.
+pub struct DispatcherResult {
+    pub ok: bool,
+    /// Captured stdout of the execution (what a local CLI would print).
+    pub output: String,
+    pub error: Option<String>,
+}
+
+static DISPATCH_JOBS: OnceLock<async_channel::Sender<DispatcherJob>> = OnceLock::new();
+
+/// Install the process-wide dispatcher job sender. Called once at GUI
+/// startup when the `RpcDispatcher` GPUI model is registered; serve mode
+/// never calls this, which keeps its socket responses on the L1 fallback
+/// path (CLI degrades to direct DB).
+pub fn set_dispatcher_sender(sender: async_channel::Sender<DispatcherJob>) {
+    let _ = DISPATCH_JOBS.set(sender);
+}
+
+/// Execute a forwarded command on the GPUI thread, waiting up to
+/// `timeout_ms` for completion.
+///
+/// Returns `None` when no dispatcher is installed (serve mode) or the
+/// execution did not finish in time — the server answers with a fallback
+/// response so the CLI degrades to direct DB access.
+fn execute_on_gui_thread(
+    command: OrchestrationCommand,
+    timeout_ms: u64,
+) -> Option<DispatcherResult> {
+    let tx = DISPATCH_JOBS.get()?;
+    // Try-send first: a full channel must not block the accept loop.
+    let (resp_tx, resp_rx) = std::sync::mpsc::channel();
+    tx.try_send(DispatcherJob {
+        command,
+        respond: resp_tx,
+    })
+    .ok()?;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(timeout_ms);
+    loop {
+        let now = std::time::Instant::now();
+        if now >= deadline {
+            return None;
+        }
+        match resp_rx.recv_timeout(deadline - now) {
+            Ok(result) => return Some(result),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => return None,
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                // Dispatcher died mid-execution (e.g. panicking command).
+                return Some(DispatcherResult {
+                    ok: false,
+                    output: String::new(),
+                    error: Some("dispatcher dropped the job".into()),
+                });
+            }
+        }
+    }
+}
+
+/// Run `f` with the process stdout redirected into an in-memory buffer.
+///
+/// Forwarded commands print their results via `println!` (shared execution
+/// body with the CLI path); capturing lets the RPC response carry that
+/// output back to the CLI caller. Process-wide fd juggling is safe here:
+/// execution happens on the GPUI main thread and is bounded by the
+/// dispatcher timeout; log output goes to the log framework, not stdout.
+fn with_captured_stdout(f: impl FnOnce() -> anyhow::Result<()>) -> DispatcherResult {
+    use std::io::Read;
+
+    let mut fds = [0i32; 2];
+    if unsafe { libc::pipe(fds.as_mut_ptr()) } != 0 {
+        return DispatcherResult {
+            ok: false,
+            output: String::new(),
+            error: Some("pipe() failed".into()),
+        };
+    }
+    let (read_fd, write_fd) = (fds[0], fds[1]);
+    let saved_fd = unsafe { libc::dup(libc::STDOUT_FILENO) };
+    if saved_fd < 0 {
+        unsafe { libc::close(read_fd) };
+        unsafe { libc::close(write_fd) };
+        return DispatcherResult {
+            ok: false,
+            output: String::new(),
+            error: Some("dup() failed".into()),
+        };
+    }
+
+    // Flush Rust's stdout buffer before swapping the fd.
+    let _ = std::io::stdout().flush();
+    unsafe { libc::dup2(write_fd, libc::STDOUT_FILENO) };
+
+    let result = f();
+
+    // Restore before reading: the read side sees EOF once write_fd closes.
+    let _ = std::io::stdout().flush();
+    unsafe {
+        libc::dup2(saved_fd, libc::STDOUT_FILENO);
+        libc::close(saved_fd);
+        libc::close(write_fd);
+    }
+
+    let mut buf = Vec::new();
+    // Takes ownership of read_fd: closed when the File drops.
+    let mut reader =
+        unsafe { <std::fs::File as std::os::unix::io::FromRawFd>::from_raw_fd(read_fd) };
+    let _ = reader.read_to_end(&mut buf);
+    let output = String::from_utf8_lossy(&buf).to_string();
+
+    match result {
+        Ok(()) => DispatcherResult {
+            ok: true,
+            output,
+            error: None,
+        },
+        Err(e) => DispatcherResult {
+            ok: false,
+            output,
+            error: Some(format!("{e:#}")),
+        },
+    }
+}
+
+/// Handle the L2 `orchestration` command: deserialize the full
+/// `OrchestrationCommand`, execute it on the GPUI thread, and wrap the
+/// captured output in an `RpcResponse`.
+fn dispatch_orchestration(args: &serde_json::Value) -> RpcResponse {
+    let command: OrchestrationCommand = match serde_json::from_value(args.clone()) {
+        Ok(c) => c,
+        Err(e) => {
+            return RpcResponse {
+                ok: false,
+                result: None,
+                error: Some(format!("bad command payload: {e}")),
+            }
+        }
+    };
+
+    match execute_on_gui_thread(command, 4500) {
+        Some(result) => {
+            if result.ok {
+                RpcResponse {
+                    ok: true,
+                    result: Some(serde_json::json!({
+                        "output": result.output,
+                    })),
+                    error: result.error,
+                }
+            } else {
+                RpcResponse {
+                    ok: false,
+                    result: Some(serde_json::json!({
+                        "output": result.output,
+                    })),
+                    error: result.error,
+                }
+            }
+        }
+        // No dispatcher (serve mode) or timed out — CLI falls back to DB.
+        None => RpcResponse {
+            ok: true,
+            result: Some(serde_json::json!({
+                "fallback": true,
+                "reason": "no GUI dispatcher or execution timed out",
+            })),
+            error: None,
         },
     }
 }
@@ -403,3 +590,49 @@ mod tests {
         assert!(!resp.ok);
     }
 }
+
+// ---------------------------------------------------------------------------
+// RpcDispatcher — GPUI model executing forwarded commands (L2)
+// ---------------------------------------------------------------------------
+
+/// GPUI model that drains `DispatcherJob`s on the main thread and executes
+/// them via the shared `execute_command` body.
+///
+/// Register once at GUI startup (after the orchestration store and view
+/// bridges are up):
+///
+/// ```ignore
+/// ctx.add_singleton_model(|ctx| {
+///     crate::ai::orchestration::runtime_rpc::RpcDispatcher::new(ctx)
+/// });
+/// ```
+pub struct RpcDispatcher;
+
+impl RpcDispatcher {
+    pub fn new(ctx: &mut warpui::ModelContext<Self>) -> Self {
+        let (tx, rx) = async_channel::bounded::<DispatcherJob>(16);
+        set_dispatcher_sender(tx);
+
+        // NB: do NOT touch `connection::store()` here — the DB path is only
+        // set later during app init; resolve it lazily per job instead.
+
+        ctx.spawn_stream_local(
+            rx,
+            move |_me, job: DispatcherJob, ctx| {
+                let DispatcherJob { command, respond } = job;
+                let store = ::ai::agent::orchestration::connection::store();
+                let result = with_captured_stdout(|| execute_command(&command, store, ctx));
+                let _ = respond.send(result);
+            },
+            |_, _| {},
+        );
+        Self
+    }
+}
+
+impl warpui::Entity for RpcDispatcher {
+    type Event = ();
+}
+
+impl warpui::SingletonEntity for RpcDispatcher {}
+

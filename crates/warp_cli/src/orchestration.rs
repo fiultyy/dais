@@ -7,7 +7,7 @@
 use clap::Subcommand;
 
 /// Orchestration subcommands.
-#[derive(Debug, Clone, Subcommand)]
+#[derive(Debug, Clone, Subcommand, serde::Serialize, serde::Deserialize)]
 pub enum OrchestrationCommand {
     /// Create a new orchestration run.
     CreateRun {

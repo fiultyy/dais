@@ -5,8 +5,9 @@
 
 use std::str::FromStr;
 use ::ai::agent::orchestration;
-use ::ai::agent::orchestration::types::{MessageType, WorkerDispatchState};
 use ::ai::agent::orchestration::OrchestrationStore;
+use ::ai::agent::orchestration::types::{MessageType, WorkerDispatchState};
+use ::ai::agent::orchestration::store::DieselOrchestrationStore;
 use anyhow::anyhow;
 use warp_cli::orchestration::OrchestrationCommand;
 use warp_cli::GlobalOptions;
@@ -21,20 +22,38 @@ pub fn run(
     cx: &mut warpui::AppContext,
     command: OrchestrationCommand,
 ) -> anyhow::Result<()> {
-    // ── Socket fast path (L1) ──
-    // For commands that can be served by a running GUI, try forwarding
-    // through the Unix-domain socket first.  On failure (no GUI, timeout,
-    // L1 fallback stub), degrade to the existing direct-DB path — zero
+    // ── Socket fast path ──
+    // When a GUI runtime owns the orchestration plane, forward the command
+    // through its Unix-domain RPC socket. On failure (no runtime, timeout,
+    // serve-mode stub) degrade to the existing direct-DB path — zero
     // regression risk.
     #[cfg(unix)]
     if try_socket_fast_path(&command) {
-        // The command was handled (or deliberately skipped) via socket;
-        // still terminate the event loop before returning.
+        // The command was handled via socket; terminate the event loop.
         cx.terminate_app(warpui::platform::TerminationMode::ForceTerminate, None);
         return Ok(());
     }
 
     let store = orchestration::connection::store();
+    let result = execute_command(&command, store, cx);
+    if result.is_ok() {
+        // CLI dispatch lives inside the app event loop; without an explicit
+        // terminate the loop keeps waiting for windows (headless hang).
+        cx.terminate_app(warpui::platform::TerminationMode::ForceTerminate, None);
+    }
+    result
+}
+
+/// Execute an orchestration command against the store.
+///
+/// Shared by the CLI dispatch path ([`run`]) and the runtime RPC server's
+/// L2 dispatcher (`RpcDispatcher`) — the GUI process executes forwarded
+/// commands with the exact same semantics as a local CLI invocation.
+pub fn execute_command(
+    command: &OrchestrationCommand,
+    store: &DieselOrchestrationStore,
+    cx: &mut warpui::AppContext,
+) -> anyhow::Result<()> {
     match command {
         OrchestrationCommand::CreateRun { objective } => {
             let id = store.create_run(&objective).map_err(|e| anyhow!("{e}"))?;
@@ -200,7 +219,7 @@ pub fn run(
             force,
         } => {
             let summary = crate::ai::orchestration::dispatch_send::inject_prompt(
-                &dispatch_id, &text, force, cx,
+                &dispatch_id, &text, *force, cx,
             )?;
             println!("{summary}");
         }
@@ -224,9 +243,9 @@ pub fn run(
             // after is None, and we need the total count for the cursor line.
             let cursor_result = crate::ai::orchestration::terminal_tail::terminal_tail_with_cursor_with_cx(
                 &dispatch_id,
-                lines,
+                *lines,
                 max_bytes,
-                after,
+                *after,
                 cx,
             );
 
@@ -285,8 +304,8 @@ pub fn run(
             crate::ai::orchestration::interactive::answer(
                 &dispatch_id,
                 text.as_deref(),
-                enter,
-                interrupt,
+                *enter,
+                *interrupt,
             )?;
             println!("action sent to {dispatch_id}");
         }
@@ -310,7 +329,7 @@ pub fn run(
             };
 
             let mut timed_out = false;
-            if wait {
+            if *wait {
                 // Orca waitForMessage semantics (31959): register a claim so
                 // the push plane skips this mailbox's matching types (mutual
                 // exclusion), poll until match/timeout, always finish with a
@@ -318,7 +337,7 @@ pub fn run(
                 let waiter_id = format!("wtr_{}", uuid::Uuid::new_v4().simple());
                 let types_json = serde_json::to_string(&message_type).unwrap_or_else(|_| "[]".into());
                 let deadline = std::time::Instant::now()
-                    + std::time::Duration::from_millis(timeout_ms.max(1));
+                    + std::time::Duration::from_millis((*timeout_ms).max(1));
                 let claim_ttl: i64 = 15; // refreshed every poll tick
 
                 let mut matched = false;
@@ -373,62 +392,31 @@ pub fn run(
         }
     }
 
-    // CLI dispatch lives inside the app event loop; without an explicit
-    // terminate the loop keeps waiting for windows (headless hang).
-    cx.terminate_app(warpui::platform::TerminationMode::ForceTerminate, None);
-
     Ok(())
 }
 
-/// Attempt to forward eligible orchestration commands to a running GUI via the
-/// runtime RPC socket.
+/// Attempt to forward an orchestration command to a running GUI via the
+/// runtime RPC socket (L2).
+///
+/// Blocking commands (`check-messages --wait`) are never forwarded — the
+/// waiter loop belongs in this process (its waiter claim must live exactly
+/// as long as this invocation); a GUI-side wait would also pin the GPUI
+/// main thread against the dispatcher timeout.
 #[cfg(unix)]
 fn try_socket_fast_path(command: &OrchestrationCommand) -> bool {
     use crate::ai::orchestration::runtime_rpc;
 
-    let (cmd_name, args) = match command {
-        OrchestrationCommand::CheckStatus { run_id } => {
-            ("check-status", serde_json::json!({ "run_id": run_id }))
-        }
-        OrchestrationCommand::SendMessage {
-            run_id,
-            from,
-            to,
-            message_type,
-            subject,
-            body,
-        } => (
-            "send-message",
-            serde_json::json!({
-                "run_id": run_id,
-                "from": from,
-                "to": to,
-                "message_type": message_type,
-                "subject": subject,
-                "body": body,
-            }),
-        ),
-        OrchestrationCommand::CheckMessages {
-            handle,
-            wait,
-            timeout_ms,
-            message_type,
-        } => (
-            "check-messages",
-            serde_json::json!({
-                "handle": handle,
-                "wait": wait,
-                "timeout_ms": timeout_ms,
-                "message_type": message_type,
-            }),
-        ),
-        _ => return false,
-    };
+    if let OrchestrationCommand::CheckMessages { wait: true, .. } = command {
+        return false;
+    }
 
-    match runtime_rpc::try_socket_forward(cmd_name, &args) {
+    match runtime_rpc::try_socket_forward("orchestration", &serde_json::to_value(command).unwrap_or(serde_json::Value::Null)) {
         Ok(Some(response)) => {
-            // Socket returned a real result — print it and we're done.
-            println!("{response}");
+            // The GUI executed the command; the response JSON carries the
+            // captured stdout under "output". Print it verbatim (strip the
+            // JSON wrapper) so the caller sees exactly what a local CLI
+            // invocation would print.
+            print_forwarded_output(&response);
             true
         }
         Ok(None) => {
@@ -441,4 +429,24 @@ fn try_socket_fast_path(command: &OrchestrationCommand) -> bool {
             false
         }
     }
+}
+
+/// Print the captured output of a forwarded command.
+///
+/// `response` is the pretty-printed `result` JSON (`{"output": "..."}`);
+/// failure to parse simply prints it raw rather than losing information.
+#[cfg(unix)]
+fn print_forwarded_output(response: &str) {
+    match serde_json::from_str::<serde_json::Value>(response) {
+        Ok(v) => {
+            if let Some(output) = v.get("output").and_then(|o| o.as_str()) {
+                print!("{output}");
+            } else {
+                print!("{response}");
+            }
+        }
+        Err(_) => print!("{response}"),
+    }
+    use std::io::Write as _;
+    let _ = std::io::stdout().flush();
 }

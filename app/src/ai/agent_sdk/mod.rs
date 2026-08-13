@@ -56,7 +56,7 @@ pub mod output;
 mod profiles;
 mod provider;
 #[cfg(feature = "orchestration")]
-mod orchestration;
+pub mod orchestration;
 #[cfg(test)]
 mod test_support;
 mod text_layout;

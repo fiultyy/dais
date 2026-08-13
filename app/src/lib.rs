@@ -983,14 +983,16 @@ fn run_internal(mut launch_mode: LaunchMode) -> Result<()> {
         ctx.add_singleton_model(move |ctx| {
             plugin::PluginHost::new(ctx).expect("Could not instantiate PluginHost")
         });
-        // ── Runtime RPC server (L1) ──
-        // When running as a full GUI app, start a lightweight Unix-domain
-        // socket RPC server so CLI invocations from other terminals can
-        // discover this process and forward orchestration commands.
-        // The _rpc_handle is intentionally held until the closure exits;
-        // its Drop clears the metadata file and shuts down the socket.
-        #[cfg(feature = "orchestration")]
-        let _rpc_handle = if matches!(&launch_mode, LaunchMode::App { .. }) {
+        // ── Runtime RPC server (L2) ──
+        // When running as a full GUI app, start the Unix-domain socket RPC
+        // server so CLI invocations from other terminals can forward
+        // orchestration commands into this process (single writer: the GUI
+        // owns the orchestration plane). The server handle is intentionally
+        // leaked — this closure returns before the app exits, and Drop would
+        // tear the server down one second into the session. Stale metadata /
+        // sockets are handled by the CLI's is_pid_alive() check.
+        #[cfg(all(unix, feature = "orchestration"))]
+        if matches!(&launch_mode, LaunchMode::App { .. }) {
             match crate::ai::orchestration::runtime_rpc::spawn_rpc_server("app") {
                 Ok((socket_path, handle)) => {
                     let meta = crate::ai::orchestration::runtime_rpc::RuntimeMetadata {
@@ -999,16 +1001,18 @@ fn run_internal(mut launch_mode: LaunchMode) -> Result<()> {
                         mode: "app".into(),
                     };
                     crate::ai::orchestration::runtime_rpc::write_metadata(&meta);
-                    Some(handle)
+                    // L2 dispatcher: executes forwarded commands on the
+                    // GPUI main thread via the shared CLI execution body.
+                    ctx.add_singleton_model(|ctx| {
+                        crate::ai::orchestration::runtime_rpc::RpcDispatcher::new(ctx)
+                    });
+                    std::mem::forget(handle);
                 }
                 Err(e) => {
                     log::warn!("runtime_rpc: failed to start RPC server: {e}");
-                    None
                 }
             }
-        } else {
-            None
-        };
+        }
         let app_state = initialize_app(
             &launch_mode,
             timer,
