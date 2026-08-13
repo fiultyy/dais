@@ -31,6 +31,11 @@ pub enum OrchestrationCommand {
     StartWorker {
         /// Task id to dispatch.
         task_id: String,
+        /// Optional command that marks completion of this worker.
+        /// When a shell block finishes with a matching command, the dispatch
+        /// is settled automatically (block-driven settlement).
+        #[arg(long)]
+        command: Option<String>,
     },
 
     /// Send a message between agents.
@@ -126,6 +131,11 @@ pub enum OrchestrationCommand {
         /// Max lines to return.
         #[arg(long, default_value_t = 40)]
         lines: usize,
+        /// Only return lines after this cursor position (cumulative line count
+        /// from a prior read). Enables incremental polling without re-reading
+        /// the full scrollback.
+        #[arg(long)]
+        after: Option<usize>,
     },
 
     /// Scan a dispatched worker's terminal tail for wait-blocked signals.

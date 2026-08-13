@@ -140,6 +140,8 @@ use crate::uri::web_intent_parser::maybe_rewrite_web_url_to_intent;
 
 use ::ai::project_context::model::ProjectContextModel;
 pub use ai::agent::{todos::AIAgentTodoList, AIAgentActionResultType, FileEdit, TodoOperation};
+#[cfg(feature = "orchestration")]
+pub use ai::orchestration::runtime_rpc;
 use ai::agent_conversations_model::AgentConversationsModel;
 use ai::blocklist::{BlocklistAIHistoryModel, BlocklistAIPermissions};
 use ai::execution_profiles::editor::ExecutionProfileEditorManager;
@@ -981,6 +983,32 @@ fn run_internal(mut launch_mode: LaunchMode) -> Result<()> {
         ctx.add_singleton_model(move |ctx| {
             plugin::PluginHost::new(ctx).expect("Could not instantiate PluginHost")
         });
+        // ── Runtime RPC server (L1) ──
+        // When running as a full GUI app, start a lightweight Unix-domain
+        // socket RPC server so CLI invocations from other terminals can
+        // discover this process and forward orchestration commands.
+        // The _rpc_handle is intentionally held until the closure exits;
+        // its Drop clears the metadata file and shuts down the socket.
+        #[cfg(feature = "orchestration")]
+        let _rpc_handle = if matches!(&launch_mode, LaunchMode::App { .. }) {
+            match crate::ai::orchestration::runtime_rpc::spawn_rpc_server("app") {
+                Ok((socket_path, handle)) => {
+                    let meta = crate::ai::orchestration::runtime_rpc::RuntimeMetadata {
+                        socket_path: socket_path.to_string_lossy().to_string(),
+                        pid: std::process::id(),
+                        mode: "app".into(),
+                    };
+                    crate::ai::orchestration::runtime_rpc::write_metadata(&meta);
+                    Some(handle)
+                }
+                Err(e) => {
+                    log::warn!("runtime_rpc: failed to start RPC server: {e}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
         let app_state = initialize_app(
             &launch_mode,
             timer,
@@ -1145,22 +1173,22 @@ fn initialize_app(
                     log::error!("orchestration router: PRAGMA failed: {e}, router not started");
                 } else {
                     let store = DieselOrchestrationStore::new(conn);
-                    // Push plane: PTY writes via the global sender; titles
-                    // via the channel bridge (router runs off-main-thread,
+                    // Push plane: PTY writes via the global sender; idle
+                    // signals via the channel bridge (router runs off-main-thread,
                     // so the channel flavour is safe there).
                     let executor = crate::ai::orchestration::global_pty_sender().map(|s| {
                         let e: std::sync::Arc<dyn ::ai::agent::orchestration::executor::PtyExecutor> =
                             std::sync::Arc::new(s.clone());
                         e
                     });
-                    let probe: std::sync::Arc<dyn Fn(&str) -> Option<String> + Send + Sync> =
+                    let probe: std::sync::Arc<dyn Fn(&str) -> ::ai::agent::orchestration::idle_detector::IdleSignal + Send + Sync> =
                         std::sync::Arc::new(|dispatch_id: &str| {
-                            crate::ai::orchestration::terminal_tail::terminal_title(dispatch_id)
+                            crate::ai::orchestration::terminal_tail::terminal_signals(dispatch_id)
                         });
                     let mut router = MessageRouter::new(store, "orchestrator");
                     if let Some(executor) = executor {
                         router = router.with_delivery(
-                            ::ai::agent::orchestration::router::PushPlane { executor, title_probe: probe },
+                            ::ai::agent::orchestration::router::PushPlane { executor, signal_probe: probe },
                         );
                     }
                     router.spawn();

@@ -31,6 +31,7 @@ use ::ai::agent::orchestration::OrchestrationStore;
 
 use parking_lot::Mutex;
 use crate::terminal::model_events::{AnsiHandlerEvent, ModelEvent, ModelEventDispatcher};
+use crate::terminal::event::{AfterBlockCompletedEvent, BlockType, UserBlockCompleted};
 use crate::terminal::model::session::SessionId;
 
 /// Maps Warp session IDs to orchestration dispatch IDs.
@@ -86,14 +87,22 @@ pub struct ShellEventBridge {
     /// Enables automatic session-mailbox registration (Orca semantics: the
     /// terminal handle IS the mailbox for cross-harness direct sends).
     weak_view: parking_lot::Mutex<Option<warpui::WeakViewHandle<crate::terminal::view::TerminalView>>>,
-}
+    /// Timestamp of the last observed shell activity (Preexec, CommandFinished,
+    /// Precmd, etc.). Refreshed by the model-event subscription.
+    ///
+    /// Future wiring point: this will feed `since_last_precmd_ms` into
+    /// `IdleSignal` via the SessionDispatchMap lookup path. Currently recorded
+    /// but not yet consumed by the idle detector probe.
+    last_activity: parking_lot::Mutex<Option<std::time::Instant>>,
 
+}
 impl ShellEventBridge {
     pub fn new(dispatch_map: SessionDispatchMap) -> Self {
         Self {
             dispatch_map,
             active_session_id: parking_lot::Mutex::new(None),
             weak_view: parking_lot::Mutex::new(None),
+            last_activity: parking_lot::Mutex::new(None),
         }
     }
 
@@ -219,6 +228,46 @@ pub fn subscribe_bridge(
                 crate::ai::orchestration::ViewRegistry::handle(ctx)
                     .read(ctx, |registry, _| registry.unregister(&mailbox));
                 log::info!("orchestration: session mailbox {mailbox} retired (shell exit)");
+            }
+
+            // Refresh last_activity timestamp on shell lifecycle events.
+            // Future: this feeds since_last_precmd_ms into IdleSignal.
+            let is_shell_activity = matches!(
+                event,
+                ModelEvent::Handler(AnsiHandlerEvent::Precmd)
+                    | ModelEvent::Handler(AnsiHandlerEvent::Preexec)
+                    | ModelEvent::AfterBlockCompleted(_)
+            );
+            if is_shell_activity {
+                *bridge.last_activity.lock() = Some(std::time::Instant::now());
+            }
+
+
+            // ── Block-driven settlement (direction 2) ──────────────
+            // If the completed block's command matches the dispatch's
+            // start_options.command, settle immediately — independent of
+            // preamble detection.
+            if let ModelEvent::AfterBlockCompleted(AfterBlockCompletedEvent {
+                exit_code,
+                block_type: BlockType::User(UserBlockCompleted { command, .. }),
+                ..
+            }) = event
+            {
+                if let Some(dispatch_id) = bridge.dispatch_for_active() {
+                    let store = ::ai::agent::orchestration::connection::store();
+                    let settled = crate::ai::orchestration::block_settle::try_settle_from_block(
+                        &dispatch_id,
+                        command,
+                        *exit_code,
+                        store,
+                    );
+                    if settled {
+                        log::info!(
+                            "orchestration: block_settle settled dispatch {} (exit={exit_code}, cmd={command:?})",
+                            dispatch_id
+                        );
+                    }
+                }
             }
 
             // Translate and apply.

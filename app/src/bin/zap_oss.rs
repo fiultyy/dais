@@ -23,6 +23,16 @@ pub static AmdPowerXpressRequestHighPerformance: u32 = 1;
 
 // Zap OSS 构建的入口,简单包一层 warp::run()。
 fn main() -> Result<()> {
+    // ── "serve" 快路径 ──
+    // `zap-oss serve` 启动一个轻量级无头 RPC 服务器，处理
+    // send-message / check-messages / status 通过 Unix 域套接字。
+    // 无需 GPUI 应用基础设施。metadata 文件由服务器写入；
+    // 在退出时（通过 ctrlc 或信号），会进行清理。
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() >= 2 && args[1] == "serve" {
+        return run_serve();
+    }
+
     let mut state = ChannelState::new(
         Channel::Oss,
         ChannelConfig {
@@ -61,6 +71,74 @@ fn main() -> Result<()> {
     ChannelState::set(state);
 
     warp::run()
+}
+
+
+/// Lightweight headless serve mode: starts a runtime RPC server + metadata,
+/// handles send-message / check-messages / status via direct DB access
+/// (no GPUI needed). Blocks until Ctrl-C.
+#[cfg(all(unix, feature = "orchestration"))]
+fn run_serve() -> Result<()> {
+    use warp::runtime_rpc::{
+        self, clear_metadata, RuntimeMetadata,
+    };
+
+    // Initialize channel state so paths::state_dir() etc. work.
+    let mut state = ChannelState::new(
+        Channel::Oss,
+        ChannelConfig {
+            app_id: AppId::new("dev", "zap", "Zap"),
+            logfile_name: "zap.log".into(),
+            autoupdate_config: None,
+            mcp_static_config: None,
+        },
+    );
+    if cfg!(debug_assertions) {
+        state = state.with_additional_features(DEBUG_FLAGS);
+    }
+    state = state.with_additional_features(&[FeatureFlag::Orchestration]);
+    ChannelState::set(state);
+
+    // Start the RPC socket server.
+    let (socket_path, _handle) = runtime_rpc::spawn_rpc_server("serve")
+        .map_err(|e| anyhow::anyhow!("failed to start RPC server: {e}"))?;
+
+    let meta = RuntimeMetadata {
+        socket_path: socket_path.to_string_lossy().to_string(),
+        pid: std::process::id(),
+        mode: "serve".into(),
+    };
+    runtime_rpc::write_metadata(&meta);
+    eprintln!("zap-oss serve: RPC server listening on {}", meta.socket_path);
+    eprintln!("zap-oss serve: metadata at {}", runtime_rpc::runtime_metadata_path().display());
+
+    // Block until the process is killed (Ctrl-C / SIGTERM).
+    // The default Rust runtime installs SIGINT/SIGTERM handlers that
+    // terminate the process; we just need to keep main alive.
+    eprintln!("zap-oss serve: running. Press Ctrl-C to stop.");
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(3600));
+    }
+    // Ctrl-C/SIGTERM kills the process immediately, so this is unreachable.
+    // Metadata is stale-safe: CLI callers use is_pid_alive() to detect
+    // dead serve processes and clean up then.
+    #[allow(unreachable_code)]
+    {
+        clear_metadata();
+        Ok(())
+    }
+}
+
+/// Serve mode fallback: not supported on non-Unix or without orchestration feature.
+#[cfg(not(all(unix, feature = "orchestration")))]
+fn run_serve() -> Result<()> {
+    let msg = {
+        #[cfg(not(unix))]
+        { "zap-oss serve is only supported on Unix platforms" }
+        #[cfg(all(unix, not(feature = "orchestration")))]
+        { "zap-oss serve requires the 'orchestration' feature" }
+    };
+    anyhow::bail!("{msg}")
 }
 
 // If we're not using an external plist, embed the following as the Info.plist.

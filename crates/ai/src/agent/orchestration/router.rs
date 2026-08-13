@@ -19,6 +19,7 @@ use std::time::Duration;
 use super::db::OrchestrationResult;
 use super::delivery;
 use super::executor::PtyExecutor;
+use super::idle_detector::IdleSignal;
 use super::messaging;
 use super::store::DieselOrchestrationStore;
 use super::OrchestrationStore;
@@ -39,16 +40,16 @@ pub struct MessageRouter {
     handle: String,
     shutdown: Arc<AtomicBool>,
     thread: Mutex<Option<JoinHandle<()>>>,
-    /// Optional push-delivery plane: PTY executor + terminal-title probe
+    /// Optional push-delivery plane: PTY executor + idle-signal probe
     /// for assigned dispatches. Injected by the app layer.
     delivery: Option<PushPlane>,
 }
 
-/// Push-delivery collaborators (app-injected): a PTY executor and a
-/// terminal-title probe (channel-based; safe off the GPUI main thread).
+/// Push-delivery collaborators (app-injected): a PTY executor and an
+/// idle-signal probe (channel-based; safe off the GPUI main thread).
 pub struct PushPlane {
     pub executor: Arc<dyn PtyExecutor>,
-    pub title_probe: Arc<dyn Fn(&str) -> Option<String> + Send + Sync>,
+    pub signal_probe: Arc<dyn Fn(&str) -> IdleSignal + Send + Sync>,
 }
 
 
@@ -89,7 +90,7 @@ impl MessageRouter {
         let delivery = self
             .delivery
             .as_ref()
-            .map(|p| (p.executor.clone(), p.title_probe.clone()));
+            .map(|p| (p.executor.clone(), p.signal_probe.clone()));
 
         let handle_thread = thread::Builder::new()
             .name("orch-msg-router".into())
@@ -204,11 +205,11 @@ impl MessageRouter {
     fn push_pending(
         store: &DieselOrchestrationStore,
         executor: &Arc<dyn PtyExecutor>,
-        probe: &Arc<dyn Fn(&str) -> Option<String> + Send + Sync>,
+        probe: &Arc<dyn Fn(&str) -> IdleSignal + Send + Sync>,
     ) {
         for dispatch_id in delivery::registered_dispatches() {
-            let title = probe(&dispatch_id);
-            let outcome = delivery::deliver_pending(store, executor.as_ref(), &dispatch_id, title.as_deref());
+            let sig = probe(&dispatch_id);
+            let outcome = delivery::deliver_pending(store, executor.as_ref(), &dispatch_id, &sig);
             match outcome {
                 Ok(delivery::PushOutcome::Delivered { count }) => {
                     log::info!(

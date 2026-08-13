@@ -28,6 +28,7 @@ use parking_lot::Mutex;
 use super::db::{Message, OrchestrationResult};
 use super::executor::PtyExecutor;
 use super::OrchestrationStore;
+use super::idle_detector::{classify_idle, IdleSignal, IdleVerdict};
 use super::prompt_injection::{detect_agent_status_from_title, AgentTerminalStatus};
 
 /// Delay between the pointer text and the submit CR (agent TUIs swallow a
@@ -57,6 +58,8 @@ pub fn format_message_pointer(n: usize, handle: &str) -> String {
 #[derive(Default)]
 pub struct DispatchPushState {
     pub last_status: Option<AgentTerminalStatus>,
+    /// Last idle verdict from multi-signal classification.
+    pub last_idle_verdict: Option<IdleVerdict>,
     last_pointed_sequence: i32,
     in_flight: bool,
 }
@@ -91,22 +94,19 @@ pub fn registered_dispatches() -> Vec<String> {
 
 /// Whether this poll tick should attempt delivery for the dispatch.
 ///
-/// Orca fires on two paths (orca-runtime.ts:10523-10525 and 31918):
-/// the working→idle title transition, and `notifyMessageArrival` when the
-/// agent is already idle (no transition available). This poll loop is both
-/// the title sampler and the arrival signal, so the merged condition is
-/// simply: agent idle AND something pending. Re-announcing the same
-/// sequences is prevented by the watermark, not by the edge.
-/// `title == None` (no status source) never fires.
+/// Uses multi-signal idle classification: title (primary), alt_screen,
+/// output silence, and precmd recency. Falls back to Unknown when no
+/// signal is available — Unknown never fires (conservative).
 pub fn should_push(
     state: &mut DispatchPushState,
-    title: Option<&str>,
+    sig: &IdleSignal,
     has_pending: bool,
 ) -> bool {
-    let status = title.and_then(detect_agent_status_from_title);
-    let fire = status == Some(AgentTerminalStatus::Idle) && has_pending;
-    state.last_status = status;
-    fire
+    // Backward-compatible: still extract title-based status for last_status tracking.
+    state.last_status = sig.title.as_deref().and_then(detect_agent_status_from_title);
+    let verdict = classify_idle(sig);
+    state.last_idle_verdict = Some(verdict);
+    verdict == IdleVerdict::Idle && has_pending
 }
 
 /// Outcome of one delivery attempt.
@@ -131,7 +131,7 @@ pub fn deliver_pending<S: OrchestrationStore>(
     store: &S,
     executor: &dyn PtyExecutor,
     dispatch_id: &str,
-    title: Option<&str>,
+    sig: &IdleSignal,
 ) -> OrchestrationResult<PushOutcome> {
     let mut reg = registry().lock();
     let Some(state) = reg.get_mut(dispatch_id) else {
@@ -156,8 +156,8 @@ pub fn deliver_pending<S: OrchestrationStore>(
         return Ok(PushOutcome::NothingNew);
     }
 
-    // 2. Idle gate (title-driven; busy agents keep mail in the DB).
-    if !should_push(state, title, true) {
+    // 2. Idle gate (multi-signal classification; busy/unknown agents keep mail in the DB).
+    if !should_push(state, sig, true) {
         return Ok(PushOutcome::NotIdle);
     }
 
@@ -213,8 +213,19 @@ pub fn deliver_pending<S: OrchestrationStore>(
 mod tests {
     use super::*;
     use crate::agent::orchestration::executor::MockPtyExecutor;
+    use crate::agent::orchestration::idle_detector::idle_signal_from_title;
     use crate::agent::orchestration::store::DieselOrchestrationStore;
     use crate::agent::orchestration::types::MessageType;
+
+    /// Shorthand: build an IdleSignal from a title string slice.
+    fn sig(title: &str) -> IdleSignal {
+        idle_signal_from_title(Some(title.to_string()))
+    }
+
+    /// Shorthand: build an IdleSignal with no title.
+    fn no_sig() -> IdleSignal {
+        IdleSignal::default()
+    }
 
     fn setup() -> (DieselOrchestrationStore, MockPtyExecutor) {
         (
@@ -244,7 +255,7 @@ mod tests {
         register_dispatch("ctx_t1");
         seed_message(&store, "ctx_t1");
 
-        let out = deliver_pending(&store, &exec, "ctx_t1", Some("✳ claude idle")).unwrap();
+        let out = deliver_pending(&store, &exec, "ctx_t1", &sig("✳ claude idle")).unwrap();
         assert_eq!(out, PushOutcome::Delivered { count: 1 });
 
         // Two writes: pointer, then lone CR.
@@ -255,7 +266,7 @@ mod tests {
 
         // delivered_at set → second attempt has nothing new.
         drop(writes);
-        let out2 = deliver_pending(&store, &exec, "ctx_t1", Some("✳ claude idle")).unwrap();
+        let out2 = deliver_pending(&store, &exec, "ctx_t1", &sig("✳ claude idle")).unwrap();
         assert_eq!(out2, PushOutcome::NothingNew);
         unregister_dispatch("ctx_t1");
     }
@@ -267,7 +278,7 @@ mod tests {
         seed_message(&store, "ctx_t2");
 
         // Working title → NotIdle, DB untouched.
-        let out = deliver_pending(&store, &exec, "ctx_t2", Some("claude working")).unwrap();
+        let out = deliver_pending(&store, &exec, "ctx_t2", &sig("claude working")).unwrap();
         assert_eq!(out, PushOutcome::NotIdle);
         assert!(store.get_undelivered_unread("ctx_t2").unwrap().len() == 1);
         unregister_dispatch("ctx_t2");
@@ -278,7 +289,7 @@ mod tests {
         let (store, exec) = setup();
         register_dispatch("ctx_t3");
         seed_message(&store, "ctx_t3");
-        let out = deliver_pending(&store, &exec, "ctx_t3", None).unwrap();
+        let out = deliver_pending(&store, &exec, "ctx_t3", &no_sig()).unwrap();
         assert_eq!(out, PushOutcome::NotIdle);
         unregister_dispatch("ctx_t3");
     }
@@ -307,7 +318,7 @@ mod tests {
             }
         }
         seed_message(&store, "ctx_t4");
-        let out = deliver_pending(&store, &FailExec, "ctx_t4", Some("✳ claude idle")).unwrap();
+        let out = deliver_pending(&store, &FailExec, "ctx_t4", &sig("✳ claude idle")).unwrap();
         assert!(matches!(out, PushOutcome::WriteFailed(_)));
         // Both messages: the first still undelivered at DB level? No — the
         // first was never marked delivered in this test (watermark was
@@ -324,13 +335,13 @@ mod tests {
 
         // Live waiter claiming all types → push skips (mutual exclusion).
         store.upsert_waiter("wtr_1", "ctx_t5", "[]", 60).unwrap();
-        let out = deliver_pending(&store, &exec, "ctx_t5", Some("✳ claude idle")).unwrap();
+        let out = deliver_pending(&store, &exec, "ctx_t5", &sig("✳ claude idle")).unwrap();
         assert_eq!(out, PushOutcome::NothingNew);
         assert_eq!(store.get_undelivered_unread("ctx_t5").unwrap().len(), 1);
 
         // Claim removed → push proceeds.
         store.delete_waiter("wtr_1").unwrap();
-        let out = deliver_pending(&store, &exec, "ctx_t5", Some("✳ claude idle")).unwrap();
+        let out = deliver_pending(&store, &exec, "ctx_t5", &sig("✳ claude idle")).unwrap();
         assert_eq!(out, PushOutcome::Delivered { count: 1 });
         unregister_dispatch("ctx_t5");
     }
@@ -343,7 +354,7 @@ mod tests {
 
         // TTL in the past → claim is dead, push proceeds.
         store.upsert_waiter("wtr_2", "ctx_t6", "[]", -10).unwrap();
-        let out = deliver_pending(&store, &exec, "ctx_t6", Some("✳ claude idle")).unwrap();
+        let out = deliver_pending(&store, &exec, "ctx_t6", &sig("✳ claude idle")).unwrap();
         assert_eq!(out, PushOutcome::Delivered { count: 1 });
         unregister_dispatch("ctx_t6");
     }
@@ -360,8 +371,53 @@ mod tests {
         store
             .upsert_waiter("wtr_3", "ctx_t7", "[\"worker_done\"]", 60)
             .unwrap();
-        let out = deliver_pending(&store, &exec, "ctx_t7", Some("✳ claude idle")).unwrap();
+        let out = deliver_pending(&store, &exec, "ctx_t7", &sig("✳ claude idle")).unwrap();
         assert_eq!(out, PushOutcome::Delivered { count: 1 });
         unregister_dispatch("ctx_t7");
+    }
+
+    #[test]
+    fn test_multi_signal_idle_path_delivers() {
+        // No title signal at all: bare shell with recent precmd + settled
+        // output is Idle via the multi-signal fallback.
+        let (store, exec) = setup();
+        register_dispatch("ctx_t8");
+        seed_message(&store, "ctx_t8");
+        let mut s = IdleSignal::default();
+        s.since_last_precmd_ms = Some(3_000);
+        s.output_silent_for_ms = Some(2_500); // > bare-shell threshold (2s)
+        let out = deliver_pending(&store, &exec, "ctx_t8", &s).unwrap();
+        assert_eq!(out, PushOutcome::Delivered { count: 1 });
+        unregister_dispatch("ctx_t8");
+    }
+
+    #[test]
+    fn test_multi_signal_busy_alt_screen() {
+        // alt-screen TUI rendering → Busy even with settled output.
+        let (store, exec) = setup();
+        register_dispatch("ctx_t9");
+        seed_message(&store, "ctx_t9");
+        let mut s = IdleSignal::default();
+        s.alt_screen_active = true;
+        s.since_last_precmd_ms = Some(3_000);
+        s.output_silent_for_ms = Some(5_000);
+        let out = deliver_pending(&store, &exec, "ctx_t9", &s).unwrap();
+        assert_eq!(out, PushOutcome::NotIdle);
+        unregister_dispatch("ctx_t9");
+    }
+
+    #[test]
+    fn test_bare_shell_short_silence_stays_unknown() {
+        // Bare shell (no title) with only 800ms silence: below the 2s
+        // bare-shell threshold → Unknown → no push.
+        let (store, exec) = setup();
+        register_dispatch("ctx_t10");
+        seed_message(&store, "ctx_t10");
+        let mut s = IdleSignal::default();
+        s.since_last_precmd_ms = Some(3_000);
+        s.output_silent_for_ms = Some(800);
+        let out = deliver_pending(&store, &exec, "ctx_t10", &s).unwrap();
+        assert_eq!(out, PushOutcome::NotIdle);
+        unregister_dispatch("ctx_t10");
     }
 }

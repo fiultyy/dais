@@ -21,8 +21,20 @@ pub fn run(
     cx: &mut warpui::AppContext,
     command: OrchestrationCommand,
 ) -> anyhow::Result<()> {
-    let store = orchestration::connection::store();
+    // ── Socket fast path (L1) ──
+    // For commands that can be served by a running GUI, try forwarding
+    // through the Unix-domain socket first.  On failure (no GUI, timeout,
+    // L1 fallback stub), degrade to the existing direct-DB path — zero
+    // regression risk.
+    #[cfg(unix)]
+    if try_socket_fast_path(&command) {
+        // The command was handled (or deliberately skipped) via socket;
+        // still terminate the event loop before returning.
+        cx.terminate_app(warpui::platform::TerminationMode::ForceTerminate, None);
+        return Ok(());
+    }
 
+    let store = orchestration::connection::store();
     match command {
         OrchestrationCommand::CreateRun { objective } => {
             let id = store.create_run(&objective).map_err(|e| anyhow!("{e}"))?;
@@ -49,15 +61,22 @@ pub fn run(
             println!("{id}");
         }
 
-        OrchestrationCommand::StartWorker { task_id } => {
+        OrchestrationCommand::StartWorker { task_id, command } => {
             // Look up the task to get its run_id, then create a linked
             // dispatch_context + worker_dispatch pair.
             let task = store
                 .get_task(&task_id)
                 .map_err(|e| anyhow!("{e}"))?
                 .ok_or_else(|| anyhow!("task not found: {task_id}"))?;
+
+            // Build start_options: include command if provided for block-driven settlement.
+            let start_options = match &command {
+                Some(cmd) => serde_json::json!({"command": cmd}).to_string(),
+                None => "{}".to_string(),
+            };
+
             let dispatch_id = store
-                .create_dispatch(&task.run_id, &task_id, "{}")
+                .create_dispatch(&task.run_id, &task_id, &start_options)
                 .map_err(|e| anyhow!("{e}"))?;
             println!("{dispatch_id}");
         }
@@ -189,26 +208,42 @@ pub fn run(
         OrchestrationCommand::ReadWorker {
             dispatch_id,
             lines,
+            after,
         } => {
             use ::ai::agent::orchestration::output::{ArchiveKind, TerminalTailContent};
 
             // We are on the GPUI main thread (in-process CLI dispatch): use
             // the direct flavour. The channel flavour would deadlock here.
-            let content = crate::ai::orchestration::terminal_tail::terminal_tail_with_cx(
+            //
+            // When `--after N` is given, use the cursor variant for incremental
+            // reads. Backward compatible: without --after, behaviour is
+            // identical to before.
+            let max_bytes = 64 * 1024;
+
+            // Always use the cursor variant — it degrades to full-tail when
+            // after is None, and we need the total count for the cursor line.
+            let cursor_result = crate::ai::orchestration::terminal_tail::terminal_tail_with_cursor_with_cx(
                 &dispatch_id,
                 lines,
-                64 * 1024,
+                max_bytes,
+                after,
                 cx,
             );
 
-            match content {
-                Some(text) => {
+            match cursor_result {
+                Some((text, total, _reset)) => {
+                    // Emit cursor line to stderr (machine-parseable) when
+                    // --after was used.
+                    if after.is_some() {
+                        eprintln!("cursor: {total}");
+                    }
+
                     println!("{text}");
 
                     // Persist as a terminal_tail archive.
                     let tail_struct = TerminalTailContent {
                         lines: text.lines().map(|l| l.to_string()).collect(),
-                        truncated: text.len() >= 64 * 1024,
+                        truncated: text.len() >= max_bytes,
                         terminal_status: String::new(), // not detectable here
                         warnings: vec![],
                     };
@@ -343,4 +378,67 @@ pub fn run(
     cx.terminate_app(warpui::platform::TerminationMode::ForceTerminate, None);
 
     Ok(())
+}
+
+/// Attempt to forward eligible orchestration commands to a running GUI via the
+/// runtime RPC socket.
+#[cfg(unix)]
+fn try_socket_fast_path(command: &OrchestrationCommand) -> bool {
+    use crate::ai::orchestration::runtime_rpc;
+
+    let (cmd_name, args) = match command {
+        OrchestrationCommand::CheckStatus { run_id } => {
+            ("check-status", serde_json::json!({ "run_id": run_id }))
+        }
+        OrchestrationCommand::SendMessage {
+            run_id,
+            from,
+            to,
+            message_type,
+            subject,
+            body,
+        } => (
+            "send-message",
+            serde_json::json!({
+                "run_id": run_id,
+                "from": from,
+                "to": to,
+                "message_type": message_type,
+                "subject": subject,
+                "body": body,
+            }),
+        ),
+        OrchestrationCommand::CheckMessages {
+            handle,
+            wait,
+            timeout_ms,
+            message_type,
+        } => (
+            "check-messages",
+            serde_json::json!({
+                "handle": handle,
+                "wait": wait,
+                "timeout_ms": timeout_ms,
+                "message_type": message_type,
+            }),
+        ),
+        _ => return false,
+    };
+
+    match runtime_rpc::try_socket_forward(cmd_name, &args) {
+        Ok(Some(response)) => {
+            // Socket returned a real result — print it and we're done.
+            println!("{response}");
+            true
+        }
+        Ok(None) => {
+            // No GUI / fallback stub / timeout — degrade to direct DB.
+            false
+        }
+        Err(e) => {
+            // RPC error — log but degrade to direct DB.
+            log::warn!("runtime_rpc socket error, degrading to direct DB: {e:#}");
+            false
+        }
+    }
 }
