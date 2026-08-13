@@ -10087,6 +10087,7 @@ impl TerminalView {
                 num_secrets_obfuscated,
                 cloud_workflow_id,
                 cloud_env_var_collection_id,
+                ..
             }) => {
                 // To automatically warpify a subshell, we run the relevant command to open the
                 // subshell and create a future to delay bootstrapping the subshell long enough for

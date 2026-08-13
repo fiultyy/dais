@@ -225,6 +225,9 @@ pub struct AfterBlockCompletedEvent {
     pub block_type: BlockType,
     pub num_secrets_obfuscated: usize,
 
+    /// The exit code of the completed command. 0 = success.
+    pub exit_code: i32,
+
     /// If the completed block was a workflow, this is its id.
     pub cloud_workflow_id: Option<SyncId>,
 
