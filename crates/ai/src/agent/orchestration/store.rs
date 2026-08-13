@@ -5,6 +5,7 @@
 //! `tokio::task::spawn_blocking`.
 
 #![allow(clippy::explicit_auto_deref)]
+use std::str::FromStr;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
@@ -297,10 +298,23 @@ impl DieselOrchestrationStore {
             ))
             .execute(conn)?;
 
-        let worker_state = match outcome {
-            WorkerReportOutcome::Succeeded => "succeeded",
-            WorkerReportOutcome::Failed => "failed",
+        let target_state = match outcome {
+            WorkerReportOutcome::Succeeded => WorkerDispatchState::Succeeded,
+            WorkerReportOutcome::Failed => WorkerDispatchState::Failed,
         };
+        let worker = Self::get_worker_dispatch_tx(conn, dispatch_id)?
+            .ok_or_else(|| {
+                OrchestrationError::NotFound(format!("worker dispatch {}", dispatch_id))
+            })?;
+        let current = WorkerDispatchState::from_str(&worker.state)
+            .map_err(|_| OrchestrationError::Task(format!("invalid state: {}", worker.state)))?;
+        if !is_valid_transition(current, target_state) {
+            return Err(OrchestrationError::Task(format!(
+                "Invalid worker transition: {} → {}",
+                worker.state, target_state
+            )));
+        }
+        let worker_state = target_state.as_ref();
         diesel::update(
             worker_dispatches::table.filter(worker_dispatches::dispatch_id.eq(dispatch_id)),
         )
@@ -400,10 +414,13 @@ impl DieselOrchestrationStore {
                 .ok_or_else(|| {
                     OrchestrationError::NotFound(format!("worker dispatch {}", dispatch_id))
                 })?;
-            if worker.state != "stopping" {
+            let current = WorkerDispatchState::from_str(&worker.state)
+                .map_err(|_| OrchestrationError::Task(format!("invalid state: {}", worker.state)))?;
+            let target = WorkerDispatchState::Stopped;
+            if !is_valid_transition(current, target) {
                 return Err(OrchestrationError::Task(format!(
-                    "Worker {} is not stopping (state: {}).",
-                    dispatch_id, worker.state
+                    "Invalid worker transition: {} → {}",
+                    worker.state, target
                 )));
             }
 
@@ -577,9 +594,9 @@ impl DieselOrchestrationStore {
         conn.transaction::<_, OrchestrationError, _>(|conn| {
             let gate = decision_gates::table
                 .filter(decision_gates::id.eq(gate_id))
+                .filter(decision_gates::status.eq("pending"))
                 .first::<DecisionGate>(conn)
-                .optional()?;
-            let gate = gate
+                .optional()?
                 .ok_or_else(|| OrchestrationError::NotFound(format!("gate {}", gate_id)))?;
 
             let now = Utc::now().naive_utc();
@@ -602,17 +619,38 @@ impl DieselOrchestrationStore {
     }
 
     /// Expire a gate due to timeout.
-    /// Ported from Orca `timeoutGate`: sets gate to `timeout`.
+    /// Ported from Orca `timeoutGate`: sets gate to `timeout` and fails the
+    /// blocked task so it doesn't stay stranded forever.
     pub fn expire_gate(&self, gate_id: &str) -> OrchestrationResult<()> {
         let mut conn = self.lock();
         let now = Utc::now().naive_utc();
-        diesel::update(decision_gates::table.filter(decision_gates::id.eq(gate_id)))
-            .set((
-                decision_gates::status.eq("timeout"),
-                decision_gates::resolved_at.eq(now),
-            ))
-            .execute(&mut *conn)?;
-        Ok(())
+        conn.transaction::<_, OrchestrationError, _>(|conn| {
+            let gate = decision_gates::table
+                .filter(decision_gates::id.eq(gate_id))
+                .filter(decision_gates::status.eq("pending"))
+                .first::<DecisionGate>(conn)
+                .optional()?;
+            let gate = gate
+                .ok_or_else(|| OrchestrationError::NotFound(format!("gate {}", gate_id)))?;
+
+            diesel::update(decision_gates::table.filter(decision_gates::id.eq(gate_id)))
+                .set((
+                    decision_gates::status.eq("timeout"),
+                    decision_gates::resolved_at.eq(now),
+                ))
+                .execute(conn)?;
+
+            // Fail the blocked task so it doesn't stay stranded.
+            diesel::update(tasks::table.filter(tasks::id.eq(&gate.task_id)))
+                .set((
+                    tasks::status.eq("failed"),
+                    tasks::result.eq("gate_timeout"),
+                    tasks::completed_at.eq(now),
+                ))
+                .execute(conn)?;
+
+            Ok(())
+        })
     }
 
     /// List gates with optional filters.
@@ -679,19 +717,24 @@ impl DieselOrchestrationStore {
         // Only consider tasks in 'ready' state (deps already promoted)
         let ready: Vec<&Task> = all_tasks.iter().filter(|t| t.status == "ready").collect();
 
-        // Compute dependency depth for each ready task
+        // Compute dependency depth for each ready task.
+        // A visiting sentinel (usize::MAX) guards against circular deps;
+        // if we re-enter a node currently being visited, the cycle is
+        // broken by returning depth 0 instead of recursing infinitely.
+        const VISITING: usize = usize::MAX;
         fn depth(
             task_id: &str,
             task_map: &HashMap<&str, &Task>,
             cache: &mut HashMap<String, usize>,
         ) -> usize {
             if let Some(&d) = cache.get(task_id) {
-                return d;
+                return if d == VISITING { 0 } else { d };
             }
             let task = match task_map.get(task_id) {
                 Some(t) => *t,
                 None => return 0,
             };
+            cache.insert(task_id.to_string(), VISITING);
             let deps: Vec<String> = serde_json::from_str(&task.deps).unwrap_or_default();
             let max_dep = deps
                 .iter()
