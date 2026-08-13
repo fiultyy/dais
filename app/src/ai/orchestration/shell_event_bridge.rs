@@ -36,9 +36,12 @@ use crate::terminal::model::session::SessionId;
 
 /// Maps Warp session IDs to orchestration dispatch IDs.
 /// Populated when a terminal pane is assigned to a worker dispatch.
-#[derive(Default)]
+///
+/// Registered as a GPUI singleton; the inner state is an `Arc<Mutex<..>>`
+/// so the `ShellEventBridge` can share it across model instances.
+#[derive(Default, Clone)]
 pub struct SessionDispatchMap {
-    map: Mutex<HashMap<SessionId, String>>,
+    map: Arc<Mutex<HashMap<SessionId, String>>>,
 }
 
 impl SessionDispatchMap {
@@ -53,6 +56,11 @@ impl SessionDispatchMap {
     pub fn get(&self, session_id: &SessionId) -> Option<String> {
         self.map.lock().get(session_id).cloned()
     }
+
+    /// Get a cloned handle sharing the same inner map.
+    pub fn handle_clone(&self) -> SessionDispatchMap {
+        self.clone()
+    }
 }
 
 impl warpui::Entity for SessionDispatchMap {
@@ -66,13 +74,13 @@ impl warpui::SingletonEntity for SessionDispatchMap {}
 ///
 /// Created once per terminal pane (or as a global singleton in future).
 pub struct ShellEventBridge {
-    dispatch_map: Arc<SessionDispatchMap>,
+    dispatch_map: SessionDispatchMap,
     /// Track the currently active session for events that don't carry session_id.
     active_session_id: parking_lot::Mutex<Option<SessionId>>,
 }
 
 impl ShellEventBridge {
-    pub fn new(dispatch_map: Arc<SessionDispatchMap>) -> Self {
+    pub fn new(dispatch_map: SessionDispatchMap) -> Self {
         Self {
             dispatch_map,
             active_session_id: parking_lot::Mutex::new(None),

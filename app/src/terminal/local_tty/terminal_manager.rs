@@ -199,6 +199,23 @@ impl TerminalManager {
             manager.register_model_event_dispatcher(&model_events, ctx);
         });
 
+        // Orchestration shell event bridge: translate OSC 133 / block
+        // completion events into worker state transitions.
+        #[cfg(feature = "orchestration")]
+        {
+            use crate::features::FeatureFlag;
+            use warpui::SingletonEntity as _;
+            if FeatureFlag::Orchestration.is_enabled() {
+                use crate::ai::orchestration::shell_event_bridge::{
+                    subscribe_bridge, SessionDispatchMap, ShellEventBridge,
+                };
+                let dispatch_map = SessionDispatchMap::handle(ctx)
+                    .read(ctx, |m, _| m.handle_clone());
+                let bridge = ctx.add_model(|_| ShellEventBridge::new(dispatch_map));
+                subscribe_bridge(&bridge, &model_events, ctx);
+            }
+        }
+
         let preferred_shell = chosen_shell.unwrap_or_else(|| {
             AvailableShells::handle(ctx)
                 .read(ctx, |shells, ctx| shells.get_user_preferred_shell(ctx))

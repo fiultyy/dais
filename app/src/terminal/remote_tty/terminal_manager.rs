@@ -66,6 +66,22 @@ impl TerminalManager {
         let model_events =
             ctx.add_model(|ctx| ModelEventDispatcher::new(events_rx, sessions.clone(), ctx));
 
+        // Orchestration shell event bridge (see local_tty for rationale).
+        #[cfg(feature = "orchestration")]
+        {
+            use crate::features::FeatureFlag;
+            use warpui::SingletonEntity as _;
+            if FeatureFlag::Orchestration.is_enabled() {
+                use crate::ai::orchestration::shell_event_bridge::{
+                    subscribe_bridge, SessionDispatchMap, ShellEventBridge,
+                };
+                let dispatch_map = SessionDispatchMap::handle(ctx)
+                    .read(ctx, |m, _| m.handle_clone());
+                let bridge = ctx.add_model(|_| ShellEventBridge::new(dispatch_map));
+                subscribe_bridge(&bridge, &model_events, ctx);
+            }
+        }
+
         // Create the terminal model.
         let model = terminal_manager::create_terminal_model(
             None, /* startup_directory */

@@ -1091,30 +1091,38 @@ fn initialize_app(
     // 轮询 messages 表并驱动 worker_done / heartbeat 生命周期。
     #[cfg(feature = "orchestration")]
     {
-        use ::ai::agent::orchestration::router::MessageRouter;
-        use ::ai::agent::orchestration::store::DieselOrchestrationStore;
-        use diesel::connection::SimpleConnection;
-        use diesel::Connection;
+        use crate::features::FeatureFlag;
+        use warpui::SingletonEntity as _;
 
-        let db_path = persistence::database_file_path();
-        let url = db_path.to_string_lossy();
-        if let Ok(mut conn) = diesel::sqlite::SqliteConnection::establish(&*url) {
-            if let Err(e) = conn.batch_execute(
-                "PRAGMA foreign_keys = ON; \
-                 PRAGMA busy_timeout = 2000; \
-                 PRAGMA journal_mode = WAL;",
-            ) {
-                log::error!("orchestration router: PRAGMA failed: {e}, router not started");
+        // Session→dispatch 注册表:terminal_manager 创建 ShellEventBridge 时读取。
+        let _dispatch_map = crate::ai::orchestration::shell_event_bridge::SessionDispatchMap::handle(ctx);
+
+        if FeatureFlag::Orchestration.is_enabled() {
+            use ::ai::agent::orchestration::router::MessageRouter;
+            use ::ai::agent::orchestration::store::DieselOrchestrationStore;
+            use diesel::connection::SimpleConnection;
+            use diesel::Connection;
+
+            let db_path = persistence::database_file_path();
+            let url = db_path.to_string_lossy();
+            if let Ok(mut conn) = diesel::sqlite::SqliteConnection::establish(&*url) {
+                if let Err(e) = conn.batch_execute(
+                    "PRAGMA foreign_keys = ON; \
+                     PRAGMA busy_timeout = 2000; \
+                     PRAGMA journal_mode = WAL;",
+                ) {
+                    log::error!("orchestration router: PRAGMA failed: {e}, router not started");
+                } else {
+                    let store = DieselOrchestrationStore::new(conn);
+                    let router = MessageRouter::new(store, "orchestrator");
+                    let _handle = router.spawn();
+                    log::info!("orchestration message router started");
+                }
             } else {
-                let store = DieselOrchestrationStore::new(conn);
-                let router = MessageRouter::new(store, "orchestrator");
-                let _handle = router.spawn();
-                log::info!("orchestration message router started");
+                log::error!(
+                    "orchestration router: failed to establish DB connection to {url}, router not started"
+                );
             }
-        } else {
-            log::error!(
-                "orchestration router: failed to establish DB connection to {url}, router not started"
-            );
         }
     }
 

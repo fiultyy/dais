@@ -33,9 +33,15 @@ pub fn run(_global_options: GlobalOptions, command: OrchestrationCommand) -> any
             println!("{id}");
         }
 
-        OrchestrationCommand::StartWorker { task_id: _ } => {
+        OrchestrationCommand::StartWorker { task_id } => {
+            // Look up the task to get its run_id, then create a linked
+            // dispatch_context + worker_dispatch pair.
+            let task = store
+                .get_task(&task_id)
+                .map_err(|e| anyhow!("{e}"))?
+                .ok_or_else(|| anyhow!("task not found: {task_id}"))?;
             let dispatch_id = store
-                .create_worker_dispatch()
+                .create_dispatch(&task.run_id, &task_id, "{}")
                 .map_err(|e| anyhow!("{e}"))?;
             println!("{dispatch_id}");
         }
