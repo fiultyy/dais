@@ -29,6 +29,8 @@ use std::sync::Arc;
 
 use ::ai::agent::orchestration::executor::DcsHookEvent;
 use ::ai::agent::orchestration::OrchestrationStore;
+
+use parking_lot::Mutex;
 use crate::terminal::model_events::{AnsiHandlerEvent, ModelEvent, ModelEventDispatcher};
 use crate::terminal::model::session::SessionId;
 
