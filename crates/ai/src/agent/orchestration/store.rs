@@ -1066,6 +1066,36 @@ impl OrchestrationStore for DieselOrchestrationStore {
         .execute(&mut *conn)?;
         Ok(())
     }
+
+    /// Undelivered unread messages for a mailbox — the push-delivery source.
+    /// Ported from Orca `getUndeliveredUnreadMessages` (db.ts:3487):
+    /// `to_handle = ? AND read = 0 AND delivered_at IS NULL AND
+    ///  delivery_contract = 'current_delivery' ORDER BY sequence`.
+    fn get_undelivered_unread(&self, handle: &str) -> OrchestrationResult<Vec<Message>> {
+        let mut conn = self.lock();
+        messages::table
+            .filter(messages::to_handle.eq(handle))
+            .filter(messages::read.eq(0))
+            .filter(messages::delivered_at.is_null())
+            .filter(messages::delivery_contract.eq("current_delivery"))
+            .order(messages::sequence.asc())
+            .load(&mut *conn)
+            .map_err(Into::into)
+    }
+
+    /// Mark messages delivered (pointer successfully written to the PTY).
+    fn mark_delivered(&self, sequences: &[i32]) -> OrchestrationResult<()> {
+        if sequences.is_empty() {
+            return Ok(());
+        }
+        let mut conn = self.lock();
+        diesel::update(
+            messages::table.filter(messages::sequence.eq_any(sequences)),
+        )
+        .set(messages::delivered_at.eq(Utc::now().naive_utc()))
+        .execute(&mut *conn)?;
+        Ok(())
+    }
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────

@@ -51,6 +51,9 @@ pub fn assign_to_active_pane(dispatch_id: &str, cx: &AppContext) -> anyhow::Resu
             map.register(session_id, dispatch_id);
         });
 
+    // 4. Register for push delivery (pointer injection on idle).
+    ::ai::agent::orchestration::delivery::register_dispatch(dispatch_id);
+
     Ok(format!("{dispatch_id} assigned to session {session_id:?} (pane view {})", terminal_view.id()))
 }
 
@@ -69,8 +72,11 @@ fn active_terminal_view(cx: &AppContext) -> Option<warpui::ViewHandle<TerminalVi
     })
 }
 
-/// Remove an assignment (both maps).
+/// Remove an assignment (both maps + push delivery).
 pub fn unassign(dispatch_id: &str, cx: &AppContext) -> anyhow::Result<()> {
+    // Unregister push delivery first: drops the watermark so a re-assignment
+    // starts clean (a reborn PTY must never receive a stale Enter).
+    ::ai::agent::orchestration::delivery::unregister_dispatch(dispatch_id);
     ViewRegistry::handle(cx).read(cx, |registry, _| {
         registry.unregister(dispatch_id);
     });

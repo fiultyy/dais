@@ -156,4 +156,11 @@ pub enum OrchestrationCommand {
         /// Dispatch id to assign to the active pane.
         dispatch_id: String,
     },
+
+    /// Pull unread messages for a mailbox (the agent-side check command the
+    /// pushed pointer tells the agent to run).
+    CheckMessages {
+        /// Mailbox handle (dispatch id, or "orchestrator").
+        handle: String,
+    },
 }

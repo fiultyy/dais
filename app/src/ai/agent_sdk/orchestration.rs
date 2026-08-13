@@ -261,6 +261,29 @@ pub fn run(
                 crate::ai::orchestration::dispatch_assign::assign_to_active_pane(&dispatch_id, cx)?;
             println!("{summary}");
         }
+
+        OrchestrationCommand::CheckMessages { handle } => {
+            // The pull path — authoritative consumer of the mailbox. The
+            // push pointer (delivery.rs) only accelerates this.
+            let messages = store
+                .drain_inbox(&handle)
+                .map_err(|e| anyhow!("{e}"))?;
+            if messages.is_empty() {
+                println!("no unread messages for {handle}");
+            } else {
+                let mut sequences = Vec::with_capacity(messages.len());
+                for m in &messages {
+                    println!(
+                        "--- seq {} from {} [{}] {} ---\n{}\n",
+                        m.sequence, m.from_handle, m.message_type, m.subject, m.body
+                    );
+                    sequences.push(m.sequence);
+                }
+                store
+                    .mark_messages_read(&sequences)
+                    .map_err(|e| anyhow!("{e}"))?;
+            }
+        }
     }
 
     // CLI dispatch lives inside the app event loop; without an explicit

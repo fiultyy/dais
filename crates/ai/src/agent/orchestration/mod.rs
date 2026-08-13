@@ -18,6 +18,7 @@ pub mod executor;
 pub mod groups;
 pub mod messaging;
 pub mod output;
+pub mod delivery;
 pub mod prompt_injection;
 pub mod reconciliation;
 pub mod store;
@@ -93,4 +94,12 @@ pub trait OrchestrationStore: Send + Sync {
     /// Mark messages as read by their sequence numbers.
     /// Call after successful reconciliation to prevent redelivery.
     fn mark_messages_read(&self, sequences: &[i32]) -> OrchestrationResult<()>;
+
+    /// Undelivered unread messages for a mailbox (push-delivery source).
+    /// `to_handle = ? AND read = 0 AND delivered_at IS NULL AND
+    ///  delivery_contract = 'current_delivery' ORDER BY sequence`.
+    fn get_undelivered_unread(&self, handle: &str) -> OrchestrationResult<Vec<Message>>;
+
+    /// Mark messages delivered (pointer written to the target PTY).
+    fn mark_delivered(&self, sequences: &[i32]) -> OrchestrationResult<()>;
 }

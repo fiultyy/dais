@@ -1139,7 +1139,24 @@ fn initialize_app(
                     log::error!("orchestration router: PRAGMA failed: {e}, router not started");
                 } else {
                     let store = DieselOrchestrationStore::new(conn);
-                    let router = MessageRouter::new(store, "orchestrator");
+                    // Push plane: PTY writes via the global sender; titles
+                    // via the channel bridge (router runs off-main-thread,
+                    // so the channel flavour is safe there).
+                    let executor = crate::ai::orchestration::global_pty_sender().map(|s| {
+                        let e: std::sync::Arc<dyn ::ai::agent::orchestration::executor::PtyExecutor> =
+                            std::sync::Arc::new(s.clone());
+                        e
+                    });
+                    let probe: std::sync::Arc<dyn Fn(&str) -> Option<String> + Send + Sync> =
+                        std::sync::Arc::new(|dispatch_id: &str| {
+                            crate::ai::orchestration::terminal_tail::terminal_title(dispatch_id)
+                        });
+                    let mut router = MessageRouter::new(store, "orchestrator");
+                    if let Some(executor) = executor {
+                        router = router.with_delivery(
+                            ::ai::agent::orchestration::router::PushPlane { executor, title_probe: probe },
+                        );
+                    }
                     router.spawn();
                     // Router must outlive this block: its Drop impl shuts the
                     // poll thread down. The router is process-lifetime state —

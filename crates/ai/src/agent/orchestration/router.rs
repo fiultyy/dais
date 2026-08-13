@@ -16,8 +16,9 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-
 use super::db::OrchestrationResult;
+use super::delivery;
+use super::executor::PtyExecutor;
 use super::messaging;
 use super::store::DieselOrchestrationStore;
 use super::OrchestrationStore;
@@ -25,6 +26,7 @@ use super::OrchestrationStore;
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 const BACKOFF_INTERVAL: Duration = Duration::from_millis(2000);
 const EMPTY_BACKOFF_THRESHOLD: u32 = 3;
+
 
 /// Background message router. Owns its own DB connection (separate from the
 /// CLI store singleton) so message routing doesn't block CLI operations.
@@ -37,7 +39,18 @@ pub struct MessageRouter {
     handle: String,
     shutdown: Arc<AtomicBool>,
     thread: Mutex<Option<JoinHandle<()>>>,
+    /// Optional push-delivery plane: PTY executor + terminal-title probe
+    /// for assigned dispatches. Injected by the app layer.
+    delivery: Option<PushPlane>,
 }
+
+/// Push-delivery collaborators (app-injected): a PTY executor and a
+/// terminal-title probe (channel-based; safe off the GPUI main thread).
+pub struct PushPlane {
+    pub executor: Arc<dyn PtyExecutor>,
+    pub title_probe: Arc<dyn Fn(&str) -> Option<String> + Send + Sync>,
+}
+
 
 impl MessageRouter {
     /// Create a new router that drains messages for `handle`.
@@ -50,7 +63,16 @@ impl MessageRouter {
             handle: handle.into(),
             shutdown: Arc::new(AtomicBool::new(false)),
             thread: Mutex::new(None),
+            delivery: None,
         }
+    }
+
+
+    /// Attach the push-delivery plane (PTY executor + title probe).
+    /// Must be called before `spawn()`.
+    pub fn with_delivery(mut self, plane: PushPlane) -> Self {
+        self.delivery = Some(plane);
+        self
     }
 
     /// Spawn the router as a background thread.
@@ -64,12 +86,21 @@ impl MessageRouter {
         let shutdown = self.shutdown.clone();
         let store = self.store.clone();
         let handle = self.handle.clone();
+        let delivery = self
+            .delivery
+            .as_ref()
+            .map(|p| (p.executor.clone(), p.title_probe.clone()));
 
         let handle_thread = thread::Builder::new()
             .name("orch-msg-router".into())
             .spawn(move || {
                 let mut empty_count: u32 = 0;
                 while !shutdown.load(Ordering::Relaxed) {
+                    // Push delivery for assigned dispatches (pointer
+                    // injection on idle) — best effort, never fatal.
+                    if let Some((executor, probe)) = delivery.as_ref() {
+                        Self::push_pending(&store, executor, probe);
+                    }
                     let sleep = match Self::drain_and_route(&store, &handle) {
                         Ok(true) => {
                             // Messages were processed — reset backoff.
@@ -164,6 +195,35 @@ impl MessageRouter {
         }
 
         Ok(true)
+    }
+
+    /// Attempt pointer push-delivery for every registered dispatch.
+    /// Best effort: any per-dispatch failure is logged and skipped; the
+    /// message stays pending in the DB for the next tick (or the agent's
+    /// `check-messages` pull).
+    fn push_pending(
+        store: &DieselOrchestrationStore,
+        executor: &Arc<dyn PtyExecutor>,
+        probe: &Arc<dyn Fn(&str) -> Option<String> + Send + Sync>,
+    ) {
+        for dispatch_id in delivery::registered_dispatches() {
+            let title = probe(&dispatch_id);
+            let outcome = delivery::deliver_pending(store, executor.as_ref(), &dispatch_id, title.as_deref());
+            match outcome {
+                Ok(delivery::PushOutcome::Delivered { count }) => {
+                    log::info!(
+                        "orchestration: pushed {count} message pointer(s) to {dispatch_id}"
+                    );
+                }
+                Ok(delivery::PushOutcome::WriteFailed(e)) => {
+                    log::warn!("orchestration: push to {dispatch_id} failed: {e}");
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    log::warn!("orchestration: push query failed for {dispatch_id}: {e}");
+                }
+            }
+        }
     }
 
     /// Signal the router to stop and wait for the thread to exit.
