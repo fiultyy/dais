@@ -341,7 +341,6 @@ impl TerminalManager {
         // the session mailbox on first shell bootstrap.
         #[cfg(feature = "orchestration")]
         if let Some(bridge) = &orchestration_bridge {
-            use warpui::SingletonEntity as _;
             if crate::features::FeatureFlag::Orchestration.is_enabled() {
                 bridge.update(ctx, |b, _| b.set_view(view.downgrade()));
             }

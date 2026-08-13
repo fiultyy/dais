@@ -20,7 +20,7 @@
 //!   authoritative consumer; this push is only an accelerator.
 
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use parking_lot::Mutex;

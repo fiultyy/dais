@@ -162,7 +162,6 @@ impl TerminalManager {
         // Give the orchestration bridge the view handle (see local_tty).
         #[cfg(feature = "orchestration")]
         if let Some(bridge) = &orchestration_bridge {
-            use warpui::SingletonEntity as _;
             if crate::features::FeatureFlag::Orchestration.is_enabled() {
                 bridge.update(ctx, |b, _| b.set_view(view.downgrade()));
             }

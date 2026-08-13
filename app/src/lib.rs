@@ -1122,7 +1122,13 @@ fn initialize_app(
             });
             log::info!("orchestration terminal tail bridge registered");
         }
-        if FeatureFlag::Orchestration.is_enabled() {
+        // Orca alignment: single-writer principle. A CLI process
+        // (LaunchMode::CommandLine) must NOT start the router/push thread —
+        // the GUI process owns delivery. Two routers polling one DB is
+        // idempotent-safe for settlement, but a pointer injection is a PTY
+        // write, not a DB op: two writers can double-push one mailbox.
+        let is_cli_mode = matches!(launch_mode, LaunchMode::CommandLine { .. });
+        if FeatureFlag::Orchestration.is_enabled() && !is_cli_mode {
             use ::ai::agent::orchestration::router::MessageRouter;
             use ::ai::agent::orchestration::store::DieselOrchestrationStore;
             use diesel::connection::SimpleConnection;
