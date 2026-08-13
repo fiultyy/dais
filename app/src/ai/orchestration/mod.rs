@@ -111,3 +111,5 @@ mod tests {
         assert_eq!(r2.handle, "pane-2");
     }
 }
+
+pub mod shell_event_bridge;
