@@ -64,7 +64,7 @@ pub fn run(_global_options: GlobalOptions, command: OrchestrationCommand) -> any
                         .map_err(|e| anyhow!("{e}"))?;
                     println!("Run {rid}: {} tasks", tasks.len());
                     for t in &tasks {
-                        let spec_preview = &t.spec[..t.spec.len().min(60)];
+                        let spec_preview: String = t.spec.chars().take(60).collect();
                         println!("  {} [{}] {}", t.id, t.status, spec_preview);
                     }
                 }
@@ -72,7 +72,7 @@ pub fn run(_global_options: GlobalOptions, command: OrchestrationCommand) -> any
                     let runs = store.list_runs().map_err(|e| anyhow!("{e}"))?;
                     println!("{} runs", runs.len());
                     for r in &runs {
-                        let obj_preview = &r.objective[..r.objective.len().min(60)];
+                        let obj_preview: String = r.objective.chars().take(60).collect();
                         println!("  {} {}", r.id, obj_preview);
                     }
                 }

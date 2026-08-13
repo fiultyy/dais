@@ -84,27 +84,22 @@ impl ShellEventBridge {
             _ => return None,
         };
 
-        let dcs_event = match handler_event {
+        match handler_event {
             AnsiHandlerEvent::Bootstrapped { session_id, .. } => {
                 let dispatch_id = self.dispatch_map.get(session_id)?;
-                return Some((
+                Some((
                     dispatch_id,
                     DcsHookEvent::Bootstrapped { shell_path: None },
-                ));
+                ))
             }
-            AnsiHandlerEvent::Precmd => DcsHookEvent::Precmd,
-            AnsiHandlerEvent::Preexec => DcsHookEvent::PromptStarted,
-            AnsiHandlerEvent::UserCommandFinished => DcsHookEvent::CommandFinished { exit_code: 0 },
-            _ => return None,
-        };
-
-        // For Precmd/Preexec/UserCommandFinished we need the session_id to
-        // look up the dispatch. These events don't carry session_id directly —
-        // it's set in ModelEventDispatcher::active_session_id. For now, return
-        // the event without dispatch_id resolution (the caller can handle it).
-        // This will be refined when the bridge is wired into a specific pane.
-        let _ = dcs_event;
-        None
+            // Precmd/Preexec/UserCommandFinished don't carry session_id.
+            // TODO(P3): wire active_session_id from ModelEventDispatcher to
+            // resolve dispatch_id for these events.
+            AnsiHandlerEvent::Precmd
+            | AnsiHandlerEvent::Preexec
+            | AnsiHandlerEvent::UserCommandFinished => None,
+            _ => None,
+        }
     }
 }
 

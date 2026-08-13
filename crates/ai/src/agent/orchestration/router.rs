@@ -93,20 +93,29 @@ impl MessageRouter {
         }
 
         for msg in &messages {
-            match messaging::route_message(store, msg) {
-                Ok(result) => {
+            // catch_unwind: a panic in route_message must not kill the router thread.
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                messaging::route_message(store, msg)
+            }));
+            match result {
+                Ok(Ok(routing_result)) => {
                     log::debug!(
                         "orchestration: routed msg seq={} -> {:?}",
                         msg.sequence,
-                        result
+                        routing_result
                     );
                 }
-                Err(e) => {
+                Ok(Err(e)) => {
                     log::warn!(
                         "orchestration: route_message failed for seq={}: {e}",
                         msg.sequence
                     );
-                    // Continue processing remaining messages.
+                }
+                Err(_) => {
+                    log::error!(
+                        "orchestration: route_message panicked for seq={}, skipping",
+                        msg.sequence
+                    );
                 }
             }
         }

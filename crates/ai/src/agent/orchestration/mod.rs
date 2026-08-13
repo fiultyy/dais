@@ -14,7 +14,6 @@
 pub mod connection;
 
 pub mod db;
-pub mod cli;
 pub mod executor;
 pub mod groups;
 pub mod messaging;

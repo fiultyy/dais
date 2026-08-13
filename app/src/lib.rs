@@ -1099,15 +1099,22 @@ fn initialize_app(
         let db_path = persistence::database_file_path();
         let url = db_path.to_string_lossy();
         if let Ok(mut conn) = diesel::sqlite::SqliteConnection::establish(&*url) {
-            let _ = conn.batch_execute(
+            if let Err(e) = conn.batch_execute(
                 "PRAGMA foreign_keys = ON; \
                  PRAGMA busy_timeout = 2000; \
                  PRAGMA journal_mode = WAL;",
+            ) {
+                log::error!("orchestration router: PRAGMA failed: {e}, router not started");
+            } else {
+                let store = DieselOrchestrationStore::new(conn);
+                let router = MessageRouter::new(store, "orchestrator");
+                let _handle = router.spawn();
+                log::info!("orchestration message router started");
+            }
+        } else {
+            log::error!(
+                "orchestration router: failed to establish DB connection to {url}, router not started"
             );
-            let store = DieselOrchestrationStore::new(conn);
-            let router = MessageRouter::new(store, "orchestrator");
-            let _handle = router.spawn();
-            log::info!("orchestration message router started");
         }
     }
 

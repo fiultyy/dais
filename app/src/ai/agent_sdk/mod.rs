@@ -103,6 +103,10 @@ fn dispatch_command(
         }
         #[cfg(feature = "orchestration")]
         CliCommand::Orchestration(orch_cmd) => orchestration::run(global_options, orch_cmd),
+        #[cfg(not(feature = "orchestration"))]
+        CliCommand::Orchestration(_) => Err(anyhow::anyhow!(
+            "orchestration is not enabled in this build"
+        )),
     }
 }
 
@@ -563,6 +567,8 @@ fn command_requires_auth(command: &CliCommand) -> bool {
         CliCommand::Whoami => true,
         CliCommand::Provider(_) => true,
         #[cfg(feature = "orchestration")]
+        CliCommand::Orchestration(_) => false,
+        #[cfg(not(feature = "orchestration"))]
         CliCommand::Orchestration(_) => false,
     }
 }
