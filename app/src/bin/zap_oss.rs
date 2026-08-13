@@ -5,7 +5,7 @@
 use anyhow::Result;
 use warp_core::{
     channel::{Channel, ChannelConfig, ChannelState},
-    features::DEBUG_FLAGS,
+    features::{FeatureFlag, DEBUG_FLAGS},
     AppId,
 };
 
@@ -40,9 +40,22 @@ fn main() -> Result<()> {
     // 可见 —— 在 Windows 上对日文 / 中文 / 韩文输入都属于实质性损坏。
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
-        use warp_core::features::FeatureFlag;
         state = state.with_additional_features(&[FeatureFlag::ImeMarkedText]);
     }
+    // OSS 版本没有服务端实验系统下发 feature flag,这里显式启用
+    // Warp 正式版通过服务端动态开启的几个核心 UI / agent 功能。
+    state = state.with_additional_features(&[
+        // 外部 harness 接入(claude-code / codex 等),否则 --harness 参数被拒。
+        FeatureFlag::AgentHarness,
+        // 新 Agent UI:全屏对话视图、上下文块自动挂载等。
+        FeatureFlag::AgentView,
+        FeatureFlag::AgentViewBlockContext,
+        // 左侧面板 Conversation List:实时列出每个终端会话。
+        FeatureFlag::AgentViewConversationListView,
+        // Agent prompt chip / toolbar 可编辑。
+        FeatureFlag::AgentViewPromptChip,
+        FeatureFlag::AgentToolbarEditor,
+    ]);
     ChannelState::set(state);
 
     warp::run()
