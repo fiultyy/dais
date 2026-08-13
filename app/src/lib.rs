@@ -1095,8 +1095,26 @@ fn initialize_app(
         use warpui::SingletonEntity as _;
 
         // Session→dispatch 注册表:terminal_manager 创建 ShellEventBridge 时读取。
-        let _dispatch_map = crate::ai::orchestration::shell_event_bridge::SessionDispatchMap::handle(ctx);
+        ctx.add_singleton_model(|_| crate::ai::orchestration::shell_event_bridge::SessionDispatchMap::default());
 
+        if FeatureFlag::Orchestration.is_enabled() {
+            use crate::ai::orchestration::{OrchestrationPtySender, PtyBridgeConsumer, ViewRegistry};
+
+            // PTY bridge:ViewRegistry + consumer 注册为 singleton,
+            // channel sender 存全局 OnceLock 供编排 plane 使用。
+            ctx.add_singleton_model(|_| ViewRegistry::default());
+            let (sender, rx) = OrchestrationPtySender::channel(256);
+            crate::ai::orchestration::set_global_pty_sender(sender);
+
+            let registry = ViewRegistry::handle(ctx)
+                .read(ctx, |m, _| m.clone());
+            ctx.add_singleton_model(move |ctx| {
+                let mut consumer = PtyBridgeConsumer::new(rx, registry);
+                consumer.start(ctx);
+                consumer
+            });
+            log::info!("orchestration pty bridge consumer started");
+        }
         if FeatureFlag::Orchestration.is_enabled() {
             use ::ai::agent::orchestration::router::MessageRouter;
             use ::ai::agent::orchestration::store::DieselOrchestrationStore;

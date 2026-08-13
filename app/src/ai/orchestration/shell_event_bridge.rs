@@ -23,7 +23,6 @@
 //! calls `transition_worker` on the orchestration store.
 
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::Arc;
 
 
