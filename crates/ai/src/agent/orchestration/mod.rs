@@ -22,6 +22,7 @@ pub mod output;
 pub mod reconciliation;
 pub mod store;
 pub mod types;
+pub mod router;
 pub mod worker;
 
 pub use db::{

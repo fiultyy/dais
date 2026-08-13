@@ -1087,6 +1087,30 @@ fn initialize_app(
         persistence::database_file_path(),
     );
 
+    // 启动编排消息路由线程。Router 开自己的 store 连接(独立于 CLI 单例),
+    // 轮询 messages 表并驱动 worker_done / heartbeat 生命周期。
+    #[cfg(feature = "orchestration")]
+    {
+        use ::ai::agent::orchestration::router::MessageRouter;
+        use ::ai::agent::orchestration::store::DieselOrchestrationStore;
+        use diesel::connection::SimpleConnection;
+        use diesel::Connection;
+
+        let db_path = persistence::database_file_path();
+        let url = db_path.to_string_lossy();
+        if let Ok(mut conn) = diesel::sqlite::SqliteConnection::establish(&*url) {
+            let _ = conn.batch_execute(
+                "PRAGMA foreign_keys = ON; \
+                 PRAGMA busy_timeout = 2000; \
+                 PRAGMA journal_mode = WAL;",
+            );
+            let store = DieselOrchestrationStore::new(conn);
+            let router = MessageRouter::new(store, "orchestrator");
+            let _handle = router.spawn();
+            log::info!("orchestration message router started");
+        }
+    }
+
     let persistence_writer = PersistenceWriter::new(writer_handles);
 
     let model_event_sender = persistence_writer.sender();
