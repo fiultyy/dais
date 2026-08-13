@@ -102,7 +102,7 @@ fn dispatch_command(
             provider::run(ctx, global_options, provider_cmd)
         }
         #[cfg(feature = "orchestration")]
-        CliCommand::Orchestration(orch_cmd) => orchestration::run(global_options, orch_cmd),
+        CliCommand::Orchestration(orch_cmd) => orchestration::run(global_options, ctx, orch_cmd),
         #[cfg(not(feature = "orchestration"))]
         CliCommand::Orchestration(_) => Err(anyhow::anyhow!(
             "orchestration is not enabled in this build"

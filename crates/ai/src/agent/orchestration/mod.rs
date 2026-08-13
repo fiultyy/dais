@@ -18,6 +18,7 @@ pub mod executor;
 pub mod groups;
 pub mod messaging;
 pub mod output;
+pub mod prompt_injection;
 pub mod reconciliation;
 pub mod store;
 pub mod types;
@@ -86,6 +87,10 @@ pub trait OrchestrationStore: Send + Sync {
         body: &str,
     ) -> OrchestrationResult<i32>;
 
-    /// Drain all unread messages for a handle, marking them read.
+    /// Drain all unread messages for a handle.
     fn drain_inbox(&self, handle: &str) -> OrchestrationResult<Vec<Message>>;
+
+    /// Mark messages as read by their sequence numbers.
+    /// Call after successful reconciliation to prevent redelivery.
+    fn mark_messages_read(&self, sequences: &[i32]) -> OrchestrationResult<()>;
 }

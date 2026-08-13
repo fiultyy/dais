@@ -82,6 +82,7 @@ struct NewMessage<'a> {
     message_type: &'a str,
     priority: &'a str,
     delivery_contract: &'a str,
+    payload: Option<&'a str>,
 }
 
 #[derive(Insertable)]
@@ -382,13 +383,31 @@ impl DieselOrchestrationStore {
                     dispatch_id, ctx.status
                 )));
             }
-
             diesel::update(
                 dispatch_contexts::table.filter(dispatch_contexts::id.eq(dispatch_id)),
             )
             .set(dispatch_contexts::status.eq("dispatched"))
             .execute(conn)?;
 
+            // Fold in the coordinator step: the task must be `dispatched`
+            // for `settle_worker_report` to accept a later worker_done.
+            // Guard on `ready` so a concurrent decision gate (`blocked`) or
+            // an already-settled task is never overwritten.
+            diesel::update(
+                tasks::table
+                    .filter(tasks::id.eq(&ctx.task_id))
+                    .filter(tasks::status.eq("ready")),
+            )
+            .set(tasks::status.eq("dispatched"))
+            .execute(conn)?;
+            let task_now = Self::get_task_tx(conn, &ctx.task_id)?
+                .ok_or_else(|| OrchestrationError::NotFound(format!("task {}", ctx.task_id)))?;
+            if task_now.status != "dispatched" {
+                return Err(OrchestrationError::Task(format!(
+                    "Task {} is {} (not ready) — refusing to mark dispatch ready.",
+                    ctx.task_id, task_now.status
+                )));
+            }
             let now = Utc::now().naive_utc();
             diesel::update(
                 worker_dispatches::table.filter(worker_dispatches::dispatch_id.eq(dispatch_id)),
@@ -992,6 +1011,18 @@ impl OrchestrationStore for DieselOrchestrationStore {
     ) -> OrchestrationResult<i32> {
         let mut conn = self.lock();
         let id = generate_id("msg");
+        // Lifecycle messages carry their structured payload in `body` (the
+        // CLI's single input). Mirror valid JSON bodies into the `payload`
+        // column so `reconcile_worker_done` / `reconcile_heartbeat` can
+        // parse them; other message types leave `payload` NULL.
+        let payload: Option<&str> = match message_type {
+            MessageType::WorkerDone | MessageType::Heartbeat
+                if serde_json::from_str::<serde_json::Value>(body).is_ok() =>
+            {
+                Some(body)
+            }
+            _ => None,
+        };
         diesel::insert_into(messages::table)
             .values(&NewMessage {
                 id: &id,
@@ -1003,9 +1034,9 @@ impl OrchestrationStore for DieselOrchestrationStore {
                 message_type: message_type.as_ref(),
                 priority: MessagePriority::Normal.as_ref(),
                 delivery_contract: MessageDeliveryContract::CurrentDelivery.as_ref(),
+                payload,
             })
             .execute(&mut *conn)?;
-
         let seq: i32 = diesel::select(sql::<Integer>("last_insert_rowid()"))
             .get_result(&mut *conn)?;
 
@@ -1020,15 +1051,20 @@ impl OrchestrationStore for DieselOrchestrationStore {
             .order(messages::sequence.asc())
             .load(&mut *conn)?;
 
+        Ok(unread)
+    }
+
+    fn mark_messages_read(&self, sequences: &[i32]) -> OrchestrationResult<()> {
+        if sequences.is_empty() {
+            return Ok(());
+        }
+        let mut conn = self.lock();
         diesel::update(
-            messages::table
-                .filter(messages::to_handle.eq(handle))
-                .filter(messages::read.eq(0)),
+            messages::table.filter(messages::sequence.eq_any(sequences)),
         )
         .set(messages::read.eq(1))
         .execute(&mut *conn)?;
-
-        Ok(unread)
+        Ok(())
     }
 }
 
@@ -1358,6 +1394,10 @@ mod tests {
         assert_eq!(messages.len(), 2);
         assert_eq!(messages[0].subject, "hi");
         assert_eq!(messages[1].subject, "go");
+
+        // Mark them read explicitly (drain no longer auto-marks).
+        let seqs: Vec<i32> = messages.iter().map(|m| m.sequence).collect();
+        store.mark_messages_read(&seqs).unwrap();
 
         // Second drain should be empty (marked read)
         let messages = store.drain_inbox("bob").unwrap();

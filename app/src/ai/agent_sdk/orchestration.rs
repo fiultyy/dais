@@ -12,7 +12,15 @@ use warp_cli::orchestration::OrchestrationCommand;
 use warp_cli::GlobalOptions;
 
 /// Run an orchestration CLI command.
-pub fn run(_global_options: GlobalOptions, command: OrchestrationCommand) -> anyhow::Result<()> {
+///
+/// `cx` is the app-wide context: the CLI dispatch path runs in-process on the
+/// GPUI main thread, so terminal reads use the direct `_with_cx` flavours
+/// (the channel flavours would deadlock on this thread).
+pub fn run(
+    _global_options: GlobalOptions,
+    cx: &mut warpui::AppContext,
+    command: OrchestrationCommand,
+) -> anyhow::Result<()> {
     let store = orchestration::connection::store();
 
     match command {
@@ -30,6 +38,14 @@ pub fn run(_global_options: GlobalOptions, command: OrchestrationCommand) -> any
             let id = store
                 .create_task(&run_id, &spec, &dep_refs)
                 .map_err(|e| anyhow!("{e}"))?;
+            // Auto-promote: a fresh task with completed (or no) deps goes
+            // straight to ready instead of stranding in pending.
+            let promoted = store
+                .promote_ready_tasks(&run_id)
+                .map_err(|e| anyhow!("{e}"))?;
+            if promoted.contains(&id) {
+                eprintln!("promoted {id} -> ready");
+            }
             println!("{id}");
         }
 
@@ -95,6 +111,149 @@ pub fn run(_global_options: GlobalOptions, command: OrchestrationCommand) -> any
                 .transition_worker(&dispatch_id, ws)
                 .map_err(|e| anyhow!("{e}"))?;
             println!("transitioned {dispatch_id} -> {ws:?}");
+        }
+
+        OrchestrationCommand::PromoteTasks { run_id } => {
+            let promoted = store
+                .promote_ready_tasks(&run_id)
+                .map_err(|e| anyhow!("{e}"))?;
+            if promoted.is_empty() {
+                println!("no tasks promoted");
+            } else {
+                for id in &promoted {
+                    println!("promoted {id} -> ready");
+                }
+            }
+        }
+
+        OrchestrationCommand::MarkReady {
+            dispatch_id,
+            effects,
+        } => {
+            store
+                .mark_worker_dispatch_ready(&dispatch_id, effects.as_deref())
+                .map_err(|e| anyhow!("{e}"))?;
+            println!("{dispatch_id} ready (dispatch + task -> dispatched)");
+        }
+
+        OrchestrationCommand::FailDispatch {
+            dispatch_id,
+            error,
+        } => {
+            let broken = store
+                .fail_dispatch(&dispatch_id, &error)
+                .map_err(|e| anyhow!("{e}"))?;
+            if broken {
+                println!("{dispatch_id} circuit_broken");
+            } else {
+                println!("{dispatch_id} failed");
+            }
+        }
+
+        OrchestrationCommand::CreateGate {
+            task_id,
+            question,
+            options,
+        } => {
+            let option_refs: Vec<&str> = options.iter().map(|s| s.as_str()).collect();
+            let gate_id = store
+                .create_gate(&task_id, &question, &option_refs)
+                .map_err(|e| anyhow!("{e}"))?;
+            println!("{gate_id}");
+        }
+
+        OrchestrationCommand::ResolveGate { gate_id, resolution } => {
+            store
+                .resolve_gate(&gate_id, &resolution)
+                .map_err(|e| anyhow!("{e}"))?;
+            println!("gate {gate_id} resolved: {resolution}");
+        }
+
+        OrchestrationCommand::ExpireGate { gate_id } => {
+            store
+                .expire_gate(&gate_id)
+                .map_err(|e| anyhow!("{e}"))?;
+            println!("gate {gate_id} expired");
+        }
+        OrchestrationCommand::InjectPrompt {
+            dispatch_id,
+            text,
+            force,
+        } => {
+            let summary = crate::ai::orchestration::dispatch_send::inject_prompt(
+                &dispatch_id, &text, force, cx,
+            )?;
+            println!("{summary}");
+        }
+
+        OrchestrationCommand::ReadWorker {
+            dispatch_id,
+            lines,
+        } => {
+            use ::ai::agent::orchestration::output::{ArchiveKind, TerminalTailContent};
+
+            // We are on the GPUI main thread (in-process CLI dispatch): use
+            // the direct flavour. The channel flavour would deadlock here.
+            let content = crate::ai::orchestration::terminal_tail::terminal_tail_with_cx(
+                &dispatch_id,
+                lines,
+                64 * 1024,
+                cx,
+            );
+
+            match content {
+                Some(text) => {
+                    println!("{text}");
+
+                    // Persist as a terminal_tail archive.
+                    let tail_struct = TerminalTailContent {
+                        lines: text.lines().map(|l| l.to_string()).collect(),
+                        truncated: text.len() >= 64 * 1024,
+                        terminal_status: String::new(), // not detectable here
+                        warnings: vec![],
+                    };
+                    let json = serde_json::to_string(&tail_struct).unwrap_or_default();
+                    store
+                        .store_archive(
+                            &dispatch_id,
+                            "",
+                            ArchiveKind::TerminalTail.as_str(),
+                            &json,
+                        )
+                        .map_err(|e| anyhow!("store_archive: {e}"))?;
+                }
+                None => {
+                    anyhow::bail!(
+                        "no terminal content for dispatch '{dispatch_id}': \
+                         no terminal view is registered for this dispatch (ViewRegistry)"
+                    );
+                }
+            }
+        }
+
+        OrchestrationCommand::ScanWaitBlocked { dispatch_id } => {
+            let reason =
+                crate::ai::orchestration::interactive::scan_wait_blocked(&dispatch_id, cx)?;
+            match reason {
+                Some(r) => println!("{r}"),
+                None => println!("no wait-blocked signal"),
+            }
+        }
+
+
+        OrchestrationCommand::Answer {
+            dispatch_id,
+            text,
+            enter,
+            interrupt,
+        } => {
+            crate::ai::orchestration::interactive::answer(
+                &dispatch_id,
+                text.as_deref(),
+                enter,
+                interrupt,
+            )?;
+            println!("action sent to {dispatch_id}");
         }
     }
 

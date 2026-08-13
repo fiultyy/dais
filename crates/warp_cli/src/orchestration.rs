@@ -62,4 +62,90 @@ pub enum OrchestrationCommand {
         /// Target state (starting, ready, running, succeeded, failed, etc.).
         state: String,
     },
+
+    /// Promote pending tasks whose deps are all completed to ready.
+    PromoteTasks {
+        /// Run id.
+        run_id: String,
+    },
+
+    /// Mark a starting worker dispatch ready (worker → ready, dispatch →
+    /// dispatched, task → dispatched).
+    MarkReady {
+        dispatch_id: String,
+        /// Optional JSON effects recorded on the worker dispatch.
+        #[arg(long)]
+        effects: Option<String>,
+    },
+
+    /// Record a dispatch failure (increments circuit-breaker counter).
+    FailDispatch {
+        dispatch_id: String,
+        /// Failure description.
+        error: String,
+    },
+
+    /// Create a decision gate blocking a task until resolved.
+    CreateGate {
+        /// Task id to block.
+        task_id: String,
+        /// Question presented to the decider.
+        #[arg(long)]
+        question: String,
+        /// Selectable options.
+        #[arg(long = "option")]
+        options: Vec<String>,
+    },
+
+    /// Resolve a pending decision gate.
+    ResolveGate {
+        gate_id: String,
+        /// Chosen resolution.
+        resolution: String,
+    },
+
+    /// Expire a pending decision gate (fails its blocked task).
+    ExpireGate { gate_id: String },
+
+    /// Inject a prompt into a dispatched worker's terminal (bracketed paste
+    /// + delayed submit). Checks terminal idle status first.
+    InjectPrompt {
+        /// Dispatch id whose terminal receives the prompt.
+        dispatch_id: String,
+        /// Prompt text to inject.
+        text: String,
+        /// Skip the idle-status check (inject even if agent is working).
+        #[arg(long)]
+        force: bool,
+    },
+
+    /// Read a dispatched worker's terminal output tail.
+    ReadWorker {
+        /// Dispatch id to read.
+        dispatch_id: String,
+        /// Max lines to return.
+        #[arg(long, default_value_t = 40)]
+        lines: usize,
+    },
+
+    /// Scan a dispatched worker's terminal tail for wait-blocked signals.
+    ScanWaitBlocked {
+        /// Dispatch id to scan.
+        dispatch_id: String,
+    },
+
+    /// Answer an interactive prompt in a dispatched worker's terminal.
+    Answer {
+        /// Dispatch id whose terminal is blocked.
+        dispatch_id: String,
+        /// Text to type (e.g. "y"). Omit for enter/interrupt-only actions.
+        #[arg(long)]
+        text: Option<String>,
+        /// Press Enter after the text (500ms delay).
+        #[arg(long)]
+        enter: bool,
+        /// Send Ctrl-C instead of Enter.
+        #[arg(long)]
+        interrupt: bool,
+    },
 }

@@ -1114,6 +1114,13 @@ fn initialize_app(
                 consumer
             });
             log::info!("orchestration pty bridge consumer started");
+            // Terminal tail bridge: services tail/title extraction requests
+            // from off-main-thread callers (e.g. the message router) via the
+            // global channel. Requires ViewRegistry (registered above).
+            ctx.add_singleton_model(|ctx| {
+                crate::ai::orchestration::terminal_tail::TerminalTailBridge::new(ctx)
+            });
+            log::info!("orchestration terminal tail bridge registered");
         }
         if FeatureFlag::Orchestration.is_enabled() {
             use ::ai::agent::orchestration::router::MessageRouter;
@@ -1133,7 +1140,11 @@ fn initialize_app(
                 } else {
                     let store = DieselOrchestrationStore::new(conn);
                     let router = MessageRouter::new(store, "orchestrator");
-                    let _handle = router.spawn();
+                    router.spawn();
+                    // Router must outlive this block: its Drop impl shuts the
+                    // poll thread down. The router is process-lifetime state —
+                    // intentionally leaked.
+                    std::mem::forget(router);
                     log::info!("orchestration message router started");
                 }
             } else {
