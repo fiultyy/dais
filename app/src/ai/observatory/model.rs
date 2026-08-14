@@ -60,6 +60,32 @@ pub struct MessageRowGui {
     pub created_at: String,
 }
 
+/// Block 详情（点击时间线行后加载，content 截断至 64 KiB）。
+#[derive(Clone, Debug)]
+pub struct BlockDetailGui {
+    pub id: String,
+    pub session_id: String,
+    pub parent_id: Option<String>,
+    pub harness_type: String,
+    pub block_type: String,
+    pub sequence: u32,
+    pub content_len: usize,
+    pub content: String,
+    pub metadata: String,
+    pub timestamp: i64,
+}
+
+/// Pending gate 行。
+#[derive(Clone, Debug)]
+pub struct GateRowGui {
+    pub id: String,
+    pub task_id: String,
+    pub question: String,
+    pub options: Vec<String>,
+    pub status: String,
+    pub created_at: String,
+}
+
 // ---------------------------------------------------------------------------
 // Tab 枚举
 // ---------------------------------------------------------------------------
@@ -68,6 +94,7 @@ pub struct MessageRowGui {
 pub enum ObservatoryTab {
     Sessions,
     Orchestration,
+    Proxy,
 }
 
 // ---------------------------------------------------------------------------
@@ -84,7 +111,8 @@ pub struct ObservatorySnapshot {
     pub runs: Vec<RunRowGui>,
     /// 最新 200 tasks。
     pub tasks: Vec<TaskRowGui>,
-    /// 最新 30 messages。
+    /// Pending gates（最新 50）。
+    pub gates: Vec<GateRowGui>,
     pub recent_messages: Vec<MessageRowGui>,
 }
 
@@ -123,9 +151,21 @@ pub struct ObservatoryModel {
     draft_to: String,
     draft_subject: String,
     draft_body: String,
+    /// Sessions/blocks 搜索过滤（子串匹配，空 = 不过滤）。
+    search_filter: String,
+    selected_block: Option<String>,
+    block_detail: Option<BlockDetailGui>,
+    selected_task: Option<String>,
+    /// 最近一次 dispatch 的 id（反馈展示用）。
+    last_dispatch: Option<String>,
+    /// 选中的 pending gate id。
+    selected_gate: Option<String>,
+    /// gate 自定义 resolution 草稿。
+    gate_draft: String,
 }
 
 impl ObservatoryModel {
+
     pub fn new(_ctx: &mut ModelContext<Self>) -> Self {
         Self {
             snapshot: ObservatorySnapshot::default(),
@@ -136,6 +176,13 @@ impl ObservatoryModel {
             draft_to: String::new(),
             draft_subject: String::new(),
             draft_body: String::new(),
+            search_filter: String::new(),
+            selected_block: None,
+            block_detail: None,
+            selected_task: None,
+            last_dispatch: None,
+            selected_gate: None,
+            gate_draft: String::new(),
         }
     }
 
@@ -171,6 +218,34 @@ impl ObservatoryModel {
 
     pub fn draft_body(&self) -> &str {
         &self.draft_body
+    }
+
+    pub fn search_filter(&self) -> &str {
+        &self.search_filter
+    }
+
+    pub fn block_detail(&self) -> Option<&BlockDetailGui> {
+        self.block_detail.as_ref()
+    }
+
+    pub fn selected_block(&self) -> Option<&str> {
+        self.selected_block.as_deref()
+    }
+
+    pub fn selected_task(&self) -> Option<&str> {
+        self.selected_task.as_deref()
+    }
+
+    pub fn last_dispatch(&self) -> Option<&str> {
+        self.last_dispatch.as_deref()
+    }
+
+    pub fn selected_gate(&self) -> Option<&str> {
+        self.selected_gate.as_deref()
+    }
+
+    pub fn gate_draft(&self) -> &str {
+        &self.gate_draft
     }
 
     /// 读 InterceptSessionsModel 的拦截模式。
@@ -220,6 +295,117 @@ impl ObservatoryModel {
             DraftField::Body => self.draft_body = value,
         }
         ctx.emit(ObservatoryEvent::DraftChanged);
+    }
+
+    /// 设置搜索过滤并立即重载 sessions/blocks。
+    pub fn set_search_filter(&mut self, filter: String, ctx: &mut ModelContext<Self>) {
+        let filter = filter.trim().to_string();
+        if self.search_filter == filter {
+            return;
+        }
+        self.search_filter = filter;
+        self.snapshot.sessions = self.load_sessions();
+        self.snapshot.blocks = match &self.selected_session {
+            Some(sid) => self.load_blocks(sid),
+            None => Vec::new(),
+        };
+        ctx.emit(ObservatoryEvent::SnapshotUpdated);
+    }
+
+    /// 选中/取消选中 block（加载详情）。None → 清空详情。
+    pub fn select_block(&mut self, id: Option<String>, ctx: &mut ModelContext<Self>) {
+        self.last_error = None;
+        self.selected_block = id.clone();
+        self.block_detail = match &id {
+            Some(bid) => {
+                match self.load_block_detail(bid) {
+                    Some(d) => Some(d),
+                    None => {
+                        self.last_error = Some(format!("block {bid} not found"));
+                        None
+                    }
+                }
+            }
+            None => None,
+        };
+        ctx.emit(ObservatoryEvent::SnapshotUpdated);
+    }
+
+    /// 选中/取消选中编排 task。
+    pub fn select_task(&mut self, id: Option<String>, ctx: &mut ModelContext<Self>) {
+        self.selected_task = id;
+        ctx.emit(ObservatoryEvent::SnapshotUpdated);
+    }
+
+    /// 选中/取消选中 pending gate。
+    pub fn select_gate(&mut self, id: Option<String>, ctx: &mut ModelContext<Self>) {
+        self.selected_gate = id;
+        ctx.emit(ObservatoryEvent::SnapshotUpdated);
+    }
+
+    pub fn set_gate_draft(&mut self, value: String, ctx: &mut ModelContext<Self>) {
+        self.gate_draft = value;
+        ctx.emit(ObservatoryEvent::DraftChanged);
+    }
+
+    /// 为 task 创建 dispatch（store 同步调用）。
+    pub fn dispatch_task(&mut self, task_id: &str, ctx: &mut ModelContext<Self>) {
+        #[cfg(feature = "orchestration")]
+        {
+            use ::ai::agent::orchestration::connection::store;
+
+            let run_id = self
+                .snapshot
+                .tasks
+                .iter()
+                .find(|t| t.id == task_id)
+                .map(|t| t.run_id.clone());
+            let Some(run_id) = run_id else {
+                self.last_error = Some(format!("task {task_id} not in snapshot"));
+                ctx.emit(ObservatoryEvent::SnapshotUpdated);
+                return;
+            };
+            match store().create_dispatch(&run_id, task_id, "{}") {
+                Ok(id) => {
+                    self.last_dispatch = Some(id);
+                    self.last_error = None;
+                }
+                Err(e) => {
+                    self.last_error = Some(format!("create_dispatch failed: {e:?}"));
+                }
+            }
+            self.load_orchestration_data();
+        }
+        #[cfg(not(feature = "orchestration"))]
+        {
+            self.last_error = Some("orchestration feature disabled".to_string());
+        }
+        ctx.emit(ObservatoryEvent::SnapshotUpdated);
+    }
+
+    /// 解决 pending gate（store 同步调用），成功后刷新编排数据。
+    pub fn resolve_gate(
+        &mut self,
+        gate_id: &str,
+        resolution: &str,
+        ctx: &mut ModelContext<Self>,
+    ) {
+        #[cfg(feature = "orchestration")]
+        {
+            use ::ai::agent::orchestration::connection::store;
+
+            match store().resolve_gate(gate_id, resolution) {
+                Ok(()) => self.last_error = None,
+                Err(e) => self.last_error = Some(format!("resolve_gate failed: {e:?}")),
+            }
+            self.load_orchestration_data();
+        }
+        #[cfg(not(feature = "orchestration"))]
+        {
+            let _ = (gate_id, resolution);
+            self.last_error = Some("orchestration feature disabled".to_string());
+        }
+        ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
 
     /// 全量刷新快照。
@@ -317,15 +503,18 @@ impl ObservatoryModel {
         .ok()
     }
 
-    /// 加载 session 列表（按 last_ts 降序，上限 100）。
+    /// 加载 session 列表（按 last_ts 降序，上限 100；search_filter 子串过滤）。
     fn load_sessions(&self) -> Vec<SessionRowGui> {
         let conn = match Self::open_blocks_db() {
             Some(c) => c,
             None => return Vec::new(),
         };
+        let pattern = like_pattern(&self.search_filter);
         let mut stmt = match conn.prepare(
             "SELECT session_id, COUNT(*), MIN(timestamp), MAX(timestamp) \
-             FROM harness_blocks GROUP BY session_id ORDER BY MAX(timestamp) DESC LIMIT 100",
+             FROM harness_blocks \
+             WHERE (?1 = '' OR session_id LIKE ?1 ESCAPE '\\') \
+             GROUP BY session_id ORDER BY MAX(timestamp) DESC LIMIT 100",
         ) {
             Ok(s) => s,
             Err(e) => {
@@ -333,7 +522,7 @@ impl ObservatoryModel {
                 return Vec::new();
             }
         };
-        let rows = match stmt.query_map([], |row| {
+        let rows = match stmt.query_map(rusqlite::params![pattern], |row| {
             Ok(SessionRowGui {
                 session_id: row.get(0)?,
                 block_count: row.get(1)?,
@@ -350,15 +539,21 @@ impl ObservatoryModel {
         rows.filter_map(|r| r.ok()).collect()
     }
 
-    /// 加载选中 session 的 blocks（sequence 升序，上限 500）。
+    /// 加载选中 session 的 blocks（sequence 升序，上限 500；
+    /// search_filter 对 block_type 与 content 做子串过滤）。
     fn load_blocks(&self, session_id: &str) -> Vec<BlockRowGui> {
         let conn = match Self::open_blocks_db() {
             Some(c) => c,
             None => return Vec::new(),
         };
+        let pattern = like_pattern(&self.search_filter);
         let mut stmt = match conn.prepare(
             "SELECT id, sequence, block_type, LENGTH(content), substr(content, 1, 80), timestamp \
-             FROM harness_blocks WHERE session_id = ?1 ORDER BY sequence ASC LIMIT 500",
+             FROM harness_blocks \
+             WHERE session_id = ?1 \
+               AND (?2 = '' OR block_type LIKE ?2 ESCAPE '\\' \
+                    OR CAST(content AS TEXT) LIKE ?2 ESCAPE '\\') \
+             ORDER BY sequence ASC LIMIT 500",
         ) {
             Ok(s) => s,
             Err(e) => {
@@ -366,7 +561,7 @@ impl ObservatoryModel {
                 return Vec::new();
             }
         };
-        let rows = match stmt.query_map(rusqlite::params![session_id], |row| {
+        let rows = match stmt.query_map(rusqlite::params![session_id, pattern], |row| {
             let raw_preview: Vec<u8> = row.get(4)?;
             let preview = String::from_utf8_lossy(&raw_preview)
                 .chars()
@@ -388,6 +583,48 @@ impl ObservatoryModel {
             }
         };
         rows.filter_map(|r| r.ok()).collect()
+    }
+
+    /// 加载单个 block 的完整详情（content 截断至 64 KiB）。
+    fn load_block_detail(&self, block_id: &str) -> Option<BlockDetailGui> {
+        let conn = Self::open_blocks_db()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, session_id, parent_id, harness_type, block_type, sequence, \
+                        LENGTH(content), substr(content, 1, 65536), metadata, timestamp \
+                 FROM harness_blocks WHERE id = ?1 LIMIT 1",
+            )
+            .map_err(|e| log::warn!("observatory: load_block_detail prepare error: {e}"))
+            .ok()?;
+        let (id, session_id, parent_id, harness_type, block_type, sequence, content_len, content, metadata, timestamp) = stmt
+            .query_row(rusqlite::params![block_id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, i64>(5)? as u32,
+                    row.get::<_, Option<i64>>(6)?.unwrap_or(0) as usize,
+                    row.get::<_, Vec<u8>>(7)?,
+                    row.get::<_, Option<String>>(8)?,
+                    row.get::<_, i64>(9)?,
+                ))
+            })
+            .map_err(|e| log::warn!("observatory: load_block_detail query error: {e}"))
+            .ok()?;
+        Some(BlockDetailGui {
+            id,
+            session_id,
+            parent_id,
+            harness_type,
+            block_type,
+            sequence,
+            content_len,
+            content: String::from_utf8_lossy(&content).to_string(),
+            metadata: metadata.unwrap_or_else(|| "null".to_string()),
+            timestamp,
+        })
     }
 
     /// 加载编排数据（runs / tasks / messages）。
@@ -432,15 +669,43 @@ impl ObservatoryModel {
             })
             .unwrap_or_default();
 
+        // pending gates（最新 50）
+        self.snapshot.gates = s
+            .list_gates(None, Some("pending"))
+            .map(|gates| {
+                gates
+                    .into_iter()
+                    .take(50)
+                    .map(|g| GateRowGui {
+                        id: g.id,
+                        task_id: g.task_id,
+                        question: g.question,
+                        options: serde_json::from_str::<Vec<String>>(&g.options)
+                            .unwrap_or_default(),
+                        status: g.status,
+                        created_at: g.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        // 选中的 gate 已不再是 pending → 清除选中
+        if let Some(gid) = self.selected_gate.clone() {
+            if !self.snapshot.gates.iter().any(|g| g.id == gid) {
+                self.selected_gate = None;
+            }
+        }
+
         // messages — rusqlite 直查 warp.sqlite messages 表
         self.load_recent_messages();
     }
 
     #[cfg(not(feature = "orchestration"))]
     fn load_orchestration_data(&mut self) {
-        // orchestration feature 关闭时三项全空
+        // orchestration feature 关闭时四项全空
         self.snapshot.runs = Vec::new();
         self.snapshot.tasks = Vec::new();
+        self.snapshot.gates = Vec::new();
         self.snapshot.recent_messages = Vec::new();
     }
 
@@ -540,6 +805,22 @@ impl Entity for ObservatoryModel {
 }
 
 impl SingletonEntity for ObservatoryModel {}
+
+/// 构造 SQL LIKE 子串匹配 pattern：空过滤 → 空串（查询侧以 `? = ''` 短路），
+/// 否则转义 `%`/`_`/`\` 并两侧包 `%`。
+fn like_pattern(filter: &str) -> String {
+    if filter.is_empty() {
+        return String::new();
+    }
+    let escaped: String = filter
+        .chars()
+        .flat_map(|c| match c {
+            '%' | '_' | '\\' => vec!['\\', c],
+            _ => vec![c],
+        })
+        .collect();
+    format!("%{escaped}%")
+}
 
 // ---------------------------------------------------------------------------
 // 测试
@@ -698,6 +979,48 @@ mod tests {
             assert_eq!(app.read_model(&model, |m, _| m.draft_subject().to_string()), "hello");
             assert_eq!(app.read_model(&model, |m, _| m.draft_body().to_string()), "world");
 
+            // select_block 不存在的 block → 选中态保留 + last_error 置位
+            model.update(&mut app, |m, ctx| {
+                m.select_block(Some("missing-block".to_string()), ctx);
+            });
+            assert_eq!(app.read_model(&model, |m, _| m.selected_block().map(str::to_string)), Some("missing-block".to_string()));
+            assert!(app.read_model(&model, |m, _| m.block_detail().is_none()));
+            assert!(app.read_model(&model, |m, _| m.last_error().is_some()));
+
+            // select_block None → 清空
+            model.update(&mut app, |m, ctx| {
+                m.select_block(None, ctx);
+            });
+            assert!(app.read_model(&model, |m, _| m.block_detail().is_none()));
+            assert!(app.read_model(&model, |m, _| m.last_error().is_none()));
+
+            // select_task 状态转移
+            model.update(&mut app, |m, ctx| {
+                m.select_task(Some("task-1".to_string()), ctx);
+            });
+            assert_eq!(app.read_model(&model, |m, _| m.selected_task().map(str::to_string)), Some("task-1".to_string()));
+            model.update(&mut app, |m, ctx| {
+                m.select_task(None, ctx);
+            });
+            assert!(app.read_model(&model, |m, _| m.selected_task().is_none()));
+
+            // set_search_filter 状态转移（DB 无数据仍应正常）
+            model.update(&mut app, |m, ctx| {
+                m.set_search_filter("claude".to_string(), ctx);
+            });
+            assert_eq!(app.read_model(&model, |m, _| m.search_filter().to_string()), "claude");
+            // select_gate / set_gate_draft 状态转移
+            model.update(&mut app, |m, ctx| {
+                m.select_gate(Some("gate-1".to_string()), ctx);
+                m.set_gate_draft("proceed".to_string(), ctx);
+            });
+            assert_eq!(app.read_model(&model, |m, _| m.selected_gate().map(str::to_string)), Some("gate-1".to_string()));
+            assert_eq!(app.read_model(&model, |m, _| m.gate_draft().to_string()), "proceed");
+            model.update(&mut app, |m, ctx| {
+                m.select_gate(None, ctx);
+            });
+            assert!(app.read_model(&model, |m, _| m.selected_gate().is_none()));
+
             // select session（DB 里无数据，但状态转移应正确）
             model.update(&mut app, |m, ctx| {
                 m.select_session(Some("nonexistent".to_string()), ctx);
@@ -722,9 +1045,115 @@ mod tests {
         assert_eq!(fields.len(), 3);
     }
 
-    /// 测试 ObservatoryTab 枚举
+    /// 测试 ObservatoryTab 枚举（含新 Proxy variant）
     #[test]
     fn test_tab_enum() {
         assert_ne!(ObservatoryTab::Sessions, ObservatoryTab::Orchestration);
+        assert_ne!(ObservatoryTab::Orchestration, ObservatoryTab::Proxy);
+        assert_ne!(ObservatoryTab::Sessions, ObservatoryTab::Proxy);
+    }
+
+    /// like_pattern: 空短路、子串包裹、通配符转义。
+    #[test]
+    fn test_like_pattern() {
+        assert_eq!(like_pattern(""), "");
+        assert_eq!(like_pattern("abc"), "%abc%");
+        assert_eq!(like_pattern("a%b_c\\"), "%a\\%b\\_c\\\\%");
+    }
+
+    /// 搜索过滤 SQL 与 block 详情 SQL 的正确性（temp db 直查，与 model 内部查询同源）。
+    #[test]
+    fn test_search_filter_and_block_detail_queries() {
+        let tmp = tempfile::tempdir().unwrap();
+        let db_path = tmp.path().join("harness_blocks.db");
+        let store = harness_integration::BlockStore::open(db_path.to_string_lossy().to_string()).unwrap();
+
+        let ts: i64 = 1_700_000_000_000;
+        let mut a0 = harness_integration::HarnessBlock::new(
+            "alpha", "claude", harness_integration::BlockType::UserPrompt, 0,
+            b"fix the login bug".to_vec(), ts,
+        );
+        a0.metadata = serde_json::json!({"meta": true});
+        let a1 = harness_integration::HarnessBlock::new(
+            "alpha", "claude", harness_integration::BlockType::Response, 1,
+            b"all good".to_vec(), ts + 1000,
+        );
+        let b0 = harness_integration::HarnessBlock::new(
+            "beta", "claude", harness_integration::BlockType::UserPrompt, 0,
+            b"other prompt".to_vec(), ts + 2000,
+        );
+        for blk in [&a0, &a1, &b0] {
+            store.insert_block(blk).unwrap();
+        }
+
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+
+        // 1. session 过滤（model load_sessions 同源 SQL）
+        let pattern = like_pattern("alph");
+        let mut stmt = conn.prepare(
+            "SELECT session_id, COUNT(*), MIN(timestamp), MAX(timestamp) \
+             FROM harness_blocks \
+             WHERE (?1 = '' OR session_id LIKE ?1 ESCAPE '\\') \
+             GROUP BY session_id ORDER BY MAX(timestamp) DESC LIMIT 100",
+        ).unwrap();
+        let sessions: Vec<String> = stmt
+            .query_map(rusqlite::params![pattern], |row| row.get::<_, String>(0))
+            .unwrap().filter_map(|r| r.ok()).collect();
+        assert_eq!(sessions, vec!["alpha"]);
+
+        // 空过滤 → 全量
+        let mut stmt = conn.prepare(
+            "SELECT session_id, COUNT(*), MIN(timestamp), MAX(timestamp) \
+             FROM harness_blocks \
+             WHERE (?1 = '' OR session_id LIKE ?1 ESCAPE '\\') \
+             GROUP BY session_id ORDER BY MAX(timestamp) DESC LIMIT 100",
+        ).unwrap();
+        let all: Vec<String> = stmt
+            .query_map(rusqlite::params![like_pattern("")], |row| row.get::<_, String>(0))
+            .unwrap().filter_map(|r| r.ok()).collect();
+        assert_eq!(all.len(), 2);
+
+        // 2. block 内容过滤（model load_blocks 同源 SQL）："login" 只命中 alpha seq0
+        let pattern = like_pattern("login");
+        let mut stmt = conn.prepare(
+            "SELECT id, sequence, block_type, LENGTH(content), substr(content, 1, 80), timestamp \
+             FROM harness_blocks \
+             WHERE session_id = ?1 \
+               AND (?2 = '' OR block_type LIKE ?2 ESCAPE '\\' \
+                    OR CAST(content AS TEXT) LIKE ?2 ESCAPE '\\') \
+             ORDER BY sequence ASC LIMIT 500",
+        ).unwrap();
+        let hits: Vec<(String, u32)> = stmt
+            .query_map(rusqlite::params!["alpha", pattern], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? as u32))
+ })
+            .unwrap().filter_map(|r| r.ok()).collect();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].0, a0.id);
+        assert_eq!(hits[0].1, 0);
+
+        // 3. block 详情（model load_block_detail 同源 SQL）
+        let detail: (String, Option<String>, String, usize, String, Option<String>) = conn
+            .query_row(
+                "SELECT id, parent_id, block_type, LENGTH(content), substr(content, 1, 65536), metadata \
+                 FROM harness_blocks WHERE id = ?1 LIMIT 1",
+                rusqlite::params![a0.id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get::<_, Option<i64>>(3)?.unwrap_or(0) as usize,
+                        String::from_utf8_lossy(&row.get::<_, Vec<u8>>(4)?).to_string(),
+                        row.get(5)?,
+                    ))
+                },
+            )
+            .unwrap();
+        assert_eq!(detail.0, a0.id);
+        assert_eq!(detail.2, "user_prompt");
+        assert_eq!(detail.3, b"fix the login bug".len());
+        assert_eq!(detail.4, "fix the login bug");
+        assert!(detail.5.unwrap().contains("\"meta\":true"));
     }
 }

@@ -1,6 +1,7 @@
 //! 观测台面板视图 — ObservatoryPanelView
 //!
-//! 全部用户交互经 `ModelHandle<ObservatoryModel>` 派发，视图不持有业务状态，
+//! 全部用户交互经 `ModelHandle<ObservatoryModel>`（业务状态）或
+//! `InterceptSessionsModel`（代理配置单例）派发，视图不持有业务状态，
 //! 仅维护渲染缓存（鼠标悬停句柄、子输入框句柄等纯 UI 状态）。
 
 use std::cell::RefCell;
@@ -23,14 +24,14 @@ use warp_core::ui::theme::WarpTheme;
 use warpui::color::ColorU;
 
 
-use harness_integration::InterceptMode;
+use harness_integration::{HarnessType, InterceptMode};
 
 use crate::view_components::action_button::{ActionButton, ButtonSize};
 use crate::view_components::{SubmittableTextInput, SubmittableTextInputEvent};
 use crate::ai::blocklist::agent_view::agent_input_footer::AgentInputButtonTheme;
-
+use crate::terminal::intercept_sessions::InterceptSessionsModel;
 use super::model::{
-    DraftField, ObservatoryModel, ObservatoryTab, BlockRowGui,
+    BlockDetailGui, BlockRowGui, DraftField, ObservatoryModel, ObservatoryTab,
     RunRowGui, SessionRowGui, TaskRowGui,
 };
 
@@ -52,6 +53,8 @@ const ROW_V_PADDING: f32 = 6.;
 const COMPOSER_SPACING: f32 = 8.;
 /// Block type badge 角半径。
 const BADGE_RADIUS: f32 = 4.;
+/// 小号字体（详情/辅助文本）。
+const SMALL_FONT_SIZE: f32 = 12.;
 
 
 // ── Action ────────────────────────────────────────────────────────────────────
@@ -60,9 +63,27 @@ const BADGE_RADIUS: f32 = 4.;
 #[derive(Clone, Debug)]
 pub enum ObservatoryPanelAction {
     Refresh,
+    /// 派发当前选中的 task（读取 model.selected_task）。
+    DispatchSelectedTask,
+    /// 用输入框内容解决当前选中的 gate。
+    ResolveSelectedGate(String),
     SendMessage,
     SetTab(ObservatoryTab),
     SelectSession(Option<String>),
+    SetSearch(String),
+    SelectBlock(Option<String>),
+    SelectTask(Option<String>),
+    DispatchTask(String),
+    SelectGate(Option<String>),
+    ResolveGate(String, String),
+    /// 代理配置：切换拦截模式。
+    SetInterceptMode(InterceptMode),
+    /// 代理配置：设置 upstream base 覆盖（空 = 自动探测）。
+    SetUpstreamBase(String),
+    /// 代理配置：设置 auth env var 覆盖。
+    SetUpstreamAuthEnv(String),
+    /// 代理配置：重查 block 计数。
+    RefreshBlockCount,
 }
 
 // ── ObservatoryPanelView ────────────────────────────────────────────────────
@@ -77,8 +98,8 @@ pub struct ObservatoryPanelView {
     session_row_handles: RefCell<Vec<MouseStateHandle>>,
     /// Block 行悬停状态句柄列表。
     block_row_handles: RefCell<Vec<MouseStateHandle>>,
-    /// Tab 切换行的鼠标句柄：[Sessions, Orchestration]。
-    tab_handles: [MouseStateHandle; 2],
+    /// Tab 切换行的鼠标句柄：[Sessions, Orchestration, Proxy]。
+    tab_handles: [MouseStateHandle; 3],
     /// Composer: To 输入框。
     draft_to_input: ViewHandle<SubmittableTextInput>,
     /// Composer: Subject 输入框。
@@ -89,12 +110,30 @@ pub struct ObservatoryPanelView {
     send_button: ViewHandle<ActionButton>,
     /// Message 行悬停状态句柄列表。
     message_row_handles: RefCell<Vec<MouseStateHandle>>,
+    /// Task 行悬停状态句柄列表。
+    task_row_handles: RefCell<Vec<MouseStateHandle>>,
+    /// Gate 行悬停状态句柄列表。
+    gate_row_handles: RefCell<Vec<MouseStateHandle>>,
+    /// Gate 选项 chip 悬停句柄列表（所有 gate 的 options 扁平展开）。
+    gate_option_handles: RefCell<Vec<MouseStateHandle>>,
+    /// 搜索框。
+    search_input: ViewHandle<SubmittableTextInput>,
+    /// 代理 tab: gate 自定义 resolution 输入框。
+    gate_resolution_input: ViewHandle<SubmittableTextInput>,
+    /// 代理 tab: mode 选项 chip 句柄（Full/HooksOnly/Bypass）。
+    mode_chip_handles: [MouseStateHandle; 3],
+    /// 代理 tab: upstream base 输入框。
+    upstream_base_input: ViewHandle<SubmittableTextInput>,
+    /// 代理 tab: auth env 输入框。
+    upstream_auth_env_input: ViewHandle<SubmittableTextInput>,
+    /// 任务派发按钮。
+    dispatch_button: ViewHandle<ActionButton>,
 }
 
 impl ObservatoryPanelView {
     pub fn new(model: ModelHandle<ObservatoryModel>, ctx: &mut ViewContext<Self>) -> Self {
         // 刷新按钮
-        let refresh_button = ctx.add_typed_action_view(|ctx| {
+        let refresh_button = ctx.add_typed_action_view(|_ctx| {
             ActionButton::new(crate::t!("observatory-refresh"), AgentInputButtonTheme)
                 .with_size(ButtonSize::AgentInputButton)
                 .on_click(|ctx| {
@@ -164,7 +203,7 @@ impl ObservatoryPanelView {
         });
 
         // 发送按钮
-        let send_button = ctx.add_typed_action_view(|ctx| {
+        let send_button = ctx.add_typed_action_view(|_ctx| {
             ActionButton::new(crate::t!("observatory-send"), AgentInputButtonTheme)
                 .with_size(ButtonSize::AgentInputButton)
                 .on_click(|ctx| {
@@ -172,22 +211,139 @@ impl ObservatoryPanelView {
                 })
         });
 
+        // 搜索框：提交 → SetSearch
+        let search_input = ctx.add_typed_action_view(|ctx| {
+            let mut input = SubmittableTextInput::new(ctx)
+                .validate_on_edit(|_| true)
+                .with_allow_empty_submit();
+            input.set_placeholder_text(crate::t!("observatory-search-placeholder"), ctx);
+            input
+        });
+        let search_handle = search_input.clone();
+        ctx.subscribe_to_view(&search_input, move |_me, _, event, ctx| {
+            if let SubmittableTextInputEvent::Submit(content) = event {
+                ctx.dispatch_typed_action(&ObservatoryPanelAction::SetSearch(content.clone()));
+                // 搜索词回填到框内，便于继续编辑
+                search_handle.update(ctx, |input, ctx| {
+                    let editor = input.editor().clone();
+                    let text = content.clone();
+                    editor.update(ctx, |ed, ctx| ed.set_buffer_text(&text, ctx));
+                });
+            }
+        });
+
+        // Gate 自定义 resolution 输入框：提交 → ResolveGate(选中 gate, draft)
+        let gate_resolution_input = ctx.add_typed_action_view(|ctx| {
+            let mut input = SubmittableTextInput::new(ctx)
+                .validate_on_edit(|_| true)
+                .with_allow_empty_submit();
+            input.set_placeholder_text(crate::t!("observatory-gate-resolve"), ctx);
+            input
+        });
+        let gate_input_handle = gate_resolution_input.clone();
+        ctx.subscribe_to_view(&gate_resolution_input, move |_me, _, event, ctx| {
+            if let SubmittableTextInputEvent::Submit(content) = event {
+                // 草稿写入 model；提交的 content 作为自定义 resolution
+                ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.set_gate_draft(content.clone(), ctx);
+                });
+                ctx.dispatch_typed_action(&ObservatoryPanelAction::ResolveSelectedGate(
+                    content.clone(),
+                ));
+                gate_input_handle.update(ctx, |input, ctx| {
+                    let editor = input.editor().clone();
+                    editor.update(ctx, |ed, ctx| ed.set_buffer_text("", ctx));
+                });
+            }
+        });
+
+        // 代理 tab: upstream 输入框
+        let upstream_base_input = ctx.add_typed_action_view(|ctx| {
+            let mut input = SubmittableTextInput::new(ctx)
+                .validate_on_edit(|_| true)
+                .with_allow_empty_submit();
+            input.set_placeholder_text(crate::t!("observatory-proxy-base"), ctx);
+            input
+        });
+        let base_handle = upstream_base_input.clone();
+        ctx.subscribe_to_view(&upstream_base_input, move |_me, _, event, ctx| {
+            if let SubmittableTextInputEvent::Submit(content) = event {
+                ctx.dispatch_typed_action(&ObservatoryPanelAction::SetUpstreamBase(content.clone()));
+                base_handle.update(ctx, |input, ctx| {
+                    let editor = input.editor().clone();
+                    let text = content.clone();
+                    editor.update(ctx, |ed, ctx| ed.set_buffer_text(&text, ctx));
+                });
+            }
+        });
+        let upstream_auth_env_input = ctx.add_typed_action_view(|ctx| {
+            let mut input = SubmittableTextInput::new(ctx)
+                .validate_on_edit(|_| true)
+                .with_allow_empty_submit();
+            input.set_placeholder_text(crate::t!("observatory-proxy-auth-env"), ctx);
+            input
+        });
+        let auth_env_handle = upstream_auth_env_input.clone();
+        ctx.subscribe_to_view(&upstream_auth_env_input, move |_me, _, event, ctx| {
+            if let SubmittableTextInputEvent::Submit(content) = event {
+                ctx.dispatch_typed_action(&ObservatoryPanelAction::SetUpstreamAuthEnv(content.clone()));
+                auth_env_handle.update(ctx, |input, ctx| {
+                    let editor = input.editor().clone();
+                    let text = content.clone();
+                    editor.update(ctx, |ed, ctx| ed.set_buffer_text(&text, ctx));
+                });
+            }
+        });
+
+        // 任务派发按钮（选中 task 由 handle_action 侧读取）
+        let dispatch_button = ctx.add_typed_action_view(|_ctx| {
+            ActionButton::new(crate::t!("observatory-task-dispatch"), AgentInputButtonTheme)
+                .with_size(ButtonSize::AgentInputButton)
+                .on_click(|ctx| {
+                    ctx.dispatch_typed_action(ObservatoryPanelAction::DispatchSelectedTask);
+                })
+        });
+
         // 订阅 model 事件 → 重绘
         ctx.subscribe_to_model(&model, |_me, _handle, _event, ctx| {
             ctx.notify();
         });
+        // 订阅拦截配置单例变化（代理 tab 展示）→ 重绘
+        ctx.subscribe_to_model(
+            &InterceptSessionsModel::handle(ctx),
+            |_me, _handle, _event, ctx| {
+                ctx.notify();
+            },
+        );
 
         Self {
             model,
             refresh_button,
             session_row_handles: RefCell::new(Vec::new()),
             block_row_handles: RefCell::new(Vec::new()),
-            tab_handles: [MouseStateHandle::default(), MouseStateHandle::default()],
+            tab_handles: [
+                MouseStateHandle::default(),
+                MouseStateHandle::default(),
+                MouseStateHandle::default(),
+            ],
             draft_to_input,
             draft_subject_input,
             draft_body_input,
             send_button,
             message_row_handles: RefCell::new(Vec::new()),
+            task_row_handles: RefCell::new(Vec::new()),
+            gate_row_handles: RefCell::new(Vec::new()),
+            gate_option_handles: RefCell::new(Vec::new()),
+            search_input,
+            gate_resolution_input,
+            mode_chip_handles: [
+                MouseStateHandle::default(),
+                MouseStateHandle::default(),
+                MouseStateHandle::default(),
+            ],
+            upstream_base_input,
+            upstream_auth_env_input,
+            dispatch_button,
         }
     }
 
@@ -245,76 +401,63 @@ impl ObservatoryPanelView {
             .finish()
     }
 
-    /// Tab 切换行: Sessions / Orchestration（可点击文字标签）。
+    /// Tab 切换行: Sessions / Orchestration / Proxy（可点击文字标签）。
     fn render_tab_bar(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
         let theme = appearance.theme();
         let active_tab = self.model.as_ref(app).active_tab();
 
-        let sessions_active = active_tab == ObservatoryTab::Sessions;
-        let orchestration_active = active_tab == ObservatoryTab::Orchestration;
-
-        // Sessions tab
-        let sessions_text = crate::t!("observatory-tab-sessions");
-        let sessions_handle = self.tab_handles[0].clone();
-        let sessions_hoverable = Hoverable::new(sessions_handle, move |state| {
-            let text_color = if sessions_active {
-                theme.active_ui_text_color().into()
-            } else if state.is_hovered() {
-                theme.nonactive_ui_text_color().into()
-            } else {
-                theme.disabled_ui_text_color().into_solid()
-            };
-            let mut container = Container::new(
-                Text::new(sessions_text.clone(), appearance.ui_font_family(), appearance.ui_font_size())
-                    .with_color(text_color)
-                    .finish(),
-            )
-            .with_horizontal_padding(TAB_H_PADDING)
-            .with_vertical_padding(TAB_V_PADDING);
-            if sessions_active {
-                container = container.with_border(Border::bottom(2.).with_border_fill(theme.accent()));
-            }
-            container.finish()
-        })
-        .on_click(|ctx, _, _| {
-            ctx.dispatch_typed_action(ObservatoryPanelAction::SetTab(ObservatoryTab::Sessions));
-        })
-        .finish();
-
-        // Orchestration tab
-        let orch_text = crate::t!("observatory-tab-orchestration");
-        let orch_handle = self.tab_handles[1].clone();
-        let orch_hoverable = Hoverable::new(orch_handle, move |state| {
-            let text_color = if orchestration_active {
-                theme.active_ui_text_color().into()
-            } else if state.is_hovered() {
-                theme.nonactive_ui_text_color().into()
-            } else {
-                theme.disabled_ui_text_color().into_solid()
-            };
-            let mut container = Container::new(
-                Text::new(orch_text.clone(), appearance.ui_font_family(), appearance.ui_font_size())
-                    .with_color(text_color)
-                    .finish(),
-            )
-            .with_horizontal_padding(TAB_H_PADDING)
-            .with_vertical_padding(TAB_V_PADDING);
-            if orchestration_active {
-                container = container.with_border(Border::bottom(2.).with_border_fill(theme.accent()));
-            }
-            container.finish()
-        })
-        .on_click(|ctx, _, _| {
-            ctx.dispatch_typed_action(ObservatoryPanelAction::SetTab(ObservatoryTab::Orchestration));
-        })
-        .finish();
-
         let mut row = Flex::row()
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
             .with_spacing(SPACING);
-        row.add_child(sessions_hoverable);
-        row.add_child(orch_hoverable);
+
+        let tabs: [(ObservatoryTab, String, MouseStateHandle); 3] = [
+            (
+                ObservatoryTab::Sessions,
+                crate::t!("observatory-tab-sessions"),
+                self.tab_handles[0].clone(),
+            ),
+            (
+                ObservatoryTab::Orchestration,
+                crate::t!("observatory-tab-orchestration"),
+                self.tab_handles[1].clone(),
+            ),
+            (
+                ObservatoryTab::Proxy,
+                crate::t!("observatory-tab-proxy"),
+                self.tab_handles[2].clone(),
+            ),
+        ];
+        for (tab, label, handle) in tabs {
+            let is_active = active_tab == tab;
+            let tab_to_set = tab;
+            let hoverable = Hoverable::new(handle, move |state| {
+                let text_color = if is_active {
+                    theme.active_ui_text_color().into()
+                } else if state.is_hovered() {
+                    theme.nonactive_ui_text_color().into()
+                } else {
+                    theme.disabled_ui_text_color().into_solid()
+                };
+                let mut container = Container::new(
+                    Text::new(label.clone(), appearance.ui_font_family(), appearance.ui_font_size())
+                        .with_color(text_color)
+                        .finish(),
+                )
+                .with_horizontal_padding(TAB_H_PADDING)
+                .with_vertical_padding(TAB_V_PADDING);
+                if is_active {
+                    container =
+                        container.with_border(Border::bottom(2.).with_border_fill(theme.accent()));
+                }
+                container.finish()
+            })
+            .on_click(move |ctx, _, _| {
+                ctx.dispatch_typed_action(ObservatoryPanelAction::SetTab(tab_to_set));
+            })
+            .finish();
+            row.add_child(hoverable);
+        }
 
         Container::new(row.finish())
             .with_horizontal_padding(PANEL_PADDING)
@@ -330,6 +473,13 @@ impl ObservatoryPanelView {
         let mut col = Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
             .with_spacing(SECTION_SPACING);
+
+        // ── 搜索框 ──
+        col.add_child(
+            Container::new(ChildView::new(&self.search_input).finish())
+                .with_horizontal_padding(PANEL_PADDING)
+                .finish(),
+        );
 
         // ── 会话列表 ──
         if snapshot.sessions.is_empty() {
@@ -381,20 +531,34 @@ impl ObservatoryPanelView {
                 let handles = self.block_row_handles.borrow();
                 for (i, block) in snapshot.blocks.iter().enumerate() {
                     let handle = handles[i].clone();
-                    let block_el = self.render_block_row(block, appearance, theme);
+                    let is_selected = model
+                        .selected_block()
+                        .is_some_and(|b| b == block.id);
+                    let block_id = block.id.clone();
+                    let block_el = self.render_block_row(block, is_selected, appearance, theme);
                     let hoverable = Hoverable::new(handle, move |state| {
                         let mut container = Container::new(block_el)
                             .with_horizontal_padding(PANEL_PADDING)
                             .with_vertical_padding(ROW_V_PADDING);
-                        if state.is_hovered() {
+                        if is_selected {
+                            container = container.with_background(internal_colors::fg_overlay_1(theme));
+                        } else if state.is_hovered() {
                             container = container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
                         }
                         container.finish()
+                    })
+                    .on_click(move |ctx, _, _| {
+                        ctx.dispatch_typed_action(ObservatoryPanelAction::SelectBlock(Some(block_id.clone())));
                     })
                     .finish();
                     col.add_child(hoverable);
                 }
             }
+        }
+
+        // ── Block 详情（选中 block 时展示） ──
+        if let Some(detail) = model.block_detail() {
+            col.add_child(self.render_block_detail(detail, appearance, theme));
         }
 
         Shrinkable::new(1., col.finish()).finish()
@@ -448,6 +612,7 @@ impl ObservatoryPanelView {
     fn render_block_row(
         &self,
         block: &BlockRowGui,
+        is_selected: bool,
         appearance: &Appearance,
         theme: &WarpTheme,
     ) -> Box<dyn Element> {
@@ -496,10 +661,119 @@ impl ObservatoryPanelView {
                 .finish(),
         );
 
-        row.finish()
+        if is_selected {
+            Container::new(row.finish())
+                .with_border(Border::left(2.).with_border_fill(theme.accent()))
+                .finish()
+        } else {
+            row.finish()
+        }
     }
 
-    /// Orchestration tab 内容: runs + tasks + messages + composer。
+    /// Block 详情卡片：元信息 + metadata + content 全文（换行渲染）。
+    fn render_block_detail(
+        &self,
+        detail: &BlockDetailGui,
+        appearance: &Appearance,
+        theme: &WarpTheme,
+    ) -> Box<dyn Element> {
+        let meta_text = crate::t!(
+            "observatory-block-detail-meta",
+            block_type = detail.block_type.clone(),
+            seq = detail.sequence,
+            len = detail.content_len,
+            ts = format_timestamp(detail.timestamp),
+        );
+
+        let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_spacing(SPACING);
+
+        // 标题行：标题 + 关闭提示（点击已选 block 行即可取消选中）
+        let mut title_row = Flex::row()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_cross_axis_alignment(CrossAxisAlignment::Center)
+            .with_spacing(SPACING);
+        title_row.add_child(
+            Text::new(
+                crate::t!("observatory-block-detail-title"),
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.active_ui_text_color().into())
+            .finish(),
+        );
+        title_row.add_child(Expanded::new(1., Empty::new().finish()).finish());
+        title_row.add_child(
+            Text::new(
+                crate::t!("observatory-block-detail-close"),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.disabled_ui_text_color().into_solid())
+            .finish(),
+        );
+        col.add_child(title_row.finish());
+
+        col.add_child(
+            Text::new(meta_text, appearance.ui_font_family(), SMALL_FONT_SIZE)
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .finish(),
+        );
+
+        if let Some(parent) = &detail.parent_id {
+            col.add_child(
+                Text::new(
+                    crate::t!("observatory-block-detail-parent", parent = parent.clone()),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .finish(),
+            );
+        }
+
+        // Metadata
+        col.add_child(
+            Text::new(
+                crate::t!("observatory-block-detail-metadata"),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.nonactive_ui_text_color().into_solid())
+            .finish(),
+        );
+        col.add_child(
+            Text::new(truncate_str(&detail.metadata, 4000), appearance.ui_font_family(), SMALL_FONT_SIZE)
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .finish(),
+        );
+
+        // Content
+        col.add_child(
+            Text::new(
+                crate::t!("observatory-block-detail-content"),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.nonactive_ui_text_color().into_solid())
+            .finish(),
+        );
+        col.add_child(
+            Text::new(truncate_str(&detail.content, 16000), appearance.ui_font_family(), SMALL_FONT_SIZE)
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .finish(),
+        );
+
+        Container::new(col.finish())
+            .with_horizontal_padding(PANEL_PADDING)
+            .with_vertical_padding(SPACING)
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
+            .with_background(Fill::Solid(internal_colors::neutral_2(theme)))
+            .finish()
+    }
+
+    /// Orchestration tab 内容: runs + tasks + gates + messages + composer。
     fn render_orchestration_tab(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
         let theme = appearance.theme();
@@ -510,7 +784,7 @@ impl ObservatoryPanelView {
             .with_main_axis_size(MainAxisSize::Max)
             .with_spacing(SECTION_SPACING);
 
-        // ── Runs + Tasks ──
+        // ── Runs + Tasks（task 行可点击选中） ──
         if snapshot.runs.is_empty() {
             col.add_child(self.render_empty_state(
                 &crate::t!("observatory-runs-empty"),
@@ -518,10 +792,39 @@ impl ObservatoryPanelView {
                 theme,
             ));
         } else {
+            let selected_task = model.selected_task();
+            let mut task_idx = 0usize;
             for run in &snapshot.runs {
-                col.add_child(self.render_run_entry(run, &snapshot.tasks, appearance, theme));
+                let run_tasks: Vec<&TaskRowGui> = snapshot
+                    .tasks
+                    .iter()
+                    .filter(|t| t.run_id == run.id)
+                    .collect();
+                // 预增长句柄池
+                Self::ensure_handles(
+                    &mut self.task_row_handles.borrow_mut(),
+                    task_idx + run_tasks.len(),
+                );
+                let handles = self.task_row_handles.borrow();
+                let rows: Vec<(usize, &TaskRowGui)> =
+                    run_tasks.into_iter().enumerate().map(|(i, t)| (task_idx + i, t)).collect();
+                task_idx += rows.len();
+                col.add_child(self.render_run_entry(
+                    run,
+                    &rows,
+                    selected_task,
+                    &handles,
+                    appearance,
+                    theme,
+                ));
             }
         }
+
+        // ── 选中 task 详情 + 派发 ──
+        col.add_child(self.render_task_panel(app));
+
+        // ── Pending gates ──
+        col.add_child(self.render_gates_section(app));
 
         // ── 最近 Messages ──
         if !snapshot.recent_messages.is_empty() {
@@ -575,11 +878,14 @@ impl ObservatoryPanelView {
         Shrinkable::new(1., col.finish()).finish()
     }
 
-    /// 单个 run 及其下属 tasks 渲染。
+    /// 单个 run 及其下属 tasks 渲染（task 行 Hoverable + 点击选中）。
+    #[allow(clippy::too_many_arguments)]
     fn render_run_entry(
         &self,
         run: &RunRowGui,
-        tasks: &[TaskRowGui],
+        run_tasks: &[(usize, &TaskRowGui)],
+        selected_task: Option<&str>,
+        handles: &[MouseStateHandle],
         appearance: &Appearance,
         theme: &WarpTheme,
     ) -> Box<dyn Element> {
@@ -613,14 +919,14 @@ impl ObservatoryPanelView {
                 .finish(),
         );
 
-        // 嵌套 tasks
-        let run_tasks: Vec<&TaskRowGui> = tasks
-            .iter()
-            .filter(|t| t.run_id == run.id)
-            .collect();
-        for task in run_tasks {
+        // 嵌套 tasks（可点击选中）
+        for (handle_idx, task) in run_tasks {
+            let handle = handles[*handle_idx].clone();
+            let is_selected = selected_task.is_some_and(|s| s == task.id);
+            let task_id = task.id.clone();
             let status_color = task_status_color(&task.status);
             let title = truncate_str(&task.title, 36);
+
             let mut task_row = Flex::row()
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                 .with_spacing(SPACING);
@@ -649,14 +955,402 @@ impl ObservatoryPanelView {
                 .with_color(status_color.clone().into_solid())
                 .finish(),
             );
-            col.add_child(
-                Container::new(task_row.finish())
+            let task_row = task_row.finish();
+
+            let hoverable = Hoverable::new(handle, move |state| {
+                let mut container = Container::new(task_row)
                     .with_margin_left(PANEL_PADDING + 8.)
-                    .finish(),
-            );
+                    .with_horizontal_padding(4.)
+                    .with_vertical_padding(2.);
+                if is_selected {
+                    container = container.with_background(internal_colors::fg_overlay_1(theme));
+                } else if state.is_hovered() {
+                    container =
+                        container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
+                }
+                container.finish()
+            })
+            .on_click(move |ctx, _, _| {
+                ctx.dispatch_typed_action(ObservatoryPanelAction::SelectTask(Some(task_id.clone())));
+            })
+            .finish();
+            col.add_child(hoverable);
         }
 
         Container::new(col.finish()).finish()
+    }
+
+    /// 选中 task 的详情面板：id/status + 派发按钮 + 最近 dispatch 反馈。
+    fn render_task_panel(&self, app: &AppContext) -> Box<dyn Element> {
+        let appearance = Appearance::as_ref(app);
+        let theme = appearance.theme();
+        let model = self.model.as_ref(app);
+        let snapshot = model.snapshot();
+
+        let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_spacing(SPACING);
+
+        col.add_child(
+            Text::new(
+                crate::t!("observatory-task-panel-title"),
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.active_ui_text_color().into())
+            .finish(),
+        );
+
+        let selected_task = model
+            .selected_task()
+            .and_then(|id| snapshot.tasks.iter().find(|t| t.id == id));
+
+        if let Some(task) = selected_task {
+            col.add_child(
+                Text::new(
+                    format!("{} · {}", truncate_str(&task.id, 24), task.status),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .soft_wrap(false)
+                .finish(),
+            );
+            col.add_child(ChildView::new(&self.dispatch_button).finish());
+        } else {
+            col.add_child(
+                Text::new(
+                    crate::t!("observatory-task-no-selection"),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.disabled_ui_text_color().into_solid())
+                .finish(),
+            );
+        }
+
+        if let Some(dispatch_id) = model.last_dispatch() {
+            col.add_child(
+                Text::new(
+                    crate::t!("observatory-task-dispatched", id = dispatch_id),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.accent().into_solid())
+                .finish(),
+            );
+        }
+
+        Container::new(col.finish())
+            .with_horizontal_padding(PANEL_PADDING)
+            .with_vertical_padding(SPACING)
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
+            .with_background(Fill::Solid(internal_colors::neutral_2(theme)))
+            .finish()
+    }
+
+    /// Pending gates 列表：选中 gate → 选项 chip 一键解决 / 自定义 resolution。
+    fn render_gates_section(&self, app: &AppContext) -> Box<dyn Element> {
+        let appearance = Appearance::as_ref(app);
+        let theme = appearance.theme();
+        let model = self.model.as_ref(app);
+        let snapshot = model.snapshot();
+
+        let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_spacing(SPACING);
+
+        col.add_child(
+            Text::new(
+                crate::t!("observatory-gates-title"),
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.active_ui_text_color().into())
+            .finish(),
+        );
+
+        if snapshot.gates.is_empty() {
+            col.add_child(
+                Text::new(
+                    crate::t!("observatory-gates-empty"),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.disabled_ui_text_color().into_solid())
+                .finish(),
+            );
+        } else {
+            Self::ensure_handles(
+                &mut self.gate_row_handles.borrow_mut(),
+                snapshot.gates.len(),
+            );
+            // 选项 chip 句柄扁平展开
+            let total_options: usize = snapshot.gates.iter().map(|g| g.options.len()).sum();
+            Self::ensure_handles(
+                &mut self.gate_option_handles.borrow_mut(),
+                total_options,
+            );
+            let row_handles = self.gate_row_handles.borrow();
+            let option_handles = self.gate_option_handles.borrow();
+            let mut option_idx = 0usize;
+
+            for (i, gate) in snapshot.gates.iter().enumerate() {
+                let is_selected = model.selected_gate().is_some_and(|g| g == gate.id);
+                let gate_id = gate.id.clone();
+                let question = truncate_str(&gate.question, 80);
+                let created = &gate.created_at;
+
+                let mut gate_col = Flex::column().with_spacing(SPACING / 2.);
+                let mut header = Flex::row()
+                    .with_main_axis_size(MainAxisSize::Max)
+                    .with_cross_axis_alignment(CrossAxisAlignment::Center)
+                    .with_spacing(SPACING);
+                header.add_child(
+                    Text::new(question.clone(), appearance.ui_font_family(), appearance.ui_font_size())
+                        .with_color(theme.main_text_color(theme.background()).into())
+                        .soft_wrap(false)
+                        .finish(),
+                );
+                header.add_child(Expanded::new(1., Empty::new().finish()).finish());
+                header.add_child(
+                    Text::new(created.clone(), appearance.ui_font_family(), SMALL_FONT_SIZE)
+                        .with_color(theme.disabled_ui_text_color().into_solid())
+                        .finish(),
+                );
+                gate_col.add_child(header.finish());
+
+                // 选项 chips（点击 → ResolveGate(gate_id, option)）
+                let mut chip_row = Flex::row()
+                    .with_cross_axis_alignment(CrossAxisAlignment::Center)
+                    .with_spacing(SPACING);
+                for option in &gate.options {
+                    let handle = option_handles[option_idx].clone();
+                    option_idx += 1;
+                    let gate_id_for_chip = gate_id.clone();
+                    let option_text = option.clone();
+                    let option_text_click = option.clone();
+                    let chip = Hoverable::new(handle, move |state| {
+                        let mut container = Container::new(
+                            Text::new(
+                                option_text.clone(),
+                                appearance.ui_font_family(),
+                                SMALL_FONT_SIZE,
+                            )
+                            .with_color(theme.active_ui_text_color().into())
+                            .finish(),
+                        )
+                        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
+                        .with_horizontal_padding(8.)
+                        .with_vertical_padding(3.)
+                        .with_border(Border::all(1.).with_border_fill(theme.accent()));
+                        if state.is_hovered() {
+                            container =
+                                container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
+                        }
+                        container.finish()
+                    })
+                    .on_click(move |ctx, _, _| {
+                        ctx.dispatch_typed_action(ObservatoryPanelAction::ResolveGate(
+                            gate_id_for_chip.clone(),
+                            option_text_click.clone(),
+                        ));
+                    })
+                    .finish();
+                    chip_row.add_child(chip);
+                }
+                if !gate.options.is_empty() {
+                    gate_col.add_child(chip_row.finish());
+                }
+
+                let inner = gate_col.finish();
+                let hoverable = Hoverable::new(row_handles[i].clone(), move |state| {
+                    let mut container = Container::new(inner)
+                        .with_horizontal_padding(PANEL_PADDING)
+                        .with_vertical_padding(ROW_V_PADDING);
+                    if is_selected {
+                        container = container.with_background(internal_colors::fg_overlay_1(theme));
+                    } else if state.is_hovered() {
+                        container =
+                            container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
+                    }
+                    container.finish()
+                })
+                .on_click(move |ctx, _, _| {
+                    ctx.dispatch_typed_action(ObservatoryPanelAction::SelectGate(Some(gate_id.clone())));
+                })
+                .finish();
+                col.add_child(hoverable);
+            }
+
+            // 选中 gate 的自定义 resolution 输入
+            if model.selected_gate().is_some() {
+                col.add_child(
+                    Container::new(ChildView::new(&self.gate_resolution_input).finish())
+                        .with_horizontal_padding(PANEL_PADDING)
+                        .finish(),
+                );
+            }
+        }
+
+        Container::new(col.finish())
+            .with_horizontal_padding(0.)
+            .finish()
+    }
+
+    /// Proxy tab：透明代理配置（模式 chips + upstream 覆盖 + 解析探测 + 计数刷新）。
+    fn render_proxy_tab(&self, app: &AppContext) -> Box<dyn Element> {
+        let appearance = Appearance::as_ref(app);
+        let theme = appearance.theme();
+        let intercept = InterceptSessionsModel::as_ref(app);
+        let current_mode = intercept.mode();
+
+        let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_spacing(SECTION_SPACING);
+
+        // ── 拦截模式 chips ──
+        col.add_child(
+            Text::new(
+                crate::t!("observatory-proxy-mode"),
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.active_ui_text_color().into())
+            .finish(),
+        );
+
+        let modes: [(InterceptMode, String, MouseStateHandle); 3] = [
+            (
+                InterceptMode::Full,
+                crate::t!("observatory-proxy-mode-full"),
+                self.mode_chip_handles[0].clone(),
+            ),
+            (
+                InterceptMode::HooksOnly,
+                crate::t!("observatory-proxy-mode-hooks"),
+                self.mode_chip_handles[1].clone(),
+            ),
+            (
+                InterceptMode::Bypass,
+                crate::t!("observatory-proxy-mode-bypass"),
+                self.mode_chip_handles[2].clone(),
+            ),
+        ];
+        let mut mode_row = Flex::row()
+            .with_cross_axis_alignment(CrossAxisAlignment::Center)
+            .with_spacing(SPACING);
+        for (mode, label, handle) in modes {
+            let is_active = mode == current_mode;
+            let chip = Hoverable::new(handle, move |state| {
+                let text_color = if is_active {
+                    theme.active_ui_text_color().into()
+                } else if state.is_hovered() {
+                    theme.nonactive_ui_text_color().into()
+                } else {
+                    theme.disabled_ui_text_color().into_solid()
+                };
+                let mut container = Container::new(
+                    Text::new(label.clone(), appearance.ui_font_family(), SMALL_FONT_SIZE)
+                        .with_color(text_color)
+                        .finish(),
+                )
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
+                .with_horizontal_padding(8.)
+                .with_vertical_padding(3.);
+                if is_active {
+                    container = container.with_border(Border::all(1.).with_border_fill(theme.accent()));
+                }
+                container.finish()
+            })
+            .on_click(move |ctx, _, _| {
+                ctx.dispatch_typed_action(ObservatoryPanelAction::SetInterceptMode(mode));
+            })
+            .finish();
+            mode_row.add_child(chip);
+        }
+        col.add_child(
+            Container::new(mode_row.finish())
+                .with_horizontal_padding(PANEL_PADDING)
+                .finish(),
+        );
+
+        // ── Upstream 覆盖输入 ──
+        col.add_child(
+            Container::new(ChildView::new(&self.upstream_base_input).finish())
+                .with_horizontal_padding(PANEL_PADDING)
+                .finish(),
+        );
+        col.add_child(
+            Container::new(ChildView::new(&self.upstream_auth_env_input).finish())
+                .with_horizontal_padding(PANEL_PADDING)
+                .finish(),
+        );
+
+        // ── 解析探测（ClaudeCode 视角，与 harness_intercept 同基准） ──
+        let probe = intercept.resolve_upstream(HarnessType::ClaudeCode);
+        let probe_el = match &probe {
+            Some(config) => Text::new(
+                crate::t!(
+                    "observatory-proxy-resolved",
+                    base = config.api_base.clone(),
+                    env = config.api_key_env.clone(),
+                ),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.sub_text_color(theme.background()).into())
+            .soft_wrap(false)
+            .finish(),
+            None => Text::new(
+                crate::t!("observatory-proxy-resolve-failed"),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.ui_error_color())
+            .finish(),
+        };
+        col.add_child(
+            Container::new(probe_el)
+                .with_horizontal_padding(PANEL_PADDING)
+                .finish(),
+        );
+
+        // ── 当前覆盖值回显 ──
+        let base = intercept.upstream_base();
+        let auth_env = intercept.upstream_auth_env();
+        let override_text = format!(
+            "base: {} · auth env: {}",
+            if base.is_empty() { "(auto)" } else { base },
+            if auth_env.is_empty() { "(default)" } else { auth_env },
+        );
+        col.add_child(
+            Container::new(
+                Text::new(override_text, appearance.ui_font_family(), SMALL_FONT_SIZE)
+                    .with_color(theme.disabled_ui_text_color().into_solid())
+                    .soft_wrap(false)
+                    .finish(),
+            )
+            .with_horizontal_padding(PANEL_PADDING)
+            .finish(),
+        );
+
+        // ── 提示 ──
+        col.add_child(
+            Container::new(
+                Text::new(
+                    crate::t!("observatory-proxy-applies-to"),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.disabled_ui_text_color().into_solid())
+                .finish(),
+            )
+            .with_horizontal_padding(PANEL_PADDING)
+            .finish(),
+        );
+
+        Shrinkable::new(1., col.finish()).finish()
     }
 
     /// Composer 区域: draft_to / subject / body 输入框 + 发送按钮。
@@ -733,6 +1427,9 @@ impl TypedActionView for ObservatoryPanelView {
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
                     model.refresh(ctx);
                 });
+                InterceptSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.refresh_block_count(ctx);
+                });
             }
             ObservatoryPanelAction::SendMessage => {
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
@@ -749,6 +1446,90 @@ impl TypedActionView for ObservatoryPanelView {
                 let id = id.clone();
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
                     model.select_session(id, ctx);
+                });
+            }
+            ObservatoryPanelAction::SetSearch(filter) => {
+                let filter = filter.clone();
+                ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.set_search_filter(filter, ctx);
+                });
+            }
+            ObservatoryPanelAction::SelectBlock(id) => {
+                let id = id.clone();
+                ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.select_block(id, ctx);
+                });
+            }
+            ObservatoryPanelAction::SelectTask(id) => {
+                let id = id.clone();
+                ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.select_task(id, ctx);
+                });
+            }
+            ObservatoryPanelAction::DispatchTask(task_id) => {
+                let task_id = task_id.clone();
+                ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.dispatch_task(&task_id, ctx);
+                });
+            }
+
+            ObservatoryPanelAction::DispatchSelectedTask => {
+                let selected = ObservatoryModel::handle(ctx)
+                    .as_ref(ctx)
+                    .selected_task()
+                    .map(str::to_string);
+                if let Some(task_id) = selected {
+                    ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                        model.dispatch_task(&task_id, ctx);
+                    });
+                }
+            }
+            ObservatoryPanelAction::ResolveSelectedGate(resolution) => {
+                let resolution = resolution.clone();
+                let selected = ObservatoryModel::handle(ctx)
+                    .as_ref(ctx)
+                    .selected_gate()
+                    .map(str::to_string);
+                if let Some(gate_id) = selected {
+                    ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                        model.resolve_gate(&gate_id, &resolution, ctx);
+                    });
+                }
+            }
+            ObservatoryPanelAction::SelectGate(id) => {
+                let id = id.clone();
+                ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.select_gate(id, ctx);
+                });
+            }
+            ObservatoryPanelAction::ResolveGate(gate_id, resolution) => {
+                let gate_id = gate_id.clone();
+                let resolution = resolution.clone();
+                ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.resolve_gate(&gate_id, &resolution, ctx);
+                });
+            }
+            ObservatoryPanelAction::SetInterceptMode(mode) => {
+                let mode = *mode;
+                InterceptSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.set_mode(mode, ctx);
+                });
+            }
+            ObservatoryPanelAction::SetUpstreamBase(base) => {
+                let base = base.clone();
+                InterceptSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.set_upstream_base(base, ctx);
+                });
+            }
+            ObservatoryPanelAction::SetUpstreamAuthEnv(env) => {
+                let env = env.clone();
+                InterceptSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.set_upstream_auth_env(env, ctx);
+                });
+            }
+            ObservatoryPanelAction::RefreshBlockCount => {
+                InterceptSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.refresh_block_count(ctx);
                 });
             }
         }
@@ -777,6 +1558,7 @@ impl View for ObservatoryPanelView {
         match active_tab {
             ObservatoryTab::Sessions => col.add_child(self.render_sessions_tab(app)),
             ObservatoryTab::Orchestration => col.add_child(self.render_orchestration_tab(app)),
+            ObservatoryTab::Proxy => col.add_child(self.render_proxy_tab(app)),
         }
 
         Shrinkable::new(1., col.finish()).finish()
