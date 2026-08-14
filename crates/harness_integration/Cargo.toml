@@ -1,0 +1,26 @@
+[package]
+name = "harness_integration"
+version = "0.1.0"
+edition = "2021"
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+harness_blocks = { path = "../harness_blocks" }
+futures-util = { workspace = true }
+bytes = { workspace = true }
+parking_lot = { workspace = true }
+proxy_interceptor = { path = "../proxy_interceptor" }
+tokio = { workspace = true, features = ["full"] }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+axum = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }

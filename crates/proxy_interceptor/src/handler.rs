@@ -6,7 +6,6 @@ use axum::body::{to_bytes, Body};
 use axum::extract::State;
 use axum::http::{Request, Response, StatusCode};
 use axum::response::IntoResponse;
-use futures_util::StreamExt;
 
 use tokio::sync::mpsc;
 use uuid::Uuid;
@@ -130,24 +129,45 @@ async fn proxy_inner(
         }
     }
 
-    // 6. 边透传边旁路捕获 chunk; 7. Body::from_stream — SSE 不缓冲
-    drop_capture(&state.raw_tx, RawEvent::ResponseDone {
-        id,
-        status: status.as_u16(),
-    });
+    // 6. 边透传边旁路捕获 chunk; 7. Body::from_stream — SSE 不缓冲。
+    // ResponseDone 在流结束时发出 (所有 chunk 之后), 语义 = "响应已完整捕获",
+    // 下游 raw processor 据此把累计 chunk 拼装成完整响应体。
     let tx = state.raw_tx.clone();
-    let mut seq = 0u64;
-    let stream = resp.bytes_stream().map(move |chunk| {
-        if let Ok(bytes) = &chunk {
-            drop_capture(&tx, RawEvent::ResponseChunk {
-                id,
-                seq,
-                chunk: bytes.clone(),
-            });
-            seq += 1;
-        }
-        chunk.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-    });
+    let status_u16 = status.as_u16();
+    let inner = resp.bytes_stream();
+    let stream = futures_util::stream::unfold(
+        (inner, Some((tx, id, status_u16)), 0u64),
+        |(mut inner, done, mut seq)| async move {
+            use futures_util::StreamExt;
+            match inner.next().await {
+                Some(Ok(bytes)) => {
+                    if let Some((tx, id, _)) = &done {
+                        drop_capture(tx, RawEvent::ResponseChunk {
+                            id: *id,
+                            seq,
+                            chunk: bytes.clone(),
+                        });
+                        seq += 1;
+                    }
+                    Some((
+                        Ok::<bytes::Bytes, std::io::Error>(bytes),
+                        (inner, done, seq),
+                    ))
+                }
+                Some(Err(e)) => Some((
+                    Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+                    (inner, None, seq),
+                )),
+                None => {
+                    // 流正常结束: 发 ResponseDone。
+                    if let Some((tx, id, status)) = done {
+                        drop_capture(&tx, RawEvent::ResponseDone { id, status });
+                    }
+                    None
+                }
+            }
+        },
+    );
 
     Ok(builder.body(Body::from_stream(stream))?)
 }

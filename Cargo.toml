@@ -43,6 +43,8 @@ http_client = { path = "crates/http_client" }
 http_server = { path = "crates/http_server" }
 input_classifier = { path = "crates/input_classifier" }
 integration = { path = "crates/integration" }
+harness_blocks = { path = "crates/harness_blocks" }
+harness_integration = { path = "crates/harness_integration" }
 ipc = { path = "crates/ipc" }
 jsonrpc = { path = "crates/jsonrpc" }
 languages = { path = "crates/languages" }
@@ -51,6 +53,7 @@ natural_language_detection = { path = "crates/natural_language_detection" }
 node_runtime = { path = "crates/node_runtime" }
 onboarding = { path = "crates/onboarding" }
 persistence = { path = "crates/persistence" }
+proxy_interceptor = { path = "crates/proxy_interceptor" }
 prevent_sleep = { path = "crates/prevent_sleep" }
 repo_metadata = { path = "crates/repo_metadata" }
 settings = { path = "crates/settings" }
