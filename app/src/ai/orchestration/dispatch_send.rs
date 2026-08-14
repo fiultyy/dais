@@ -31,11 +31,20 @@ pub fn inject_prompt(
     force: bool,
     cx: &AppContext,
 ) -> anyhow::Result<String> {
-    // 1. Validate dispatch exists.
-    let ctx = store()
-        .get_dispatch_context_by_id(dispatch_id)
-        .map_err(|e| anyhow::anyhow!("store error: {e}"))?
-        .ok_or_else(|| anyhow::anyhow!("dispatch not found: {dispatch_id}"))?;
+    // 1. Validate dispatch exists. Session mailboxes (`session_<sid>`) are
+    // valid terminal addresses without a dispatch row — cross-harness
+    // direct sends inject into them directly.
+    let is_session_handle = dispatch_id.starts_with("session_");
+    let ctx = if is_session_handle {
+        None
+    } else {
+        Some(
+            store()
+                .get_dispatch_context_by_id(dispatch_id)
+                .map_err(|e| anyhow::anyhow!("store error: {e}"))?
+                .ok_or_else(|| anyhow::anyhow!("dispatch not found: {dispatch_id}"))?,
+        )
+    };
 
     // 2. Try to get terminal title for idle check.
     let title = terminal_title_with_cx(dispatch_id, cx);
@@ -74,10 +83,15 @@ pub fn inject_prompt(
         .map_err(|e| anyhow::anyhow!("PTY write failed: {e}"))?;
 
     let bytes_len = text.len();
-    let summary = format!(
-        "injected {bytes_len} bytes into dispatch {dispatch_id} (task {}, force={force})",
-        ctx.task_id,
-    );
+    let summary = match &ctx {
+        Some(ctx) => format!(
+            "injected {bytes_len} bytes into dispatch {dispatch_id} (task {}, force={force})",
+            ctx.task_id,
+        ),
+        None => format!(
+            "injected {bytes_len} bytes into session mailbox {dispatch_id} (force={force})"
+        ),
+    };
     Ok(summary)
 }
 
