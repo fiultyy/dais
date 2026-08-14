@@ -200,7 +200,9 @@ elif [[ $RELEASE_CHANNEL = "oss" ]]; then
   BINARY_NAME="zap-oss"
   APP_NAME="Zap"
   # OSS channel 使用本地 crash reporting,不启用 release 默认特性集合。
-  FEATURES="release_bundle"
+  # 额外启用 Warp 正式版通过服务端实验下发的 cargo features:
+  # OSS 无服务端,在编译期直接纳入。
+  FEATURES="release_bundle,projects,vertical_tabs,vertical_tabs_summary_mode,tab_configs,orchestration"
 fi
 
 # Artifact-specific binary naming

@@ -686,6 +686,10 @@ pub enum FeatureFlag {
     /// 关闭时,UI 入口隐藏,`Client::new()` 退回 reqwest 默认(读环境变量)。
     /// 见 Issue #72。
     HttpProxySettings,
+
+    /// 本地编排平面:多 agent 工作流协调。
+    /// P1:CLI + DB store 可用;P2/P3 待接线。
+    Orchestration,
 }
 
 static FLAG_STATES: [AtomicBool; cardinality::<FeatureFlag>()] =

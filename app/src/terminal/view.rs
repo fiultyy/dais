@@ -7425,7 +7425,7 @@ impl TerminalView {
         );
     }
 
-    fn write_agent_bytes_to_pty<B: Into<Cow<'static, [u8]>>>(
+    pub(crate) fn write_agent_bytes_to_pty<B: Into<Cow<'static, [u8]>>>(
         &mut self,
         data: B,
         mode: &AIAgentPtyWriteMode,
@@ -10087,6 +10087,7 @@ impl TerminalView {
                 num_secrets_obfuscated,
                 cloud_workflow_id,
                 cloud_env_var_collection_id,
+                ..
             }) => {
                 // To automatically warpify a subshell, we run the relevant command to open the
                 // subshell and create a future to delay bootstrapping the subshell long enough for

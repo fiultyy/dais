@@ -594,6 +594,7 @@ pub(super) struct VerticalTabsPanelState {
     show_pr_link_info_tooltip_mouse_state: MouseStateHandle,
     show_diff_stats_mouse_state: MouseStateHandle,
     show_details_on_hover_mouse_state: MouseStateHandle,
+    panel_interactivity_mouse_state: MouseStateHandle,
     pub(super) show_settings_popup: bool,
 }
 
@@ -626,6 +627,7 @@ impl Default for VerticalTabsPanelState {
             subtitle_option_1_mouse_state: Default::default(),
             subtitle_option_2_mouse_state: Default::default(),
             show_pr_link_mouse_state: Default::default(),
+            panel_interactivity_mouse_state: Default::default(),
             show_pr_link_info_tooltip_mouse_state: Default::default(),
             show_diff_stats_mouse_state: Default::default(),
             show_details_on_hover_mouse_state: Default::default(),
@@ -1487,9 +1489,24 @@ fn render_vertical_tabs_panel(
         super::PanelPosition::Left => DragBarSide::Right,
         super::PanelPosition::Right => DragBarSide::Left,
     };
-    let inner = Container::new(panel_with_popup)
-        .with_background(internal_colors::fg_overlay_1(theme))
-        .finish();
+    // Wrap the panel in a Hoverable (ported from upstream master
+    // vertical_tabs.rs ~1731) so double-clicking the panel's empty area
+    // opens a new terminal tab inheriting the active tab's cwd
+    // (AddTerminalTab -> get_new_tab_startup_directory). Tab rows and group
+    // headers defer to children first, so their own double-click handlers
+    // (rename) keep winning where they overlap.
+    let inner = Hoverable::new(state.panel_interactivity_mouse_state.clone(), |_| {
+        Container::new(panel_with_popup)
+            .with_background(internal_colors::fg_overlay_1(theme))
+            .finish()
+    })
+    .on_double_click(|ctx, _, _| {
+        ctx.dispatch_typed_action(WorkspaceAction::AddTerminalTab {
+            hide_homepage: false,
+        });
+    })
+    .with_defer_events_to_children()
+    .finish();
 
     Resizable::new(state.resizable_state.clone(), inner)
         .with_dragbar_side(drag_side)

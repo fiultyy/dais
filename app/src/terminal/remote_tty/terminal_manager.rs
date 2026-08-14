@@ -35,6 +35,11 @@ pub struct TerminalManager {
     _event_loop: ModelHandle<EventLoop>,
 
     view: ViewHandle<TerminalView>,
+
+    /// Keeps the orchestration bridge (and its model-event subscription)
+    /// alive for the session.
+    #[cfg(feature = "orchestration")]
+    orchestration_bridge: Option<ModelHandle<crate::ai::orchestration::shell_event_bridge::ShellEventBridge>>,
 }
 
 impl TerminalManager {
@@ -65,6 +70,25 @@ impl TerminalManager {
 
         let model_events =
             ctx.add_model(|ctx| ModelEventDispatcher::new(events_rx, sessions.clone(), ctx));
+
+        // Orchestration shell event bridge (see local_tty for rationale).
+        #[cfg(feature = "orchestration")]
+        let mut orchestration_bridge: Option<warpui::ModelHandle<crate::ai::orchestration::shell_event_bridge::ShellEventBridge>> = None;
+        #[cfg(feature = "orchestration")]
+        {
+            use crate::features::FeatureFlag;
+            use warpui::SingletonEntity as _;
+            if FeatureFlag::Orchestration.is_enabled() {
+                use crate::ai::orchestration::shell_event_bridge::{
+                    subscribe_bridge, SessionDispatchMap, ShellEventBridge,
+                };
+                let dispatch_map = SessionDispatchMap::handle(ctx)
+                    .read(ctx, |m, _| m.handle_clone());
+                let bridge = ctx.add_model(|_| ShellEventBridge::new(dispatch_map));
+                subscribe_bridge(&bridge, &model_events, ctx);
+                orchestration_bridge = Some(bridge);
+            }
+        }
 
         // Create the terminal model.
         let model = terminal_manager::create_terminal_model(
@@ -135,14 +159,31 @@ impl TerminalManager {
             ctx,
         );
 
+        // Give the orchestration bridge the view handle (see local_tty).
+        #[cfg(feature = "orchestration")]
+        if let Some(bridge) = &orchestration_bridge {
+            if crate::features::FeatureFlag::Orchestration.is_enabled() {
+                bridge.update(ctx, |b, _| b.set_view(view.downgrade()));
+            }
+        }
+
         // Create the terminal manager itself.
+        #[cfg(feature = "orchestration")]
+        let terminal_manager = Self {
+            model,
+            view,
+            _pty_controller: pty_controller,
+            _event_loop: event_loop,
+            orchestration_bridge,
+        };
+
+        #[cfg(not(feature = "orchestration"))]
         let terminal_manager = Self {
             model,
             view,
             _pty_controller: pty_controller,
             _event_loop: event_loop,
         };
-
         ctx.add_model(|_ctx| {
             let manager: Box<dyn crate::terminal::TerminalManager> = Box::new(terminal_manager);
             manager

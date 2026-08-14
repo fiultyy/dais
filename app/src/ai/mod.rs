@@ -33,6 +33,8 @@ pub mod request_usage_model;
 pub(crate) mod restored_conversations;
 pub(crate) mod skills;
 pub(crate) mod voice;
+#[cfg(feature = "orchestration")]
+pub(crate) mod orchestration;
 pub use agent_tips::*;
 pub use request_usage_model::*;
 use warpui::AppContext;

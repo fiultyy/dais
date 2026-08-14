@@ -140,6 +140,8 @@ use crate::uri::web_intent_parser::maybe_rewrite_web_url_to_intent;
 
 use ::ai::project_context::model::ProjectContextModel;
 pub use ai::agent::{todos::AIAgentTodoList, AIAgentActionResultType, FileEdit, TodoOperation};
+#[cfg(feature = "orchestration")]
+pub use ai::orchestration::runtime_rpc;
 use ai::agent_conversations_model::AgentConversationsModel;
 use ai::blocklist::{BlocklistAIHistoryModel, BlocklistAIPermissions};
 use ai::execution_profiles::editor::ExecutionProfileEditorManager;
@@ -981,6 +983,36 @@ fn run_internal(mut launch_mode: LaunchMode) -> Result<()> {
         ctx.add_singleton_model(move |ctx| {
             plugin::PluginHost::new(ctx).expect("Could not instantiate PluginHost")
         });
+        // ── Runtime RPC server (L2) ──
+        // When running as a full GUI app, start the Unix-domain socket RPC
+        // server so CLI invocations from other terminals can forward
+        // orchestration commands into this process (single writer: the GUI
+        // owns the orchestration plane). The server handle is intentionally
+        // leaked — this closure returns before the app exits, and Drop would
+        // tear the server down one second into the session. Stale metadata /
+        // sockets are handled by the CLI's is_pid_alive() check.
+        #[cfg(all(unix, feature = "orchestration"))]
+        if matches!(&launch_mode, LaunchMode::App { .. }) {
+            match crate::ai::orchestration::runtime_rpc::spawn_rpc_server("app") {
+                Ok((socket_path, handle)) => {
+                    let meta = crate::ai::orchestration::runtime_rpc::RuntimeMetadata {
+                        socket_path: socket_path.to_string_lossy().to_string(),
+                        pid: std::process::id(),
+                        mode: "app".into(),
+                    };
+                    crate::ai::orchestration::runtime_rpc::write_metadata(&meta);
+                    // L2 dispatcher: executes forwarded commands on the
+                    // GPUI main thread via the shared CLI execution body.
+                    ctx.add_singleton_model(|ctx| {
+                        crate::ai::orchestration::runtime_rpc::RpcDispatcher::new(ctx)
+                    });
+                    std::mem::forget(handle);
+                }
+                Err(e) => {
+                    log::warn!("runtime_rpc: failed to start RPC server: {e}");
+                }
+            }
+        }
         let app_state = initialize_app(
             &launch_mode,
             timer,
@@ -1080,6 +1112,110 @@ fn initialize_app(
     // 必须在 persistence::initialize 跑完 migration 之后才设路径,否则首个
     // SshManager 操作可能撞 missing-table。
     warp_ssh_manager::set_database_path(persistence::database_file_path());
+
+    // 编排平面同样开独立写连接(WAL + busy_timeout),与 SSH 管理器同模式。
+    #[cfg(feature = "orchestration")]
+    ::ai::agent::orchestration::connection::set_database_path(
+        persistence::database_file_path(),
+    );
+
+    // 启动编排消息路由线程。Router 开自己的 store 连接(独立于 CLI 单例),
+    // 轮询 messages 表并驱动 worker_done / heartbeat 生命周期。
+    #[cfg(feature = "orchestration")]
+    {
+        use crate::features::FeatureFlag;
+        use warpui::SingletonEntity as _;
+
+        // Session→dispatch 注册表:terminal_manager 创建 ShellEventBridge 时读取。
+        ctx.add_singleton_model(|_| crate::ai::orchestration::shell_event_bridge::SessionDispatchMap::default());
+
+        if FeatureFlag::Orchestration.is_enabled() {
+            use crate::ai::orchestration::{OrchestrationPtySender, PtyBridgeConsumer, ViewRegistry};
+
+            // PTY bridge:ViewRegistry + consumer 注册为 singleton,
+            // channel sender 存全局 OnceLock 供编排 plane 使用。
+            ctx.add_singleton_model(|_| ViewRegistry::default());
+            let (sender, rx) = OrchestrationPtySender::channel(256);
+            // Wire the liveness checker so write_to_pty rejects handles
+            // not registered in ViewRegistry (dead/unassigned terminals).
+            let registry_for_check = ViewRegistry::handle(ctx)
+                .read(ctx, |m, _| m.clone());
+            let checker: std::sync::Arc<dyn Fn(&str) -> bool + Send + Sync> =
+                std::sync::Arc::new(move |h| registry_for_check.has_handle(h));
+            let sender = sender.with_handle_checker(checker);
+            crate::ai::orchestration::set_global_pty_sender(sender);
+
+            let registry = ViewRegistry::handle(ctx)
+                .read(ctx, |m, _| m.clone());
+            ctx.add_singleton_model(move |ctx| {
+                let mut consumer = PtyBridgeConsumer::new(rx, registry);
+                consumer.start(ctx);
+                consumer
+            });
+            log::info!("orchestration pty bridge consumer started");
+            // Terminal tail bridge: services tail/title extraction requests
+            // from off-main-thread callers (e.g. the message router) via the
+            // global channel. Requires ViewRegistry (registered above).
+            ctx.add_singleton_model(|ctx| {
+                crate::ai::orchestration::terminal_tail::TerminalTailBridge::new(ctx)
+            });
+            log::info!("orchestration terminal tail bridge registered");
+        }
+        // Orca alignment: single-writer principle. A CLI process
+        // (LaunchMode::CommandLine) must NOT start the router/push thread —
+        // the GUI process owns delivery. Two routers polling one DB is
+        // idempotent-safe for settlement, but a pointer injection is a PTY
+        // write, not a DB op: two writers can double-push one mailbox.
+        let is_cli_mode = matches!(launch_mode, LaunchMode::CommandLine { .. });
+        if FeatureFlag::Orchestration.is_enabled() && !is_cli_mode {
+            use ::ai::agent::orchestration::router::MessageRouter;
+            use ::ai::agent::orchestration::store::DieselOrchestrationStore;
+            use diesel::connection::SimpleConnection;
+            use diesel::Connection;
+
+            let db_path = persistence::database_file_path();
+            let url = db_path.to_string_lossy();
+            if let Ok(mut conn) = diesel::sqlite::SqliteConnection::establish(&*url) {
+                if let Err(e) = conn.batch_execute(
+                    "PRAGMA foreign_keys = ON; \
+                     PRAGMA busy_timeout = 2000; \
+                     PRAGMA journal_mode = WAL;",
+                ) {
+                    log::error!("orchestration router: PRAGMA failed: {e}, router not started");
+                } else {
+                    let store = DieselOrchestrationStore::new(conn);
+                    // Push plane: PTY writes via the global sender; idle
+                    // signals via the channel bridge (router runs off-main-thread,
+                    // so the channel flavour is safe there).
+                    let executor = crate::ai::orchestration::global_pty_sender().map(|s| {
+                        let e: std::sync::Arc<dyn ::ai::agent::orchestration::executor::PtyExecutor> =
+                            std::sync::Arc::new(s.clone());
+                        e
+                    });
+                    let probe: std::sync::Arc<dyn Fn(&str) -> ::ai::agent::orchestration::idle_detector::IdleSignal + Send + Sync> =
+                        std::sync::Arc::new(|dispatch_id: &str| {
+                            crate::ai::orchestration::terminal_tail::terminal_signals(dispatch_id)
+                        });
+                    let mut router = MessageRouter::new(store, "orchestrator");
+                    if let Some(executor) = executor {
+                        router = router.with_delivery(
+                            ::ai::agent::orchestration::router::PushPlane { executor, signal_probe: probe },
+                        );
+                    }
+                    router.spawn();
+                    // Router must outlive this block: its Drop impl shuts the
+                    // poll thread down. The router is process-lifetime state —
+                    // intentionally leaked.
+                    std::mem::forget(router);
+                    log::info!("orchestration message router started");
+                }
+            } else {
+                log::error!(
+                    "orchestration router: failed to establish DB connection to {url}, router not started"
+                );
+            }
+        }
+    }
 
     let persistence_writer = PersistenceWriter::new(writer_handles);
 

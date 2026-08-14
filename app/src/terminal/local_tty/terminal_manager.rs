@@ -106,6 +106,13 @@ pub struct TerminalManager {
     #[allow(dead_code)]
     pty_controller: ModelHandle<PtyController>,
 
+    /// The manager is responsible for managing the lifetime of the
+    /// orchestration shell event bridge (keeps its model-event subscription
+    /// alive for the session).
+    #[cfg(feature = "orchestration")]
+    orchestration_bridge: Option<ModelHandle<crate::ai::orchestration::shell_event_bridge::ShellEventBridge>>,
+
+
     /// The manager is responsible for managing the lifetime of the remote server controller.
     #[expect(dead_code)]
     remote_server_controller: ModelHandle<RemoteServerController>,
@@ -198,6 +205,26 @@ impl TerminalManager {
         ai::api_keys::ApiKeyManager::handle(ctx).update(ctx, |manager, ctx| {
             manager.register_model_event_dispatcher(&model_events, ctx);
         });
+
+        // Orchestration shell event bridge: translate OSC 133 / block
+        // completion events into worker state transitions.
+        #[cfg(feature = "orchestration")]
+        let mut orchestration_bridge: Option<warpui::ModelHandle<crate::ai::orchestration::shell_event_bridge::ShellEventBridge>> = None;
+        #[cfg(feature = "orchestration")]
+        {
+            use crate::features::FeatureFlag;
+            use warpui::SingletonEntity as _;
+            if FeatureFlag::Orchestration.is_enabled() {
+                use crate::ai::orchestration::shell_event_bridge::{
+                    subscribe_bridge, SessionDispatchMap, ShellEventBridge,
+                };
+                let dispatch_map = SessionDispatchMap::handle(ctx)
+                    .read(ctx, |m, _| m.handle_clone());
+                let bridge = ctx.add_model(|_| ShellEventBridge::new(dispatch_map));
+                subscribe_bridge(&bridge, &model_events, ctx);
+                orchestration_bridge = Some(bridge);
+            }
+        }
 
         let preferred_shell = chosen_shell.unwrap_or_else(|| {
             AvailableShells::handle(ctx)
@@ -310,6 +337,15 @@ impl TerminalManager {
             || has_restored_command_blocks)
             && !should_use_live_appearance;
 
+        // Give the orchestration bridge the view handle so it can register
+        // the session mailbox on first shell bootstrap.
+        #[cfg(feature = "orchestration")]
+        if let Some(bridge) = &orchestration_bridge {
+            if crate::features::FeatureFlag::Orchestration.is_enabled() {
+                bridge.update(ctx, |b, _| b.set_view(view.downgrade()));
+            }
+        }
+
         if should_show_restoration_separator {
             model
                 .lock()
@@ -340,6 +376,8 @@ impl TerminalManager {
             #[cfg(unix)]
             terminal_attributes_poller: None,
             pty_controller,
+            #[cfg(feature = "orchestration")]
+            orchestration_bridge,
             remote_server_controller,
 
             #[cfg(feature = "integration_tests")]

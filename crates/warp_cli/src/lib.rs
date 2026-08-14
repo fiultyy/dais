@@ -24,6 +24,7 @@ pub mod json_filter;
 pub mod mcp;
 pub mod model;
 pub mod provider;
+pub mod orchestration;
 pub mod share;
 pub const OZ_RUN_ID_ENV: &str = "OZ_RUN_ID";
 pub const OZ_PARENT_RUN_ID_ENV: &str = "OZ_PARENT_RUN_ID";
@@ -333,6 +334,10 @@ pub enum CliCommand {
     /// Manage providers.
     #[command(subcommand)]
     Provider(crate::provider::ProviderCommand),
+
+    /// Orchestrate multi-agent workflows.
+    #[command(subcommand)]
+    Orchestration(crate::orchestration::OrchestrationCommand),
 }
 
 /// A subcommand of the main Zap application. This includes all [`WorkerCommand`]s as well as app-specific debugging tools.

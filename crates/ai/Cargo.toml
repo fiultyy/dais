@@ -10,6 +10,7 @@ jemalloc = []
 local_fs = []
 test-util = []
 crash_reporting = []
+orchestration = []
 
 [dependencies]
 async-channel.workspace = true
@@ -55,7 +56,10 @@ warp_core.workspace = true
 warp_terminal.workspace = true
 warp_util.workspace = true
 chrono.workspace = true
+clap.workspace = true
 persistence.workspace = true
+diesel = { workspace = true, features = ["chrono", "sqlite"] }
+parking_lot.workspace = true
 priority-queue = "2.3.1"
 repo_metadata.workspace = true
 uuid.workspace = true

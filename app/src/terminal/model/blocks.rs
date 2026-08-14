@@ -3045,6 +3045,7 @@ impl BlockList {
                 command_finished_to_precmd_delay: None,
                 block_type: BlockType::Restored,
                 num_secrets_obfuscated: self.active_block().num_secrets_obfuscated(),
+                exit_code: block.exit_code.value(),
                 // We don't track if a restored block was a cloud workflow execution.
                 cloud_workflow_id: None,
                 cloud_env_var_collection_id: None,
@@ -3113,6 +3114,7 @@ impl BlockList {
                 command_finished_to_precmd_delay: delay,
                 block_type,
                 num_secrets_obfuscated: finished_block.num_secrets_obfuscated(),
+                exit_code: finished_block.exit_code().value(),
                 cloud_workflow_id: finished_block.cloud_workflow_state(),
                 cloud_env_var_collection_id: finished_block.cloud_env_var_collection_state(),
             }));
@@ -3141,6 +3143,7 @@ impl BlockList {
                         command_finished_to_precmd_delay: None,
                         block_type,
                         num_secrets_obfuscated: num_secrets_obfuscated.unwrap_or_default(),
+                        exit_code: 0, // Background blocks always exit 0
                         // Background blocks are not tracked as cloud workflow executions.
                         cloud_workflow_id: None,
                         cloud_env_var_collection_id: None,
