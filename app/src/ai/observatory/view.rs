@@ -5,7 +5,8 @@
 //! 仅维护渲染缓存（鼠标悬停句柄、子输入框句柄等纯 UI 状态）。
 
 use std::cell::RefCell;
-
+use warpui::r#async::SpawnedFutureHandle;
+use warpui::r#async::Timer;
 use warpui::elements::{
     Border, ChildView, ConstrainedBox, Container, CornerRadius, CrossAxisAlignment, Empty,
     Expanded, Flex, Hoverable, MainAxisSize, MainAxisAlignment, MouseStateHandle, ParentElement,
@@ -55,6 +56,9 @@ const COMPOSER_SPACING: f32 = 8.;
 const BADGE_RADIUS: f32 = 4.;
 /// 小号字体（详情/辅助文本）。
 const SMALL_FONT_SIZE: f32 = 12.;
+
+/// 观测台周期自动刷新间隔（ms）。
+const OBSERVATORY_REFRESH_INTERVAL_MS: u64 = 5_000;
 
 
 // ── Action ────────────────────────────────────────────────────────────────────
@@ -128,6 +132,10 @@ pub struct ObservatoryPanelView {
     upstream_auth_env_input: ViewHandle<SubmittableTextInput>,
     /// 任务派发按钮。
     dispatch_button: ViewHandle<ActionButton>,
+    /// 代理 tab: 刷新 block 计数按钮。
+    refresh_count_button: ViewHandle<ActionButton>,
+    /// 周期自动刷新 timer 句柄。Drop 时中止。
+    refresh_timer_handle: Option<SpawnedFutureHandle>,
 }
 
 impl ObservatoryPanelView {
@@ -304,6 +312,15 @@ impl ObservatoryPanelView {
                 })
         });
 
+        // 代理 tab: 刷新 block 计数按钮
+        let refresh_count_button = ctx.add_typed_action_view(|_ctx| {
+            ActionButton::new(crate::t!("observatory-proxy-refresh-count"), AgentInputButtonTheme)
+                .with_size(ButtonSize::AgentInputButton)
+                .on_click(|ctx| {
+                    ctx.dispatch_typed_action(ObservatoryPanelAction::RefreshBlockCount);
+                })
+        });
+
         // 订阅 model 事件 → 重绘
         ctx.subscribe_to_model(&model, |_me, _handle, _event, ctx| {
             ctx.notify();
@@ -316,7 +333,7 @@ impl ObservatoryPanelView {
             },
         );
 
-        Self {
+        let mut me = Self {
             model,
             refresh_button,
             session_row_handles: RefCell::new(Vec::new()),
@@ -344,7 +361,44 @@ impl ObservatoryPanelView {
             upstream_base_input,
             upstream_auth_env_input,
             dispatch_button,
+            refresh_count_button,
+            refresh_timer_handle: None,
+        };
+        // flag 开启时启动 5s 轮询（live 推送的替代，spec §Defer: refresh 轮询足够）
+        if crate::features::FeatureFlag::AgentHarness.is_enabled() {
+            me.start_refresh_timer(ctx);
         }
+        me
+    }
+
+    /// 启动周期自动刷新 timer（已在跑则 no-op；随视图 Drop 中止）。
+    fn start_refresh_timer(&mut self, ctx: &mut ViewContext<Self>) {
+        if self.refresh_timer_handle.is_some() {
+            return;
+        }
+        let handle = ctx.spawn(
+            async move {
+                Timer::after(std::time::Duration::from_millis(
+                    OBSERVATORY_REFRESH_INTERVAL_MS,
+                ))
+                .await;
+            },
+            |me, _unit, ctx| {
+                me.refresh_timer_handle = None;
+                // flag 中途关闭时停止续期
+                if !crate::features::FeatureFlag::AgentHarness.is_enabled() {
+                    return;
+                }
+                ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.refresh_auto(ctx);
+                });
+                InterceptSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.refresh_block_count(ctx);
+                });
+                me.start_refresh_timer(ctx);
+            },
+        );
+        self.refresh_timer_handle = Some(handle);
     }
 
     // ── 渲染子方法 ──────────────────────────────────────────────────────────
@@ -1287,31 +1341,46 @@ impl ObservatoryPanelView {
                 .finish(),
         );
 
-        // ── 解析探测（ClaudeCode 视角，与 harness_intercept 同基准） ──
-        let probe = intercept.resolve_upstream(HarnessType::ClaudeCode);
-        let probe_el = match &probe {
-            Some(config) => Text::new(
-                crate::t!(
-                    "observatory-proxy-resolved",
-                    base = config.api_base.clone(),
-                    env = config.api_key_env.clone(),
-                ),
-                appearance.ui_font_family(),
-                SMALL_FONT_SIZE,
-            )
-            .with_color(theme.sub_text_color(theme.background()).into())
-            .soft_wrap(false)
-            .finish(),
-            None => Text::new(
-                crate::t!("observatory-proxy-resolve-failed"),
-                appearance.ui_font_family(),
-                SMALL_FONT_SIZE,
-            )
-            .with_color(theme.ui_error_color())
-            .finish(),
-        };
+        // ── 解析探测（ClaudeCode / Codex 双视角，与 harness_intercept 同基准） ──
+        for (label, harness) in [
+            ("Claude Code", HarnessType::ClaudeCode),
+            ("Codex", HarnessType::Codex),
+        ] {
+            let probe_el = match intercept.resolve_upstream(harness) {
+                Some(config) => Text::new(
+                    format!(
+                        "{} · {}",
+                        label,
+                        crate::t!(
+                            "observatory-proxy-resolved",
+                            base = config.api_base.clone(),
+                            env = config.api_key_env.clone(),
+                        ),
+                    ),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .soft_wrap(false)
+                .finish(),
+                None => Text::new(
+                    format!("{} · {}", label, crate::t!("observatory-proxy-resolve-failed")),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.ui_error_color())
+                .finish(),
+            };
+            col.add_child(
+                Container::new(probe_el)
+                    .with_horizontal_padding(PANEL_PADDING)
+                    .finish(),
+            );
+        }
+
+        // ── 刷新计数按钮 ──
         col.add_child(
-            Container::new(probe_el)
+            Container::new(ChildView::new(&self.refresh_count_button).finish())
                 .with_horizontal_padding(PANEL_PADDING)
                 .finish(),
         );

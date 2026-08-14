@@ -408,8 +408,15 @@ impl ObservatoryModel {
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
 
-    /// 全量刷新快照。
+    /// 全量刷新快照（手动：同时清除 last_error）。
     pub fn refresh(&mut self, ctx: &mut ModelContext<Self>) {
+        self.last_error = None;
+        self.refresh_auto(ctx);
+    }
+
+    /// 定时自动刷新：与 [`Self::refresh`] 相同的数据面，
+    /// 但保留 last_error（否则 5s 轮询会把错误信息瞬间冲掉）。
+    pub fn refresh_auto(&mut self, ctx: &mut ModelContext<Self>) {
         // 1. Sessions + blocks
         self.snapshot.sessions = self.load_sessions();
         // 若当前选中 session 仍存在则刷新 blocks，否则清空选中
@@ -426,7 +433,6 @@ impl ObservatoryModel {
         // 2. Orchestration（cfg 门控）
         self.load_orchestration_data();
 
-        self.last_error = None;
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
 
