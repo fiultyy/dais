@@ -393,6 +393,11 @@ impl ObservatoryPanelView {
                 if !crate::features::FeatureFlag::AgentHarness.is_enabled() {
                     return;
                 }
+                // 面板关闭时跳过 DB 轮询（timer 空转一个 wake，开销可忽略）
+                if !ObservatoryModel::handle(ctx).as_ref(ctx).panel_open() {
+                    me.start_refresh_timer(ctx);
+                    return;
+                }
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
                     model.refresh_auto(ctx);
                 });

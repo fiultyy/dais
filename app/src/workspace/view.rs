@@ -3982,18 +3982,6 @@ impl Workspace {
         // Otherwise, open / close the panel accordingly.
         self.current_workspace_state.is_ai_assistant_panel_open =
             !self.current_workspace_state.is_ai_assistant_panel_open;
-
-        // Close any other modals that could be floating on top of the Zap AI panel.
-        self.current_workspace_state.close_all_modals();
-
-        if self.current_workspace_state.is_ai_assistant_panel_open {
-            // Close the resource center panel if we open the AI Assistant panel.
-            self.current_workspace_state.is_resource_center_open = false;
-            ctx.focus(&self.ai_assistant_panel);
-        } else {
-            self.focus_active_tab(ctx);
-        }
-        ctx.notify();
     }
 
     /// 打开/关闭观测台面板（Observatory）。
@@ -4005,14 +3993,18 @@ impl Workspace {
 
         // 关闭其他右侧面板内容
         self.current_workspace_state.close_all_modals();
-        if self.current_workspace_state.is_observatory_open {
-            self.current_workspace_state.is_resource_center_open = false;
-            self.current_workspace_state.is_ai_assistant_panel_open = false;
-            // 首次打开时触发一次刷新
-            use crate::ai::observatory::model::ObservatoryModel;
-            ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+        // 面板开合状态同步给 model（gate 5s 轮询），打开时即时刷新
+        use crate::ai::observatory::model::ObservatoryModel;
+        let opening = self.current_workspace_state.is_observatory_open;
+        ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+            model.set_panel_open(opening, ctx);
+            if opening {
+                self.current_workspace_state.is_resource_center_open = false;
+                self.current_workspace_state.is_ai_assistant_panel_open = false;
                 model.refresh(ctx);
-            });
+            }
+        });
+        if opening {
             ctx.focus(&self.observatory_view);
         } else {
             self.focus_active_tab(ctx);

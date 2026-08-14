@@ -195,6 +195,8 @@ pub struct ObservatoryModel {
     search_filter: String,
     selected_block: Option<String>,
     block_detail: Option<BlockDetailGui>,
+    /// 观测台面板是否打开（gate 5s 轮询：关闭时跳过 DB 查询）。
+    panel_open: bool,
     /// 选中的 raw 流量条目 id。
     selected_raw: Option<String>,
     raw_detail: Option<RawDetailGui>,
@@ -213,6 +215,7 @@ impl ObservatoryModel {
         Self {
             snapshot: ObservatorySnapshot::default(),
             selected_session: None,
+            panel_open: false,
             active_tab: ObservatoryTab::Sessions,
             busy: false,
             last_error: None,
@@ -299,6 +302,16 @@ impl ObservatoryModel {
 
     pub fn gate_draft(&self) -> &str {
         &self.gate_draft
+    }
+
+    /// 面板开合状态（toggle_observatory 写入；timer 读取 gate 轮询）。
+    pub fn panel_open(&self) -> bool {
+        self.panel_open
+    }
+
+    pub fn set_panel_open(&mut self, open: bool, ctx: &mut ModelContext<Self>) {
+        self.panel_open = open;
+        ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
 
     /// 读 InterceptSessionsModel 的拦截模式。
