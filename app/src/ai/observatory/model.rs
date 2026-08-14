@@ -97,22 +97,52 @@ pub enum ObservatoryTab {
     Proxy,
 }
 
-// ---------------------------------------------------------------------------
-// 快照
-// ---------------------------------------------------------------------------
+/// Raw 代理流量行（选中 session 的 raw_cache 条目，时间升序，上限 200）。
+#[derive(Clone, Debug)]
+pub struct RawRowGui {
+    pub id: String,
+    pub direction: String,
+    pub content_len: usize,
+    pub preview: String,
+    pub timestamp: i64,
+}
 
+/// Raw 载荷详情（content 截断至 64 KiB）。
+#[derive(Clone, Debug)]
+pub struct RawDetailGui {
+    pub id: String,
+    pub session_id: String,
+    pub direction: String,
+    pub content_len: usize,
+    pub content: String,
+    pub timestamp: i64,
+}
+
+/// 选中 task 的 dispatch 行（dispatch_contexts JOIN worker_dispatches）。
+#[derive(Clone, Debug)]
+pub struct DispatchRowGui {
+    pub dispatch_id: String,
+    pub status: String,
+    pub state: String,
+    pub start_options: String,
+    pub created_at: String,
+}
 /// refresh() 后的完整数据快照。
 #[derive(Clone, Default, Debug)]
 pub struct ObservatorySnapshot {
     pub sessions: Vec<SessionRowGui>,
     /// 选中 session 的 blocks（sequence 升序，上限 500）。
     pub blocks: Vec<BlockRowGui>,
+    /// 选中 session 的 raw 代理流量（时间升序，上限 200）。
+    pub raw_entries: Vec<RawRowGui>,
     /// 最新 50 runs。
     pub runs: Vec<RunRowGui>,
     /// 最新 200 tasks。
     pub tasks: Vec<TaskRowGui>,
     /// Pending gates（最新 50）。
     pub gates: Vec<GateRowGui>,
+    /// 选中 task 的 dispatches（最新 20）。
+    pub dispatches: Vec<DispatchRowGui>,
     pub recent_messages: Vec<MessageRowGui>,
 }
 
@@ -155,6 +185,9 @@ pub struct ObservatoryModel {
     search_filter: String,
     selected_block: Option<String>,
     block_detail: Option<BlockDetailGui>,
+    /// 选中的 raw 流量条目 id。
+    selected_raw: Option<String>,
+    raw_detail: Option<RawDetailGui>,
     selected_task: Option<String>,
     /// 最近一次 dispatch 的 id（反馈展示用）。
     last_dispatch: Option<String>,
@@ -179,6 +212,8 @@ impl ObservatoryModel {
             search_filter: String::new(),
             selected_block: None,
             block_detail: None,
+            selected_raw: None,
+            raw_detail: None,
             selected_task: None,
             last_dispatch: None,
             selected_gate: None,
@@ -232,6 +267,14 @@ impl ObservatoryModel {
         self.selected_block.as_deref()
     }
 
+    pub fn selected_raw(&self) -> Option<&str> {
+        self.selected_raw.as_deref()
+    }
+
+    pub fn raw_detail(&self) -> Option<&RawDetailGui> {
+        self.raw_detail.as_ref()
+    }
+
     pub fn selected_task(&self) -> Option<&str> {
         self.selected_task.as_deref()
     }
@@ -274,10 +317,14 @@ impl ObservatoryModel {
         id: Option<String>,
         ctx: &mut ModelContext<Self>,
     ) {
-        self.selected_session = id;
-        // 若选中了 session，立即加载其 blocks；否则清空
+        self.selected_session = id.clone();
+        // 若选中了 session，立即加载其 blocks/raw；否则清空
         self.snapshot.blocks = match &self.selected_session {
             Some(sid) => self.load_blocks(sid),
+            None => Vec::new(),
+        };
+        self.snapshot.raw_entries = match &id {
+            Some(sid) => self.load_raw(sid),
             None => Vec::new(),
         };
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
@@ -309,6 +356,10 @@ impl ObservatoryModel {
             Some(sid) => self.load_blocks(sid),
             None => Vec::new(),
         };
+        self.snapshot.raw_entries = match &self.selected_session {
+            Some(sid) => self.load_raw(sid),
+            None => Vec::new(),
+        };
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
 
@@ -331,9 +382,32 @@ impl ObservatoryModel {
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
 
-    /// 选中/取消选中编排 task。
+    /// 选中/取消选中 raw 流量条目（加载详情）。None → 清空详情。
+    pub fn select_raw(&mut self, id: Option<String>, ctx: &mut ModelContext<Self>) {
+        self.last_error = None;
+        self.selected_raw = id.clone();
+        self.raw_detail = match &id {
+            Some(rid) => {
+                match self.load_raw_detail(rid) {
+                    Some(d) => Some(d),
+                    None => {
+                        self.last_error = Some(format!("raw entry {rid} not found"));
+                        None
+                    }
+                }
+            }
+            None => None,
+        };
+        ctx.emit(ObservatoryEvent::SnapshotUpdated);
+    }
+
+    /// 选中/取消选中编排 task（同时加载该 task 的 dispatches）。
     pub fn select_task(&mut self, id: Option<String>, ctx: &mut ModelContext<Self>) {
-        self.selected_task = id;
+        self.selected_task = id.clone();
+        self.snapshot.dispatches = match &id {
+            Some(tid) => self.load_dispatches(tid),
+            None => Vec::new(),
+        };
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
 
@@ -417,9 +491,9 @@ impl ObservatoryModel {
     /// 定时自动刷新：与 [`Self::refresh`] 相同的数据面，
     /// 但保留 last_error（否则 5s 轮询会把错误信息瞬间冲掉）。
     pub fn refresh_auto(&mut self, ctx: &mut ModelContext<Self>) {
-        // 1. Sessions + blocks
+        // 1. Sessions + blocks + raw
         self.snapshot.sessions = self.load_sessions();
-        // 若当前选中 session 仍存在则刷新 blocks，否则清空选中
+        // 若当前选中 session 仍存在则刷新 blocks/raw，否则清空选中
         self.snapshot.blocks = match &self.selected_session {
             Some(sid) if self.snapshot.sessions.iter().any(|s| &s.session_id == sid) => {
                 self.load_blocks(sid)
@@ -429,9 +503,20 @@ impl ObservatoryModel {
                 Vec::new()
             }
         };
+        self.snapshot.raw_entries = match &self.selected_session {
+            Some(sid) => self.load_raw(sid),
+            None => Vec::new(),
+        };
 
         // 2. Orchestration（cfg 门控）
         self.load_orchestration_data();
+        // 选中 task 的 dispatches 跟随刷新
+        self.snapshot.dispatches = match &self.selected_task {
+            Some(tid) if self.snapshot.tasks.iter().any(|t| &t.id == tid) => {
+                self.load_dispatches(tid)
+            }
+            _ => Vec::new(),
+        };
 
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
@@ -633,6 +718,161 @@ impl ObservatoryModel {
         })
     }
 
+    /// 打开 harness_raw_cache.db 只读连接（不存在返回 None）。
+    fn open_raw_db() -> Option<rusqlite::Connection> {
+        let dir = warp_core::paths::state_dir();
+        if dir.as_os_str().is_empty() {
+            return None;
+        }
+        let path = dir.join("harness_raw_cache.db");
+        if !path.exists() {
+            return None;
+        }
+        rusqlite::Connection::open_with_flags(
+            &path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .map_err(|e| {
+            log::warn!("observatory: cannot open raw cache {}: {e}", path.display());
+            e
+        })
+        .ok()
+    }
+
+    /// 加载选中 session 的 raw 代理流量（时间升序，上限 200；
+    /// search_filter 对 direction 与 content 做子串过滤）。
+    fn load_raw(&self, session_id: &str) -> Vec<RawRowGui> {
+        let conn = match Self::open_raw_db() {
+            Some(c) => c,
+            None => return Vec::new(),
+        };
+        let pattern = like_pattern(&self.search_filter);
+        let mut stmt = match conn.prepare(
+            "SELECT id, direction, LENGTH(content), substr(content, 1, 80), timestamp \
+             FROM raw_cache \
+             WHERE session_id = ?1 \
+               AND (?2 = '' OR direction LIKE ?2 ESCAPE '\\' \
+                    OR CAST(content AS TEXT) LIKE ?2 ESCAPE '\\') \
+             ORDER BY timestamp ASC LIMIT 200",
+        ) {
+            Ok(s) => s,
+            Err(e) => {
+                log::warn!("observatory: load_raw prepare error: {e}");
+                return Vec::new();
+            }
+        };
+        let rows = match stmt.query_map(rusqlite::params![session_id, pattern], |row| {
+            let raw_preview: Vec<u8> = row.get(3)?;
+            let preview = String::from_utf8_lossy(&raw_preview)
+                .chars()
+                .take(80)
+                .collect::<String>();
+            Ok(RawRowGui {
+                id: row.get(0)?,
+                direction: row.get(1)?,
+                content_len: row.get::<_, Option<i64>>(2)?.unwrap_or(0) as usize,
+                preview,
+                timestamp: row.get(4)?,
+            })
+        }) {
+            Ok(r) => r,
+            Err(e) => {
+                log::warn!("observatory: load_raw query error: {e}");
+                return Vec::new();
+            }
+        };
+        rows.filter_map(|r| r.ok()).collect()
+    }
+
+    /// 加载单个 raw 载荷详情（content 截断至 64 KiB）。
+    fn load_raw_detail(&self, raw_id: &str) -> Option<RawDetailGui> {
+        let conn = Self::open_raw_db()?;
+        let (id, session_id, direction, content_len, content, timestamp) = conn
+            .query_row(
+                "SELECT id, session_id, direction, LENGTH(content), substr(content, 1, 65536), timestamp \
+                 FROM raw_cache WHERE id = ?1 LIMIT 1",
+                rusqlite::params![raw_id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, Option<i64>>(3)?.unwrap_or(0) as usize,
+                        row.get::<_, Vec<u8>>(4)?,
+                        row.get::<_, i64>(5)?,
+                    ))
+                },
+            )
+            .map_err(|e| log::warn!("observatory: load_raw_detail query error: {e}"))
+            .ok()?;
+        Some(RawDetailGui {
+            id,
+            session_id,
+            direction,
+            content_len,
+            content: String::from_utf8_lossy(&content).to_string(),
+            timestamp,
+        })
+    }
+
+    /// 加载选中 task 的 dispatches（dispatch_contexts LEFT JOIN worker_dispatches，
+    /// 最新 20；rusqlite 直查 warp.sqlite，messages 同模式）。
+    #[cfg(all(feature = "orchestration", feature = "local_fs"))]
+    fn load_dispatches(&self, task_id: &str) -> Vec<DispatchRowGui> {
+        let db_path = warp_core::paths::state_dir().join("warp.sqlite");
+        if !db_path.exists() {
+            return Vec::new();
+        }
+        let conn = match rusqlite::Connection::open_with_flags(
+            &db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        ) {
+            Ok(c) => c,
+            Err(e) => {
+                log::warn!("observatory: cannot open warp.sqlite for dispatches: {e}");
+                return Vec::new();
+            }
+        };
+        let mut stmt = match conn.prepare(
+            "SELECT dc.id, dc.status, \
+                    COALESCE(wd.state, ''), COALESCE(wd.start_options, ''), \
+                    dc.created_at \
+             FROM dispatch_contexts dc \
+             LEFT JOIN worker_dispatches wd ON wd.dispatch_id = dc.id \
+             WHERE dc.task_id = ?1 \
+             ORDER BY dc.rowid DESC LIMIT 20",
+        ) {
+            Ok(s) => s,
+            Err(e) => {
+                log::warn!("observatory: load_dispatches prepare error: {e}");
+                return Vec::new();
+            }
+        };
+        let rows = match stmt.query_map(rusqlite::params![task_id], |row| {
+            let created: String = row.get(4)?;
+            Ok(DispatchRowGui {
+                dispatch_id: row.get(0)?,
+                status: row.get(1)?,
+                state: row.get(2)?,
+                start_options: row.get(3)?,
+                created_at: format_datetime_sqlite(&created),
+            })
+        }) {
+            Ok(r) => r,
+            Err(e) => {
+                log::warn!("observatory: load_dispatches query error: {e}");
+                return Vec::new();
+            }
+        };
+        rows.filter_map(|r| r.ok()).collect()
+    }
+
+    /// local_fs 未开（或 orchestration 关）时 dispatches 留空。
+    #[cfg(not(all(feature = "orchestration", feature = "local_fs")))]
+    fn load_dispatches(&self, _task_id: &str) -> Vec<DispatchRowGui> {
+        Vec::new()
+    }
+
     /// 加载编排数据（runs / tasks / messages）。
     #[cfg(feature = "orchestration")]
     fn load_orchestration_data(&mut self) {
@@ -826,6 +1066,17 @@ fn like_pattern(filter: &str) -> String {
         })
         .collect();
     format!("%{escaped}%")
+}
+
+/// SQLite NaiveDateTime 文本（"YYYY-MM-DD HH:MM:SS"）→ "MM-DD HH:MM"。
+/// 非预期形状原样返回。
+fn format_datetime_sqlite(s: &str) -> String {
+    let parts: Vec<&str> = s.split(' ').collect();
+    if parts.len() == 2 && parts[0].len() >= 10 && parts[1].len() >= 5 {
+        format!("{} {}", &parts[0][5..], &parts[1][..5])
+    } else {
+        s.to_string()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1041,6 +1292,18 @@ mod tests {
             });
             assert!(app.read_model(&model, |m, _| m.selected_session().is_none()));
             assert!(app.read_model(&model, |m, _| m.snapshot().blocks.is_empty()));
+            // raw 选中状态转移（DB 无数据：missing → last_error；None → 清空）
+            model.update(&mut app, |m, ctx| {
+                m.select_raw(Some("missing-raw".to_string()), ctx);
+            });
+            assert_eq!(app.read_model(&model, |m, _| m.selected_raw().map(str::to_string)), Some("missing-raw".to_string()));
+            assert!(app.read_model(&model, |m, _| m.raw_detail().is_none()));
+            assert!(app.read_model(&model, |m, _| m.last_error().is_some()));
+            model.update(&mut app, |m, ctx| {
+                m.select_raw(None, ctx);
+            });
+            assert!(app.read_model(&model, |m, _| m.raw_detail().is_none()));
+            assert!(app.read_model(&model, |m, _| m.last_error().is_none()));
         });
     }
 
@@ -1161,5 +1424,139 @@ mod tests {
         assert_eq!(detail.3, b"fix the login bug".len());
         assert_eq!(detail.4, "fix the login bug");
         assert!(detail.5.unwrap().contains("\"meta\":true"));
+    }
+
+    /// raw_cache 查询（列表过滤 + 详情）与 dispatch JOIN 查询正确性。
+    #[test]
+    fn test_raw_and_dispatch_queries() {
+        // ── raw_cache：与 model load_raw/load_raw_detail 同源 SQL ──
+        let tmp = tempfile::tempdir().unwrap();
+        let raw_path = tmp.path().join("harness_raw_cache.db");
+        let conn = rusqlite::Connection::open(&raw_path).unwrap();
+        conn.execute(
+            "CREATE TABLE raw_cache (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, \
+             direction TEXT NOT NULL, content BLOB, timestamp INTEGER NOT NULL)",
+            [],
+        )
+        .unwrap();
+        let ts: i64 = 1_700_000_000_000;
+        for (id, dir, body, t) in [
+            ("r1", "request", b"{\"model\":\"glm\"}".as_slice(), ts),
+            ("r2", "response", b"hello world", ts + 1),
+            ("r3", "request", b"{\"model\":\"other\"}", ts + 2),
+        ] {
+            conn.execute(
+                "INSERT INTO raw_cache (id, session_id, direction, content, timestamp) \
+                 VALUES (?1, 'alpha', ?2, ?3, ?4)",
+                rusqlite::params![id, dir, body, t],
+            )
+            .unwrap();
+        }
+
+        // 过滤 "glm" → 只命中 r1
+        let pattern = like_pattern("glm");
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, direction, LENGTH(content), substr(content, 1, 80), timestamp \
+                 FROM raw_cache \
+                 WHERE session_id = ?1 \
+                   AND (?2 = '' OR direction LIKE ?2 ESCAPE '\\' \
+                        OR CAST(content AS TEXT) LIKE ?2 ESCAPE '\\') \
+                 ORDER BY timestamp ASC LIMIT 200",
+            )
+            .unwrap();
+        let hits: Vec<String> = stmt
+            .query_map(rusqlite::params!["alpha", pattern], |row| row.get::<_, String>(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert_eq!(hits, vec!["r1"]);
+
+        // 过滤 "response" → r2（direction 命中）
+        let pattern = like_pattern("response");
+        let mut stmt = conn
+            .prepare(
+                "SELECT id FROM raw_cache \
+                 WHERE session_id = ?1 \
+                   AND (?2 = '' OR direction LIKE ?2 ESCAPE '\\' \
+                        OR CAST(content AS TEXT) LIKE ?2 ESCAPE '\\') \
+                 ORDER BY timestamp ASC LIMIT 200",
+            )
+            .unwrap();
+        let hits: Vec<String> = stmt
+            .query_map(rusqlite::params!["alpha", pattern], |row| row.get::<_, String>(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert_eq!(hits, vec!["r2"]);
+
+        // 详情
+        let (dir, len, content): (String, usize, String) = conn
+            .query_row(
+                "SELECT direction, LENGTH(content), substr(content, 1, 65536) \
+                 FROM raw_cache WHERE id = 'r2' LIMIT 1",
+                [],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get::<_, Option<i64>>(1)?.unwrap_or(0) as usize,
+                        String::from_utf8_lossy(&row.get::<_, Vec<u8>>(2)?).to_string(),
+                    ))
+                },
+            )
+            .unwrap();
+        assert_eq!(dir, "response");
+        assert_eq!(len, 11);
+        assert_eq!(content, "hello world");
+
+        // ── dispatches：与 model load_dispatches 同源 JOIN SQL（内存库） ──
+        conn.execute_batch(
+            "CREATE TABLE dispatch_contexts (id TEXT PRIMARY KEY, run_id TEXT, task_id TEXT, \
+             status TEXT, failure_count INTEGER, created_at TEXT, completed_at TEXT); \
+             CREATE TABLE worker_dispatches (dispatch_id TEXT PRIMARY KEY, runtime_epoch TEXT, \
+             state TEXT, start_options TEXT, last_error TEXT, created_at TEXT, updated_at TEXT);",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO dispatch_contexts VALUES ('ctx-1', 'run-1', 'task-1', 'dispatched', 0, '2026-08-15 03:54:47', NULL)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO worker_dispatches VALUES ('ctx-1', NULL, 'ready', '{\"cwd\":\"/tmp\"}', NULL, '2026-08-15 03:54:47', '2026-08-15 03:54:48')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO dispatch_contexts VALUES ('ctx-2', 'run-1', 'task-1', 'completed', 0, '2026-08-15 03:00:00', '2026-08-15 03:01:00')",
+            [],
+        )
+        .unwrap();
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT dc.id, dc.status, COALESCE(wd.state, ''), COALESCE(wd.start_options, ''), dc.created_at \
+                 FROM dispatch_contexts dc \
+                 LEFT JOIN worker_dispatches wd ON wd.dispatch_id = dc.id \
+                 WHERE dc.task_id = ?1 \
+                 ORDER BY dc.rowid DESC LIMIT 20",
+            )
+            .unwrap();
+        let rows: Vec<(String, String, String, String, String)> = stmt
+            .query_map(rusqlite::params!["task-1"], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+            })
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert_eq!(rows.len(), 2);
+        // rowid DESC → ctx-2 在前
+        assert_eq!(rows[0].0, "ctx-2");
+        assert_eq!(rows[0].2, ""); // 无 worker → state 空
+        assert_eq!(rows[1].0, "ctx-1");
+        assert_eq!(rows[1].2, "ready");
+        assert!(rows[1].3.contains("cwd"));
+        assert_eq!(rows[1].4, "2026-08-15 03:54:47");
+        assert_eq!(format_datetime_sqlite(&rows[1].4), "08-15 03:54");
     }
 }

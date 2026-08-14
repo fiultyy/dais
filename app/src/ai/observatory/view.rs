@@ -33,7 +33,7 @@ use crate::ai::blocklist::agent_view::agent_input_footer::AgentInputButtonTheme;
 use crate::terminal::intercept_sessions::InterceptSessionsModel;
 use super::model::{
     BlockDetailGui, BlockRowGui, DraftField, ObservatoryModel, ObservatoryTab,
-    RunRowGui, SessionRowGui, TaskRowGui,
+    RawDetailGui, RawRowGui, RunRowGui, SessionRowGui, TaskRowGui,
 };
 
 // ── 布局常量 ─────────────────────────────────────────────────────────────────
@@ -79,6 +79,7 @@ pub enum ObservatoryPanelAction {
     SelectTask(Option<String>),
     DispatchTask(String),
     SelectGate(Option<String>),
+    SelectRaw(Option<String>),
     ResolveGate(String, String),
     /// 代理配置：切换拦截模式。
     SetInterceptMode(InterceptMode),
@@ -120,6 +121,8 @@ pub struct ObservatoryPanelView {
     gate_row_handles: RefCell<Vec<MouseStateHandle>>,
     /// Gate 选项 chip 悬停句柄列表（所有 gate 的 options 扁平展开）。
     gate_option_handles: RefCell<Vec<MouseStateHandle>>,
+    /// Raw 流量行悬停状态句柄列表。
+    raw_row_handles: RefCell<Vec<MouseStateHandle>>,
     /// 搜索框。
     search_input: ViewHandle<SubmittableTextInput>,
     /// 代理 tab: gate 自定义 resolution 输入框。
@@ -351,6 +354,7 @@ impl ObservatoryPanelView {
             task_row_handles: RefCell::new(Vec::new()),
             gate_row_handles: RefCell::new(Vec::new()),
             gate_option_handles: RefCell::new(Vec::new()),
+            raw_row_handles: RefCell::new(Vec::new()),
             search_input,
             gate_resolution_input,
             mode_chip_handles: [
@@ -615,7 +619,194 @@ impl ObservatoryPanelView {
             col.add_child(self.render_block_detail(detail, appearance, theme));
         }
 
+        // ── Raw 代理流量（选中 session 时展示） ──
+        if model.selected_session().is_some() {
+            col.add_child(self.render_raw_section(app));
+        }
+
         Shrinkable::new(1., col.finish()).finish()
+    }
+
+    /// Raw 代理流量列表（时间升序）+ 选中详情卡片。
+    fn render_raw_section(&self, app: &AppContext) -> Box<dyn Element> {
+        let appearance = Appearance::as_ref(app);
+        let theme = appearance.theme();
+        let model = self.model.as_ref(app);
+        let snapshot = model.snapshot();
+
+        let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_spacing(SPACING);
+
+        col.add_child(
+            Text::new(
+                crate::t!("observatory-raw-title"),
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.active_ui_text_color().into())
+            .finish(),
+        );
+
+        if snapshot.raw_entries.is_empty() {
+            col.add_child(
+                Text::new(
+                    crate::t!("observatory-raw-empty"),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.disabled_ui_text_color().into_solid())
+                .finish(),
+            );
+        } else {
+            Self::ensure_handles(
+                &mut self.raw_row_handles.borrow_mut(),
+                snapshot.raw_entries.len(),
+            );
+            let handles = self.raw_row_handles.borrow();
+            for (i, entry) in snapshot.raw_entries.iter().enumerate() {
+                let handle = handles[i].clone();
+                let is_selected = model.selected_raw().is_some_and(|r| r == entry.id);
+                let raw_id = entry.id.clone();
+                let row_el = self.render_raw_row(entry, appearance, theme);
+                let hoverable = Hoverable::new(handle, move |state| {
+                    let mut container = Container::new(row_el)
+                        .with_horizontal_padding(PANEL_PADDING)
+                        .with_vertical_padding(ROW_V_PADDING);
+                    if is_selected {
+                        container = container.with_background(internal_colors::fg_overlay_1(theme));
+                    } else if state.is_hovered() {
+                        container =
+                            container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
+                    }
+                    container.finish()
+                })
+                .on_click(move |ctx, _, _| {
+                    ctx.dispatch_typed_action(ObservatoryPanelAction::SelectRaw(Some(raw_id.clone())));
+                })
+                .finish();
+                col.add_child(hoverable);
+            }
+        }
+
+        // 选中 raw 的详情卡片
+        if let Some(detail) = model.raw_detail() {
+            col.add_child(self.render_raw_detail(detail, appearance, theme));
+        }
+
+        Container::new(col.finish())
+            .with_vertical_padding(SECTION_SPACING / 2.)
+            .finish()
+    }
+
+    /// 单行 raw 流量条目。
+    fn render_raw_row(
+        &self,
+        entry: &RawRowGui,
+        appearance: &Appearance,
+        theme: &WarpTheme,
+    ) -> Box<dyn Element> {
+        let is_request = entry.direction == "request";
+        let dir_color = if is_request {
+            theme.accent().into_solid()
+        } else {
+            theme.nonactive_ui_text_color().into_solid()
+        };
+        let size_text = format!("{}B", entry.content_len);
+        let time_text = format_timestamp(entry.timestamp);
+        let preview = truncate_str(&entry.preview, 60);
+
+        let mut row = Flex::row()
+            .with_cross_axis_alignment(CrossAxisAlignment::Center)
+            .with_spacing(SPACING);
+
+        let badge = Container::new(
+            Text::new(
+                entry.direction.clone(),
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(dir_color)
+            .finish(),
+        )
+        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
+        .with_horizontal_padding(4.)
+        .with_vertical_padding(2.)
+        .finish();
+        row.add_child(badge);
+        row.add_child(
+            Text::new(size_text, appearance.ui_font_family(), appearance.ui_font_size())
+                .with_color(theme.disabled_ui_text_color().into_solid())
+                .finish(),
+        );
+        row.add_child(Expanded::new(1., Empty::new().finish()).finish());
+        row.add_child(
+            Text::new(preview, appearance.ui_font_family(), appearance.ui_font_size())
+                .with_color(theme.nonactive_ui_text_color().into_solid())
+                .soft_wrap(false)
+                .finish(),
+        );
+        row.add_child(
+            Text::new(time_text, appearance.ui_font_family(), SMALL_FONT_SIZE)
+                .with_color(theme.disabled_ui_text_color().into_solid())
+                .finish(),
+        );
+        row.finish()
+    }
+
+    /// Raw 载荷详情卡片。
+    fn render_raw_detail(
+        &self,
+        detail: &RawDetailGui,
+        appearance: &Appearance,
+        theme: &WarpTheme,
+    ) -> Box<dyn Element> {
+        let meta_text = crate::t!(
+            "observatory-raw-detail-meta",
+            direction = detail.direction.clone(),
+            len = detail.content_len,
+            ts = format_timestamp(detail.timestamp),
+        );
+
+        let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_spacing(SPACING);
+
+        col.add_child(
+            Text::new(
+                crate::t!("observatory-raw-detail-title"),
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.active_ui_text_color().into())
+            .finish(),
+        );
+        col.add_child(
+            Text::new(meta_text, appearance.ui_font_family(), SMALL_FONT_SIZE)
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .finish(),
+        );
+        col.add_child(
+            Text::new(
+                crate::t!("observatory-raw-detail-content"),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.nonactive_ui_text_color().into_solid())
+            .finish(),
+        );
+        col.add_child(
+            Text::new(truncate_str(&detail.content, 16000), appearance.ui_font_family(), SMALL_FONT_SIZE)
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .finish(),
+        );
+
+        Container::new(col.finish())
+            .with_horizontal_padding(PANEL_PADDING)
+            .with_vertical_padding(SPACING)
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
+            .with_background(Fill::Solid(internal_colors::neutral_2(theme)))
+            .finish()
     }
 
     /// 单行 session 渲染（无悬停/边框包裹——由调用者 Hoverable 负责）。
@@ -1093,6 +1284,65 @@ impl ObservatoryPanelView {
                 .with_color(theme.accent().into_solid())
                 .finish(),
             );
+        }
+
+        // ── 该 task 的 dispatch 明细（最新 20） ──
+        col.add_child(
+            Text::new(
+                crate::t!("observatory-dispatches-title"),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.nonactive_ui_text_color().into_solid())
+            .finish(),
+        );
+        if snapshot.dispatches.is_empty() {
+            col.add_child(
+                Text::new(
+                    crate::t!("observatory-dispatches-empty"),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.disabled_ui_text_color().into_solid())
+                .finish(),
+            );
+        } else {
+            for d in &snapshot.dispatches {
+                let status_color = task_status_color(&d.status);
+                let mut row = Flex::row()
+                    .with_cross_axis_alignment(CrossAxisAlignment::Center)
+                    .with_spacing(SPACING);
+                row.add_child(
+                    Text::new(
+                        truncate_str(&d.dispatch_id, 20),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.sub_text_color(theme.background()).into())
+                    .soft_wrap(false)
+                    .finish(),
+                );
+                row.add_child(
+                    Text::new(
+                        format!("{}/{}", d.status, if d.state.is_empty() { "-" } else { &d.state }),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(status_color.into_solid())
+                    .finish(),
+                );
+                row.add_child(Expanded::new(1., Empty::new().finish()).finish());
+                row.add_child(
+                    Text::new(
+                        d.created_at.clone(),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.disabled_ui_text_color().into_solid())
+                    .finish(),
+                );
+                col.add_child(row.finish());
+            }
         }
 
         Container::new(col.finish())
@@ -1576,6 +1826,12 @@ impl TypedActionView for ObservatoryPanelView {
                 let resolution = resolution.clone();
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
                     model.resolve_gate(&gate_id, &resolution, ctx);
+                });
+            }
+            ObservatoryPanelAction::SelectRaw(id) => {
+                let id = id.clone();
+                ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.select_raw(id, ctx);
                 });
             }
             ObservatoryPanelAction::SetInterceptMode(mode) => {
