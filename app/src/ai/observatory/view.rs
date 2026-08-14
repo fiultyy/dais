@@ -139,6 +139,8 @@ pub struct ObservatoryPanelView {
     refresh_count_button: ViewHandle<ActionButton>,
     /// 周期自动刷新 timer 句柄。Drop 时中止。
     refresh_timer_handle: Option<SpawnedFutureHandle>,
+    /// 上一帧 busy 状态（渲染缓存：检测 send 完成边沿，同步 composer 输入框）。
+    prev_busy: std::cell::Cell<bool>,
 }
 
 impl ObservatoryPanelView {
@@ -184,9 +186,11 @@ impl ObservatoryPanelView {
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
                     model.set_draft(DraftField::To, content.clone(), ctx);
                 });
+                // 回填已存 draft（可见反馈；发送后才清空）
                 to_input.update(ctx, |input, ctx| {
                     let editor = input.editor().clone();
-                    editor.update(ctx, |ed, ctx| ed.set_buffer_text("", ctx));
+                    let text = content.clone();
+                    editor.update(ctx, |ed, ctx| ed.set_buffer_text(&text, ctx));
                 });
             }
         });
@@ -197,7 +201,8 @@ impl ObservatoryPanelView {
                 });
                 subject_input.update(ctx, |input, ctx| {
                     let editor = input.editor().clone();
-                    editor.update(ctx, |ed, ctx| ed.set_buffer_text("", ctx));
+                    let text = content.clone();
+                    editor.update(ctx, |ed, ctx| ed.set_buffer_text(&text, ctx));
                 });
             }
         });
@@ -208,7 +213,8 @@ impl ObservatoryPanelView {
                 });
                 body_input.update(ctx, |input, ctx| {
                     let editor = input.editor().clone();
-                    editor.update(ctx, |ed, ctx| ed.set_buffer_text("", ctx));
+                    let text = content.clone();
+                    editor.update(ctx, |ed, ctx| ed.set_buffer_text(&text, ctx));
                 });
             }
         });
@@ -324,8 +330,28 @@ impl ObservatoryPanelView {
                 })
         });
 
-        // 订阅 model 事件 → 重绘
-        ctx.subscribe_to_model(&model, |_me, _handle, _event, ctx| {
+        // 订阅 model 事件 → 重绘；busy true→false 边沿（send 完成）时
+        // 将 composer 输入框同步为 model 当前 draft（成功路径 body 已清）。
+        ctx.subscribe_to_model(&model, |me, handle, _event, ctx| {
+            let busy = handle.as_ref(ctx).busy();
+            let was_busy = me.prev_busy.replace(busy);
+            if was_busy && !busy {
+                let to = handle.as_ref(ctx).draft_to().to_string();
+                let subject = handle.as_ref(ctx).draft_subject().to_string();
+                let body = handle.as_ref(ctx).draft_body().to_string();
+                me.draft_to_input.update(ctx, |input, ctx| {
+                    let editor = input.editor().clone();
+                    editor.update(ctx, |ed, ctx| ed.set_buffer_text(&to, ctx));
+                });
+                me.draft_subject_input.update(ctx, |input, ctx| {
+                    let editor = input.editor().clone();
+                    editor.update(ctx, |ed, ctx| ed.set_buffer_text(&subject, ctx));
+                });
+                me.draft_body_input.update(ctx, |input, ctx| {
+                    let editor = input.editor().clone();
+                    editor.update(ctx, |ed, ctx| ed.set_buffer_text(&body, ctx));
+                });
+            }
             ctx.notify();
         });
         // 订阅拦截配置单例变化（代理 tab 展示）→ 重绘
@@ -367,11 +393,8 @@ impl ObservatoryPanelView {
             dispatch_button,
             refresh_count_button,
             refresh_timer_handle: None,
+            prev_busy: std::cell::Cell::new(false),
         };
-        // flag 开启时启动 5s 轮询（live 推送的替代，spec §Defer: refresh 轮询足够）
-        if crate::features::FeatureFlag::AgentHarness.is_enabled() {
-            me.start_refresh_timer(ctx);
-        }
         me
     }
 
