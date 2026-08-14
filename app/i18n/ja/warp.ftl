@@ -3555,3 +3555,7 @@ observatory-active-empty = アクティブなセッションなし
 observatory-active-hook = hook: { $url }
 observatory-proxy-saved = 保存済み · { $time }
 observatory-proxy-save-failed = 保存失敗: { $err }
+observatory-message-detail-title = メッセージ詳細
+observatory-message-detail-meta = { $from } → { $to } · { $ts }
+observatory-message-detail-kind = 種別 { $kind } · 優先度 { $priority }
+observatory-message-detail-body = 本文

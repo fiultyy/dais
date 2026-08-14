@@ -3723,3 +3723,7 @@ observatory-active-empty = No active intercept sessions
 observatory-active-hook = hook: { $url }
 observatory-proxy-saved = Saved · { $time }
 observatory-proxy-save-failed = Save failed: { $err }
+observatory-message-detail-title = Message detail
+observatory-message-detail-meta = { $from } → { $to } · { $ts }
+observatory-message-detail-kind = Type { $kind } · Priority { $priority }
+observatory-message-detail-body = Body

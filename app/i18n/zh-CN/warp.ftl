@@ -3637,3 +3637,7 @@ observatory-active-empty = 暂无活跃拦截会话
 observatory-active-hook = hook: { $url }
 observatory-proxy-saved = 已保存 · { $time }
 observatory-proxy-save-failed = 保存失败: { $err }
+observatory-message-detail-title = 消息详情
+observatory-message-detail-meta = { $from } → { $to } · { $ts }
+observatory-message-detail-kind = 类型 { $kind } · 优先级 { $priority }
+observatory-message-detail-body = 正文

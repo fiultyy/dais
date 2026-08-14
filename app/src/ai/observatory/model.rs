@@ -60,6 +60,21 @@ pub struct MessageRowGui {
     pub created_at: String,
 }
 
+/// 消息详情（点击消息行后加载，body 截断至 64 KiB）。
+#[derive(Clone, Debug)]
+pub struct MessageDetailGui {
+    pub seq: i64,
+    pub id: String,
+    pub run_id: String,
+    pub from_handle: String,
+    pub to_handle: String,
+    pub subject: String,
+    pub body: String,
+    pub message_type: String,
+    pub priority: String,
+    pub created_at: String,
+}
+
 /// Block 详情（点击时间线行后加载，content 截断至 64 KiB）。
 #[derive(Clone, Debug)]
 pub struct BlockDetailGui {
@@ -207,6 +222,9 @@ pub struct ObservatoryModel {
     selected_gate: Option<String>,
     /// gate 自定义 resolution 草稿。
     gate_draft: String,
+    /// 选中的消息 sequence（messages 表 PK）。
+    selected_message: Option<i64>,
+    message_detail: Option<MessageDetailGui>,
 }
 
 impl ObservatoryModel {
@@ -231,6 +249,8 @@ impl ObservatoryModel {
             last_dispatch: None,
             selected_gate: None,
             gate_draft: String::new(),
+            selected_message: None,
+            message_detail: None,
         }
     }
 
@@ -302,6 +322,14 @@ impl ObservatoryModel {
 
     pub fn gate_draft(&self) -> &str {
         &self.gate_draft
+    }
+
+    pub fn selected_message(&self) -> Option<i64> {
+        self.selected_message
+    }
+
+    pub fn message_detail(&self) -> Option<&MessageDetailGui> {
+        self.message_detail.as_ref()
     }
 
     /// 面板开合状态（toggle_observatory 写入；timer 读取 gate 轮询）。
@@ -419,6 +447,23 @@ impl ObservatoryModel {
                     }
                 }
             }
+            None => None,
+        };
+        ctx.emit(ObservatoryEvent::SnapshotUpdated);
+    }
+
+    /// 选中/取消选中消息（加载详情）。None → 清空详情。
+    pub fn select_message(&mut self, seq: Option<i64>, ctx: &mut ModelContext<Self>) {
+        self.last_error = None;
+        self.selected_message = seq;
+        self.message_detail = match &seq {
+            Some(s) => match self.load_message_detail(*s) {
+                Some(d) => Some(d),
+                None => {
+                    self.last_error = Some(format!("message {s} not found"));
+                    None
+                }
+            },
             None => None,
         };
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
@@ -994,22 +1039,9 @@ impl ObservatoryModel {
     /// 需要 `local_fs` feature 才能访问 sqlite 文件路径。
     #[cfg(all(feature = "orchestration", feature = "local_fs"))]
     fn load_recent_messages(&mut self) {
-        // store 底层用的 diesel sqlite connection，我们直接用 rusqlite
-        // 打开同一个 warp.sqlite 来查 messages 表（避免 diesel 依赖传递到 model）。
-        // 通过 warp_core::paths 取路径，避免依赖 crate::persistence（需 local_fs feature）。
-        let db_path = warp_core::paths::state_dir().join("warp.sqlite");
-        if !db_path.exists() {
-            return;
-        }
-        let conn = match rusqlite::Connection::open_with_flags(
-            &db_path,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        ) {
-            Ok(c) => c,
-            Err(e) => {
-                log::warn!("observatory: cannot open warp.sqlite for messages: {e}");
-                return;
-            }
+        let conn = match Self::open_warp_sqlite() {
+            Some(c) => c,
+            None => return,
         };
         let mut stmt = match conn.prepare(
             "SELECT sequence, from_handle, to_handle, subject, created_at \
@@ -1046,6 +1078,54 @@ impl ObservatoryModel {
     #[cfg(all(feature = "orchestration", not(feature = "local_fs")))]
     fn load_recent_messages(&mut self) {
         self.snapshot.recent_messages = Vec::new();
+    }
+
+    /// 打开 warp.sqlite 只读连接（不存在/不可开返回 None）。
+    /// 与 orchestration store 使用同一个库文件。
+    fn open_warp_sqlite() -> Option<rusqlite::Connection> {
+        let dir = warp_core::paths::state_dir();
+        if dir.as_os_str().is_empty() {
+            return None;
+        }
+        let path = dir.join("warp.sqlite");
+        if !path.exists() {
+            return None;
+        }
+        rusqlite::Connection::open_with_flags(
+            &path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .map_err(|e| log::warn!("observatory: cannot open warp.sqlite: {e}"))
+        .ok()
+    }
+
+    /// 加载单条消息完整详情（body 截断至 64 KiB）。无库/未命中返回 None。
+    fn load_message_detail(&self, seq: i64) -> Option<MessageDetailGui> {
+        let conn = Self::open_warp_sqlite()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT sequence, id, run_id, from_handle, to_handle, subject, \
+                        substr(body, 1, 65536), type, priority, created_at \
+                 FROM messages WHERE sequence = ?1 LIMIT 1",
+            )
+            .map_err(|e| log::warn!("observatory: load_message_detail prepare error: {e}"))
+            .ok()?;
+        stmt.query_row(rusqlite::params![seq], |row| {
+            Ok(MessageDetailGui {
+                seq: row.get(0)?,
+                id: row.get(1)?,
+                run_id: row.get(2)?,
+                from_handle: row.get(3)?,
+                to_handle: row.get(4)?,
+                subject: row.get(5)?,
+                body: row.get(6)?,
+                message_type: row.get(7)?,
+                priority: row.get(8)?,
+                created_at: row.get(9)?,
+            })
+        })
+        .map_err(|e| log::warn!("observatory: load_message_detail query error: {e}"))
+        .ok()
     }
 
     /// 在子线程中执行 `current_exe orchestration send-message`。
@@ -1104,7 +1184,7 @@ fn like_pattern(filter: &str) -> String {
 
 /// SQLite NaiveDateTime 文本（"YYYY-MM-DD HH:MM:SS"）→ "MM-DD HH:MM"。
 /// 非预期形状原样返回。
-fn format_datetime_sqlite(s: &str) -> String {
+pub(crate) fn format_datetime_sqlite(s: &str) -> String {
     let parts: Vec<&str> = s.split(' ').collect();
     if parts.len() == 2 && parts[0].len() >= 10 && parts[1].len() >= 5 {
         format!("{} {}", &parts[0][5..], &parts[1][..5])
@@ -1337,6 +1417,18 @@ mod tests {
                 m.select_raw(None, ctx);
             });
             assert!(app.read_model(&model, |m, _| m.raw_detail().is_none()));
+            assert!(app.read_model(&model, |m, _| m.last_error().is_none()));
+            // message 选中状态转移（seq 极大必不存在：missing → last_error；None → 清空）
+            model.update(&mut app, |m, ctx| {
+                m.select_message(Some(i64::MAX), ctx);
+            });
+            assert_eq!(app.read_model(&model, |m, _| m.selected_message()), Some(i64::MAX));
+            assert!(app.read_model(&model, |m, _| m.message_detail().is_none()));
+            assert!(app.read_model(&model, |m, _| m.last_error().is_some()));
+            model.update(&mut app, |m, ctx| {
+                m.select_message(None, ctx);
+            });
+            assert!(app.read_model(&model, |m, _| m.message_detail().is_none()));
             assert!(app.read_model(&model, |m, _| m.last_error().is_none()));
         });
     }
@@ -1592,5 +1684,54 @@ mod tests {
         assert!(rows[1].3.contains("cwd"));
         assert_eq!(rows[1].4, "2026-08-15 03:54:47");
         assert_eq!(format_datetime_sqlite(&rows[1].4), "08-15 03:54");
+
+        // ── messages：与 model load_message_detail 同源 SQL ──
+        conn.execute_batch(
+            "CREATE TABLE messages (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE, \
+             run_id TEXT, delivery_contract TEXT, from_handle TEXT, to_handle TEXT, \
+             subject TEXT, body TEXT, type TEXT, priority TEXT, created_at TEXT, \
+             delivered_at TEXT);",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO messages (id, run_id, from_handle, to_handle, subject, body, type, priority, created_at) \
+             VALUES ('m1', 'run-1', 'orchestrator', 'worker-1', 'task update', 'all good', 'status', 'normal', '2026-08-15 04:00:00')",
+            [],
+        )
+        .unwrap();
+        let detail = conn
+            .query_row(
+                "SELECT sequence, id, run_id, from_handle, to_handle, subject, \
+                        substr(body, 1, 65536), type, priority, created_at \
+                 FROM messages WHERE sequence = ?1 LIMIT 1",
+                rusqlite::params![1i64],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, String>(5)?,
+                        row.get::<_, String>(6)?,
+                        row.get::<_, String>(7)?,
+                        row.get::<_, String>(8)?,
+                        row.get::<_, String>(9)?,
+                    ))
+                },
+            )
+            .unwrap();
+        assert_eq!(detail.1, "m1");
+        assert_eq!(detail.2, "run-1");
+        assert_eq!(detail.6, "all good");
+        assert_eq!(detail.7, "status");
+        assert_eq!(detail.8, "normal");
+        // 未命中 sequence → query_row Err（model 侧映射为 None → last_error）
+        let missing: rusqlite::Result<i64> = conn.query_row(
+            "SELECT sequence FROM messages WHERE sequence = 999 LIMIT 1",
+            [],
+            |row| row.get(0),
+        );
+        assert!(missing.is_err());
     }
 }

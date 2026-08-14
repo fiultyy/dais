@@ -32,8 +32,9 @@ use crate::view_components::{SubmittableTextInput, SubmittableTextInputEvent};
 use crate::ai::blocklist::agent_view::agent_input_footer::AgentInputButtonTheme;
 use crate::terminal::intercept_sessions::InterceptSessionsModel;
 use super::model::{
-    ActiveInterceptRowGui, BlockDetailGui, BlockRowGui, DraftField, ObservatoryModel,
-    ObservatoryTab, RawDetailGui, RawRowGui, RunRowGui, SessionRowGui, TaskRowGui,
+    format_datetime_sqlite, ActiveInterceptRowGui, BlockDetailGui, BlockRowGui, DraftField,
+    MessageDetailGui, ObservatoryModel, ObservatoryTab, RawDetailGui, RawRowGui, RunRowGui,
+    SessionRowGui, TaskRowGui,
 };
 
 // ── 布局常量 ─────────────────────────────────────────────────────────────────
@@ -80,6 +81,8 @@ pub enum ObservatoryPanelAction {
     DispatchTask(String),
     SelectGate(Option<String>),
     SelectRaw(Option<String>),
+    /// 选中消息（sequence PK）加载详情。
+    SelectMessage(Option<i64>),
     ResolveGate(String, String),
     /// 代理配置：切换拦截模式。
     SetInterceptMode(InterceptMode),
@@ -837,6 +840,71 @@ impl ObservatoryPanelView {
             .finish()
     }
 
+    /// 选中消息详情卡片：from/to/subject 元信息 + type/priority + body 全文。
+    fn render_message_detail(
+        &self,
+        detail: &MessageDetailGui,
+        appearance: &Appearance,
+        theme: &WarpTheme,
+    ) -> Box<dyn Element> {
+        let meta_text = crate::t!(
+            "observatory-message-detail-meta",
+            from = detail.from_handle.clone(),
+            to = detail.to_handle.clone(),
+            ts = format_datetime_sqlite(&detail.created_at),
+        );
+        let type_text = crate::t!(
+            "observatory-message-detail-kind",
+            kind = detail.message_type.clone(),
+            priority = detail.priority.clone(),
+        );
+
+        let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_spacing(SPACING);
+
+        col.add_child(
+            Text::new(
+                crate::t!("observatory-message-detail-title"),
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.active_ui_text_color().into())
+            .finish(),
+        );
+        col.add_child(
+            Text::new(format!("{} · {}", detail.subject, meta_text), appearance.ui_font_family(), SMALL_FONT_SIZE)
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .finish(),
+        );
+        col.add_child(
+            Text::new(type_text, appearance.ui_font_family(), SMALL_FONT_SIZE)
+                .with_color(theme.nonactive_ui_text_color().into_solid())
+                .finish(),
+        );
+        col.add_child(
+            Text::new(
+                crate::t!("observatory-message-detail-body"),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.nonactive_ui_text_color().into_solid())
+            .finish(),
+        );
+        col.add_child(
+            Text::new(truncate_str(&detail.body, 16000), appearance.ui_font_family(), SMALL_FONT_SIZE)
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .finish(),
+        );
+
+        Container::new(col.finish())
+            .with_horizontal_padding(PANEL_PADDING)
+            .with_vertical_padding(SPACING)
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
+            .with_background(Fill::Solid(internal_colors::neutral_2(theme)))
+            .finish()
+    }
+
     /// 单行 session 渲染（无悬停/边框包裹——由调用者 Hoverable 负责）。
     fn render_session_row(
         &self,
@@ -1108,7 +1176,11 @@ impl ObservatoryPanelView {
             let handles = self.message_row_handles.borrow();
             for (i, msg) in snapshot.recent_messages.iter().enumerate() {
                 let handle = handles[i].clone();
+                let is_selected = model
+                    .selected_message()
+                    .is_some_and(|s| s == msg.seq);
                 let msg_text = format!("{} → {}: {}", msg.from_handle, msg.to_handle, msg.subject);
+                let seq = msg.seq;
                 let hoverable = Hoverable::new(handle, move |state| {
                     let mut container = Container::new(
                         Text::new(
@@ -1122,14 +1194,24 @@ impl ObservatoryPanelView {
                     )
                     .with_horizontal_padding(PANEL_PADDING)
                     .with_vertical_padding(ROW_V_PADDING);
-                    if state.is_hovered() {
+                    if is_selected {
+                        container = container.with_background(internal_colors::fg_overlay_1(theme));
+                    } else if state.is_hovered() {
                         container = container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
                     }
                     container.finish()
                 })
+                .on_click(move |ctx, _, _| {
+                    ctx.dispatch_typed_action(ObservatoryPanelAction::SelectMessage(Some(seq)));
+                })
                 .finish();
                 col.add_child(hoverable);
             }
+        }
+
+        // ── 选中消息详情卡片 ──
+        if let Some(detail) = model.message_detail() {
+            col.add_child(self.render_message_detail(detail, appearance, theme));
         }
 
         // ── Composer ──
@@ -1951,6 +2033,15 @@ impl TypedActionView for ObservatoryPanelView {
                     model.select_raw(id, ctx);
                 });
             }
+            ObservatoryPanelAction::SelectMessage(seq) => {
+                let seq = toggle_seq(
+                    *seq,
+                    ObservatoryModel::handle(ctx).as_ref(ctx).selected_message(),
+                );
+                ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.select_message(seq, ctx);
+                });
+            }
             ObservatoryPanelAction::SetInterceptMode(mode) => {
                 let mode = *mode;
                 InterceptSessionsModel::handle(ctx).update(ctx, |model, ctx| {
@@ -2125,5 +2216,13 @@ fn toggle_id(id: &Option<String>, current: Option<String>) -> Option<String> {
     match (id, current) {
         (Some(new), Some(cur)) if *new == cur => None,
         (other, _) => other.clone(),
+    }
+}
+
+/// 消息选中 toggle（seq 版 [`toggle_id`]）：点击已选中消息 → 取消。
+fn toggle_seq(seq: Option<i64>, current: Option<i64>) -> Option<i64> {
+    match (seq, current) {
+        (Some(new), Some(cur)) if new == cur => None,
+        (other, _) => other,
     }
 }
