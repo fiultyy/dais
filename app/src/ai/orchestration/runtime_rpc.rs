@@ -86,12 +86,14 @@ pub fn read_metadata() -> Option<RuntimeMetadata> {
         })
         .ok()
 }
-/// Whether a runtime (GUI app or serve) is currently alive per the metadata
-/// file. Used by the CLI to refuse commands that would race the GUI's
-/// in-process consumers.
+/// Whether a GUI runtime is currently alive per the metadata file. Used by
+/// the CLI to refuse commands that would race the GUI's in-process router
+/// (the single consumer of the "orchestrator" mailbox). **Serve mode does
+/// not run a router**, so it must not trigger this guard (#5) — its pulls
+/// are the only consumer.
 pub fn runtime_alive() -> bool {
     match read_metadata() {
-        Some(meta) => is_pid_alive(meta.pid),
+        Some(meta) => is_pid_alive(meta.pid) && meta.mode == "app",
         None => false,
     }
 }
@@ -367,9 +369,13 @@ fn execute_on_gui_thread(
 ///
 /// Forwarded commands print their results via `println!` (shared execution
 /// body with the CLI path); capturing lets the RPC response carry that
-/// output back to the CLI caller. Process-wide fd juggling is safe here:
-/// execution happens on the GPUI main thread and is bounded by the
-/// dispatcher timeout; log output goes to the log framework, not stdout.
+/// output back to the CLI caller.
+///
+/// **Deadlock prevention**: a background drain thread reads the pipe
+/// continuously so its 64 KiB kernel buffer cannot fill up and block the
+/// calling (GPUI main) thread mid-`println!`. The old single-threaded
+/// approach — write via `f()`, then `read_to_end` — deadlocked whenever a
+/// command produced more than 64 KiB of stdout.
 fn with_captured_stdout(f: impl FnOnce() -> anyhow::Result<()>) -> DispatcherResult {
     use std::io::Read;
 
@@ -384,8 +390,10 @@ fn with_captured_stdout(f: impl FnOnce() -> anyhow::Result<()>) -> DispatcherRes
     let (read_fd, write_fd) = (fds[0], fds[1]);
     let saved_fd = unsafe { libc::dup(libc::STDOUT_FILENO) };
     if saved_fd < 0 {
-        unsafe { libc::close(read_fd) };
-        unsafe { libc::close(write_fd) };
+        unsafe {
+            libc::close(read_fd);
+            libc::close(write_fd);
+        }
         return DispatcherResult {
             ok: false,
             output: String::new(),
@@ -393,13 +401,27 @@ fn with_captured_stdout(f: impl FnOnce() -> anyhow::Result<()>) -> DispatcherRes
         };
     }
 
+    // Drain thread: reads continuously so the pipe buffer never fills.
+    // Takes ownership of read_fd (closed on drop / when read_to_end
+    // returns after write_fd is closed below).
+    let drain = std::thread::Builder::new()
+        .name("rpc-stdout-drain".into())
+        .spawn(move || {
+            let mut buf = Vec::new();
+            let mut reader =
+                unsafe { <std::fs::File as std::os::unix::io::FromRawFd>::from_raw_fd(read_fd) };
+            let _ = reader.read_to_end(&mut buf);
+            buf
+        });
+
     // Flush Rust's stdout buffer before swapping the fd.
     let _ = std::io::stdout().flush();
     unsafe { libc::dup2(write_fd, libc::STDOUT_FILENO) };
 
     let result = f();
 
-    // Restore before reading: the read side sees EOF once write_fd closes.
+    // Restore stdout, then close write_fd — the drain thread sees EOF and
+    // finishes its read_to_end.
     let _ = std::io::stdout().flush();
     unsafe {
         libc::dup2(saved_fd, libc::STDOUT_FILENO);
@@ -407,11 +429,10 @@ fn with_captured_stdout(f: impl FnOnce() -> anyhow::Result<()>) -> DispatcherRes
         libc::close(write_fd);
     }
 
-    let mut buf = Vec::new();
-    // Takes ownership of read_fd: closed when the File drops.
-    let mut reader =
-        unsafe { <std::fs::File as std::os::unix::io::FromRawFd>::from_raw_fd(read_fd) };
-    let _ = reader.read_to_end(&mut buf);
+    let buf = match drain {
+        Ok(handle) => handle.join().unwrap_or_default(),
+        Err(_) => Vec::new(),
+    };
     let output = String::from_utf8_lossy(&buf).to_string();
 
     match result {

@@ -178,13 +178,16 @@ pub fn deliver_pending<S: OrchestrationStore>(
         //    is a shell-prompt line, not a pasted prompt).
         executor.write_to_pty(dispatch_id, pointer.as_bytes())?;
 
-        // 5. Pointer accepted → messages are delivered. Only now do we
-        //    touch the DB (failure above left everything untouched).
-        store.mark_delivered(&sequences)?;
-
-        // 6. Split submit: lone `\r` after the delay.
+        // 5. Split submit: lone `\r` after the delay.
         std::thread::sleep(Duration::from_millis(POINTER_SUBMIT_DELAY_MS));
         executor.write_to_pty(dispatch_id, b"\r")?;
+
+        // 6. Both writes succeeded → mark messages delivered. Doing this
+        //    AFTER the CR (not between the two writes) closes the crash
+        //    window where delivered_at was set but the pointer was never
+        //    submitted — the agent would never see the pointer, yet the
+        //    DB shows it as delivered.
+        store.mark_delivered(&sequences)?;
 
         Ok(PushOutcome::Delivered { count: pending.len() })
     })();

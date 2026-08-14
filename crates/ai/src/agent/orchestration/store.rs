@@ -310,14 +310,6 @@ impl DieselOrchestrationStore {
             .ok_or_else(|| {
                 OrchestrationError::NotFound(format!("worker dispatch {}", dispatch_id))
             })?;
-        let current = WorkerDispatchState::from_str(&worker.state)
-            .map_err(|_| OrchestrationError::Task(format!("invalid state: {}", worker.state)))?;
-        if !is_valid_transition(current, target_state) {
-            return Err(OrchestrationError::Task(format!(
-                "Invalid worker transition: {} → {}",
-                worker.state, target_state
-            )));
-        }
         let worker_state = target_state.as_ref();
         diesel::update(
             worker_dispatches::table.filter(worker_dispatches::dispatch_id.eq(dispatch_id)),
@@ -530,29 +522,32 @@ impl DieselOrchestrationStore {
         start_options: &str,
     ) -> OrchestrationResult<String> {
         let mut conn = self.lock();
-        let id = generate_id("ctx");
+        conn.transaction::<_, OrchestrationError, _>(|conn| {
+            let id = generate_id("ctx");
 
-        diesel::insert_into(dispatch_contexts::table)
-            .values(&NewDispatchContext {
-                id: &id,
-                run_id,
-                task_id,
-            })
-            .execute(&mut *conn)?;
+            diesel::insert_into(dispatch_contexts::table)
+                .values(&NewDispatchContext {
+                    id: &id,
+                    run_id,
+                    task_id,
+                })
+                .execute(conn)?;
 
-        diesel::insert_into(worker_dispatches::table)
-            .values(&NewWorkerDispatch { dispatch_id: &id })
-            .execute(&mut *conn)?;
+            diesel::insert_into(worker_dispatches::table)
+                .values(&NewWorkerDispatch { dispatch_id: &id })
+                .execute(conn)?;
 
-        if !start_options.is_empty() && start_options != "{}" {
-            diesel::update(
-                worker_dispatches::table.filter(worker_dispatches::dispatch_id.eq(&id)),
-            )
-            .set(worker_dispatches::start_options.eq(start_options))
-            .execute(&mut *conn)?;
-        }
+            if !start_options.is_empty() && start_options != "{}" {
+                diesel::update(
+                    worker_dispatches::table
+                        .filter(worker_dispatches::dispatch_id.eq(&id)),
+                )
+                .set(worker_dispatches::start_options.eq(start_options))
+                .execute(conn)?;
+            }
 
-        Ok(id)
+            Ok(id)
+        })
     }
 
     // ── Decision Gates ────────────────────────────────────────────────
@@ -1048,13 +1043,28 @@ impl OrchestrationStore for DieselOrchestrationStore {
 
     fn drain_inbox(&self, handle: &str) -> OrchestrationResult<Vec<Message>> {
         let mut conn = self.lock();
-        let unread: Vec<Message> = messages::table
-            .filter(messages::to_handle.eq(handle))
-            .filter(messages::read.eq(0))
-            .order(messages::sequence.asc())
-            .load(&mut *conn)?;
 
-        Ok(unread)
+        // Atomically select-and-mark: load unread rows for this handle
+        // and set read=1 in the same transaction. This closes the TOCTOU
+        // window where two concurrent consumers (router thread + CLI
+        // check-messages) could SELECT the same unread rows and each
+        // process them — double consumption with side effects.
+        conn.transaction::<Vec<Message>, OrchestrationError, _>(|conn| {
+            let unread: Vec<Message> = messages::table
+                .filter(messages::to_handle.eq(handle))
+                .filter(messages::read.eq(0))
+                .order(messages::sequence.asc())
+                .load(conn)?;
+
+            if !unread.is_empty() {
+                let sequences: Vec<i32> = unread.iter().map(|m| m.sequence).collect();
+                diesel::update(messages::table.filter(messages::sequence.eq_any(sequences)))
+                    .set(messages::read.eq(1))
+                    .execute(conn)?;
+            }
+
+            Ok(unread)
+        })
     }
 
     fn mark_messages_read(&self, sequences: &[i32]) -> OrchestrationResult<()> {

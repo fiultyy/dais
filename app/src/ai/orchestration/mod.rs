@@ -17,6 +17,8 @@
 //! `ViewRegistry` maps dispatch_id → `WeakViewHandle<TerminalView>` when a
 //! worker is assigned to a pane.
 
+use std::sync::Arc;
+
 use async_channel::{bounded, Receiver, Sender};
 
 use ::ai::agent::orchestration::db::{OrchestrationError, OrchestrationResult};
@@ -60,19 +62,41 @@ pub struct PtyWriteRequest {
 #[derive(Clone)]
 pub struct OrchestrationPtySender {
     tx: Sender<PtyWriteRequest>,
+    /// Optional liveness checker — when set, `write_to_pty` rejects
+    /// handles not registered in ViewRegistry before enqueueing,
+    /// preventing false-positive Ok on dead/unassigned terminals.
+    handle_alive: Option<Arc<dyn Fn(&str) -> bool + Send + Sync>>,
 }
 
 impl OrchestrationPtySender {
     /// Create a sender/receiver pair with the given buffer capacity.
-    /// The receiver goes into the GPUI consumer model.
     pub fn channel(buffer: usize) -> (Self, Receiver<PtyWriteRequest>) {
         let (tx, rx) = bounded(buffer);
-        (Self { tx }, rx)
+        (Self { tx, handle_alive: None }, rx)
+    }
+
+    /// Attach a handle-liveness checker (cloned ViewRegistry keys).
+    /// Must be called before the sender is stored globally.
+    pub fn with_handle_checker(
+        mut self,
+        checker: Arc<dyn Fn(&str) -> bool + Send + Sync>,
+    ) -> Self {
+        self.handle_alive = Some(checker);
+        self
     }
 }
 
+
 impl PtyExecutor for OrchestrationPtySender {
     fn write_to_pty(&self, handle: &str, bytes: &[u8]) -> OrchestrationResult<()> {
+        if let Some(check) = &self.handle_alive {
+            if !check(handle) {
+                return Err(OrchestrationError::Task(format!(
+                    "terminal handle not registered (dead or unassigned): {}",
+                    handle
+                )));
+            }
+        }
         self.tx
             .try_send(PtyWriteRequest {
                 handle: handle.to_string(),
@@ -102,6 +126,11 @@ impl ViewRegistry {
         self.inner.lock().remove(handle);
     }
 
+    /// Check if a handle is registered (non-GPUI safe — no view upgrade).
+    /// Used by the PTY sender's liveness checker to reject dead handles.
+    pub fn has_handle(&self, handle: &str) -> bool {
+        self.inner.lock().contains_key(handle)
+    }
     pub fn get(
         &self,
         handle: &str,

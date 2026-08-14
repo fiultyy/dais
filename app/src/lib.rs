@@ -1136,6 +1136,13 @@ fn initialize_app(
             // channel sender 存全局 OnceLock 供编排 plane 使用。
             ctx.add_singleton_model(|_| ViewRegistry::default());
             let (sender, rx) = OrchestrationPtySender::channel(256);
+            // Wire the liveness checker so write_to_pty rejects handles
+            // not registered in ViewRegistry (dead/unassigned terminals).
+            let registry_for_check = ViewRegistry::handle(ctx)
+                .read(ctx, |m, _| m.clone());
+            let checker: std::sync::Arc<dyn Fn(&str) -> bool + Send + Sync> =
+                std::sync::Arc::new(move |h| registry_for_check.has_handle(h));
+            let sender = sender.with_handle_checker(checker);
             crate::ai::orchestration::set_global_pty_sender(sender);
 
             let registry = ViewRegistry::handle(ctx)

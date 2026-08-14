@@ -204,9 +204,16 @@ pub fn subscribe_bridge(
         ctx.subscribe_to_model(model_events, |bridge, event, ctx| {
             // Track active session from events that carry session_id, and
             // idempotently register the session mailbox for direct sends.
-            if let ModelEvent::Handler(AnsiHandlerEvent::Bootstrapped { session_id, .. }) = event {
-                bridge.set_active_session(*session_id);
-                bridge.ensure_session_mailbox(*session_id, ctx);
+            if let ModelEvent::Handler(AnsiHandlerEvent::Bootstrapped { session_id, is_subshell }) = event {
+                // Only the primary (non-subshell) shell owns the active
+                // session. A subshell bootstrapping (e.g. `bash` inside
+                // the terminal) must not overwrite the outer session id,
+                // or subsequent Precmd/Preexec events from the outer
+                // shell are routed to the wrong dispatch (#9).
+                if !is_subshell {
+                    bridge.set_active_session(*session_id);
+                    bridge.ensure_session_mailbox(*session_id, ctx);
+                }
             }
 
             // PTY exit → retire the session mailbox (Orca
@@ -216,6 +223,19 @@ pub fn subscribe_bridge(
                 let mailbox = ShellEventBridge::session_mailbox_handle(*session_id);
                 ::ai::agent::orchestration::delivery::unregister_dispatch(&mailbox);
                 crate::ai::orchestration::session_activity::remove(*session_id);
+                // Also retire any dispatch_id mapped to this session —
+                // the pane is gone, so PTY writes, tail reads, and push
+                // delivery for the dispatch are dead handles (#3).
+                if let Some(dispatch_id) = bridge.dispatch_map.get(session_id) {
+                    ::ai::agent::orchestration::delivery::unregister_dispatch(&dispatch_id);
+                    use warpui::SingletonEntity as _;
+                    crate::ai::orchestration::ViewRegistry::handle(ctx)
+                        .read(ctx, |registry, _| registry.unregister(&dispatch_id));
+                    bridge.dispatch_map.unregister(session_id);
+                    log::info!(
+                        "orchestration: dispatch {dispatch_id} retired (shell exit, session {session_id:?})"
+                    );
+                }
                 use warpui::SingletonEntity as _;
                 crate::ai::orchestration::ViewRegistry::handle(ctx)
                     .read(ctx, |registry, _| registry.unregister(&mailbox));
