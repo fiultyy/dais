@@ -58,7 +58,6 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{mpsc::SyncSender, Arc};
 
-use itertools::Itertools;
 use lazy_static::lazy_static;
 
 use markdown_parser::FormattedTextFragment;
@@ -1250,7 +1249,30 @@ impl PaneGroup {
 
                 // Runs saved commands on start (terminal and agent modes only).
                 if !commands.is_empty() && !matches!(pane_mode, PaneMode::Cloud) {
-                    let exec = commands.iter().map(|cmd| &cmd.exec).join(" && ");
+                    // 交互式 CLI agent 拦截（tab config / 默认 tab 配置路径）：
+                    // 链尾命令若是已知 CLI agent，改写为拦截启动命令
+                    // （--settings / env 前缀，参数保留）。setup 命令
+                    // （worktree/cd）不动。
+                    let mut execs: Vec<String> =
+                        commands.iter().map(|cmd| cmd.exec.clone()).collect();
+                    #[cfg(not(target_family = "wasm"))]
+                    if let Some(last) = execs.last_mut() {
+                        if let Some(agent) =
+                            crate::terminal::cli_agent::CLIAgent::detect(last, None, None, ctx)
+                        {
+                            if let Some(rewritten) =
+                                crate::ai::harness_intercept::intercept_command_line(
+                                    last,
+                                    agent,
+                                    view.id().to_string(),
+                                    ctx,
+                                )
+                            {
+                                *last = rewritten;
+                            }
+                        }
+                    }
+                    let exec = execs.join(" && ");
                     view.update(ctx, |terminal, ctx| {
                         terminal.set_pending_command(exec.as_str(), ctx);
                     });

@@ -381,6 +381,19 @@ pub fn intercept_cli_agent_command(
     terminal_view_id: String,
     ctx: &warpui::AppContext,
 ) -> Option<String> {
+    intercept_command_line(agent.command_prefix(), agent, terminal_view_id, ctx)
+}
+
+/// 带原命令行的拦截改写（保留用户参数）：
+/// - Claude：`<cmd> --settings '<path>'`（追加，不丢 `--resume` 等参数）
+/// - env 形状：`env K='V' … <cmd>`
+/// `None` = 不拦截，调用方原样执行。
+pub fn intercept_command_line(
+    command: &str,
+    agent: crate::terminal::cli_agent::CLIAgent,
+    terminal_view_id: String,
+    ctx: &warpui::AppContext,
+) -> Option<String> {
     use crate::features::FeatureFlag;
     use crate::terminal::cli_agent::CLIAgent;
     use crate::terminal::intercept_sessions::InterceptSessionsModel;
@@ -392,12 +405,9 @@ pub fn intercept_cli_agent_command(
     }
     let model = InterceptSessionsModel::as_ref(ctx);
     let mode = model.mode();
-    if mode != InterceptMode::Full {
-        // HooksOnly 对非 CC harness 无捕获通道（hooks 是 CC settings 机制），
-        // 仅 CC 的 --settings 路线在 HooksOnly 下仍有意义。
-        if agent != CLIAgent::Claude {
-            return None;
-        }
+    if mode != InterceptMode::Full && agent != CLIAgent::Claude {
+        // HooksOnly 对非 CC harness 无捕获通道（hooks 是 CC settings 机制）。
+        return None;
     }
 
     match agent {
@@ -417,25 +427,25 @@ pub fn intercept_cli_agent_command(
                 terminal_view_id,
                 GuiIntercept { session, _settings_file: Some(file) },
             );
-            Some(format!("claude --settings '{path}'"))
+            Some(format!("{command} --settings '{path}'"))
         }
         CLIAgent::Codex | CLIAgent::OpenCode => {
-            intercept_env_command(agent, HarnessType::Codex, &model, mode, terminal_view_id)
+            intercept_env_command(command, HarnessType::Codex, &model, mode, terminal_view_id)
         }
         CLIAgent::Omp => {
-            intercept_env_command(agent, HarnessType::Omp, &model, mode, terminal_view_id)
+            intercept_env_command(command, HarnessType::Omp, &model, mode, terminal_view_id)
         }
         // Gemini/Amp/Droid/Copilot/Pi/Auggie/CursorCli/Goose/DeepSeek/Antigravity/
         // Unknown：generic HTTPS_PROXY 形状，需显式上游（Proxy tab base 覆盖
         // 或 ZAP_UPSTREAM_BASE），否则 resolve 失败回退原命令。
-        _ => intercept_env_command(agent, HarnessType::Generic, &model, mode, terminal_view_id),
+        _ => intercept_env_command(command, HarnessType::Generic, &model, mode, terminal_view_id),
     }
 }
 
 /// 非 CC harness 的通用 env 前缀改写：起 session → `env K='V' … <cli>`。
 /// proxy 未起（env 仅剩 hook 变量）→ `None`（拦截无意义）。
 fn intercept_env_command(
-    agent: crate::terminal::cli_agent::CLIAgent,
+    command: &str,
     harness_type: HarnessType,
     model: &crate::terminal::intercept_sessions::InterceptSessionsModel,
     mode: InterceptMode,
@@ -459,7 +469,7 @@ fn intercept_env_command(
         terminal_view_id,
         GuiIntercept { session, _settings_file: None },
     );
-    Some(format!("env {prefix} {}", agent.command_prefix()))
+    Some(format!("env {prefix} {command}"))
 }
 
 /// 释放指定 terminal view 的 GUI 拦截会话（tab 关闭时调用）。
