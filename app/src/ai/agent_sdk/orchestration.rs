@@ -402,9 +402,22 @@ pub fn execute_command(
 /// waiter loop belongs in this process (its waiter claim must live exactly
 /// as long as this invocation); a GUI-side wait would also pin the GPUI
 /// main thread against the dispatcher timeout.
-#[cfg(unix)]
 fn try_socket_fast_path(command: &OrchestrationCommand) -> bool {
     use crate::ai::orchestration::runtime_rpc;
+
+    // Single-consumer guard: when a GUI runtime is alive, its message-router
+    // thread owns the "orchestrator" mailbox. Pulling it from here (forwarded
+    // or direct-DB) races the router for the same unread rows. Refuse the
+    // invocation outright; headless (no runtime) pulls stay legal.
+    if let OrchestrationCommand::CheckMessages { ref handle, .. } = command {
+        if handle == "orchestrator" && runtime_rpc::runtime_alive() {
+            eprintln!(
+                "refused: the orchestrator mailbox is consumed by the running \
+                 GUI's message router"
+            );
+            return true;
+        }
+    }
 
     if let OrchestrationCommand::CheckMessages { wait: true, .. } = command {
         return false;

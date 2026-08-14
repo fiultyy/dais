@@ -86,6 +86,15 @@ pub fn read_metadata() -> Option<RuntimeMetadata> {
         })
         .ok()
 }
+/// Whether a runtime (GUI app or serve) is currently alive per the metadata
+/// file. Used by the CLI to refuse commands that would race the GUI's
+/// in-process consumers.
+pub fn runtime_alive() -> bool {
+    match read_metadata() {
+        Some(meta) => is_pid_alive(meta.pid),
+        None => false,
+    }
+}
 
 /// Check whether the PID recorded in metadata is still alive.
 pub fn is_pid_alive(pid: u32) -> bool {
@@ -434,6 +443,25 @@ fn dispatch_orchestration(args: &serde_json::Value) -> RpcResponse {
         }
     };
 
+    // Single-consumer guard: the GUI's message-router thread owns the
+    // "orchestrator" mailbox (it drains and routes it automatically). A
+    // forwarded pull here would race the router for the same unread rows —
+    // whoever marks them read first silently starves the other's side
+    // effects. Refuse; headless direct-DB pulls (no router) stay legal.
+    if let OrchestrationCommand::CheckMessages { ref handle, .. } = command {
+        if handle == "orchestrator" {
+            return RpcResponse {
+                ok: false,
+                result: None,
+                error: Some(
+                    "refused: the orchestrator mailbox is consumed by the \
+                     in-process message router"
+                        .into(),
+                ),
+            };
+        }
+    }
+
     match execute_on_gui_thread(command, 4500) {
         Some(result) => {
             if result.ok {
@@ -553,6 +581,21 @@ pub fn try_socket_forward(cmd: &str, args: &serde_json::Value) -> Result<Option<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_dispatch_refuses_orchestrator_pull() {
+        let args = serde_json::json!({
+            "CheckMessages": {
+                "handle": "orchestrator",
+                "wait": false,
+                "timeout_ms": 120000,
+                "message_type": [],
+            }
+        });
+        let resp = dispatch_request("orchestration", &args);
+        assert!(!resp.ok);
+        assert!(resp.error.unwrap().contains("refused"));
+    }
 
     #[test]
     fn test_metadata_roundtrip() {
