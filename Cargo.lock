@@ -14969,6 +14969,7 @@ dependencies = [
  "git2",
  "gloo",
  "handlebars",
+ "harness_integration",
  "hex",
  "htmd",
  "http 1.4.2",

@@ -75,6 +75,8 @@ pub fn initialize_app_for_terminal_view(app: &mut App) {
     app.add_singleton_model(|_| History::default());
     app.add_singleton_model(|_| BlocklistAIHistoryModel::new_for_test());
     app.add_singleton_model(|_| CLIAgentSessionsModel::new());
+    // issue #13: Input 构造 InterceptConfigBar 需要该单例。
+    app.add_singleton_model(crate::terminal::intercept_sessions::InterceptSessionsModel::new);
     app.add_singleton_model(BlocklistAIPermissions::new);
     app.add_singleton_model(UndoCloseStack::new);
 

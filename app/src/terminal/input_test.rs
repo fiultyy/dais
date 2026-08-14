@@ -136,6 +136,8 @@ pub fn initialize_app(app: &mut App) {
     app.add_singleton_model(AIRequestUsageModel::new_for_test);
     app.add_singleton_model(|_| BlocklistAIHistoryModel::new_for_test());
     app.add_singleton_model(|_| CLIAgentSessionsModel::new());
+    // issue #13: Input 构造 InterceptConfigBar 需要该单例。
+    app.add_singleton_model(crate::terminal::intercept_sessions::InterceptSessionsModel::new);
     app.add_singleton_model(BlocklistAIPermissions::new);
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
     app.add_singleton_model(AuthManager::new_for_test);

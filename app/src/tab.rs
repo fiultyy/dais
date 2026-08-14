@@ -528,6 +528,9 @@ pub struct TabComponent<'a> {
     styles: TabStyles,
     ui_builder: UiBuilder,
     indicator: Indicator,
+    /// Intercept status for this tab (issue #13): `(mode.as_str(), block_count)`.
+    /// `None` when interception is off (Bypass) or the tab is not a harness tab.
+    intercept: Option<(&'static str, u64)>,
     close_button_position: TabCloseButtonPosition,
     appearance: &'a Appearance,
     tooltip_message: Option<String>,
@@ -674,6 +677,8 @@ impl<'a> TabComponent<'a> {
             Indicator::None
         };
 
+        let intercept = Self::intercept_status(tab, ctx);
+
         let tooltip_message = Self::get_tooltip_message(&indicator, tab, ctx);
         let tooltip_directory = Self::get_tooltip_directory(&indicator, tab, ctx);
         let tooltip_git_branch = Self::get_tooltip_git_branch(&indicator, tab, ctx);
@@ -692,6 +697,7 @@ impl<'a> TabComponent<'a> {
             styles: TabStyles::default(appearance, tab.color()),
             ui_builder: appearance.ui_builder().clone(),
             indicator,
+            intercept,
             close_button_position,
             appearance,
             tooltip_message,
@@ -734,10 +740,40 @@ impl<'a> TabComponent<'a> {
         }
 
         let conversation_status = Some(conversation.status().clone());
+
         Some(Indicator::Agent {
             conversation_status,
         })
     }
+    /// Intercept status shown on harness tabs (issue #13).
+    ///
+    /// Returns `(mode.as_str(), block_count)` when the AgentHarness feature is
+    /// on, the global intercept mode is not Bypass, and this tab's focused
+    /// session has an active CLI agent (harness) session. The count comes from
+    /// the persistent BlockStore via [`InterceptSessionsModel`].
+    #[cfg(not(target_family = "wasm"))]
+    fn intercept_status(tab: &TabData, ctx: &AppContext) -> Option<(&'static str, u64)> {
+        use crate::terminal::intercept_sessions::InterceptSessionsModel;
+
+        if !FeatureFlag::AgentHarness.is_enabled() {
+            return None;
+        }
+        let model = InterceptSessionsModel::as_ref(ctx);
+        if model.mode() == harness_integration::InterceptMode::Bypass {
+            return None;
+        }
+        // Harness tab: the focused session runs a CLI agent (e.g. Claude Code).
+        let terminal_view = tab.pane_group.as_ref(ctx).focused_session_view(ctx)?;
+        crate::terminal::cli_agent_sessions::CLIAgentSessionsModel::as_ref(ctx)
+            .session(terminal_view.id())?;
+        Some((model.mode().as_str(), model.block_count()))
+    }
+
+    #[cfg(target_family = "wasm")]
+    fn intercept_status(_tab: &TabData, _ctx: &AppContext) -> Option<(&'static str, u64)> {
+        None
+    }
+
 
     /// Determine if this tab is the active tab.
     fn is_active_tab(&self) -> bool {
@@ -1128,6 +1164,60 @@ impl<'a> TabComponent<'a> {
         })
     }
 
+    /// Renders the intercept-status badge (issue #13): a colored eye icon with
+    /// a tooltip showing the mode and captured-block count. Green = Full,
+    /// yellow = HooksOnly. No badge when interception is off for this tab.
+    fn render_intercept_badge(&self) -> Option<Box<dyn Element>> {
+        let (mode, count) = self.intercept?;
+
+        let mode_label = match mode {
+            "full" => crate::t!("intercept-mode-full"),
+            "hooks_only" => crate::t!("intercept-mode-hooks-only"),
+            _ => crate::t!("intercept-mode-bypass"),
+        };
+        let tooltip_text = crate::t!("intercept-tab-tooltip", mode = mode_label, count = count);
+
+        let theme = self.appearance.theme();
+        let color = if mode == "full" {
+            theme.ui_green_color()
+        } else {
+            theme.ui_yellow_color()
+        };
+
+        let ui_builder = self.ui_builder.clone();
+        let mouse_state = self.tab.indicator_hover_state.clone();
+        let badge = Hoverable::new(mouse_state, move |state| {
+            let mut stack = Stack::new().with_child(Icon::Eye.to_warpui_icon(color.into()).finish());
+
+            if state.is_hovered() {
+                let tooltip = ui_builder.tool_tip(tooltip_text).build().finish();
+                stack.add_positioned_overlay_child(
+                    tooltip,
+                    OffsetPositioning::offset_from_parent(
+                        vec2f(0., 3.),
+                        ParentOffsetBounds::WindowByPosition,
+                        ParentAnchor::BottomMiddle,
+                        ChildAnchor::TopMiddle,
+                    ),
+                );
+            }
+
+            stack.finish()
+        })
+        .finish();
+
+        Some(
+            Container::new(
+                ConstrainedBox::new(badge)
+                    .with_max_width(TAB_INDICATOR_HEIGHT)
+                    .with_max_height(TAB_INDICATOR_HEIGHT)
+                    .finish(),
+            )
+            .with_margin_right(4.)
+            .finish(),
+        )
+    }
+
     fn render_tab_container(&self, is_hovered: bool) -> Box<dyn Element> {
         let is_tab_dragging = self.is_tab_dragging();
         let is_hovered = is_hovered && !self.tab_bar.is_any_tab_dragging;
@@ -1219,6 +1309,9 @@ impl<'a> TabComponent<'a> {
                 .with_cross_axis_alignment(warpui::elements::CrossAxisAlignment::Center);
             if let Some(indicator) = self.render_indicator() {
                 flex_row.add_child(indicator);
+            }
+            if let Some(badge) = self.render_intercept_badge() {
+                flex_row.add_child(badge);
             }
             flex_row.add_child(
                 Shrinkable::new(

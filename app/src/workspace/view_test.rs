@@ -113,6 +113,8 @@ fn initialize_app(app: &mut App) {
     // Zap(本地化,Phase 5):`PreferencesSyncer` 已物理删除,test singleton 不再需要。
     app.add_singleton_model(|_| BlocklistAIHistoryModel::new_for_test());
     app.add_singleton_model(|_| CLIAgentSessionsModel::new());
+    // issue #13: Input 构造 InterceptConfigBar 需要该单例。
+    app.add_singleton_model(crate::terminal::intercept_sessions::InterceptSessionsModel::new);
     app.add_singleton_model(AgentConversationsModel::new);
     app.add_singleton_model(LLMPreferences::new);
     app.add_singleton_model(|_| SettingsPaneManager::new());

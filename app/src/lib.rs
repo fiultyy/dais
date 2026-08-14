@@ -1734,6 +1734,9 @@ fn initialize_app(
         ctx.add_singleton_model(move |_| restored);
     }
     ctx.add_singleton_model(|_| CLIAgentSessionsModel::new());
+    // 拦截会话配置单例 (issue #13):InterceptMode / Upstream 覆盖 / block 计数。
+    #[cfg(not(target_family = "wasm"))]
+    ctx.add_singleton_model(terminal::intercept_sessions::InterceptSessionsModel::new);
     ctx.add_singleton_model(BlocklistAIPermissions::new);
     // 通知中心单例 model:必须排在 BlocklistAIHistoryModel
     // 和 CLIAgentSessionsModel 之后注册,因为构造时会订阅这两个 model。

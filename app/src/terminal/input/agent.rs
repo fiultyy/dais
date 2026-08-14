@@ -58,6 +58,17 @@ impl Input {
             );
         }
 
+        // 拦截配置栏 (issue #13):紧邻现有 harness 配置 UI(输入框上方),
+        // 仅在 AgentHarness feature 开启且非 wasm 时显示。
+        #[cfg(not(target_family = "wasm"))]
+        if crate::features::FeatureFlag::AgentHarness.is_enabled() {
+            column.add_child(
+                Container::new(ChildView::new(&self.intercept_bar).finish())
+                    .with_margin_top(spacing::UDI_CHIP_MARGIN)
+                    .finish(),
+            );
+        }
+
         let ai_input_model = self.ai_input_model.as_ref(app);
 
         if FeatureFlag::ImageAsContext.is_enabled()

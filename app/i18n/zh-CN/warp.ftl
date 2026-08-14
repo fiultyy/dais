@@ -3568,3 +3568,18 @@ workflow-enum-variants = 变体
 quit-warning-dont-save = 不保存
 quit-warning-show-running-processes = 显示运行中的进程
 quit-warning-save-changes-title = 保存更改？
+
+# 拦截配置栏 (issue #13)
+intercept-mode-tooltip = LLM 流量拦截模式
+intercept-mode-header = 拦截模式
+intercept-mode-full = 完整拦截
+intercept-mode-hooks-only = 仅 Hooks
+intercept-mode-bypass = 旁路
+intercept-blocks-captured = 已捕获 { $count } blocks
+intercept-upstream-button = 上游配置
+intercept-upstream-tooltip = 上游 API 配置
+intercept-api-base-placeholder = API Base（留空 = 自动探测）
+intercept-auth-env-placeholder = Auth 环境变量（留空 = 默认）
+intercept-probe-prefix = 探测结果：
+intercept-probe-unavailable = 无法为该 harness 解析上游配置
+intercept-tab-tooltip = 拦截：{ $mode } · 已捕获 { $count } blocks

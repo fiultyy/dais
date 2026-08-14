@@ -69,6 +69,8 @@ fn initialize_permissions_test_with_mode(
     app.add_singleton_model(|_| GlobalResourceHandlesProvider::new(global_resource_handles));
     let history = app.add_singleton_model(|_| BlocklistAIHistoryModel::new(vec![], &[]));
     app.add_singleton_model(|_| CLIAgentSessionsModel::new());
+    // issue #13: Input 构造 InterceptConfigBar 需要该单例。
+    app.add_singleton_model(crate::terminal::intercept_sessions::InterceptSessionsModel::new);
     let permissions = app.add_singleton_model(BlocklistAIPermissions::new);
     let terminal_view_id = EntityId::new();
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());

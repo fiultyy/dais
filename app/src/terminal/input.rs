@@ -1583,6 +1583,10 @@ pub struct Input {
     agent_input_footer: ViewHandle<AgentInputFooter>,
 
     harness_selector: ViewHandle<HarnessSelector>,
+    /// 拦截配置栏 (issue #13):InterceptMode 切换 + block 计数 + Upstream 面板。
+    #[cfg(not(target_family = "wasm"))]
+    intercept_bar: ViewHandle<crate::terminal::view::ambient_agent::InterceptConfigBar>,
+
 
     host_selector: Option<ViewHandle<HostSelector>>,
 
@@ -2156,6 +2160,15 @@ impl Input {
 
         let harness_selector = ctx.add_typed_action_view(|ctx| {
             HarnessSelector::new(
+                menu_positioning_provider.clone(),
+                ambient_agent_view_model.clone(),
+                ctx,
+            )
+        });
+
+        #[cfg(not(target_family = "wasm"))]
+        let intercept_bar = ctx.add_typed_action_view(|ctx| {
+            crate::terminal::view::ambient_agent::InterceptConfigBar::new(
                 menu_positioning_provider.clone(),
                 ambient_agent_view_model.clone(),
                 ctx,
@@ -3194,6 +3207,8 @@ impl Input {
             agent_view_controller,
             agent_input_footer,
             harness_selector,
+            #[cfg(not(target_family = "wasm"))]
+            intercept_bar,
             host_selector,
             agent_shortcut_view_model,
             ambient_agent_view_model,

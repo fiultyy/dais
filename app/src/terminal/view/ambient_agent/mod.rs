@@ -2,6 +2,8 @@ mod block;
 // Zap Wave 7-2:`first_time_setup` 随 ambient agent UI 物理删。
 mod footer;
 mod harness_selector;
+#[cfg(not(target_family = "wasm"))]
+mod intercept_ui;
 mod host_selector;
 mod loading_screen;
 mod model;
@@ -14,6 +16,11 @@ mod view_impl;
 pub use block::*;
 pub use footer::{render_error_footer, render_loading_footer};
 pub use harness_selector::{HarnessSelector, HarnessSelectorAction, HarnessSelectorEvent};
+#[cfg(not(target_family = "wasm"))]
+pub use intercept_ui::{
+    InterceptConfigBar, InterceptConfigBarAction, InterceptConfigBarEvent, InterceptModeSelector,
+    InterceptModeSelectorAction, InterceptModeSelectorEvent,
+};
 pub use host_selector::{
     Host, HostSelector, HostSelectorAction, HostSelectorEvent, NakedHeaderButtonTheme,
 };

@@ -3486,3 +3486,18 @@ workflow-enum-variant-placeholder = バリアント
 workflow-enum-variants = バリアント
 quit-warning-dont-save = 保存しない
 quit-warning-show-running-processes = 実行中のプロセスを表示
+
+# インターセプト設定バー (issue #13)
+intercept-mode-tooltip = LLM トラフィック傍受モード
+intercept-mode-header = 傍受モード
+intercept-mode-full = フル
+intercept-mode-hooks-only = フックのみ
+intercept-mode-bypass = バイパス
+intercept-blocks-captured = { $count } ブロックを取得済み
+intercept-upstream-button = 上流設定
+intercept-upstream-tooltip = 上流 API 設定
+intercept-api-base-placeholder = API Base（空欄 = 自動検出）
+intercept-auth-env-placeholder = 認証環境変数（空欄 = デフォルト）
+intercept-probe-prefix = 解決結果：
+intercept-probe-unavailable = このハーネスの上流設定を解決できません
+intercept-tab-tooltip = 傍受：{ $mode } · { $count } ブロックを取得済み

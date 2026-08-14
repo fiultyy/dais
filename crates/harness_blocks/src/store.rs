@@ -135,4 +135,17 @@ impl BlockStore {
         self.conn
             .execute("DELETE FROM harness_blocks WHERE session_id = ?1", params![session_id])
     }
+
+    /// Total number of captured blocks across all sessions.
+    ///
+    /// Used by the UI intercept badge counter (issue #13). Cheap: a single
+    /// `COUNT(*)` over the WAL-indexed table.
+    pub fn block_count(&self) -> rusqlite::Result<u64> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM harness_blocks", [], |row| {
+                row.get(0)
+            })?;
+        Ok(count as u64)
+    }
 }

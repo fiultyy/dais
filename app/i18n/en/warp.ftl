@@ -3654,3 +3654,18 @@ workflow-enum-variants = Variants
 quit-warning-dont-save = Don't Save
 quit-warning-show-running-processes = Show running processes
 quit-warning-save-changes-title = Save changes?
+
+# Intercept configuration bar (issue #13)
+intercept-mode-tooltip = LLM traffic interception mode
+intercept-mode-header = Intercept mode
+intercept-mode-full = Full
+intercept-mode-hooks-only = Hooks only
+intercept-mode-bypass = Bypass
+intercept-blocks-captured = { $count } blocks captured
+intercept-upstream-button = Upstream
+intercept-upstream-tooltip = Upstream API configuration
+intercept-api-base-placeholder = API Base (empty = auto-detect)
+intercept-auth-env-placeholder = Auth env var (empty = default)
+intercept-probe-prefix = Resolved upstream:
+intercept-probe-unavailable = Unable to resolve upstream for this harness
+intercept-tab-tooltip = Intercept: { $mode } · { $count } blocks captured

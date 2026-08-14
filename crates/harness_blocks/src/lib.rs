@@ -155,4 +155,18 @@ mod tests {
         assert_eq!(store.list_blocks("s1", None, None).unwrap().len(), 1);
         std::fs::remove_dir_all(&dir).ok();
     }
+
+    #[test]
+    fn block_count_counts_across_sessions() {
+        let store = BlockStore::open_in_memory().unwrap();
+        assert_eq!(store.block_count().unwrap(), 0);
+        for (session, seq) in [("s1", 0u32), ("s1", 1), ("s2", 0)] {
+            store
+                .insert_block(&block(session, BlockType::Spawn, seq))
+                .unwrap();
+        }
+        assert_eq!(store.block_count().unwrap(), 3);
+        store.delete_session("s1").unwrap();
+        assert_eq!(store.block_count().unwrap(), 1);
+    }
 }

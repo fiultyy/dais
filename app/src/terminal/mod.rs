@@ -43,6 +43,8 @@ pub mod grid_renderer;
 pub mod grid_size_util;
 pub mod history;
 pub mod input;
+#[cfg(not(target_family = "wasm"))]
+pub mod intercept_sessions;
 pub mod keys;
 pub mod keys_settings;
 pub mod ligature_settings;
