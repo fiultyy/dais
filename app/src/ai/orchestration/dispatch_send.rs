@@ -4,8 +4,9 @@
 //! Checks agent idle status (from terminal title) before injecting, unless `force`.
 
 use ::ai::agent::orchestration::connection::store;
+use ::ai::agent::orchestration::executor::PtyExecutor;
 use ::ai::agent::orchestration::prompt_injection::{
-    build_dispatch_preamble, detect_agent_status_from_title, send_agent_prompt,
+    build_dispatch_preamble, detect_agent_status_from_title,
     AgentTerminalStatus, PreambleParams, WorkerKind,
 };
 
@@ -79,8 +80,26 @@ pub fn inject_prompt(
         )
     })?;
 
-    send_agent_prompt(sender, dispatch_id, text)
+    // 1e: write the paste frame immediately, then schedule the submit CR
+    // on a background thread so the 500ms delay doesn't block the GPUI
+    // main thread (which also runs the event loop, RPC dispatcher, and
+    // all terminal rendering).
+    use ::ai::agent::orchestration::prompt_injection::{
+        build_agent_prompt_paste_bytes, AGENT_PROMPT_SUBMIT, AGENT_PROMPT_SUBMIT_DELAY_MS,
+    };
+    use std::time::Duration;
+
+    sender
+        .write_to_pty(dispatch_id, &build_agent_prompt_paste_bytes(text))
         .map_err(|e| anyhow::anyhow!("PTY write failed: {e}"))?;
+
+    let sender_clone = sender.clone();
+    let handle_owned = dispatch_id.to_string();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(AGENT_PROMPT_SUBMIT_DELAY_MS));
+        let _ = sender_clone.write_to_pty(&handle_owned, AGENT_PROMPT_SUBMIT);
+    });
+
 
     let bytes_len = text.len();
     let summary = match &ctx {
@@ -159,8 +178,24 @@ pub fn send_task_dispatch(
         )
     })?;
 
-    send_agent_prompt(sender, dispatch_id, &preamble)
+    // 1e: same split as inject_prompt — paste frame now, submit CR via
+    // background thread to avoid blocking the GPUI main thread.
+    use ::ai::agent::orchestration::prompt_injection::{
+        build_agent_prompt_paste_bytes, AGENT_PROMPT_SUBMIT, AGENT_PROMPT_SUBMIT_DELAY_MS,
+    };
+    use std::time::Duration;
+
+    sender
+        .write_to_pty(dispatch_id, &build_agent_prompt_paste_bytes(&preamble))
         .map_err(|e| anyhow::anyhow!("PTY write failed: {e}"))?;
+
+    let sender_clone = sender.clone();
+    let handle_owned = dispatch_id.to_string();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(AGENT_PROMPT_SUBMIT_DELAY_MS));
+        let _ = sender_clone.write_to_pty(&handle_owned, AGENT_PROMPT_SUBMIT);
+    });
+
 
     let spec_preview: String = task.spec.chars().take(60).collect();
     let summary = format!(

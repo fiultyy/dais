@@ -214,6 +214,12 @@ struct RpcRequest {
 #[derive(Debug, Serialize, Deserialize)]
 struct RpcResponse {
     ok: bool,
+    /// Whether the command was actually executed on the GPUI thread.
+    /// `ok:false && executed:false` = refused before execution (safe to
+    /// retry via direct DB); `ok:false && executed:true` = ran but
+    /// returned an error (do NOT retry — side effects may exist).
+    #[serde(default)]
+    executed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     result: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -238,6 +244,7 @@ fn handle_connection(mut stream: UnixStream) {
         Err(e) => {
             let _ = write_response(&mut stream, &RpcResponse {
                 ok: false,
+                executed: false,
                 result: None,
                 error: Some(format!("parse error: {e}")),
             });
@@ -260,26 +267,25 @@ fn dispatch_request(cmd: &str, args: &serde_json::Value) -> RpcResponse {
     match cmd {
         "echo" => RpcResponse {
             ok: true,
+            executed: true,
             result: Some(args.clone()),
             error: None,
         },
         "status" => RpcResponse {
             ok: true,
+            executed: true,
             result: Some(serde_json::json!({
                 "pid": std::process::id(),
                 "mode": "runtime",
             })),
             error: None,
         },
-        // L2: full-command forwarding. The payload is a serialized
-        // `OrchestrationCommand`; the GUI process executes it on the GPUI
-        // thread with the same semantics as a local CLI invocation.
+        // L2: full-command forwarding.
         "orchestration" => dispatch_orchestration(args),
         "send-message" | "check-messages" | "check-status" => {
-            // Legacy L1 command names — superseded by "orchestration".
-            // Kept as fallback stubs so old clients degrade gracefully.
             RpcResponse {
                 ok: true,
+                executed: false,
                 result: Some(serde_json::json!({
                     "fallback": true,
                     "reason": "L1 stub; use the orchestration command",
@@ -289,6 +295,7 @@ fn dispatch_request(cmd: &str, args: &serde_json::Value) -> RpcResponse {
         }
         other => RpcResponse {
             ok: false,
+            executed: false,
             result: None,
             error: Some(format!("unknown command: {other}")),
         },
@@ -458,21 +465,19 @@ fn dispatch_orchestration(args: &serde_json::Value) -> RpcResponse {
         Err(e) => {
             return RpcResponse {
                 ok: false,
+                executed: false,
                 result: None,
                 error: Some(format!("bad command payload: {e}")),
             }
         }
     };
 
-    // Single-consumer guard: the GUI's message-router thread owns the
-    // "orchestrator" mailbox (it drains and routes it automatically). A
-    // forwarded pull here would race the router for the same unread rows —
-    // whoever marks them read first silently starves the other's side
-    // effects. Refuse; headless direct-DB pulls (no router) stay legal.
+    // Single-consumer guard.
     if let OrchestrationCommand::CheckMessages { ref handle, .. } = command {
         if handle == "orchestrator" {
             return RpcResponse {
                 ok: false,
+                executed: false,
                 result: None,
                 error: Some(
                     "refused: the orchestrator mailbox is consumed by the \
@@ -484,33 +489,29 @@ fn dispatch_orchestration(args: &serde_json::Value) -> RpcResponse {
     }
 
     match execute_on_gui_thread(command, 4500) {
-        Some(result) => {
-            if result.ok {
-                RpcResponse {
-                    ok: true,
-                    result: Some(serde_json::json!({
-                        "output": result.output,
-                    })),
-                    error: result.error,
-                }
-            } else {
-                RpcResponse {
-                    ok: false,
-                    result: Some(serde_json::json!({
-                        "output": result.output,
-                    })),
-                    error: result.error,
-                }
-            }
-        }
-        // No dispatcher (serve mode) or timed out — CLI falls back to DB.
-        None => RpcResponse {
-            ok: true,
+        Some(result) => RpcResponse {
+            ok: result.ok,
+            // Command was executed — even on failure, side effects may
+            // exist, so the CLI must NOT retry via direct DB.
+            executed: true,
             result: Some(serde_json::json!({
-                "fallback": true,
-                "reason": "no GUI dispatcher or execution timed out",
+                "output": result.output,
             })),
-            error: None,
+            error: result.error,
+        },
+        // Timeout: the job was dispatched and may still be running on the
+        // GPUI thread. Returning fallback would cause the CLI to re-execute
+        // via direct DB → double side effects. Instead return executed:true
+        // so the CLI treats it as "handled, don't retry".
+        None => RpcResponse {
+            ok: false,
+            executed: true,
+            result: None,
+            error: Some(
+                "execution timed out — the command may still be running on \
+                 the GUI thread, do not retry"
+                    .into(),
+            ),
         },
     }
 }
@@ -546,8 +547,8 @@ pub fn try_socket_forward(cmd: &str, args: &serde_json::Value) -> Result<Option<
         }
     };
 
-    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(3)));
-    let _ = stream.set_write_timeout(Some(std::time::Duration::from_secs(3)));
+    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(5)));
+    let _ = stream.set_write_timeout(Some(std::time::Duration::from_secs(5)));
 
     let req = serde_json::json!({
         "cmd": cmd,
@@ -580,8 +581,23 @@ pub fn try_socket_forward(cmd: &str, args: &serde_json::Value) -> Result<Option<
     }
 
     let resp: RpcResponse = serde_json::from_str(response.trim())?;
+    // 1d: executed=true means the command ran on the GPUI thread — even if
+    // it returned ok:false (error) or timed out, side effects may exist.
+    // Return Ok(Some) so the CLI does NOT fall back to direct DB (which
+    // would double-execute). Only !executed responses (refused, L1 stub,
+    // fallback) degrade to direct DB.
+    if resp.executed {
+        if resp.ok {
+            return Ok(Some(serde_json::to_string_pretty(&resp.result)?));
+        }
+        return Ok(Some(serde_json::json!({
+            "error": resp.error.clone(),
+            "executed": true,
+        })
+        .to_string()));
+    }
     if resp.ok {
-        if let Some(ref result) = resp.result {
+        if let Some(result) = &resp.result {
             if result.get("fallback").and_then(|v| v.as_bool()).unwrap_or(false) {
                 return Ok(None);
             }

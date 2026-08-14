@@ -627,9 +627,16 @@ impl DieselOrchestrationStore {
 
             // Set task to 'ready' (not previous status) so the coordinator re-dispatches
             // with the resolution context.
-            diesel::update(tasks::table.filter(tasks::id.eq(&gate.task_id)))
-                .set(tasks::status.eq("ready"))
-                .execute(conn)?;
+            // Only unblock tasks that are actually blocked — a task that
+            // was already resolved/expired must not be downgraded to ready
+            // by a stale or duplicate gate resolution (#9b).
+            diesel::update(
+                tasks::table
+                    .filter(tasks::id.eq(&gate.task_id))
+                    .filter(tasks::status.eq("blocked")),
+            )
+            .set(tasks::status.eq("ready"))
+            .execute(conn)?;
 
             Ok(())
         })

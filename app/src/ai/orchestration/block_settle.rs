@@ -75,6 +75,9 @@ pub fn try_settle_from_block(
     };
 
     let result_json = serde_json::json!({
+        "task_id": task_id,
+        "dispatch_id": dispatch_id,
+        "outcome": if exit_code == 0 { "succeeded" } else { "failed" },
         "command": command_text,
         "exit_code": exit_code,
         "provenance": "block"
