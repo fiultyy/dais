@@ -117,6 +117,11 @@ impl Integration {
         self.hook_server.as_ref().map(|s| s.base_url())
     }
 
+    /// 鉴权 token，如果 hook server 正在运行。
+    pub fn hook_token(&self) -> Option<&str> {
+        self.hook_server.as_ref().map(|s| s.token())
+    }
+
     // ── proxy ────────────────────────────────────────────────────────────
 
     /// Allocate a TLS proxy pointing at `upstream` and spawn the background

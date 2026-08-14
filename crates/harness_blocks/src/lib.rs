@@ -169,4 +169,19 @@ mod tests {
         store.delete_session("s1").unwrap();
         assert_eq!(store.block_count().unwrap(), 1);
     }
+
+    #[test]
+    fn raw_cache_delete_session() {
+        let cache = RawCache::open_in_memory().unwrap();
+        cache.insert_raw("s1", "request", b"req-1", 100).unwrap();
+        cache.insert_raw("s1", "response", b"resp-1", 200).unwrap();
+        cache.insert_raw("s2", "request", b"req-2", 300).unwrap();
+
+        assert_eq!(cache.delete_session("s1").unwrap(), 2);
+        assert!(cache.peek("s1").unwrap().is_empty());
+        assert_eq!(cache.peek("s2").unwrap().len(), 1); // other session untouched
+
+        // 删除空 session 返回 0
+        assert_eq!(cache.delete_session("s1").unwrap(), 0);
+    }
 }

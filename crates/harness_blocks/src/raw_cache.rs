@@ -75,4 +75,10 @@ impl RawCache {
             .execute("DELETE FROM raw_cache WHERE session_id = ?1", params![session_id])?;
         Ok(entries)
     }
+
+    /// 删除指定 session 的所有缓存条目，返回删除行数。
+    pub fn delete_session(&self, session_id: &str) -> rusqlite::Result<usize> {
+        self.conn
+            .execute("DELETE FROM raw_cache WHERE session_id = ?1", params![session_id])
+    }
 }

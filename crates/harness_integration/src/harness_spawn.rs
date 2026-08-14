@@ -46,13 +46,14 @@ pub fn resolve_intercept_mode(explicit: Option<InterceptMode>) -> InterceptMode 
 
 /// Build the environment variables to inject into the spawned harness process.
 ///
-/// - **Full**: proxy env vars (base URL + CA cert) + `ZAP_HOOK_SERVER_URL`.
-/// - **HooksOnly**: only `ZAP_HOOK_SERVER_URL`.
+/// - **Full**: proxy env vars (base URL + CA cert) + `ZAP_HOOK_SERVER_URL` + `ZAP_HOOK_TOKEN`.
+/// - **HooksOnly**: `ZAP_HOOK_SERVER_URL` + `ZAP_HOOK_TOKEN`.
 /// - **Bypass**: empty.
 pub fn build_spawn_env(
     mode: InterceptMode,
     proxy: Option<&ProxyHandle>,
     hook_url: Option<&str>,
+    hook_token: Option<&str>,
     harness: HarnessType,
 ) -> Vec<(String, String)> {
     let mut env: Vec<(String, String)> = Vec::new();
@@ -67,10 +68,16 @@ pub fn build_spawn_env(
             if let Some(url) = hook_url {
                 env.push(("ZAP_HOOK_SERVER_URL".to_string(), url.to_string()));
             }
+            if let Some(token) = hook_token {
+                env.push(("ZAP_HOOK_TOKEN".to_string(), token.to_string()));
+            }
         }
         InterceptMode::HooksOnly => {
             if let Some(url) = hook_url {
                 env.push(("ZAP_HOOK_SERVER_URL".to_string(), url.to_string()));
+            }
+            if let Some(token) = hook_token {
+                env.push(("ZAP_HOOK_TOKEN".to_string(), token.to_string()));
             }
         }
         InterceptMode::Bypass => {}
@@ -186,7 +193,7 @@ mod tests {
 
     #[test]
     fn bypass_env_is_empty() {
-        let env = build_spawn_env(InterceptMode::Bypass, None, None, HarnessType::ClaudeCode);
+        let env = build_spawn_env(InterceptMode::Bypass, None, None, None, HarnessType::ClaudeCode);
         assert!(env.is_empty());
     }
 
@@ -196,6 +203,7 @@ mod tests {
             InterceptMode::HooksOnly,
             None,
             Some("http://127.0.0.1:9999"),
+            None,
             HarnessType::ClaudeCode,
         );
         let map = env_to_map(&env);
@@ -209,11 +217,38 @@ mod tests {
             InterceptMode::Full,
             None,
             Some("http://127.0.0.1:9999"),
+            None,
             HarnessType::ClaudeCode,
         );
         let map = env_to_map(&env);
         assert!(map.contains_key("ZAP_HOOK_SERVER_URL"));
         // No proxy → no ANTHROPIC_BASE_URL
         assert!(!map.contains_key("ANTHROPIC_BASE_URL"));
+    }
+
+    #[test]
+    fn hooks_only_injects_hook_token() {
+        let env = build_spawn_env(
+            InterceptMode::HooksOnly,
+            None,
+            Some("http://127.0.0.1:9999"),
+            Some("test-token-abc"),
+            HarnessType::ClaudeCode,
+        );
+        let map = env_to_map(&env);
+        assert_eq!(map.get("ZAP_HOOK_TOKEN").unwrap(), "test-token-abc");
+    }
+
+    #[test]
+    fn full_injects_hook_token() {
+        let env = build_spawn_env(
+            InterceptMode::Full,
+            None,
+            Some("http://127.0.0.1:9999"),
+            Some("test-token-xyz"),
+            HarnessType::ClaudeCode,
+        );
+        let map = env_to_map(&env);
+        assert_eq!(map.get("ZAP_HOOK_TOKEN").unwrap(), "test-token-xyz");
     }
 }

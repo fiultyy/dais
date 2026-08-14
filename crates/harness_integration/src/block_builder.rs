@@ -4,9 +4,10 @@
 //! ## Request parsing
 //! [`parse_anthropic_request`] extracts:
 //! - `SystemPrompt` block from the `system` field (string or content-block array)
+//! - `ToolCall` blocks for each tool definition in `tools` (content = tool name,
+//!   parent_id points to the SystemPrompt block if present)
 //! - `UserPrompt` block for each user-role message
-//! - Tool definitions are recorded in the SystemPrompt block's `metadata`
-//!
+//! - Tool definitions are additionally recorded in the SystemPrompt block's `metadata`
 //! ## Response parsing
 //! [`parse_anthropic_response`] handles both:
 //! - Non-streaming JSON (single `message` object)
@@ -86,13 +87,14 @@ fn extract_content_text(content: &Value) -> String {
 }
 
 // ── request ──────────────────────────────────────────────────────────────
-
 /// Parse an Anthropic Messages API request body into blocks.
 ///
 /// Produces at most one `SystemPrompt` block (carrying tool definitions in
-/// metadata) plus one `UserPrompt` block per user-role message.
+/// metadata), one `ToolCall` block per tool definition (content = tool name,
+/// parent_id → SystemPrompt if present), and one `UserPrompt` block per
+/// user-role message.
+///
 /// Silently returns an empty vec on invalid JSON so the capture pipeline
-/// never crashes on a malformed payload.
 pub fn parse_anthropic_request(body: &[u8], ctx: &SessionContext) -> Vec<HarnessBlock> {
     let root: Value = match serde_json::from_slice(body) {
         Ok(v) => v,
@@ -120,6 +122,7 @@ pub fn parse_anthropic_request(body: &[u8], ctx: &SessionContext) -> Vec<Harness
     let has_system = !system_text.is_empty();
     let has_tools = !tools_meta.is_null();
 
+    // SystemPrompt block（可选，有 system 文本或 tools 时生成）
     if has_system || has_tools {
         let metadata = serde_json::json!({
             "source": "anthropic_request",
@@ -132,6 +135,48 @@ pub fn parse_anthropic_request(body: &[u8], ctx: &SessionContext) -> Vec<Harness
             system_text.into_bytes(),
             metadata,
         ));
+    }
+
+    // 为每个工具定义生成 ToolCall block（content = 工具名字节）
+    if let Some(tools) = tools_meta.as_array() {
+        // tools 存在时 SystemPrompt 必已生成（has_tools = true 分支必走）
+        let system_prompt_id = blocks
+            .iter()
+            .find(|b| b.block_type == BlockType::SystemPrompt)
+            .map(|b| b.id.clone());
+        for tool in tools {
+            let name = tool
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if name.is_empty() {
+                continue;
+            }
+            let description = tool
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let input_schema = tool
+                .get("input_schema")
+                .cloned()
+                .unwrap_or(Value::Null);
+            let metadata = serde_json::json!({
+                "source": "anthropic_request",
+                "kind": "definition",
+                "description": description,
+                "input_schema": input_schema,
+            });
+            let mut block = make_block(
+                ctx,
+                BlockType::ToolCall,
+                name.into_bytes(),
+                metadata,
+            );
+            block.parent_id = system_prompt_id.clone();
+            blocks.push(block);
+        }
     }
 
     // User messages
@@ -362,8 +407,8 @@ mod tests {
         let c = ctx();
         let blocks = parse_anthropic_request(body, &c);
 
-        // 1 SystemPrompt + 2 UserPrompt (assistant skipped)
-        assert_eq!(blocks.len(), 3);
+        // 1 SystemPrompt + 1 ToolCall (calc) + 2 UserPrompt (assistant skipped)
+        assert_eq!(blocks.len(), 4);
 
         assert_eq!(blocks[0].block_type, BlockType::SystemPrompt);
         assert_eq!(
@@ -374,11 +419,19 @@ mod tests {
         assert_eq!(blocks[0].metadata["model"], "claude-3-5-sonnet");
         assert!(blocks[0].metadata["tools"].is_array());
 
-        assert_eq!(blocks[1].block_type, BlockType::UserPrompt);
-        assert_eq!(String::from_utf8_lossy(&blocks[1].content), "Hello");
+        // ToolCall block for "calc" definition
+        assert_eq!(blocks[1].block_type, BlockType::ToolCall);
+        assert_eq!(String::from_utf8_lossy(&blocks[1].content), "calc");
+        assert_eq!(blocks[1].metadata["source"], "anthropic_request");
+        assert_eq!(blocks[1].metadata["kind"], "definition");
+        assert_eq!(blocks[1].metadata["description"], "calculator");
+        assert_eq!(blocks[1].parent_id.as_deref(), Some(blocks[0].id.as_str()));
 
         assert_eq!(blocks[2].block_type, BlockType::UserPrompt);
-        assert_eq!(String::from_utf8_lossy(&blocks[2].content), "What is 2+2?");
+        assert_eq!(String::from_utf8_lossy(&blocks[2].content), "Hello");
+
+        assert_eq!(blocks[3].block_type, BlockType::UserPrompt);
+        assert_eq!(String::from_utf8_lossy(&blocks[3].content), "What is 2+2?");
     }
 
     #[test]
