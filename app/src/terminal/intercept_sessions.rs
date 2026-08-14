@@ -42,6 +42,48 @@ pub struct InterceptSessionsModel {
     /// `None` when the store cannot be opened (read-only queries then report 0).
     store: Option<Arc<Mutex<BlockStore>>>,
 }
+
+/// 持久化的拦截配置（`<state_dir>/intercept_config.json`）。
+/// block 计数等运行态不持久化。
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+struct PersistedConfig {
+    mode: Option<InterceptMode>,
+    upstream_base: Option<String>,
+    upstream_auth_env: Option<String>,
+}
+
+fn config_path() -> Option<std::path::PathBuf> {
+    let dir = warp_core::paths::state_dir();
+    if dir.as_os_str().is_empty() {
+        return None;
+    }
+    Some(dir.join("intercept_config.json"))
+}
+
+fn load_persisted_config() -> PersistedConfig {
+    let Some(path) = config_path() else {
+        return PersistedConfig::default();
+    };
+    std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .unwrap_or_default()
+}
+
+fn save_persisted_config(cfg: &PersistedConfig) {
+    let Some(path) = config_path() else { return };
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    match serde_json::to_string_pretty(cfg) {
+        Ok(raw) => {
+            if let Err(e) = std::fs::write(&path, raw) {
+                log::warn!("intercept: cannot persist config {}: {e}", path.display());
+            }
+        }
+        Err(e) => log::warn!("intercept: cannot serialize config: {e}"),
+    }
+}
 impl InterceptSessionsModel {
     pub fn new(_ctx: &mut ModelContext<Self>) -> Self {
         // flag 未开启时不打开/创建 DB,避免未启用用户产生启动期文件 IO
@@ -56,13 +98,28 @@ impl InterceptSessionsModel {
             .as_ref()
             .and_then(|s| s.lock().block_count().ok())
             .unwrap_or(0);
+        // 持久化配置只在 flag 开启时加载（未启用用户不读文件）
+        let persisted = if crate::features::FeatureFlag::AgentHarness.is_enabled() {
+            load_persisted_config()
+        } else {
+            PersistedConfig::default()
+        };
         Self {
-            mode: InterceptMode::Full,
-            upstream_base: String::new(),
-            upstream_auth_env: String::new(),
+            mode: persisted.mode.unwrap_or(InterceptMode::Full),
+            upstream_base: persisted.upstream_base.unwrap_or_default(),
+            upstream_auth_env: persisted.upstream_auth_env.unwrap_or_default(),
             block_count,
             store,
         }
+    }
+
+    /// 当前配置写盘（mode/upstream 覆盖变更时调用）。
+    fn persist(&self) {
+        save_persisted_config(&PersistedConfig {
+            mode: Some(self.mode),
+            upstream_base: Some(self.upstream_base.clone()),
+            upstream_auth_env: Some(self.upstream_auth_env.clone()),
+        });
     }
 
     // ── intercept mode ────────────────────────────────────────────────────
@@ -76,6 +133,7 @@ impl InterceptSessionsModel {
             return;
         }
         self.mode = mode;
+        self.persist();
         ctx.emit(InterceptSessionsModelEvent::ModeChanged);
     }
 
@@ -93,6 +151,7 @@ impl InterceptSessionsModel {
             return;
         }
         self.upstream_base = base;
+        self.persist();
         ctx.emit(InterceptSessionsModelEvent::UpstreamChanged);
     }
 
@@ -108,6 +167,7 @@ impl InterceptSessionsModel {
             return;
         }
         self.upstream_auth_env = env;
+        self.persist();
         ctx.emit(InterceptSessionsModelEvent::UpstreamChanged);
     }
 
@@ -195,6 +255,30 @@ mod tests {
             block_count: 0,
             store: None,
         }
+    }
+
+    /// PersistedConfig serde 往返：字段缺失（旧版本文件）→ default 安全回退。
+    #[test]
+    fn persisted_config_roundtrip_and_defaults() {
+        let cfg = PersistedConfig {
+            mode: Some(InterceptMode::HooksOnly),
+            upstream_base: Some("http://localhost:9999".to_string()),
+            upstream_auth_env: Some("MY_KEY".to_string()),
+        };
+        let raw = serde_json::to_string(&cfg).unwrap();
+        let back: PersistedConfig = serde_json::from_str(&raw).unwrap();
+        assert_eq!(back.mode, Some(InterceptMode::HooksOnly));
+        assert_eq!(back.upstream_base.as_deref(), Some("http://localhost:9999"));
+        assert_eq!(back.upstream_auth_env.as_deref(), Some("MY_KEY"));
+
+        // 空对象（旧文件/损坏后 default）→ 全 None → 构造时安全回退默认
+        let empty: PersistedConfig = serde_json::from_str("{}").unwrap();
+        assert_eq!(empty.mode, None);
+        assert_eq!(empty.upstream_base, None);
+
+        // 非法 JSON → load 侧 unwrap_or_default 吞掉
+        let bad: Option<PersistedConfig> = serde_json::from_str("not json").ok();
+        assert!(bad.is_none());
     }
 
     #[test]
