@@ -310,3 +310,64 @@ fn claude_upstream_from_user_settings() -> Option<proxy_interceptor::UpstreamCon
         response_format: proxy_interceptor::ResponseFormat::AnthropicSSE,
     })
 }
+
+// ─── GUI 交互式 CLI tab 拦截 ──────────────────────────────────────────────
+
+/// GUI 交互 CC tab 的拦截注册表：terminal view id → (session, settings 临时文件)。
+///
+/// 生命周期粗粒度：CC 进程退出不主动 `finish` —— Drop（app 退出 / 同一
+/// view 重新启动 agent）兜底释放 proxy 与 hook server；blocks/raw 已实时
+/// 落库，仅缺 Exit block。
+static GUI_INTERCEPT: LazyLock<parking_lot::Mutex<std::collections::HashMap<String, GuiIntercept>>> =
+    LazyLock::new(|| parking_lot::Mutex::new(std::collections::HashMap::new()));
+
+struct GuiIntercept {
+    session: InterceptSession,
+    /// 持有以保 settings 临时文件存活；drop 时自动清理。
+    _settings_file: tempfile::NamedTempFile,
+}
+
+/// 为 GUI 交互式 Claude Code tab 构造带拦截的启动命令。
+///
+/// 返回改写后的命令（`claude --settings '<path>'`，CC 合并该文件覆盖
+/// `env.ANTHROPIC_BASE_URL` → 流量走本地 TLS proxy）；`None` = 不拦截
+/// （flag 关 / Bypass / proxy 起不来 / hooks 失败），调用方回退原命令。
+///
+/// `terminal_view_id`（`EntityId::to_string()`）用于会话注册：同一 view
+/// 重复启动 agent 时先释放旧会话，避免 proxy 端口累积泄漏。
+pub fn intercept_claude_command(
+    terminal_view_id: String,
+    ctx: &warpui::AppContext,
+) -> Option<String> {
+    use crate::features::FeatureFlag;
+    use crate::terminal::intercept_sessions::InterceptSessionsModel;
+    use std::io::Write as _;
+    use warpui::SingletonEntity;
+
+    if !FeatureFlag::AgentHarness.is_enabled() {
+        return None;
+    }
+    let model = InterceptSessionsModel::as_ref(ctx);
+    let mode = model.mode();
+    if mode == InterceptMode::Bypass {
+        return None;
+    }
+    // 与 AgentDriver 路线（maybe_start_intercept）同基准：
+    // 显式覆盖优先，否则读用户 ~/.claude/settings.json 归一 Bearer 上游。
+    let mut upstream = model.resolve_upstream(HarnessType::ClaudeCode);
+    if model.upstream_base().is_empty() {
+        upstream = claude_upstream_from_user_settings().or(upstream);
+    }
+    let session = InterceptSession::new(warp_cli::agent::Harness::Claude, mode, upstream)?;
+    let settings = session.claude_settings_overrides()?;
+
+    let mut file = tempfile::NamedTempFile::new().ok()?;
+    file.write_all(settings.to_string().as_bytes()).ok()?;
+    let path = file.path().display().to_string();
+
+    GUI_INTERCEPT
+        .lock()
+        .insert(terminal_view_id, GuiIntercept { session, _settings_file: file });
+
+    Some(format!("claude --settings '{path}'"))
+}
