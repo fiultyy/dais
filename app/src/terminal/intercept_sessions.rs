@@ -41,6 +41,10 @@ pub struct InterceptSessionsModel {
     /// Persistent block store at `<state_dir>/harness_blocks.db`.
     /// `None` when the store cannot be opened (read-only queries then report 0).
     store: Option<Arc<Mutex<BlockStore>>>,
+    /// Unix 秒；最近一次配置写盘成功时间（启动加载不算）。
+    last_saved_at: Option<i64>,
+    /// 最近一次配置写盘失败原因；成功后清空。渲染层据此给出保存反馈。
+    last_persist_error: Option<String>,
 }
 
 /// 持久化的拦截配置（`<state_dir>/intercept_config.json`）。
@@ -70,19 +74,15 @@ fn load_persisted_config() -> PersistedConfig {
         .unwrap_or_default()
 }
 
-fn save_persisted_config(cfg: &PersistedConfig) {
-    let Some(path) = config_path() else { return };
+fn save_persisted_config(cfg: &PersistedConfig) -> Result<(), String> {
+    let Some(path) = config_path() else {
+        return Err("state dir unavailable".to_string());
+    };
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    match serde_json::to_string_pretty(cfg) {
-        Ok(raw) => {
-            if let Err(e) = std::fs::write(&path, raw) {
-                log::warn!("intercept: cannot persist config {}: {e}", path.display());
-            }
-        }
-        Err(e) => log::warn!("intercept: cannot serialize config: {e}"),
-    }
+    let raw = serde_json::to_string_pretty(cfg).map_err(|e| format!("serialize: {e}"))?;
+    std::fs::write(&path, raw).map_err(|e| format!("{}: {e}", path.display()))
 }
 impl InterceptSessionsModel {
     pub fn new(_ctx: &mut ModelContext<Self>) -> Self {
@@ -110,16 +110,41 @@ impl InterceptSessionsModel {
             upstream_auth_env: persisted.upstream_auth_env.unwrap_or_default(),
             block_count,
             store,
+            last_saved_at: None,
+            last_persist_error: None,
         }
     }
 
-    /// 当前配置写盘（mode/upstream 覆盖变更时调用）。
-    fn persist(&self) {
-        save_persisted_config(&PersistedConfig {
+    /// 当前配置写盘（mode/upstream 覆盖变更时调用），并记录保存结果
+    /// 供 UI 反馈（`last_saved_at` / `last_persist_error`）。
+    fn persist(&mut self) {
+        let result = save_persisted_config(&PersistedConfig {
             mode: Some(self.mode),
             upstream_base: Some(self.upstream_base.clone()),
             upstream_auth_env: Some(self.upstream_auth_env.clone()),
         });
+        match result {
+            Ok(()) => {
+                self.last_saved_at = Some(std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0));
+                self.last_persist_error = None;
+            }
+            Err(e) => {
+                self.last_persist_error = Some(e);
+            }
+        }
+    }
+
+    /// 最近一次配置写盘成功时间（unix 秒）；启动加载不算。
+    pub fn last_saved_at(&self) -> Option<i64> {
+        self.last_saved_at
+    }
+
+    /// 最近一次配置写盘失败原因；成功后为 None。
+    pub fn last_persist_error(&self) -> Option<&str> {
+        self.last_persist_error.as_deref()
     }
 
     // ── intercept mode ────────────────────────────────────────────────────
@@ -254,6 +279,8 @@ mod tests {
             upstream_auth_env: auth_env.to_string(),
             block_count: 0,
             store: None,
+            last_saved_at: None,
+            last_persist_error: None,
         }
     }
 

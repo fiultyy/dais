@@ -3635,3 +3635,5 @@ observatory-dispatches-empty = 该任务暂无派发
 observatory-active-title = 活跃拦截会话
 observatory-active-empty = 暂无活跃拦截会话
 observatory-active-hook = hook: { $url }
+observatory-proxy-saved = 已保存 · { $time }
+observatory-proxy-save-failed = 保存失败: { $err }

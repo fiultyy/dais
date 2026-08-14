@@ -1135,19 +1135,6 @@ impl ObservatoryPanelView {
         // ── Composer ──
         col.add_child(self.render_composer(app));
 
-        // ── 错误态 ──
-        if let Some(err) = model.last_error() {
-            col.add_child(
-                Text::new(
-                    crate::t!("observatory-last-error", err = err),
-                    appearance.ui_font_family(),
-                    appearance.ui_font_size(),
-                )
-                .with_color(theme.ui_error_color())
-                .finish(),
-            );
-        }
-
         Shrinkable::new(1., col.finish()).finish()
     }
 
@@ -1715,6 +1702,42 @@ impl ObservatoryPanelView {
             .finish(),
         );
 
+        // ── 持久化反馈：写盘成功显示时间，失败显示原因 ──
+        if let Some(err) = intercept.last_persist_error() {
+            col.add_child(
+                Container::new(
+                    Text::new(
+                        crate::t!("observatory-proxy-save-failed", err = err),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.ui_error_color())
+                    .soft_wrap(false)
+                    .finish(),
+                )
+                .with_horizontal_padding(PANEL_PADDING)
+                .finish(),
+            );
+        } else if let Some(ts) = intercept.last_saved_at() {
+            col.add_child(
+                Container::new(
+                    Text::new(
+                        crate::t!(
+                            "observatory-proxy-saved",
+                            time = format_timestamp(ts),
+                        ),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.disabled_ui_text_color().into_solid())
+                    .soft_wrap(false)
+                    .finish(),
+                )
+                .with_horizontal_padding(PANEL_PADDING)
+                .finish(),
+            );
+        }
+
         // ── 提示 ──
         col.add_child(
             Container::new(
@@ -1978,6 +2001,21 @@ impl View for ObservatoryPanelView {
             ObservatoryTab::Sessions => col.add_child(self.render_sessions_tab(app)),
             ObservatoryTab::Orchestration => col.add_child(self.render_orchestration_tab(app)),
             ObservatoryTab::Proxy => col.add_child(self.render_proxy_tab(app)),
+        }
+
+        // 错误态（面板级：refresh 为三 tab 共用的全量刷新，任何 tab 下都需可见）
+        if let Some(err) = self.model.as_ref(app).last_error() {
+            let appearance = Appearance::as_ref(app);
+            let theme = appearance.theme();
+            col.add_child(
+                Text::new(
+                    crate::t!("observatory-last-error", err = err),
+                    appearance.ui_font_family(),
+                    appearance.ui_font_size(),
+                )
+                .with_color(theme.ui_error_color())
+                .finish(),
+            );
         }
 
         Shrinkable::new(1., col.finish()).finish()

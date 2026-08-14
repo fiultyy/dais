@@ -3721,3 +3721,5 @@ observatory-dispatches-empty = No dispatches for this task
 observatory-active-title = Active intercept sessions
 observatory-active-empty = No active intercept sessions
 observatory-active-hook = hook: { $url }
+observatory-proxy-saved = Saved · { $time }
+observatory-proxy-save-failed = Save failed: { $err }

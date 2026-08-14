@@ -3553,3 +3553,5 @@ observatory-dispatches-empty = このタスクにディスパッチなし
 observatory-active-title = アクティブなインターセプトセッション
 observatory-active-empty = アクティブなセッションなし
 observatory-active-hook = hook: { $url }
+observatory-proxy-saved = 保存済み · { $time }
+observatory-proxy-save-failed = 保存失敗: { $err }
