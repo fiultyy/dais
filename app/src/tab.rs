@@ -780,14 +780,6 @@ impl<'a> TabComponent<'a> {
         Some((mode, model.block_count()))
     }
 
-    #[cfg(target_family = "wasm")]
-    fn intercept_status(
-        _tab: &TabData,
-        _ctx: &AppContext,
-    ) -> Option<(harness_integration::InterceptMode, u64)> {
-        None
-    }
-
     /// Determine if this tab is the active tab.
     fn is_active_tab(&self) -> bool {
         Some(self.tab_index) == self.tab_bar.active_tab_index
