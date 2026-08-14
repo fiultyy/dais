@@ -386,6 +386,22 @@ pub fn intercept_claude_command(
     Some(format!("claude --settings '{path}'"))
 }
 
+/// 释放指定 terminal view 的 GUI 拦截会话（tab 关闭时调用）。
+/// Drop 即 finish(1) + 关 proxy/hook server；无注册则 no-op。
+///
+/// 注意：undo-close 恢复的 tab 若 CC 进程仍存活将失去拦截
+/// （settings 临时文件随 drop 删除，旧进程上游请求失败）——
+/// 相比 proxy 端口随开关 tab 无限泄漏，这是正确的取舍。
+pub fn release_gui_intercept(terminal_view_id: &str) {
+    if let Some(g) = GUI_INTERCEPT.lock().remove(terminal_view_id) {
+        log::info!(
+            "intercept: released GUI intercept session {}",
+            g.session.session_id()
+        );
+        drop(g);
+    }
+}
+
 /// 当前活跃的 GUI 交互拦截会话快照（观测台 Proxy tab 数据源）。
 /// 仅含交互式 CC tab 注册表；`agent run` CLI 会话由 AgentDriver
 /// 持有且生命周期短暂，不在此列。

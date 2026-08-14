@@ -9945,6 +9945,22 @@ impl Workspace {
             return false;
         }
 
+        // 释放该 tab 内 GUI 交互 CC 拦截会话（proxy/hook server），
+        // 防止随开关 tab 累积泄漏（undo 恢复的 tab 不再拦截，见 API 注释）。
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let mut view_ids = Vec::new();
+            tab_data.pane_group.update(ctx, |pane_group, ctx| {
+                pane_group.for_all_terminal_panes(
+                    |terminal_view, _| view_ids.push(terminal_view.id().to_string()),
+                    ctx,
+                );
+            });
+            for vid in view_ids {
+                crate::ai::harness_intercept::release_gui_intercept(&vid);
+            }
+        }
+
         if detach_panes_for_close {
             let working_directories_model = self.working_directories_model.clone();
             tab_data.pane_group.update(ctx, |pane_group, ctx| {
