@@ -3550,3 +3550,6 @@ observatory-raw-detail-meta = { $direction } · { $len } B · { $ts }
 observatory-raw-detail-content = 内容
 observatory-dispatches-title = ディスパッチ詳細
 observatory-dispatches-empty = このタスクにディスパッチなし
+observatory-active-title = アクティブなインターセプトセッション
+observatory-active-empty = アクティブなセッションなし
+observatory-active-hook = hook: { $url }

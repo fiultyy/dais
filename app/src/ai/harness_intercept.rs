@@ -210,6 +210,20 @@ impl InterceptSession {
             );
         }
     }
+
+    // ── 观测台读取接口 ──
+
+    pub fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
+    pub fn proxy_port(&self) -> Option<u16> {
+        self.proxy_port
+    }
+
+    pub fn hook_url(&self) -> Option<String> {
+        self.integ.hook_url()
+    }
 }
 
 impl Drop for InterceptSession {
@@ -370,4 +384,27 @@ pub fn intercept_claude_command(
         .insert(terminal_view_id, GuiIntercept { session, _settings_file: file });
 
     Some(format!("claude --settings '{path}'"))
+}
+
+/// 当前活跃的 GUI 交互拦截会话快照（观测台 Proxy tab 数据源）。
+/// 仅含交互式 CC tab 注册表；`agent run` CLI 会话由 AgentDriver
+/// 持有且生命周期短暂，不在此列。
+pub fn active_gui_intercepts() -> Vec<ActiveInterceptGui> {
+    GUI_INTERCEPT
+        .lock()
+        .values()
+        .map(|g| ActiveInterceptGui {
+            session_id: g.session.session_id().to_string(),
+            proxy_port: g.session.proxy_port(),
+            hook_url: g.session.hook_url(),
+        })
+        .collect()
+}
+
+/// 活跃拦截会话的观测台行。
+#[derive(Clone, Debug)]
+pub struct ActiveInterceptGui {
+    pub session_id: String,
+    pub proxy_port: Option<u16>,
+    pub hook_url: Option<String>,
 }

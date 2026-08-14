@@ -3632,3 +3632,6 @@ observatory-raw-detail-meta = { $direction } · { $len } B · { $ts }
 observatory-raw-detail-content = 内容
 observatory-dispatches-title = 派发明细
 observatory-dispatches-empty = 该任务暂无派发
+observatory-active-title = 活跃拦截会话
+observatory-active-empty = 暂无活跃拦截会话
+observatory-active-hook = hook: { $url }

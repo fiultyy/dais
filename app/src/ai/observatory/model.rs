@@ -127,6 +127,14 @@ pub struct DispatchRowGui {
     pub start_options: String,
     pub created_at: String,
 }
+
+/// 活跃拦截会话行（GUI 交互 CC tab 的 proxy 运行态）。
+#[derive(Clone, Debug)]
+pub struct ActiveInterceptRowGui {
+    pub session_id: String,
+    pub proxy_port: Option<u16>,
+    pub hook_url: Option<String>,
+}
 /// refresh() 后的完整数据快照。
 #[derive(Clone, Default, Debug)]
 pub struct ObservatorySnapshot {
@@ -143,6 +151,8 @@ pub struct ObservatorySnapshot {
     pub gates: Vec<GateRowGui>,
     /// 选中 task 的 dispatches（最新 20）。
     pub dispatches: Vec<DispatchRowGui>,
+    /// 活跃 GUI 交互拦截会话（Proxy tab 展示）。
+    pub active_intercepts: Vec<ActiveInterceptRowGui>,
     pub recent_messages: Vec<MessageRowGui>,
 }
 
@@ -517,6 +527,17 @@ impl ObservatoryModel {
             }
             _ => Vec::new(),
         };
+
+        // 3. 活跃 GUI 交互拦截会话（Proxy tab）
+        self.snapshot.active_intercepts =
+            crate::ai::harness_intercept::active_gui_intercepts()
+                .into_iter()
+                .map(|a| ActiveInterceptRowGui {
+                    session_id: a.session_id,
+                    proxy_port: a.proxy_port,
+                    hook_url: a.hook_url,
+                })
+                .collect();
 
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }

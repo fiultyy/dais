@@ -32,8 +32,8 @@ use crate::view_components::{SubmittableTextInput, SubmittableTextInputEvent};
 use crate::ai::blocklist::agent_view::agent_input_footer::AgentInputButtonTheme;
 use crate::terminal::intercept_sessions::InterceptSessionsModel;
 use super::model::{
-    BlockDetailGui, BlockRowGui, DraftField, ObservatoryModel, ObservatoryTab,
-    RawDetailGui, RawRowGui, RunRowGui, SessionRowGui, TaskRowGui,
+    ActiveInterceptRowGui, BlockDetailGui, BlockRowGui, DraftField, ObservatoryModel,
+    ObservatoryTab, RawDetailGui, RawRowGui, RunRowGui, SessionRowGui, TaskRowGui,
 };
 
 // ── 布局常量 ─────────────────────────────────────────────────────────────────
@@ -1579,6 +1579,39 @@ impl ObservatoryPanelView {
                 .finish(),
         );
 
+
+        // ── 活跃拦截会话（proxy 运行态） ──
+        let snapshot = self.model.as_ref(app).snapshot();
+        let mut active_col = Flex::column().with_spacing(SPACING);
+        active_col.add_child(
+            Text::new(
+                crate::t!("observatory-active-title"),
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.active_ui_text_color().into())
+            .finish(),
+        );
+        if snapshot.active_intercepts.is_empty() {
+            active_col.add_child(
+                Text::new(
+                    crate::t!("observatory-active-empty"),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.disabled_ui_text_color().into_solid())
+                .finish(),
+            );
+        } else {
+            for ic in &snapshot.active_intercepts {
+                active_col.add_child(render_active_intercept_row(ic, appearance, theme));
+            }
+        }
+        col.add_child(
+            Container::new(active_col.finish())
+                .with_vertical_padding(SPACING)
+                .finish(),
+        );
         // ── Upstream 覆盖输入 ──
         col.add_child(
             Container::new(ChildView::new(&self.upstream_base_input).finish())
@@ -1762,11 +1795,19 @@ impl TypedActionView for ObservatoryPanelView {
                 });
             }
             ObservatoryPanelAction::SelectSession(id) => {
-                let id = id.clone();
+                // 点击已选中项 → 取消选中（toggle）
+                let id = toggle_id(
+                    id,
+                    ObservatoryModel::handle(ctx)
+                        .as_ref(ctx)
+                        .selected_session()
+                        .map(str::to_string),
+                );
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
                     model.select_session(id, ctx);
                 });
             }
+
             ObservatoryPanelAction::SetSearch(filter) => {
                 let filter = filter.clone();
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
@@ -1774,13 +1815,25 @@ impl TypedActionView for ObservatoryPanelView {
                 });
             }
             ObservatoryPanelAction::SelectBlock(id) => {
-                let id = id.clone();
+                let id = toggle_id(
+                    id,
+                    ObservatoryModel::handle(ctx)
+                        .as_ref(ctx)
+                        .selected_block()
+                        .map(str::to_string),
+                );
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
                     model.select_block(id, ctx);
                 });
             }
             ObservatoryPanelAction::SelectTask(id) => {
-                let id = id.clone();
+                let id = toggle_id(
+                    id,
+                    ObservatoryModel::handle(ctx)
+                        .as_ref(ctx)
+                        .selected_task()
+                        .map(str::to_string),
+                );
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
                     model.select_task(id, ctx);
                 });
@@ -1816,11 +1869,18 @@ impl TypedActionView for ObservatoryPanelView {
                 }
             }
             ObservatoryPanelAction::SelectGate(id) => {
-                let id = id.clone();
+                let id = toggle_id(
+                    id,
+                    ObservatoryModel::handle(ctx)
+                        .as_ref(ctx)
+                        .selected_gate()
+                        .map(str::to_string),
+                );
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
                     model.select_gate(id, ctx);
                 });
             }
+
             ObservatoryPanelAction::ResolveGate(gate_id, resolution) => {
                 let gate_id = gate_id.clone();
                 let resolution = resolution.clone();
@@ -1829,7 +1889,13 @@ impl TypedActionView for ObservatoryPanelView {
                 });
             }
             ObservatoryPanelAction::SelectRaw(id) => {
-                let id = id.clone();
+                let id = toggle_id(
+                    id,
+                    ObservatoryModel::handle(ctx)
+                        .as_ref(ctx)
+                        .selected_raw()
+                        .map(str::to_string),
+                );
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
                     model.select_raw(id, ctx);
                 });
@@ -1934,5 +2000,64 @@ fn task_status_color(status: &str) -> Fill {
         "ready" => Fill::Solid(ColorU { r: 220, g: 180, b: 60, a: 255 }),
         "dispatched" => Fill::Solid(ColorU { r: 80, g: 140, b: 220, a: 255 }),
         _ => Fill::Solid(ColorU { r: 150, g: 150, b: 150, a: 255 }),
+    }
+}
+
+/// 活跃拦截会话单行：session 短 id · proxy 端口 · hook URL。
+fn render_active_intercept_row(
+    ic: &ActiveInterceptRowGui,
+    appearance: &Appearance,
+    theme: &WarpTheme,
+) -> Box<dyn Element> {
+    let mut col = Flex::column().with_spacing(SPACING / 2.);
+
+    let mut row = Flex::row()
+        .with_cross_axis_alignment(CrossAxisAlignment::Center)
+        .with_spacing(SPACING);
+    row.add_child(
+        Text::new(
+            truncate_str(&ic.session_id, 20),
+            appearance.ui_font_family(),
+            SMALL_FONT_SIZE,
+        )
+        .with_color(theme.sub_text_color(theme.background()).into())
+        .soft_wrap(false)
+        .finish(),
+    );
+    let port_text = match ic.proxy_port {
+        Some(p) => format!("proxy 127.0.0.1:{p}"),
+        None => "proxy (hooks only)".to_string(),
+    };
+    row.add_child(
+        Text::new(port_text, appearance.ui_font_family(), SMALL_FONT_SIZE)
+            .with_color(theme.accent().into_solid())
+            .finish(),
+    );
+    col.add_child(row.finish());
+
+    if let Some(url) = &ic.hook_url {
+        col.add_child(
+            Text::new(
+                crate::t!("observatory-active-hook", url = url.clone()),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.disabled_ui_text_color().into_solid())
+            .soft_wrap(false)
+            .finish(),
+        );
+    }
+
+    Container::new(col.finish())
+        .with_horizontal_padding(PANEL_PADDING)
+        .with_vertical_padding(2.)
+        .finish()
+}
+
+/// 选中 toggle：点击当前已选中项 → `None`（取消选中），否则透传。
+fn toggle_id(id: &Option<String>, current: Option<String>) -> Option<String> {
+    match (id, current) {
+        (Some(new), Some(cur)) if *new == cur => None,
+        (other, _) => other.clone(),
     }
 }

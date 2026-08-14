@@ -3718,3 +3718,6 @@ observatory-raw-detail-meta = { $direction } · { $len } B · { $ts }
 observatory-raw-detail-content = Content
 observatory-dispatches-title = Dispatches
 observatory-dispatches-empty = No dispatches for this task
+observatory-active-title = Active intercept sessions
+observatory-active-empty = No active intercept sessions
+observatory-active-hook = hook: { $url }
