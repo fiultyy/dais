@@ -102,6 +102,12 @@ impl Message {
 }
 
 /// `deliveries` table — crash-safe delivery batches (one outstanding per run).
+///
+/// **Reserved, zero live methods**: the local plane keeps flight state in
+/// memory (`delivery::DispatchPushState`) plus the `messages.delivered_at`
+/// watermark, so nothing reads this table yet. It is the porting target for
+/// Orca's federation relay ack/fencing (consumer_generation + the
+/// one-outstanding-per-run unique index) — do not repurpose or drop it.
 #[derive(Debug, Clone, Queryable)]
 pub struct Delivery {
     pub id: String,
