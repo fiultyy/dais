@@ -2601,6 +2601,15 @@ impl Workspace {
             me.handle_cli_agent_sessions_event(event, ctx);
         });
 
+        // 拦截状态 (issue #13):mode 或 block 计数变化时刷新 tab bar badge。
+        #[cfg(not(target_family = "wasm"))]
+        ctx.subscribe_to_model(
+            &crate::terminal::intercept_sessions::InterceptSessionsModel::handle(ctx),
+            |_me, _, _, ctx| {
+                ctx.notify();
+            },
+        );
+
         // CLI agent 安装扫描完成后刷新 UI（新 tab 菜单、标题栏按钮等）
         ctx.subscribe_to_model(
             &CLIAgentInstallModel::handle(ctx),

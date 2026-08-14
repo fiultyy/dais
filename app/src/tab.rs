@@ -142,6 +142,9 @@ pub struct TabData {
     /// Color chosen manually by the user (e.g. right-click menu).
     pub selected_color: SelectedTabColor,
     pub indicator_hover_state: MouseStateHandle,
+    /// Independent hover state for the intercept-status badge (issue #13),
+    /// so it does not share hover with the tab indicator tooltip.
+    pub intercept_hover_state: MouseStateHandle,
     // Used by a later drag-tab branch to distinguish tabs that have moved into detached windows.
     pub detached: bool,
 }
@@ -160,6 +163,7 @@ impl TabData {
             default_directory_color: None,
             selected_color: SelectedTabColor::Unset,
             indicator_hover_state: Default::default(),
+            intercept_hover_state: Default::default(),
             detached: false,
         }
     }
@@ -526,11 +530,12 @@ pub struct TabComponent<'a> {
     has_custom_title: bool,
     tab_index: usize,
     styles: TabStyles,
+    /// Intercept status for this tab (issue #13): `(mode, block_count)`.
+    /// `None` when interception is off (Bypass) or the tab is not a harness tab.
+    #[cfg(not(target_family = "wasm"))]
+    intercept: Option<(harness_integration::InterceptMode, u64)>,
     ui_builder: UiBuilder,
     indicator: Indicator,
-    /// Intercept status for this tab (issue #13): `(mode.as_str(), block_count)`.
-    /// `None` when interception is off (Bypass) or the tab is not a harness tab.
-    intercept: Option<(&'static str, u64)>,
     close_button_position: TabCloseButtonPosition,
     appearance: &'a Appearance,
     tooltip_message: Option<String>,
@@ -747,30 +752,37 @@ impl<'a> TabComponent<'a> {
     }
     /// Intercept status shown on harness tabs (issue #13).
     ///
-    /// Returns `(mode.as_str(), block_count)` when the AgentHarness feature is
-    /// on, the global intercept mode is not Bypass, and this tab's focused
-    /// session has an active CLI agent (harness) session. The count comes from
-    /// the persistent BlockStore via [`InterceptSessionsModel`].
+    /// Returns `(mode, block_count)` when the AgentHarness feature is on, the
+    /// global intercept mode is not Bypass, and this tab's focused session has
+    /// an active CLI agent (harness) session. The count comes from the
+    /// persistent BlockStore via [`InterceptSessionsModel`].
     #[cfg(not(target_family = "wasm"))]
-    fn intercept_status(tab: &TabData, ctx: &AppContext) -> Option<(&'static str, u64)> {
+    fn intercept_status(
+        tab: &TabData,
+        ctx: &AppContext,
+    ) -> Option<(harness_integration::InterceptMode, u64)> {
         use crate::terminal::intercept_sessions::InterceptSessionsModel;
 
         if !FeatureFlag::AgentHarness.is_enabled() {
             return None;
         }
         let model = InterceptSessionsModel::as_ref(ctx);
-        if model.mode() == harness_integration::InterceptMode::Bypass {
+        let mode = model.mode();
+        if mode == harness_integration::InterceptMode::Bypass {
             return None;
         }
         // Harness tab: the focused session runs a CLI agent (e.g. Claude Code).
         let terminal_view = tab.pane_group.as_ref(ctx).focused_session_view(ctx)?;
         crate::terminal::cli_agent_sessions::CLIAgentSessionsModel::as_ref(ctx)
             .session(terminal_view.id())?;
-        Some((model.mode().as_str(), model.block_count()))
+        Some((mode, model.block_count()))
     }
 
     #[cfg(target_family = "wasm")]
-    fn intercept_status(_tab: &TabData, _ctx: &AppContext) -> Option<(&'static str, u64)> {
+    fn intercept_status(
+        _tab: &TabData,
+        _ctx: &AppContext,
+    ) -> Option<(harness_integration::InterceptMode, u64)> {
         None
     }
 
@@ -1163,7 +1175,6 @@ impl<'a> TabComponent<'a> {
             .finish()
         })
     }
-
     /// Renders the intercept-status badge (issue #13): a colored eye icon with
     /// a tooltip showing the mode and captured-block count. Green = Full,
     /// yellow = HooksOnly. No badge when interception is off for this tab.
@@ -1171,21 +1182,25 @@ impl<'a> TabComponent<'a> {
         let (mode, count) = self.intercept?;
 
         let mode_label = match mode {
-            "full" => crate::t!("intercept-mode-full"),
-            "hooks_only" => crate::t!("intercept-mode-hooks-only"),
-            _ => crate::t!("intercept-mode-bypass"),
+            harness_integration::InterceptMode::Full => crate::t!("intercept-mode-full"),
+            harness_integration::InterceptMode::HooksOnly => {
+                crate::t!("intercept-mode-hooks-only")
+            }
+            harness_integration::InterceptMode::Bypass => crate::t!("intercept-mode-bypass"),
         };
+
         let tooltip_text = crate::t!("intercept-tab-tooltip", mode = mode_label, count = count);
 
         let theme = self.appearance.theme();
-        let color = if mode == "full" {
-            theme.ui_green_color()
-        } else {
-            theme.ui_yellow_color()
+        let color = match mode {
+            harness_integration::InterceptMode::Full => theme.ui_green_color(),
+            // Bypass never reaches the badge; treat as hooks-only styling.
+            harness_integration::InterceptMode::HooksOnly
+            | harness_integration::InterceptMode::Bypass => theme.ui_yellow_color(),
         };
 
         let ui_builder = self.ui_builder.clone();
-        let mouse_state = self.tab.indicator_hover_state.clone();
+        let mouse_state = self.tab.intercept_hover_state.clone();
         let badge = Hoverable::new(mouse_state, move |state| {
             let mut stack = Stack::new().with_child(Icon::Eye.to_warpui_icon(color.into()).finish());
 

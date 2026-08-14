@@ -36,6 +36,9 @@ pub struct SubmittableTextInput {
     submit_button_state: MouseStateHandle,
     outer_margin_top: f32,
     outer_margin_bottom: f32,
+    /// Whether to allow submitting an empty input. Off by default; opted in
+    /// by fields where an empty submit means "reset to default".
+    allow_empty_submit: bool,
 }
 
 impl SubmittableTextInput {
@@ -61,6 +64,7 @@ impl SubmittableTextInput {
             submit_button_state: Default::default(),
             outer_margin_top: 10.,
             outer_margin_bottom: 10.,
+            allow_empty_submit: false,
         }
     }
 
@@ -77,6 +81,12 @@ impl SubmittableTextInput {
     pub fn validate_on_submit<F: Fn(&str) -> bool + 'static>(mut self, validator: F) -> Self {
         self.validator_type = ValidatorType::OnSubmitOnly;
         self.validator = Box::new(validator);
+        self
+    }
+
+    /// Allow submitting empty content (default `on_try_submit` filters it out).
+    pub fn with_allow_empty_submit(mut self) -> Self {
+        self.allow_empty_submit = true;
         self
     }
 
@@ -125,7 +135,7 @@ impl SubmittableTextInput {
         let content = self
             .editor
             .read(ctx, |editor, ctx| editor.buffer_text(ctx).trim().to_owned());
-        if content.is_empty() {
+        if content.is_empty() && !self.allow_empty_submit {
             return;
         }
 

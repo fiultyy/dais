@@ -317,22 +317,37 @@ impl InterceptConfigBar {
         });
 
         let api_base_input = ctx.add_typed_action_view(|ctx| {
-            let mut input = SubmittableTextInput::new(ctx).validate_on_edit(|_| true);
+            let mut input = SubmittableTextInput::new(ctx)
+                .validate_on_edit(|_| true)
+                // 空提交 = 清除显式覆盖,恢复 auto-detect。
+                .with_allow_empty_submit();
             input.set_placeholder_text(crate::t!("intercept-api-base-placeholder"), ctx);
             input
         });
         let auth_env_input = ctx.add_typed_action_view(|ctx| {
-            let mut input = SubmittableTextInput::new(ctx).validate_on_edit(|_| true);
+            let mut input = SubmittableTextInput::new(ctx)
+                .validate_on_edit(|_| true)
+                // 空提交 = 清除显式覆盖,恢复解析默认。
+                .with_allow_empty_submit();
             input.set_placeholder_text(crate::t!("intercept-auth-env-placeholder"), ctx);
             input
         });
 
-        // Commit the explicit overrides when the user submits either field.
-        for input in [&api_base_input, &auth_env_input] {
-            ctx.subscribe_to_view(input, |me, _, event, ctx| match event {
-                SubmittableTextInputEvent::Submit(
-                    content,
-                ) => me.apply_upstream_submit(content.clone(), ctx),
+        // 分别订阅:提交来源与字段一一对应,不靠比较值猜测来源;
+        // 空提交经 with_allow_empty_submit 放行,作为清除覆盖的显式入口。
+        for (input, is_base) in [(&api_base_input, true), (&auth_env_input, false)] {
+            ctx.subscribe_to_view(input, move |me, _, event, ctx| match event {
+                SubmittableTextInputEvent::Submit(content) => {
+                    InterceptSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                        if is_base {
+                            model.set_upstream_base(content.clone(), ctx);
+                        } else {
+                            model.set_upstream_auth_env(content.clone(), ctx);
+                        }
+                    });
+                    me.refresh_upstream_input_prefills(ctx);
+                    ctx.notify();
+                }
                 SubmittableTextInputEvent::Escape => {
                     me.set_panel_open(false, ctx);
                 }
@@ -355,7 +370,11 @@ impl InterceptConfigBar {
             refresh_timer_handle: None,
             ambient_agent_model,
         };
-        me.start_refresh_timer(ctx);
+        // flag 未开启时不启动轮询 timer:UI 渲染同样被 flag 挡住,
+        // 避免每个 pane 常驻一个空转的 2s 唤醒。
+        if crate::features::FeatureFlag::AgentHarness.is_enabled() {
+            me.start_refresh_timer(ctx);
+        }
         me
     }
 
@@ -373,6 +392,10 @@ impl InterceptConfigBar {
             },
             |me, _unit, ctx| {
                 me.refresh_timer_handle = None;
+                // flag 中途被关闭时停止续期(下次 render 若仍显示会重启)。
+                if !crate::features::FeatureFlag::AgentHarness.is_enabled() {
+                    return;
+                }
                 InterceptSessionsModel::handle(ctx).update(ctx, |model, ctx| {
                     model.refresh_block_count(ctx);
                 });
@@ -410,33 +433,23 @@ impl InterceptConfigBar {
         ctx.notify();
     }
 
-    /// Route a submit from either upstream input to the right model setter by
-    /// comparing against the current values (the submitting field differs).
-    fn apply_upstream_submit(&mut self, content: String, ctx: &mut ViewContext<Self>) {
+    /// Re-sync both upstream input editors with the committed model values.
+    /// Called after a submit clears the buffer so the (possibly empty) field
+    /// shows the effective override again.
+    fn refresh_upstream_input_prefills(&self, ctx: &mut ViewContext<Self>) {
         let model = InterceptSessionsModel::handle(ctx);
-        let current_base = model.as_ref(ctx).upstream_base().to_string();
-        let current_env = model.as_ref(ctx).upstream_auth_env().to_string();
-        model.update(ctx, |model, ctx| {
-            // Submitted content that differs from base is the base field;
-            // otherwise it is the auth-env field. Both empty submits are
-            // filtered out by SubmittableTextInput itself.
-            if content != current_base && content == current_env {
-                model.set_upstream_auth_env(content, ctx);
-            } else {
-                model.set_upstream_base(content, ctx);
-            }
+        let base = model.as_ref(ctx).upstream_base().to_string();
+        let auth_env = model.as_ref(ctx).upstream_auth_env().to_string();
+        self.api_base_input.update(ctx, |input, ctx| {
+            let editor = input.editor().clone();
+            editor.update(ctx, |ed, ctx| ed.set_buffer_text(&base, ctx));
         });
-        // Keep the other field's editor text stable across re-renders.
-        ctx.notify();
+        self.auth_env_input.update(ctx, |input, ctx| {
+            let editor = input.editor().clone();
+            editor.update(ctx, |ed, ctx| ed.set_buffer_text(&auth_env, ctx));
+        });
     }
 
-    /// Map the selected ambient-agent harness to a proxy upstream harness type.
-    fn upstream_harness_type(&self, app: &AppContext) -> HarnessType {
-        match self.ambient_agent_model.as_ref(app).selected_harness() {
-            Harness::Claude => HarnessType::ClaudeCode,
-            _ => HarnessType::Generic,
-        }
-    }
 
     fn render_counter(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
@@ -487,6 +500,16 @@ impl InterceptConfigBar {
             .with_horizontal_padding(BAR_SPACING)
             .with_vertical_padding(BAR_SPACING)
             .finish()
+    }
+
+    /// Map the selected ambient-agent harness to a proxy upstream harness type.
+    fn upstream_harness_type(&self, app: &AppContext) -> HarnessType {
+        match self.ambient_agent_model.as_ref(app).selected_harness() {
+            Harness::Claude => HarnessType::ClaudeCode,
+            Harness::Oz | Harness::OpenCode | Harness::Gemini | Harness::Unknown => {
+                HarnessType::Generic
+            }
+        }
     }
 }
 

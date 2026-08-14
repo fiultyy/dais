@@ -42,10 +42,16 @@ pub struct InterceptSessionsModel {
     /// `None` when the store cannot be opened (read-only queries then report 0).
     store: Option<Arc<Mutex<BlockStore>>>,
 }
-
 impl InterceptSessionsModel {
     pub fn new(_ctx: &mut ModelContext<Self>) -> Self {
-        let store = open_persistent_store();
+        // flag 未开启时不打开/创建 DB,避免未启用用户产生启动期文件 IO
+        // (create_dir_all + SQLite open + COUNT(*))。store 保持 None,
+        // refresh_block_count 在 flag 开启后按需惰性打开。
+        let store = if crate::features::FeatureFlag::AgentHarness.is_enabled() {
+            open_persistent_store()
+        } else {
+            None
+        };
         let block_count = store
             .as_ref()
             .and_then(|s| s.lock().block_count().ok())
@@ -132,6 +138,10 @@ impl InterceptSessionsModel {
     /// Re-query the persistent BlockStore and update the cached count.
     /// Emits [`InterceptSessionsModelEvent::BlocksChanged`] when it changed.
     pub fn refresh_block_count(&mut self, ctx: &mut ModelContext<Self>) {
+        // 惰性打开:构造时 flag 关闭的实例,首次 refresh 时按需补开。
+        if self.store.is_none() && crate::features::FeatureFlag::AgentHarness.is_enabled() {
+            self.store = open_persistent_store();
+        }
         let new_count = self
             .store
             .as_ref()
