@@ -48,6 +48,9 @@ pub mod facts;
 /// Zap 拦截接线：Integration（proxy+hooks）挂进 AgentDriver 的 harness spawn。
 #[cfg(not(target_family = "wasm"))]
 pub mod harness_intercept;
+/// Observatory 面板 — 拦截会话观测 + 编排状态视图（右侧面板）。
+#[cfg(not(target_family = "wasm"))]
+pub mod observatory;
 // Zap Wave 6-8:`generate_block_title` 随 `BlockClient::generate_shared_block_title`
 // stub 一同移除 —— 唯一消费点是 BlockClient trait 签名,本地无其他代码路径。
 pub(crate) mod loading;

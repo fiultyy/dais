@@ -339,6 +339,8 @@ use crate::{
     settings,
     ui_components::blended_colors,
 };
+#[cfg(not(target_family = "wasm"))]
+use crate::ai::observatory::view::ObservatoryPanelView;
 use crate::{send_telemetry_from_ctx, GlobalResourceHandles};
 
 use futures::Future;
@@ -924,6 +926,9 @@ pub struct Workspace {
     settings_file_error: Option<crate::settings::SettingsFileError>,
     settings_error_banner_dismissed: bool,
     ai_assistant_panel: ViewHandle<AIAssistantPanelView>,
+    /// 观测台面板（Observatory）。
+    #[cfg(not(target_family = "wasm"))]
+    observatory_view: ViewHandle<ObservatoryPanelView>,
     should_show_ai_assistant_warm_welcome: bool,
     ai_assistant_close_warm_welcome_mouse_state_handle: MouseStateHandle,
     auth_override_warning_modal: ViewHandle<AuthOverrideWarningModal>,
@@ -1445,6 +1450,19 @@ impl Workspace {
         });
 
         ai_assistant_panel
+    }
+
+    /// 构造观测台面板视图。
+    #[cfg(not(target_family = "wasm"))]
+    fn build_observatory_view(
+        ctx: &mut ViewContext<Self>,
+    ) -> ViewHandle<ObservatoryPanelView> {
+        use crate::ai::observatory::model::ObservatoryModel;
+        let model = ObservatoryModel::handle(ctx);
+        let observatory_view = ctx.add_view(|ctx| {
+            ObservatoryPanelView::new(model.clone(), ctx)
+        });
+        observatory_view
     }
 
     fn build_resource_center_view(
@@ -2584,6 +2602,9 @@ impl Workspace {
 
         let ai_assistant_panel = Self::build_ai_assistant_panel_view(ctx);
 
+        #[cfg(not(target_family = "wasm"))]
+        let observatory_view = Self::build_observatory_view(ctx);
+
         ctx.observe(&tips_completed, Workspace::on_tips_model_changed);
 
         let autoupdate_handle = AutoupdateState::handle(ctx);
@@ -2918,6 +2939,8 @@ impl Workspace {
             settings_file_error,
             settings_error_banner_dismissed: false,
             ai_assistant_panel,
+            #[cfg(not(target_family = "wasm"))]
+            observatory_view,
             should_show_ai_assistant_warm_welcome,
             ai_assistant_close_warm_welcome_mouse_state_handle: Default::default(),
             auth_override_warning_modal,
@@ -3950,6 +3973,30 @@ impl Workspace {
             // Close the resource center panel if we open the AI Assistant panel.
             self.current_workspace_state.is_resource_center_open = false;
             ctx.focus(&self.ai_assistant_panel);
+        } else {
+            self.focus_active_tab(ctx);
+        }
+        ctx.notify();
+    }
+
+    /// 打开/关闭观测台面板（Observatory）。
+    /// 与 AI Assistant panel、Resource Center 互斥。
+    #[cfg(not(target_family = "wasm"))]
+    fn toggle_observatory(&mut self, ctx: &mut ViewContext<Self>) {
+        self.current_workspace_state.is_observatory_open =
+            !self.current_workspace_state.is_observatory_open;
+
+        // 关闭其他右侧面板内容
+        self.current_workspace_state.close_all_modals();
+        if self.current_workspace_state.is_observatory_open {
+            self.current_workspace_state.is_resource_center_open = false;
+            self.current_workspace_state.is_ai_assistant_panel_open = false;
+            // 首次打开时触发一次刷新
+            use crate::ai::observatory::model::ObservatoryModel;
+            ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                model.refresh(ctx);
+            });
+            ctx.focus(&self.observatory_view);
         } else {
             self.focus_active_tab(ctx);
         }
@@ -16553,6 +16600,9 @@ impl Workspace {
                 self.render_agent_management_view_button(appearance, ctx)
             }
             HeaderToolbarItemKind::CodeReview => self.render_right_panel_button(appearance, ctx),
+            HeaderToolbarItemKind::Observatory => {
+                self.render_observatory_button(appearance, ctx)
+            }
             HeaderToolbarItemKind::NotificationsMailbox => {
                 self.render_notifications_mailbox_button(appearance, ctx)
             }
@@ -18078,6 +18128,12 @@ impl Workspace {
                     ChildView::new(&self.ai_assistant_panel).finish(),
                     &PanelPosition::Right,
                 ))
+            } else if self.current_workspace_state.is_observatory_open {
+                Some(self.render_panel(
+                    app,
+                    ChildView::new(&self.observatory_view).finish(),
+                    &PanelPosition::Right,
+                ))
             } else {
                 log::warn!(
                     "is_right_panel_open() returned true, but neither the resource center nor AI \
@@ -18154,6 +18210,7 @@ impl Workspace {
             }
             HeaderToolbarItemKind::AgentManagement
             | HeaderToolbarItemKind::NotificationsMailbox => None,
+            HeaderToolbarItemKind::Observatory => None,
         }
     }
 
@@ -18171,6 +18228,32 @@ impl Workspace {
             return None;
         }
         Some(Shrinkable::new(1.0, ChildView::new(&self.right_panel_view).finish()).finish())
+    }
+
+    fn render_observatory_button(
+        &self,
+        appearance: &Appearance,
+        _ctx: &AppContext,
+    ) -> Box<dyn Element> {
+        let is_active = self.current_workspace_state.is_observatory_open;
+        let theme = appearance.theme();
+        let icon_color = if is_active {
+            theme.main_text_color(theme.background())
+        } else {
+            theme.sub_text_color(theme.background())
+        };
+        let mouse_state = self.mouse_states.right_panel_icon.clone();
+        let content = ConstrainedBox::new(
+            icons::Icon::Eye.to_warpui_icon(icon_color).finish(),
+        )
+        .with_width(16.)
+        .with_height(16.)
+        .finish();
+        let hoverable = Hoverable::new(mouse_state, move |_state| content)
+            .on_click(move |ctx, _app, _position| {
+                ctx.dispatch_typed_action(WorkspaceAction::ToggleObservatory);
+            });
+        Container::new(hoverable.finish()).finish()
     }
 
     /// Offset positioning for agent toasts.
@@ -19287,6 +19370,10 @@ impl TypedActionView for Workspace {
             ToggleRightPanel => {
                 let pane_group_handle = self.active_tab_pane_group().clone();
                 self.toggle_right_panel(&pane_group_handle, ctx);
+            }
+            #[cfg(not(target_family = "wasm"))]
+            ToggleObservatory => {
+                self.toggle_observatory(ctx);
             }
             #[cfg(feature = "local_fs")]
             OpenCodeReviewPanel(locator) => {

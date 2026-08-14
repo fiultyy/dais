@@ -3669,3 +3669,20 @@ intercept-auth-env-placeholder = Auth env var (empty = default)
 intercept-probe-prefix = Resolved upstream:
 intercept-probe-unavailable = Unable to resolve upstream for this harness
 intercept-tab-tooltip = Intercept: { $mode } · { $count } blocks captured
+
+# ── Observatory panel ────────────────────────────────────────────────
+observatory-title = Observatory
+observatory-tab-sessions = Sessions
+observatory-tab-orchestration = Orchestration
+observatory-sessions-empty = No intercepted sessions yet
+observatory-blocks-empty = Select a session to view blocks
+observatory-block-seq = #{ $seq }
+observatory-runs-empty = No orchestration runs
+observatory-refresh = Refresh
+observatory-send = Send
+observatory-send-to = To handle
+observatory-send-subject = Subject
+observatory-send-body = Body
+observatory-send-busy = Sending…
+observatory-last-error = Last error: { $err }
+observatory-blocks-captured = { $count } blocks captured

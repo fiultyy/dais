@@ -124,8 +124,9 @@ pub struct WorkspaceState {
     pub is_session_config_modal_open: bool,
     pub is_new_worktree_modal_open: bool,
     pub is_remove_tab_config_dialog_open: bool,
+    /// 观测台面板（Observatory）是否打开。
+    pub is_observatory_open: bool,
     /// Whether the transcript details panel is open (WASM only, for conversation transcript viewing).
-    pub is_transcript_details_panel_open: bool,
     tab_being_renamed: Option<usize>, // The index of the tab being renamed
     pane_being_renamed: Option<PaneViewLocator>,
 }
@@ -137,6 +138,7 @@ impl WorkspaceState {
             || self.is_ai_assistant_panel_open
             || self.is_workflow_modal_open
             || self.is_warp_drive_open
+            || self.is_observatory_open
     }
 
     pub fn is_any_non_palette_modal_open(&self, app: &AppContext) -> bool {
@@ -199,7 +201,9 @@ impl WorkspaceState {
     }
 
     pub fn is_right_panel_open(&self) -> bool {
-        self.is_resource_center_open || self.is_ai_assistant_panel_open
+        self.is_resource_center_open
+            || self.is_ai_assistant_panel_open
+            || self.is_observatory_open
     }
 
     pub fn is_left_panel_open(&self) -> bool {

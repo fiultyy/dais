@@ -3583,3 +3583,20 @@ intercept-auth-env-placeholder = Auth 环境变量（留空 = 默认）
 intercept-probe-prefix = 探测结果：
 intercept-probe-unavailable = 无法为该 harness 解析上游配置
 intercept-tab-tooltip = 拦截：{ $mode } · 已捕获 { $count } blocks
+
+# ── Observatory panel (拦截/编排观测台) ──────────────────────────────
+observatory-title = 观测台
+observatory-tab-sessions = 会话
+observatory-tab-orchestration = 编排
+observatory-sessions-empty = 暂无拦截会话
+observatory-blocks-empty = 选择会话查看 blocks
+observatory-block-seq = #{ $seq }
+observatory-runs-empty = 暂无编排 run
+observatory-refresh = 刷新
+observatory-send = 发送
+observatory-send-to = 收件 handle
+observatory-send-subject = 主题
+observatory-send-body = 正文
+observatory-send-busy = 发送中…
+observatory-last-error = 上次错误: { $err }
+observatory-blocks-captured = 已捕获 { $count } blocks

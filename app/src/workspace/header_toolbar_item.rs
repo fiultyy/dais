@@ -30,6 +30,9 @@ pub enum HeaderToolbarItemKind {
     ToolsPanel,
     AgentManagement,
     CodeReview,
+    /// 观测台面板（Observatory）— 拦截会话 + 编排状态。
+    Observatory,
+    /// Notifications mailbox.
     NotificationsMailbox,
 }
 
@@ -40,6 +43,7 @@ impl HeaderToolbarItemKind {
             Self::ToolsPanel => "Tools Panel",
             Self::AgentManagement => "Agent Management",
             Self::CodeReview => "Code Review",
+            Self::Observatory => "Observatory",
             Self::NotificationsMailbox => "Notifications",
         }
     }
@@ -50,6 +54,7 @@ impl HeaderToolbarItemKind {
             Self::ToolsPanel => Icon::Tool2,
             Self::AgentManagement => Icon::Grid,
             Self::CodeReview => Icon::Diff,
+            Self::Observatory => Icon::Eye,
             Self::NotificationsMailbox => Icon::Inbox,
         }
     }
@@ -65,6 +70,7 @@ impl HeaderToolbarItemKind {
             }
             Self::ToolsPanel => true,
             Self::AgentManagement => false,
+            Self::Observatory => FeatureFlag::AgentHarness.is_enabled(),
             Self::CodeReview => cfg!(feature = "local_fs"),
             Self::NotificationsMailbox => FeatureFlag::HOANotifications.is_enabled(),
         }
@@ -86,7 +92,10 @@ impl HeaderToolbarItemKind {
     /// Whether this item opens a side panel (as opposed to replacing the content
     /// area or opening a popover).
     pub fn is_panel(&self) -> bool {
-        matches!(self, Self::TabsPanel | Self::ToolsPanel | Self::CodeReview)
+        matches!(
+            self,
+            Self::TabsPanel | Self::ToolsPanel | Self::CodeReview | Self::Observatory
+        )
     }
 
     pub fn default_left() -> Vec<Self> {
@@ -94,16 +103,16 @@ impl HeaderToolbarItemKind {
     }
 
     pub fn default_right() -> Vec<Self> {
-        vec![Self::CodeReview, Self::NotificationsMailbox]
+        vec![Self::CodeReview, Self::NotificationsMailbox, Self::Observatory]
     }
 
-    /// All toolbar item variants (availability filtering is done at the call site).
     pub fn all_items() -> Vec<Self> {
         vec![
             Self::TabsPanel,
             Self::ToolsPanel,
             Self::AgentManagement,
             Self::CodeReview,
+            Self::Observatory,
             Self::NotificationsMailbox,
         ]
     }

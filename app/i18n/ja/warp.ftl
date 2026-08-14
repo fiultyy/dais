@@ -3501,3 +3501,20 @@ intercept-auth-env-placeholder = 認証環境変数（空欄 = デフォルト�
 intercept-probe-prefix = 解決結果：
 intercept-probe-unavailable = このハーネスの上流設定を解決できません
 intercept-tab-tooltip = 傍受：{ $mode } · { $count } ブロックを取得済み
+
+# ── Observatory panel ────────────────────────────────────────────────
+observatory-title = 観測台
+observatory-tab-sessions = セッション
+observatory-tab-orchestration = オーケストレーション
+observatory-sessions-empty = インターセプトセッションなし
+observatory-blocks-empty = セッションを選択してブロックを表示
+observatory-block-seq = #{ $seq }
+observatory-runs-empty = オーケストレーション run なし
+observatory-refresh = 更新
+observatory-send = 送信
+observatory-send-to = 宛先 handle
+observatory-send-subject = 件名
+observatory-send-body = 本文
+observatory-send-busy = 送信中…
+observatory-last-error = 最後のエラー: { $err }
+observatory-blocks-captured = { $count } blocks を取得

@@ -262,7 +262,9 @@ pub enum WorkspaceAction {
     /// Unconditionally opens Zap Drive. This is used in the case of user lifecycle
     /// events like new user onboarding or when the user joins a team.
     ZapDrive,
-    /// Toggles the right panel. This happens as an explicit action from the user.
+    /// Toggles the Observatory panel (intercept sessions / orchestration viewer).
+    #[cfg(not(target_family = "wasm"))]
+    ToggleObservatory,
     ToggleRightPanel,
     /// Opens the code review panel (right panel) without toggling. If already open,
     /// switches to the target pane's repo. Used by vertical tabs diff stats chip.
@@ -759,9 +761,9 @@ impl WorkspaceAction {
             | OpenInExplorer { .. }
             | DragTab { .. }
             | StartTabDrag
+            | ZapDrive
             | ToggleLeftPanel
             | ToggleWarpDrive
-            | ZapDrive
             | ClosePanel
             | ToggleRightPanel
             | OpenCodeReviewPanel(..)
@@ -881,6 +883,8 @@ impl WorkspaceAction {
             // 子系统物理删。
             #[cfg(target_os = "linux")]
             DismissWaylandCrashRecoveryBannerAndOpenLink => false,
+            #[cfg(not(target_family = "wasm"))]
+            ToggleObservatory => false,
             #[cfg(target_family = "wasm")]
             OpenLinkOnDesktop(_) => false,
             // actions that are related to updating user settings or

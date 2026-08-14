@@ -88,6 +88,7 @@ genai.workspace = true
 proxy_interceptor.workspace = true
 getset.workspace = true
 handlebars.workspace = true
+rusqlite = { version = "0.35", features = ["bundled"] }
 hex.workspace = true
 # Zap BYOP webfetch:HTML→Markdown(Turndown 的 Rust 端口)。
 htmd.workspace = true
