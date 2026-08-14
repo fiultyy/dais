@@ -210,6 +210,11 @@ pub struct AgentDriver {
     /// In the future, we _may_ use the harness abstraction for the Oz agent as well.
     harness: Option<Arc<dyn HarnessRunner>>,
 
+    /// Zap 拦截会话：third-party harness 运行期间持有 proxy+hooks 的
+    /// 生命周期。Drop（或 run 结束时 finish）自动关停。
+    #[cfg(not(target_family = "wasm"))]
+    intercept: Option<crate::ai::harness_intercept::InterceptSession>,
+
     // Optional idle timeout after completion. If set, the process will stay alive for follow-ups
     // and exit after this period of inactivity.
     idle_on_complete: Option<Duration>,
@@ -435,6 +440,13 @@ impl AgentDriver {
             selected_harness,
         ));
 
+        // Zap 拦截接线：third-party harness 启动前建立 intercept 会话
+        // （proxy+hooks）。CC 的生效配置经 prepare_harness → build_runner
+        // 以 --settings 传入（settings.json env 优先级高于 PTY env）；
+        // PTY env 不再注入（对 CC 无效）。
+        #[cfg(not(target_family = "wasm"))]
+        let intercept = crate::ai::harness_intercept::maybe_start_intercept(selected_harness, ctx);
+
         // Signal to third-party harnesses (e.g. Claude Code) that we're in a sandbox
         // so they allow root execution with permissive flags.
         if warp_isolation_platform::detect().is_some() {
@@ -463,6 +475,8 @@ impl AgentDriver {
             output_format: OutputFormat::default(),
             task_id,
             harness: None,
+            #[cfg(not(target_family = "wasm"))]
+            intercept,
             idle_on_complete,
         })
     }
@@ -1044,25 +1058,37 @@ impl AgentDriver {
         harness: &dyn ThirdPartyHarness,
         foreground: &ModelSpawner<Self>,
     ) -> Result<Arc<dyn harness::HarnessRunner>, AgentDriverError> {
-        let (working_dir, task_id, agent_event_stream_client, terminal_driver) = foreground
-            .spawn(|me, _| {
-                if me.harness.is_some() {
-                    log::error!(
-                        "Attempted to prepare a third-party harness, but one was already configured"
-                    );
-                    return Err(AgentDriverError::InvalidRuntimeState);
-                }
+        let (working_dir, task_id, agent_event_stream_client, terminal_driver, intercept_settings) =
+            foreground
+                .spawn(|me, _| {
+                    if me.harness.is_some() {
+                        log::error!(
+                            "Attempted to prepare a third-party harness, but one was already configured"
+                        );
+                        return Err(AgentDriverError::InvalidRuntimeState);
+                    }
 
-                Ok((
-                    me.working_dir.clone(),
-                    me.task_id,
-                    Arc::new(DisabledAgentEventStreamClient),
-                    me.terminal_driver.clone(),
-                ))
-            })
-            .await
-            .map_err(|_| AgentDriverError::InvalidRuntimeState)
-            .flatten()?;
+                    // Zap 拦截：把 intercept 会话的 harness 侧生效配置带给
+                    // build_runner（CC 走 --settings；其他 harness 忽略）。
+                    #[cfg(not(target_family = "wasm"))]
+                    let intercept_settings = me
+                        .intercept
+                        .as_ref()
+                        .and_then(|s| s.claude_settings_overrides());
+                    #[cfg(target_family = "wasm")]
+                    let intercept_settings = None;
+
+                    Ok((
+                        me.working_dir.clone(),
+                        me.task_id,
+                        Arc::new(DisabledAgentEventStreamClient),
+                        me.terminal_driver.clone(),
+                        intercept_settings,
+                    ))
+                })
+                .await
+                .map_err(|_| AgentDriverError::InvalidRuntimeState)
+                .flatten()?;
 
         let AgentRunPrompt::Local(prompt_text) = prompt;
         let system_prompt: Option<String> = None;
@@ -1084,6 +1110,7 @@ impl AgentDriver {
                 task_id,
                 agent_event_stream_client,
                 terminal_driver,
+                intercept_settings,
             )?
             .into();
 
@@ -1140,9 +1167,22 @@ impl AgentDriver {
             .cleanup(foreground)
             .await
             .context("Failed to clean up harness runtime state"));
-
         let exit_code = command_result?;
         log::debug!("Agent harness exited with status {exit_code}");
+
+        // Zap 拦截：harness 退出 → 记录 Exit block 并释放 proxy/hooks
+        // （Drop 兜底未观测路径）。整个块 native-only：wasm 下无 intercept。
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let exit_value = exit_code.value();
+            let _ = foreground
+                .spawn(move |me, _| {
+                    if let Some(sess) = me.intercept.as_mut() {
+                        sess.finish(exit_value);
+                    }
+                })
+                .await;
+        }
 
         if exit_code.was_successful() {
             Ok(())

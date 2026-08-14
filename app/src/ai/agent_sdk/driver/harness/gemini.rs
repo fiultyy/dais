@@ -66,6 +66,7 @@ impl ThirdPartyHarness for GeminiHarness {
         _task_id: Option<AmbientAgentTaskId>,
         _agent_event_stream_client: Arc<dyn AgentEventStreamClient>,
         terminal_driver: ModelHandle<TerminalDriver>,
+        _intercept_settings: Option<serde_json::Value>,
     ) -> Result<Box<dyn HarnessRunner>, AgentDriverError> {
         Ok(Box::new(GeminiHarnessRunner::new(
             self.cli_agent().command_prefix(),

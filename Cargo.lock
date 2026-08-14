@@ -15039,6 +15039,7 @@ dependencies = [
  "prost",
  "prost-build",
  "prost-types",
+ "proxy_interceptor",
  "rand 0.8.6",
  "rangemap",
  "rayon",

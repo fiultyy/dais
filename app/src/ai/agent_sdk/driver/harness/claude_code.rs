@@ -79,6 +79,7 @@ impl ThirdPartyHarness for ClaudeHarness {
         task_id: Option<AmbientAgentTaskId>,
         agent_event_stream_client: Arc<dyn AgentEventStreamClient>,
         terminal_driver: ModelHandle<TerminalDriver>,
+        intercept_settings: Option<serde_json::Value>,
     ) -> Result<Box<dyn HarnessRunner>, AgentDriverError> {
         // Claude treats the user-turn message as immediate intent, so the resumption preamble
         // is most reliable when prepended directly to the prompt that gets piped into the CLI.
@@ -94,6 +95,7 @@ impl ThirdPartyHarness for ClaudeHarness {
             task_id,
             agent_event_stream_client,
             terminal_driver,
+            intercept_settings,
         )?))
     }
 }
@@ -107,15 +109,22 @@ const CLAUDE_EXIT_COMMAND: &str = "/exit";
 /// The CLI receives `--session-id <uuid>` to pin a fresh local session to that id.
 /// If `system_prompt_path` is provided, the CLI appends its contents to the base
 /// system prompt.
+/// If `settings_path` is provided (Zap intercept), the CLI receives
+/// `--settings` — CC merges it on top of user settings, letting the intercept
+/// override `env.ANTHROPIC_BASE_URL` (PTY env alone is silently ignored).
 fn claude_command(
     cli_name: &str,
     session_id: &Uuid,
     prompt_path: &str,
     system_prompt_path: Option<&str>,
+    settings_path: Option<&str>,
 ) -> String {
     let mut cmd = format!("{cli_name} --session-id {session_id} --dangerously-skip-permissions");
     if let Some(sp_path) = system_prompt_path {
         let _ = write!(cmd, " --append-system-prompt-file '{sp_path}'");
+    }
+    if let Some(st_path) = settings_path {
+        let _ = write!(cmd, " --settings '{st_path}'");
     }
     format!("{cmd} < '{prompt_path}'")
 }
@@ -139,6 +148,8 @@ struct ClaudeHarnessRunner {
     _temp_prompt_file: NamedTempFile,
     /// Held so the system prompt temp file is cleaned up when the runner is dropped.
     _temp_system_prompt_file: Option<NamedTempFile>,
+    /// Held so the intercept `--settings` temp file is cleaned up when the runner is dropped.
+    _temp_intercept_settings_file: Option<NamedTempFile>,
     agent_event_stream_client: Arc<dyn AgentEventStreamClient>,
     terminal_driver: ModelHandle<TerminalDriver>,
     state: Mutex<ClaudeRunnerState>,
@@ -159,6 +170,7 @@ impl ClaudeHarnessRunner {
         task_id: Option<AmbientAgentTaskId>,
         agent_event_stream_client: Arc<dyn AgentEventStreamClient>,
         terminal_driver: ModelHandle<TerminalDriver>,
+        intercept_settings: Option<serde_json::Value>,
     ) -> Result<Self, AgentDriverError> {
         // Write the prompt to a temp file so we can feed it via stdin redirect,
         // avoiding shell-quoting issues with complex content (e.g. skill instructions).
@@ -173,6 +185,12 @@ impl ClaudeHarnessRunner {
         let system_prompt_path = temp_system_prompt_file
             .as_ref()
             .map(|f| f.path().display().to_string());
+        let temp_intercept_settings_file = intercept_settings
+            .map(|s| write_temp_file("oz_intercept_settings_", &s.to_string()))
+            .transpose()?;
+        let intercept_settings_path = temp_intercept_settings_file
+            .as_ref()
+            .map(|f| f.path().display().to_string());
         let parent_bridge = task_id
             .map(|task_id| MessageBridge::new(task_id.to_string(), session_id))
             .transpose()
@@ -184,10 +202,12 @@ impl ClaudeHarnessRunner {
                 &session_id,
                 &prompt_path,
                 system_prompt_path.as_deref(),
+                intercept_settings_path.as_deref(),
             ),
             cli_name: cli_command.to_string(),
             _temp_prompt_file: temp_file,
             _temp_system_prompt_file: temp_system_prompt_file,
+            _temp_intercept_settings_file: temp_intercept_settings_file,
             agent_event_stream_client,
             terminal_driver,
             state: Mutex::new(ClaudeRunnerState::Preexec),

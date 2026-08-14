@@ -88,6 +88,29 @@ impl Integration {
         })
     }
 
+    /// Create a new integration backed by file-based stores (WAL sqlite).
+    ///
+    /// `blocks_db` and `raw_db` may be the same file or separate files; each
+    /// store manages its own table. Used by the app's harness-intercept wiring
+    /// so captured blocks land in the persistent `harness_blocks.db` that the
+    /// intercept UI reads.
+    pub fn open_persistent(
+        session_id: &str,
+        harness_type: &str,
+        blocks_db: &std::path::Path,
+        raw_db: &std::path::Path,
+    ) -> anyhow::Result<Self> {
+        let store = BlockStore::open(blocks_db.to_string_lossy().to_string())?;
+        let raw_cache = RawCache::open(raw_db.to_string_lossy().to_string())?;
+        Ok(Self {
+            store: Arc::new(Mutex::new(store)),
+            raw_cache: Arc::new(Mutex::new(raw_cache)),
+            ctx: Arc::new(SessionContext::new(session_id, harness_type)),
+            hook_server: None,
+            proxy: None,
+        })
+    }
+
     /// Access the shared session context.
     pub fn ctx(&self) -> &SessionContext {
         &self.ctx

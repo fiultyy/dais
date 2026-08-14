@@ -45,6 +45,9 @@ pub mod agent_sdk;
 // 本地对象数据类型仍暂存于此，供 ObjectStoreModel 反序列化与现有视图过滤使用。
 pub mod execution_profiles;
 pub mod facts;
+/// Zap 拦截接线：Integration（proxy+hooks）挂进 AgentDriver 的 harness spawn。
+#[cfg(not(target_family = "wasm"))]
+pub mod harness_intercept;
 // Zap Wave 6-8:`generate_block_title` 随 `BlockClient::generate_shared_block_title`
 // stub 一同移除 —— 唯一消费点是 BlockClient trait 签名,本地无其他代码路径。
 pub(crate) mod loading;

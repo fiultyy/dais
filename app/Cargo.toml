@@ -85,6 +85,7 @@ futures.workspace = true
 fuzzy_match.workspace = true
 harness_integration.workspace = true
 genai.workspace = true
+proxy_interceptor.workspace = true
 getset.workspace = true
 handlebars.workspace = true
 hex.workspace = true

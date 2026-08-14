@@ -69,6 +69,10 @@ pub(crate) trait ThirdPartyHarness: Send + Sync {
     }
 
     /// Build a runner for executing this harness with the given prompt.
+    ///
+    /// `intercept_settings` 携带 Zap 拦截（proxy/hooks）在 harness CLI 侧的
+    /// 生效配置——对 Claude Code 是 `--settings` 覆盖片段；harness 实现
+    /// 自行决定消费方式，`None` = 本次 run 未拦截。
     #[allow(clippy::too_many_arguments)]
     fn build_runner(
         &self,
@@ -79,6 +83,7 @@ pub(crate) trait ThirdPartyHarness: Send + Sync {
         task_id: Option<AmbientAgentTaskId>,
         agent_event_stream_client: Arc<dyn AgentEventStreamClient>,
         terminal_driver: ModelHandle<TerminalDriver>,
+        intercept_settings: Option<serde_json::Value>,
     ) -> Result<Box<dyn HarnessRunner>, AgentDriverError>;
 }
 
