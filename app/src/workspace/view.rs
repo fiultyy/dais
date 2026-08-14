@@ -3923,26 +3923,30 @@ impl Workspace {
     }
 
     /// 新建默认终端标签页，然后执行指定 CLI agent 的启动命令。
-    /// Claude 走交互式拦截：命令改写为 `claude --settings <temp>`，
+    /// Claude/Codex/Gemini 走交互式拦截（--settings / env 前缀），
     /// LLM 流量经本地 TLS proxy 落 blocks/raw（观测台可见）。
     fn add_tab_with_specific_agent(&mut self, agent: CLIAgent, ctx: &mut ViewContext<Self>) {
         self.add_terminal_tab(false, ctx);
         self.active_tab_pane_group().update(ctx, |pane_group, ctx| {
             if let Some(terminal_view) = pane_group.active_session_view(ctx) {
                 let view_id = terminal_view.id().to_string();
-                let command = if agent == CLIAgent::Claude {
+                // 交互式拦截：Claude 走 --settings，Codex/Gemini 走 env 前缀；
+                // 不拦截（flag 关/Bypass/启动失败）回退原命令。
+                let command = {
                     #[cfg(not(target_family = "wasm"))]
                     {
-                        crate::ai::harness_intercept::intercept_claude_command(view_id, ctx)
-                            .unwrap_or_else(|| agent.command_prefix().to_string())
+                        crate::ai::harness_intercept::intercept_cli_agent_command(
+                            agent,
+                            view_id,
+                            ctx,
+                        )
+                        .unwrap_or_else(|| agent.command_prefix().to_string())
                     }
                     #[cfg(target_family = "wasm")]
                     {
                         let _ = view_id;
                         agent.command_prefix().to_string()
                     }
-                } else {
-                    agent.command_prefix().to_string()
                 };
                 terminal_view.update(ctx, |view, ctx| {
                     view.execute_command_or_set_pending(&command, ctx);

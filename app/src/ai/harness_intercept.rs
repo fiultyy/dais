@@ -46,6 +46,7 @@ pub struct InterceptSession {
     integ: Integration,
     session_id: String,
     harness: HarnessType,
+    mode: InterceptMode,
     proxy_port: Option<u16>,
     /// Exit 已记录（finish 或 Drop 二选一，避免重复 Exit block）。
     exit_recorded: bool,
@@ -62,10 +63,20 @@ impl InterceptSession {
         mode: InterceptMode,
         upstream: Option<proxy_interceptor::UpstreamConfig>,
     ) -> Option<Self> {
+        Self::new_for_type(intercept_harness_type(cli_harness), mode, upstream)
+    }
+
+    /// 按 interceptor harness 类型直接建立会话（GUI CLI agent 映射用：
+    /// `codex` CLI 无 warp_cli Harness 对应，直接给 HarnessType::Codex）。
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new_for_type(
+        harness: HarnessType,
+        mode: InterceptMode,
+        upstream: Option<proxy_interceptor::UpstreamConfig>,
+    ) -> Option<Self> {
         if mode == InterceptMode::Bypass {
             return None;
         }
-        let harness = intercept_harness_type(cli_harness);
         let session_id = format!("harness-{}", uuid::Uuid::new_v4());
 
         let Some((blocks_db, raw_db)) = intercept_db_paths() else {
@@ -105,7 +116,7 @@ impl InterceptSession {
                     None => {
                         log::warn!("intercept: upstream unresolved; hooks-only fallback");
                         (None, true)
-                    },
+                    }
                 }
             } else {
                 (None, true)
@@ -127,6 +138,7 @@ impl InterceptSession {
             integ,
             session_id,
             harness,
+            mode,
             proxy_port,
             exit_recorded: false,
         })
@@ -219,6 +231,18 @@ impl InterceptSession {
 
     pub fn proxy_port(&self) -> Option<u16> {
         self.proxy_port
+    }
+
+    /// 注入 harness 进程的 env（proxy env + hook url/token），
+    /// 供 GUI 命令前缀改写（`env K=V ... <cli>`）。
+    pub fn spawn_env(&self) -> Vec<(String, String)> {
+        harness_integration::build_spawn_env(
+            self.mode,
+            self.integ.proxy_handle(),
+            self.integ.hook_url().as_deref(),
+            self.integ.hook_token().as_deref(),
+            self.harness,
+        )
     }
 
     pub fn hook_url(&self) -> Option<String> {
@@ -337,23 +361,28 @@ static GUI_INTERCEPT: LazyLock<parking_lot::Mutex<std::collections::HashMap<Stri
 
 struct GuiIntercept {
     session: InterceptSession,
-    /// 持有以保 settings 临时文件存活；drop 时自动清理。
-    _settings_file: tempfile::NamedTempFile,
+    /// 持有以保 CC settings 临时文件存活；drop 时自动清理。非 CC 无此文件。
+    _settings_file: Option<tempfile::NamedTempFile>,
 }
 
-/// 为 GUI 交互式 Claude Code tab 构造带拦截的启动命令。
+/// 为 GUI 交互式 CLI agent tab 构造带拦截的启动命令。
 ///
-/// 返回改写后的命令（`claude --settings '<path>'`，CC 合并该文件覆盖
-/// `env.ANTHROPIC_BASE_URL` → 流量走本地 TLS proxy）；`None` = 不拦截
-/// （flag 关 / Bypass / proxy 起不来 / hooks 失败），调用方回退原命令。
+/// - **Claude**：`claude --settings '<path>'`（CC settings.json env 优先级
+   ///   高于进程 env，PTY 注入无效，必须走 settings 深覆盖）。
+/// - **Codex**：`env OPENAI_BASE_URL='...' codex`（OpenAI 形状 env 前缀）。
+/// - **Gemini**：`env HTTPS_PROXY='...' SSL_CERT_FILE='...' gemini`（generic）。
+/// - 其余（DeepSeek 等）/ HooksOnly（无 proxy env 可注）/ 启动失败 → `None`，
+///   调用方回退原命令。
 ///
 /// `terminal_view_id`（`EntityId::to_string()`）用于会话注册：同一 view
 /// 重复启动 agent 时先释放旧会话，避免 proxy 端口累积泄漏。
-pub fn intercept_claude_command(
+pub fn intercept_cli_agent_command(
+    agent: crate::terminal::cli_agent::CLIAgent,
     terminal_view_id: String,
     ctx: &warpui::AppContext,
 ) -> Option<String> {
     use crate::features::FeatureFlag;
+    use crate::terminal::cli_agent::CLIAgent;
     use crate::terminal::intercept_sessions::InterceptSessionsModel;
     use std::io::Write as _;
     use warpui::SingletonEntity;
@@ -363,27 +392,74 @@ pub fn intercept_claude_command(
     }
     let model = InterceptSessionsModel::as_ref(ctx);
     let mode = model.mode();
-    if mode == InterceptMode::Bypass {
+    if mode != InterceptMode::Full {
+        // HooksOnly 对非 CC harness 无捕获通道（hooks 是 CC settings 机制），
+        // 仅 CC 的 --settings 路线在 HooksOnly 下仍有意义。
+        if agent != CLIAgent::Claude {
+            return None;
+        }
+    }
+
+    match agent {
+        CLIAgent::Claude => {
+            // 与 AgentDriver 路线（maybe_start_intercept）同基准：
+            // 显式覆盖优先，否则读用户 ~/.claude/settings.json 归一 Bearer 上游。
+            let mut upstream = model.resolve_upstream(HarnessType::ClaudeCode);
+            if model.upstream_base().is_empty() {
+                upstream = claude_upstream_from_user_settings().or(upstream);
+            }
+            let session = InterceptSession::new(warp_cli::agent::Harness::Claude, mode, upstream)?;
+            let settings = session.claude_settings_overrides()?;
+            let mut file = tempfile::NamedTempFile::new().ok()?;
+            file.write_all(settings.to_string().as_bytes()).ok()?;
+            let path = file.path().display().to_string();
+            GUI_INTERCEPT.lock().insert(
+                terminal_view_id,
+                GuiIntercept { session, _settings_file: Some(file) },
+            );
+            Some(format!("claude --settings '{path}'"))
+        }
+        CLIAgent::Codex | CLIAgent::OpenCode => {
+            intercept_env_command(agent, HarnessType::Codex, &model, mode, terminal_view_id)
+        }
+        CLIAgent::Omp => {
+            intercept_env_command(agent, HarnessType::Omp, &model, mode, terminal_view_id)
+        }
+        // Gemini/Amp/Droid/Copilot/Pi/Auggie/CursorCli/Goose/DeepSeek/Antigravity/
+        // Unknown：generic HTTPS_PROXY 形状，需显式上游（Proxy tab base 覆盖
+        // 或 ZAP_UPSTREAM_BASE），否则 resolve 失败回退原命令。
+        _ => intercept_env_command(agent, HarnessType::Generic, &model, mode, terminal_view_id),
+    }
+}
+
+/// 非 CC harness 的通用 env 前缀改写：起 session → `env K='V' … <cli>`。
+/// proxy 未起（env 仅剩 hook 变量）→ `None`（拦截无意义）。
+fn intercept_env_command(
+    agent: crate::terminal::cli_agent::CLIAgent,
+    harness_type: HarnessType,
+    model: &crate::terminal::intercept_sessions::InterceptSessionsModel,
+    mode: InterceptMode,
+    terminal_view_id: String,
+) -> Option<String> {
+    let upstream = model.resolve_upstream(harness_type)?;
+    let session = InterceptSession::new_for_type(harness_type, mode, Some(upstream))?;
+    let env = session.spawn_env();
+    if !env
+        .iter()
+        .any(|(k, _)| k != "ZAP_HOOK_SERVER_URL" && k != "ZAP_HOOK_TOKEN")
+    {
         return None;
     }
-    // 与 AgentDriver 路线（maybe_start_intercept）同基准：
-    // 显式覆盖优先，否则读用户 ~/.claude/settings.json 归一 Bearer 上游。
-    let mut upstream = model.resolve_upstream(HarnessType::ClaudeCode);
-    if model.upstream_base().is_empty() {
-        upstream = claude_upstream_from_user_settings().or(upstream);
-    }
-    let session = InterceptSession::new(warp_cli::agent::Harness::Claude, mode, upstream)?;
-    let settings = session.claude_settings_overrides()?;
-
-    let mut file = tempfile::NamedTempFile::new().ok()?;
-    file.write_all(settings.to_string().as_bytes()).ok()?;
-    let path = file.path().display().to_string();
-
-    GUI_INTERCEPT
-        .lock()
-        .insert(terminal_view_id, GuiIntercept { session, _settings_file: file });
-
-    Some(format!("claude --settings '{path}'"))
+    let prefix = env
+        .iter()
+        .map(|(k, v)| format!("{k}='{v}'"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    GUI_INTERCEPT.lock().insert(
+        terminal_view_id,
+        GuiIntercept { session, _settings_file: None },
+    );
+    Some(format!("env {prefix} {}", agent.command_prefix()))
 }
 
 /// 释放指定 terminal view 的 GUI 拦截会话（tab 关闭时调用）。
