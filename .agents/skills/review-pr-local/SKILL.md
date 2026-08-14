@@ -29,6 +29,7 @@ skill marks as overridable.
   - The `Screenshots / Videos` section from `.github/pull_request_template.md` being present but empty does not count as evidence.
 - If the change is UI-impacting and no screenshots or videos are attached in the description or comments, add an inline or summary-level comment requesting them. Use wording such as: "For faster review, please upload screenshots or a video of the feature working end to end."
 - When required visual evidence is missing for a UI-impacting change, set the final recommendation in `summary` to `Request changes`, even if no other blocking issues were found. Call this out explicitly in the `## Verdict` section.
+- Exception (single-owner agent self-review workflow): when the PR author and the reviewer are the same agent/account, the reviewing agent cannot capture or verify visual evidence, so this requirement does not apply. Downgrade the verdict impact to a non-blocking suggestion (or omit it entirely) and record the waiver in the `## Verdict` section.
 - If the PR is clearly not user-visible (pure refactor, internal tooling, build scripts, server-only logic with no UI surface, tests, docs-only), do not request screenshots or videos.
 
 ## User-facing strings
