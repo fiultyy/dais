@@ -1587,7 +1587,6 @@ pub struct Input {
     #[cfg(not(target_family = "wasm"))]
     intercept_bar: ViewHandle<crate::terminal::view::ambient_agent::InterceptConfigBar>,
 
-
     host_selector: Option<ViewHandle<HostSelector>>,
 
     prompt_suggestions_view: ViewHandle<PromptSuggestionsView>,

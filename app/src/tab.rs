@@ -682,6 +682,7 @@ impl<'a> TabComponent<'a> {
             Indicator::None
         };
 
+        #[cfg(not(target_family = "wasm"))]
         let intercept = Self::intercept_status(tab, ctx);
 
         let tooltip_message = Self::get_tooltip_message(&indicator, tab, ctx);
@@ -702,6 +703,7 @@ impl<'a> TabComponent<'a> {
             styles: TabStyles::default(appearance, tab.color()),
             ui_builder: appearance.ui_builder().clone(),
             indicator,
+            #[cfg(not(target_family = "wasm"))]
             intercept,
             close_button_position,
             appearance,
@@ -785,7 +787,6 @@ impl<'a> TabComponent<'a> {
     ) -> Option<(harness_integration::InterceptMode, u64)> {
         None
     }
-
 
     /// Determine if this tab is the active tab.
     fn is_active_tab(&self) -> bool {
@@ -1178,6 +1179,7 @@ impl<'a> TabComponent<'a> {
     /// Renders the intercept-status badge (issue #13): a colored eye icon with
     /// a tooltip showing the mode and captured-block count. Green = Full,
     /// yellow = HooksOnly. No badge when interception is off for this tab.
+    #[cfg(not(target_family = "wasm"))]
     fn render_intercept_badge(&self) -> Option<Box<dyn Element>> {
         let (mode, count) = self.intercept?;
 
@@ -1202,7 +1204,8 @@ impl<'a> TabComponent<'a> {
         let ui_builder = self.ui_builder.clone();
         let mouse_state = self.tab.intercept_hover_state.clone();
         let badge = Hoverable::new(mouse_state, move |state| {
-            let mut stack = Stack::new().with_child(Icon::Eye.to_warpui_icon(color.into()).finish());
+            let mut stack =
+                Stack::new().with_child(Icon::Eye.to_warpui_icon(color.into()).finish());
 
             if state.is_hovered() {
                 let tooltip = ui_builder.tool_tip(tooltip_text).build().finish();
@@ -1325,6 +1328,7 @@ impl<'a> TabComponent<'a> {
             if let Some(indicator) = self.render_indicator() {
                 flex_row.add_child(indicator);
             }
+            #[cfg(not(target_family = "wasm"))]
             if let Some(badge) = self.render_intercept_badge() {
                 flex_row.add_child(badge);
             }

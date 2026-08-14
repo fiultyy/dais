@@ -10,12 +10,12 @@
 use std::sync::Arc;
 
 use pathfinder_geometry::vector::vec2f;
-use warpui::r#async::Timer;
 use warpui::r#async::SpawnedFutureHandle;
+use warpui::r#async::Timer;
 use warpui::{
     elements::{
         Border, ChildAnchor, ChildView, Container, CrossAxisAlignment, Empty, Expanded, Flex,
-        MainAxisSize, MainAxisAlignment, OffsetPositioning, ParentAnchor, ParentElement,
+        MainAxisAlignment, MainAxisSize, OffsetPositioning, ParentAnchor, ParentElement,
         ParentOffsetBounds, Stack,
     },
     AppContext, Element, Entity, ModelHandle, SingletonEntity, TypedActionView, View, ViewContext,
@@ -33,8 +33,8 @@ use crate::menu::{Event as MenuEvent, Menu, MenuItem, MenuItemFields};
 use crate::terminal::input::{MenuPositioning, MenuPositioningProvider};
 use crate::terminal::intercept_sessions::InterceptSessionsModel;
 use crate::terminal::view::ambient_agent::model::AmbientAgentViewModel;
-use crate::view_components::action_button::{ActionButton, ButtonSize};
 use crate::ui_components::icons::Icon;
+use crate::view_components::action_button::{ActionButton, ButtonSize};
 use crate::view_components::{SubmittableTextInput, SubmittableTextInputEvent};
 
 /// Width of the intercept-mode dropdown panel in logical pixels.
@@ -307,13 +307,16 @@ impl InterceptConfigBar {
         });
 
         let upstream_button = ctx.add_typed_action_view(|_ctx| {
-            ActionButton::new(crate::t!("intercept-upstream-button"), AgentInputButtonTheme)
-                .with_size(ButtonSize::AgentInputButton)
-                .with_tooltip(crate::t!("intercept-upstream-tooltip"))
-                .with_menu(true)
-                .on_click(|ctx| {
-                    ctx.dispatch_typed_action(InterceptConfigBarAction::TogglePanel);
-                })
+            ActionButton::new(
+                crate::t!("intercept-upstream-button"),
+                AgentInputButtonTheme,
+            )
+            .with_size(ButtonSize::AgentInputButton)
+            .with_tooltip(crate::t!("intercept-upstream-tooltip"))
+            .with_menu(true)
+            .on_click(|ctx| {
+                ctx.dispatch_typed_action(InterceptConfigBarAction::TogglePanel);
+            })
         });
 
         let api_base_input = ctx.add_typed_action_view(|ctx| {
@@ -392,7 +395,8 @@ impl InterceptConfigBar {
             },
             |me, _unit, ctx| {
                 me.refresh_timer_handle = None;
-                // flag 中途被关闭时停止续期(下次 render 若仍显示会重启)。
+                // flag 中途被关闭时停止续期;重新开启后借用户交互恢复
+                // (见 InterceptConfigBarAction::TogglePanel)。
                 if !crate::features::FeatureFlag::AgentHarness.is_enabled() {
                     return;
                 }
@@ -449,7 +453,6 @@ impl InterceptConfigBar {
             editor.update(ctx, |ed, ctx| ed.set_buffer_text(&auth_env, ctx));
         });
     }
-
 
     fn render_counter(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
@@ -523,6 +526,11 @@ impl TypedActionView for InterceptConfigBar {
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
         match action {
             InterceptConfigBarAction::TogglePanel => {
+                // flag 运行时重新开启后,借用户交互恢复计数轮询
+                // (timer 停止续期后无自愈路径)。
+                if self.refresh_timer_handle.is_none() {
+                    self.start_refresh_timer(ctx);
+                }
                 let new_state = !self.panel_open;
                 self.set_panel_open(new_state, ctx);
             }
