@@ -3559,3 +3559,6 @@ observatory-message-detail-title = メッセージ詳細
 observatory-message-detail-meta = { $from } → { $to } · { $ts }
 observatory-message-detail-kind = 種別 { $kind } · 優先度 { $priority }
 observatory-message-detail-body = 本文
+observatory-task-spec = タスク仕様
+observatory-task-result = 結果
+observatory-task-deps = 依存: { $deps }

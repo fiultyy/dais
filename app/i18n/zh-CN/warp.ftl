@@ -3641,3 +3641,6 @@ observatory-message-detail-title = 消息详情
 observatory-message-detail-meta = { $from } → { $to } · { $ts }
 observatory-message-detail-kind = 类型 { $kind } · 优先级 { $priority }
 observatory-message-detail-body = 正文
+observatory-task-spec = 任务规格
+observatory-task-result = 结果
+observatory-task-deps = 依赖: { $deps }

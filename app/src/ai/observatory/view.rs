@@ -1358,6 +1358,53 @@ impl ObservatoryPanelView {
                 .soft_wrap(false)
                 .finish(),
             );
+            // 任务规格
+            if !task.spec.is_empty() {
+                col.add_child(
+                    Text::new(
+                        crate::t!("observatory-task-spec"),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.nonactive_ui_text_color().into_solid())
+                    .finish(),
+                );
+                col.add_child(
+                    Text::new(truncate_str(&task.spec, 4000), appearance.ui_font_family(), SMALL_FONT_SIZE)
+                        .with_color(theme.sub_text_color(theme.background()).into())
+                        .finish(),
+                );
+            }
+            // 依赖（非空时）
+            if !task.deps.is_empty() && task.deps != "[]" {
+                col.add_child(
+                    Text::new(
+                        crate::t!("observatory-task-deps", deps = task.deps.clone()),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.disabled_ui_text_color().into_solid())
+                    .soft_wrap(false)
+                    .finish(),
+                );
+            }
+            // 结果（完成后展示）
+            if let Some(result) = &task.result {
+                col.add_child(
+                    Text::new(
+                        crate::t!("observatory-task-result"),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.nonactive_ui_text_color().into_solid())
+                    .finish(),
+                );
+                col.add_child(
+                    Text::new(truncate_str(result, 16000), appearance.ui_font_family(), SMALL_FONT_SIZE)
+                        .with_color(theme.sub_text_color(theme.background()).into())
+                        .finish(),
+                );
+            }
             col.add_child(ChildView::new(&self.dispatch_button).finish());
         } else {
             col.add_child(

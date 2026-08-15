@@ -3727,3 +3727,6 @@ observatory-message-detail-title = Message detail
 observatory-message-detail-meta = { $from } → { $to } · { $ts }
 observatory-message-detail-kind = Type { $kind } · Priority { $priority }
 observatory-message-detail-body = Body
+observatory-task-spec = Task spec
+observatory-task-result = Result
+observatory-task-deps = Deps: { $deps }

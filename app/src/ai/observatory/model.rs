@@ -41,13 +41,21 @@ pub struct RunRowGui {
     pub created_at: String,
 }
 
-/// Task 列表行（最新 200）。
+/// Task 列表行（最新 200；含 spec/result 观测字段）。
 #[derive(Clone, Debug)]
 pub struct TaskRowGui {
     pub id: String,
     pub run_id: String,
     pub title: String,
     pub status: String,
+    /// 任务规格（description/spec 正文）。
+    pub spec: String,
+    /// 任务结果（完成后写入；pending 阶段为 None）。
+    pub result: Option<String>,
+    /// 依赖 task id 列表（JSON 文本原样）。
+    pub deps: String,
+    /// 完成时间（SQLite 文本格式）。
+    pub completed_at: Option<String>,
 }
 
 /// 最近消息行（最新 30）。
@@ -973,7 +981,6 @@ impl ObservatoryModel {
                     .collect()
             })
             .unwrap_or_default();
-
         // tasks（最新 200，无 status 过滤）
         self.snapshot.tasks = s
             .list_tasks(None, None)
@@ -989,6 +996,12 @@ impl ObservatoryModel {
                             .or(t.display_name)
                             .unwrap_or_default(),
                         status: t.status,
+                        spec: t.spec,
+                        result: t.result,
+                        deps: t.deps,
+                        completed_at: t
+                            .completed_at
+                            .map(|c| c.format("%Y-%m-%d %H:%M:%S").to_string()),
                     })
                     .collect()
             })
