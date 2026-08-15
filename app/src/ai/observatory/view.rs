@@ -57,9 +57,12 @@ const COMPOSER_SPACING: f32 = 8.;
 const BADGE_RADIUS: f32 = 4.;
 /// 小号字体（详情/辅助文本）。
 const SMALL_FONT_SIZE: f32 = 12.;
-
 /// 观测台周期自动刷新间隔（ms）。
 const OBSERVATORY_REFRESH_INTERVAL_MS: u64 = 5_000;
+
+/// 面板最大宽度（与右面板默认宽对齐；面板槽位水平约束无限，需自 clamp）。
+const OBSERVATORY_PANEL_MAX_WIDTH: f32 = 480.;
+
 
 
 // ── Action ────────────────────────────────────────────────────────────────────
@@ -403,6 +406,9 @@ impl ObservatoryPanelView {
             refresh_timer_handle: None,
             prev_busy: std::cell::Cell::new(false),
         };
+        // 首次启动 5s 自动刷新 timer（此前无首调，timer 从未跑起来——
+        // render 是 &self 无法启动，start_refresh_timer 只在回调内自续期）。
+        me.start_refresh_timer(ctx);
         me
     }
 
@@ -565,7 +571,7 @@ impl ObservatoryPanelView {
         let snapshot = model.snapshot();
 
         let mut col = Flex::column()
-            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(SECTION_SPACING);
 
         // ── 搜索框 ──
@@ -671,7 +677,7 @@ impl ObservatoryPanelView {
         let snapshot = model.snapshot();
 
         let mut col = Flex::column()
-            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(SPACING);
 
         col.add_child(
@@ -805,7 +811,7 @@ impl ObservatoryPanelView {
         );
 
         let mut col = Flex::column()
-            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(SPACING);
 
         col.add_child(
@@ -865,7 +871,7 @@ impl ObservatoryPanelView {
         );
 
         let mut col = Flex::column()
-            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(SPACING);
 
         col.add_child(
@@ -1032,7 +1038,7 @@ impl ObservatoryPanelView {
         );
 
         let mut col = Flex::column()
-            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(SPACING);
 
         // 标题行：标题 + 关闭提示（点击已选 block 行即可取消选中）
@@ -1127,7 +1133,7 @@ impl ObservatoryPanelView {
         let snapshot = model.snapshot();
 
         let mut col = Flex::column()
-            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(SECTION_SPACING);
 
         // ── Runs + Tasks（task 行可点击选中） ──
@@ -1293,7 +1299,7 @@ impl ObservatoryPanelView {
         let run_id = run.id.clone();
 
         let mut col = Flex::column()
-            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(SPACING / 2.);
 
         // Run header（可点击选中 → composer 目标）
@@ -1400,7 +1406,7 @@ impl ObservatoryPanelView {
         let snapshot = model.snapshot();
 
         let mut col = Flex::column()
-            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(SPACING);
 
         col.add_child(
@@ -1575,7 +1581,7 @@ impl ObservatoryPanelView {
         let snapshot = model.snapshot();
 
         let mut col = Flex::column()
-            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(SPACING);
 
         col.add_child(
@@ -1763,7 +1769,7 @@ impl ObservatoryPanelView {
         let current_mode = intercept.mode();
 
         let mut col = Flex::column()
-            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(SECTION_SPACING);
 
         // ── 拦截模式 chips ──
@@ -2002,7 +2008,7 @@ impl ObservatoryPanelView {
         let busy = model.busy();
 
         let mut col = Flex::column()
-            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(COMPOSER_SPACING);
 
         // 发送目标 run（选中 run 优先，否则最新；无 run 时提示）
@@ -2300,7 +2306,12 @@ impl View for ObservatoryPanelView {
             );
         }
 
-        Shrinkable::new(1., col.finish()).finish()
+        // 面板在 panels row 的非 flexible 槽位中拿到水平无限约束（面板宽度由
+        // 内容自然撑出），内部水平 Flex-Max 会撞无限约束 assert。这里把宽度
+        // clamp 到固定上限，使行级 Max/Expanded 布局有效。
+        ConstrainedBox::new(Shrinkable::new(1., col.finish()).finish())
+            .with_max_width(OBSERVATORY_PANEL_MAX_WIDTH)
+            .finish()
     }
 }
 

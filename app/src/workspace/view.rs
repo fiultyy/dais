@@ -1459,7 +1459,7 @@ impl Workspace {
     ) -> ViewHandle<ObservatoryPanelView> {
         use crate::ai::observatory::model::ObservatoryModel;
         let model = ObservatoryModel::handle(ctx);
-        let observatory_view = ctx.add_view(|ctx| {
+        let observatory_view = ctx.add_typed_action_view(|ctx| {
             ObservatoryPanelView::new(model.clone(), ctx)
         });
         observatory_view
@@ -4255,11 +4255,15 @@ impl Workspace {
                 ctx.focus(&self.ai_assistant_panel);
             } else if self.current_workspace_state.is_resource_center_open {
                 ctx.focus(&self.resource_center_view);
+            } else if self.current_workspace_state.is_observatory_open {
+                #[cfg(not(target_family = "wasm"))]
+                ctx.focus(&self.observatory_view);
             }
         }
-        // Starts from a right panel: AI panel, resource center (keyboard shortcuts page only)
+        // Starts from a right panel: AI panel, resource center, observatory
         else if self.ai_assistant_panel.is_self_or_child_focused(ctx)
             || self.resource_center_view.is_self_or_child_focused(ctx)
+            || self.is_observatory_view_focused(ctx)
         {
             self.focus_active_tab(ctx);
         }
@@ -4271,6 +4275,9 @@ impl Workspace {
                     ctx.focus(&self.ai_assistant_panel);
                 } else if self.current_workspace_state.is_resource_center_open {
                     ctx.focus(&self.resource_center_view);
+                } else if self.current_workspace_state.is_observatory_open {
+                    #[cfg(not(target_family = "wasm"))]
+                    ctx.focus(&self.observatory_view);
                 }
             } else {
                 self.focus_active_tab(ctx);
@@ -4283,6 +4290,9 @@ impl Workspace {
                     ctx.focus(&self.ai_assistant_panel);
                 } else if self.current_workspace_state.is_resource_center_open {
                     ctx.focus(&self.resource_center_view);
+                } else if self.current_workspace_state.is_observatory_open {
+                    #[cfg(not(target_family = "wasm"))]
+                    ctx.focus(&self.observatory_view);
                 }
             } else {
                 self.focus_active_tab(ctx);
@@ -4294,6 +4304,19 @@ impl Workspace {
         ctx.notify();
     }
 
+
+    #[cfg(not(target_family = "wasm"))]
+    /// Observatory 面板（或其子视图）是否持有焦点。
+    fn is_observatory_view_focused(&self, ctx: &mut ViewContext<Self>) -> bool {
+        let app = ctx;
+        self.observatory_view.is_self_or_child_focused(app)
+    }
+
+    #[cfg(target_family = "wasm")]
+    fn is_observatory_view_focused(&self, _ctx: &mut ViewContext<Self>) -> bool {
+        false
+    }
+
     /// This function shifts focus to the panel on the right.
     fn focus_right_panel(&mut self, ctx: &mut ViewContext<Self>) {
         // Starts from terminal
@@ -4302,6 +4325,9 @@ impl Workspace {
                 ctx.focus(&self.ai_assistant_panel);
             } else if self.current_workspace_state.is_resource_center_open {
                 ctx.focus(&self.resource_center_view);
+            } else if self.current_workspace_state.is_observatory_open {
+                #[cfg(not(target_family = "wasm"))]
+                ctx.focus(&self.observatory_view);
             } else if self.current_workspace_state.is_warp_drive_open {
                 self.reset_focused_index_in_warp_drive(true, ctx);
             } else if self.is_theme_chooser_open() {
@@ -4314,9 +4340,10 @@ impl Workspace {
         {
             self.focus_active_tab(ctx);
         }
-        // Starts from a right panel: AI panel, resource center (keyboard shortcuts page only)
+        // Starts from a right panel: AI panel, resource center, observatory
         else if self.ai_assistant_panel.is_self_or_child_focused(ctx)
             || self.resource_center_view.is_self_or_child_focused(ctx)
+            || self.is_observatory_view_focused(ctx)
         {
             if self.current_workspace_state.is_left_panel_open() {
                 if self.current_workspace_state.is_warp_drive_open {

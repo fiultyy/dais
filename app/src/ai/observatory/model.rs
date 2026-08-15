@@ -421,6 +421,14 @@ impl ObservatoryModel {
         ctx: &mut ModelContext<Self>,
     ) {
         self.selected_session = id.clone();
+        // 联动清除子选中：换/取消 session 时，旧 session 的 block/raw
+        // 详情不再有效（防孤立详情卡片与失配选中态）
+        if id.is_none() {
+            self.selected_block = None;
+            self.block_detail = None;
+            self.selected_raw = None;
+            self.raw_detail = None;
+        }
         // 若选中了 session，立即加载其 blocks/raw；否则清空
         self.snapshot.blocks = match &self.selected_session {
             Some(sid) => self.load_blocks(sid),
@@ -620,6 +628,11 @@ impl ObservatoryModel {
             }
             _ => {
                 self.selected_session = None;
+                // session 失效联动清子选中（同 select_session 语义）
+                self.selected_block = None;
+                self.block_detail = None;
+                self.selected_raw = None;
+                self.raw_detail = None;
                 Vec::new()
             }
         };
@@ -637,6 +650,48 @@ impl ObservatoryModel {
             }
             _ => Vec::new(),
         };
+
+        // 选中项已不在新 snapshot 时联动清详情（防孤立详情卡片/失配高亮）
+        if self.selected_block.is_some()
+            && !self
+                .snapshot
+                .blocks
+                .iter()
+                .any(|b| Some(&b.id) == self.selected_block.as_ref())
+        {
+            self.selected_block = None;
+            self.block_detail = None;
+        }
+        if self.selected_raw.is_some()
+            && !self
+                .snapshot
+                .raw_entries
+                .iter()
+                .any(|r| Some(&r.id) == self.selected_raw.as_ref())
+        {
+            self.selected_raw = None;
+            self.raw_detail = None;
+        }
+        if self.selected_message.is_some()
+            && !self
+                .snapshot
+                .recent_messages
+                .iter()
+                .any(|m| Some(m.seq) == self.selected_message)
+        {
+            self.selected_message = None;
+            self.message_detail = None;
+        }
+        if self.selected_task.is_some()
+            && !self
+                .snapshot
+                .tasks
+                .iter()
+                .any(|t| Some(&t.id) == self.selected_task.as_ref())
+        {
+            self.selected_task = None;
+            self.last_dispatch = None;
+        }
 
         // 3. 活跃 GUI 交互拦截会话（Proxy tab）
         self.snapshot.active_intercepts =
@@ -1280,7 +1335,6 @@ impl ObservatoryModel {
         cmd.arg("orchestration")
             .arg("send-message")
             .arg(run_id)
-            .arg("--from")
             .arg("observatory")
             .arg(to)
             .arg("--message-type")
