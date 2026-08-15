@@ -9,7 +9,7 @@ Status: Implemented (P1 + follow-ups)
 右侧面板「观测台」（Observatory），三个 tab：
 1. 拦截状态头：当前 mode（复用 InterceptSessionsModel）、block 总数、刷新按钮
 2. Sessions tab：搜索过滤（session id / block type / raw direction+content，LIKE 子串匹配+通配符转义）→ harness session 列表 → block 时间线（点击选中→详情卡片：parent/metadata/content）→ raw 代理流量（direction badge/预览，点击→载荷详情）
-3. Orchestration tab：runs → tasks（点击选中）→ task panel（规格/依赖/结果 + Dispatch 按钮 + dispatch 明细：dispatch_contexts JOIN worker_dispatches）→ pending gates（选项 chip 一键 resolve / 自定义 resolution）+ 已决历史（resolved/timeout 最新 10 条含 resolution）→ 消息列表（点击选中→详情卡片：from/to/subject/type/priority/body）→ 消息 composer（可选目标 run：选中 run 优先/回退最新，send-message 子进程闭环）
+3. Orchestration tab：runs → tasks（点击选中）→ task panel（规格/依赖/结果 + Dispatch 按钮 + dispatch 明细：dispatch_contexts JOIN worker_dispatches）→ pending gates（选项 chip 一键 resolve / 自定义 resolution）+ 已决历史（resolved/timeout 最新 10 条含 resolution）→ 消息列表（点击选中→详情卡片：from/to/subject/type/priority/body）→ worker 终端输出归档（terminal_tail 最新 5）→ 消息 composer（可选目标 run：选中 run 优先/回退最新，send-message 子进程闭环）
 4. Proxy tab：拦截模式三态 chips、活跃拦截会话（GUI 交互 tab 的 proxy 端口/hook URL 运行态）、upstream base/auth env 覆盖输入、Claude Code/Codex 双 harness 解析探测、block 计数刷新；配置持久化（`<state_dir>/intercept_config.json`）+ 保存反馈（已保存时间/失败原因）
 5. 交互闭环：全部经 ObservatoryModel（MVU 单源）；5s 自动刷新（面板打开时；`panel_open` gate 关闭时跳过 DB 轮询）；六类列表行点击已选中项 toggle 取消；错误提示面板级（三 tab 共用 refresh，任何 tab 下可见）
 6. 交互式 CLI agent 拦截（三入口全覆盖）：GUI `+` 菜单 / pane template 链尾 / tab config·launch pad·AI 默认配置路径，在命令字符串层改写——ClaudeCode 追加 `--settings` 临时文件，Codex/OpenCode 前缀 `env OPENAI_BASE_URL`，Omp 走 omp config，其余 harness 走 generic `HTTPS_PROXY+SSL_CERT_FILE`；tab 关闭即释放 GUI_INTERCEPT 会话（防端口泄漏；undo-close 恢复的 tab 不再拦截）
