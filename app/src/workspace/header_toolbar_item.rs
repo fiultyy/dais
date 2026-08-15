@@ -99,11 +99,16 @@ impl HeaderToolbarItemKind {
     }
 
     pub fn default_left() -> Vec<Self> {
-        vec![Self::TabsPanel, Self::ToolsPanel, Self::AgentManagement]
+        vec![
+            Self::Observatory,
+            Self::TabsPanel,
+            Self::ToolsPanel,
+            Self::AgentManagement,
+        ]
     }
 
     pub fn default_right() -> Vec<Self> {
-        vec![Self::CodeReview, Self::NotificationsMailbox, Self::Observatory]
+        vec![Self::CodeReview, Self::NotificationsMailbox]
     }
 
     pub fn all_items() -> Vec<Self> {
