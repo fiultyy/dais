@@ -56,8 +56,6 @@ pub struct WindowSnapshot {
     pub vertical_tabs_panel_open: bool,
     pub left_panel_width: Option<f32>,
     pub right_panel_width: Option<f32>,
-    /// 观测台面板宽度（P0-3 resizable 持久化）。
-    pub observatory_width: Option<f32>,
     pub agent_management_filters: Option<PersistedAgentManagementFilters>,
     /// The per-window theme override for this window, if the user set one via the
     /// theme chooser's "This window" scope. Re-applied on restore.
@@ -157,6 +155,9 @@ pub enum LeafContents {
     Sftp {
         node_id: String,
     },
+    /// 观测台 pane（独立标签页）。业务态全在 ObservatoryModel 单例，pane 只是
+    /// view 壳 —— **不持久化**（重启后从工具条重新打开）。
+    Observatory,
 }
 
 #[cfg(feature = "local_fs")]
@@ -176,6 +177,8 @@ impl LeafContents {
             // SSH server editor:数据(host/user/...)持久化在 ssh_servers 表里,
             // pane 本身只是 view,关掉再打开没差别。
             LeafContents::SshServer { .. } => false,
+            // 观测台:业务态在 singleton model,pane 壳无需恢复。
+            LeafContents::Observatory => false,
             // SFTP 浏览器:远端文件系统依赖活跃 SSH 连接,pane 不可恢复。
             LeafContents::Sftp { .. } => false,
             // Image viewer panes are intentionally not persisted: they render in-session but

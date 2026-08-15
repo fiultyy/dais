@@ -3672,6 +3672,7 @@ intercept-tab-tooltip = Intercept: { $mode } · { $count } blocks captured
 
 # ── Observatory panel ────────────────────────────────────────────────
 observatory-title = Observatory
+observatory-pane-title = Observatory
 observatory-tab-sessions = Sessions
 observatory-tab-orchestration = Orchestration
 observatory-sessions-empty = No intercepted sessions yet
@@ -3736,3 +3737,10 @@ observatory-gates-resolved-title = Recently decided
 observatory-gate-resolved-row = [{ $status }] { $resolution } · { $time }
 observatory-archives-title = Worker terminal output archives
 observatory-archive-meta = { $id } · { $kind } · { $time }
+observatory-time-just-now = just now
+observatory-time-minutes = { $n } min
+observatory-time-hours = { $n } h
+observatory-time-days = { $n } d
+observatory-time-months = { $n } mo
+observatory-time-years = { $n } y
+observatory-list-truncated = { $shown } shown · more available (cap { $cap })

@@ -23,6 +23,8 @@ pub(super) mod image_pane;
 #[cfg(not(target_family = "wasm"))]
 pub(super) mod local_harness_launch;
 pub(super) mod notebook_pane;
+#[cfg(not(target_family = "wasm"))]
+pub(crate) mod observatory_pane;
 pub(super) mod settings_pane;
 pub(crate) mod sftp_pane;
 pub(crate) mod ssh_server_pane;
@@ -154,6 +156,7 @@ pub(crate) enum IPaneType {
     GetStarted,
     SshServer,
     Sftp,
+    Observatory,
     Welcome,
     DeferredPlaceholder,
     /// A pane type only for tests.
@@ -180,6 +183,7 @@ impl Display for IPaneType {
             IPaneType::GetStarted => write!(f, "GetStarted"),
             IPaneType::SshServer => write!(f, "SSH Server"),
             IPaneType::Sftp => write!(f, "SFTP"),
+            IPaneType::Observatory => write!(f, "Observatory"),
             IPaneType::Welcome => write!(f, "Welcome"),
             IPaneType::DeferredPlaceholder => write!(f, "Placeholder"),
             #[cfg(test)]
@@ -251,6 +255,22 @@ impl PaneId {
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<SettingsView>>`]
     pub fn from_settings_pane_ctx(ctx: &ViewContext<PaneView<SettingsView>>) -> Self {
         Self::new_from_ctx(IPaneType::Settings, ctx)
+    }
+
+    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<ObservatoryPanelView>>`]
+    #[cfg(not(target_family = "wasm"))]
+    pub fn from_observatory_pane_ctx(
+        ctx: &ViewContext<PaneView<crate::ai::observatory::view::ObservatoryPanelView>>,
+    ) -> Self {
+        Self::new_from_ctx(IPaneType::Observatory, ctx)
+    }
+
+    /// Creates a [`PaneId`] from a [`ViewHandle<PaneView<ObservatoryPanelView>>`]
+    #[cfg(not(target_family = "wasm"))]
+    pub fn from_observatory_pane_view(
+        pane_view: &ViewHandle<PaneView<crate::ai::observatory::view::ObservatoryPanelView>>,
+    ) -> Self {
+        Self::new(IPaneType::Observatory, pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<AIFactView>>`]
@@ -512,6 +532,13 @@ impl PaneId {
             }
             IPaneType::Sftp => {
                 ChildView::<PaneView<SftpBrowserView>>::with_id(self.0.pane_view_id).finish()
+            }
+            #[cfg(not(target_family = "wasm"))]
+            IPaneType::Observatory => {
+                ChildView::<PaneView<crate::ai::observatory::view::ObservatoryPanelView>>::with_id(
+                    self.0.pane_view_id,
+                )
+                .finish()
             }
             IPaneType::Welcome => {
                 ChildView::<PaneView<WelcomeView>>::with_id(self.0.pane_view_id).finish()

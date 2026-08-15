@@ -161,6 +161,7 @@ impl TryFrom<PaneNodeSnapshot> for PaneTemplateType {
                 // 子系统物理删。
                 | LeafContents::SshServer { .. }
                 | LeafContents::Sftp { .. }
+                | LeafContents::Observatory
                 | LeafContents::AmbientAgent(_) => {
                     // TODO: Handle AIDocument in launch config
                     Err(())

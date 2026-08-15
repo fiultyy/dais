@@ -3586,6 +3586,7 @@ intercept-tab-tooltip = 拦截：{ $mode } · 已捕获 { $count } blocks
 
 # ── Observatory panel (拦截/编排观测台) ──────────────────────────────
 observatory-title = 观测台
+observatory-pane-title = 观测台
 observatory-tab-sessions = 会话
 observatory-tab-orchestration = 编排
 observatory-sessions-empty = 暂无拦截会话
@@ -3650,3 +3651,10 @@ observatory-gates-resolved-title = 最近已决
 observatory-gate-resolved-row = [{ $status }] { $resolution } · { $time }
 observatory-archives-title = Worker 终端输出归档
 observatory-archive-meta = { $id } · { $kind } · { $time }
+observatory-time-just-now = 刚刚
+observatory-time-minutes = { $n } 分钟
+observatory-time-hours = { $n } 小时
+observatory-time-days = { $n } 天
+observatory-time-months = { $n } 月
+observatory-time-years = { $n } 年
+observatory-list-truncated = 已显示 { $shown } 条 · 上限 { $cap }（有更多）

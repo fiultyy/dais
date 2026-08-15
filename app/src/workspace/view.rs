@@ -289,8 +289,6 @@ use crate::workspaces::user_workspaces::UserWorkspaces;
 use ::settings::{Setting, ToggleableSetting};
 use warp_core::features::FeatureFlag;
 
-#[cfg(not(target_family = "wasm"))]
-use crate::ai::observatory::view::ObservatoryPanelView;
 use crate::search::{self, QueryFilter};
 use crate::terminal::view::{
     SyncEvent, SyncInputType, TerminalAction, NOTIFICATIONS_TROUBLESHOOT_URL,
@@ -365,7 +363,7 @@ use warpui::clipboard::ClipboardContent;
 use warpui::elements::Percentage;
 use warpui::elements::{
     CacheOption, DispatchEventResult, DraggableState, DropTarget, EventHandler, Image,
-    MouseInBehavior, Rect, Resizable, ResizableStateHandle,
+    MouseInBehavior, Rect,
 };
 use warpui::ui_components::button::Button;
 use warpui::windowing::{StateEvent, WindowManager};
@@ -924,12 +922,6 @@ pub struct Workspace {
     settings_file_error: Option<crate::settings::SettingsFileError>,
     settings_error_banner_dismissed: bool,
     ai_assistant_panel: ViewHandle<AIAssistantPanelView>,
-    /// 观测台面板（Observatory）。
-    #[cfg(not(target_family = "wasm"))]
-    observatory_view: ViewHandle<ObservatoryPanelView>,
-    /// 观测台面板宽度 Resizable 状态（P0-3：clamp 320 / 0.6×window）。
-    #[cfg(not(target_family = "wasm"))]
-    observatory_resizable_state: ResizableStateHandle,
     should_show_ai_assistant_warm_welcome: bool,
     ai_assistant_close_warm_welcome_mouse_state_handle: MouseStateHandle,
     auth_override_warning_modal: ViewHandle<AuthOverrideWarningModal>,
@@ -1447,16 +1439,6 @@ impl Workspace {
         });
 
         ai_assistant_panel
-    }
-
-    /// 构造观测台面板视图。
-    #[cfg(not(target_family = "wasm"))]
-    fn build_observatory_view(ctx: &mut ViewContext<Self>) -> ViewHandle<ObservatoryPanelView> {
-        use crate::ai::observatory::model::ObservatoryModel;
-        let model = ObservatoryModel::handle(ctx);
-        let observatory_view =
-            ctx.add_typed_action_view(|ctx| ObservatoryPanelView::new(model.clone(), ctx));
-        observatory_view
     }
 
     fn build_resource_center_view(
@@ -2595,10 +2577,6 @@ impl Workspace {
         });
 
         let ai_assistant_panel = Self::build_ai_assistant_panel_view(ctx);
-
-        #[cfg(not(target_family = "wasm"))]
-        let observatory_view = Self::build_observatory_view(ctx);
-
         ctx.observe(&tips_completed, Workspace::on_tips_model_changed);
 
         let autoupdate_handle = AutoupdateState::handle(ctx);
@@ -2933,12 +2911,6 @@ impl Workspace {
             settings_file_error,
             settings_error_banner_dismissed: false,
             ai_assistant_panel,
-            #[cfg(not(target_family = "wasm"))]
-            observatory_view,
-            #[cfg(not(target_family = "wasm"))]
-            observatory_resizable_state: crate::ai::observatory::view::observatory_resizable_state(
-                ctx,
-            ),
             should_show_ai_assistant_warm_welcome,
             ai_assistant_close_warm_welcome_mouse_state_handle: Default::default(),
             auth_override_warning_modal,
@@ -3984,32 +3956,48 @@ impl Workspace {
             !self.current_workspace_state.is_ai_assistant_panel_open;
     }
 
-    /// 打开/关闭观测台面板（Observatory）。
-    /// 与 AI Assistant panel、Resource Center 互斥。
+    /// 打开观测台为**独立标签页**（不再挤右侧工具面板，与
+    /// AI Assistant/Resource Center/CodeReview 不互斥）。
+    /// 已有观测台 tab 时切换过去；没有则新建 tab。
     #[cfg(not(target_family = "wasm"))]
     fn toggle_observatory(&mut self, ctx: &mut ViewContext<Self>) {
-        self.current_workspace_state.is_observatory_open =
-            !self.current_workspace_state.is_observatory_open;
+        use crate::pane_group::pane::observatory_pane::ObservatoryPane;
 
-        // 关闭其他右侧面板内容
-        self.current_workspace_state.close_all_modals();
-        // 面板开合状态同步给 model（gate 5s 轮询），打开时即时刷新
-        use crate::ai::observatory::model::ObservatoryModel;
-        let opening = self.current_workspace_state.is_observatory_open;
-        ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
-            model.set_panel_open(opening, ctx);
-            if opening {
-                self.current_workspace_state.is_resource_center_open = false;
-                self.current_workspace_state.is_ai_assistant_panel_open = false;
-                model.refresh(ctx);
-            }
-        });
-        if opening {
-            ctx.focus(&self.observatory_view);
-        } else {
-            self.focus_active_tab(ctx);
+        // 已有观测台 pane → 聚焦切换
+        if let Some(locator) = self.find_observatory_pane_locator(ctx) {
+            self.focus_pane(locator, ctx);
+            ctx.notify();
+            return;
         }
+
+        // 新建观测台 tab
+        let new_idx = self.tab_count();
+        let pane: Box<dyn crate::pane_group::AnyPaneContent> = {
+            let pane_group_view = self.active_tab_pane_group();
+            let mut pane = None;
+            pane_group_view.update(ctx, |_, ctx| {
+                pane = Some(Box::new(ObservatoryPane::new(ctx))
+                    as Box<dyn crate::pane_group::AnyPaneContent>);
+            });
+            pane.expect("observatory pane should be created")
+        };
+        self.add_tab_from_existing_pane(pane, new_idx, ctx);
         ctx.notify();
+    }
+
+    /// 查找已打开的观测台 pane 的定位器（跨所有 tab）。
+    #[cfg(not(target_family = "wasm"))]
+    fn find_observatory_pane_locator(&self, ctx: &AppContext) -> Option<PaneViewLocator> {
+        for tab in &self.tabs {
+            let pane_group = tab.pane_group.as_ref(ctx);
+            if let Some(pane_id) = pane_group.observatory_pane_id() {
+                return Some(PaneViewLocator {
+                    pane_group_id: tab.pane_group.id(),
+                    pane_id,
+                });
+            }
+        }
+        None
     }
 
     /// Sets focused to the index of either the selected object or the first item in WD
@@ -4251,15 +4239,11 @@ impl Workspace {
                 ctx.focus(&self.ai_assistant_panel);
             } else if self.current_workspace_state.is_resource_center_open {
                 ctx.focus(&self.resource_center_view);
-            } else if self.current_workspace_state.is_observatory_open {
-                #[cfg(not(target_family = "wasm"))]
-                ctx.focus(&self.observatory_view);
             }
         }
-        // Starts from a right panel: AI panel, resource center, observatory
+        // Starts from a right panel: AI panel, resource center
         else if self.ai_assistant_panel.is_self_or_child_focused(ctx)
             || self.resource_center_view.is_self_or_child_focused(ctx)
-            || self.is_observatory_view_focused(ctx)
         {
             self.focus_active_tab(ctx);
         }
@@ -4271,9 +4255,6 @@ impl Workspace {
                     ctx.focus(&self.ai_assistant_panel);
                 } else if self.current_workspace_state.is_resource_center_open {
                     ctx.focus(&self.resource_center_view);
-                } else if self.current_workspace_state.is_observatory_open {
-                    #[cfg(not(target_family = "wasm"))]
-                    ctx.focus(&self.observatory_view);
                 }
             } else {
                 self.focus_active_tab(ctx);
@@ -4286,9 +4267,6 @@ impl Workspace {
                     ctx.focus(&self.ai_assistant_panel);
                 } else if self.current_workspace_state.is_resource_center_open {
                     ctx.focus(&self.resource_center_view);
-                } else if self.current_workspace_state.is_observatory_open {
-                    #[cfg(not(target_family = "wasm"))]
-                    ctx.focus(&self.observatory_view);
                 }
             } else {
                 self.focus_active_tab(ctx);
@@ -4300,17 +4278,6 @@ impl Workspace {
         ctx.notify();
     }
 
-    #[cfg(not(target_family = "wasm"))]
-    /// Observatory 面板（或其子视图）是否持有焦点。
-    fn is_observatory_view_focused(&self, ctx: &mut ViewContext<Self>) -> bool {
-        let app = ctx;
-        self.observatory_view.is_self_or_child_focused(app)
-    }
-
-    #[cfg(target_family = "wasm")]
-    fn is_observatory_view_focused(&self, _ctx: &mut ViewContext<Self>) -> bool {
-        false
-    }
 
     /// This function shifts focus to the panel on the right.
     fn focus_right_panel(&mut self, ctx: &mut ViewContext<Self>) {
@@ -4320,9 +4287,6 @@ impl Workspace {
                 ctx.focus(&self.ai_assistant_panel);
             } else if self.current_workspace_state.is_resource_center_open {
                 ctx.focus(&self.resource_center_view);
-            } else if self.current_workspace_state.is_observatory_open {
-                #[cfg(not(target_family = "wasm"))]
-                ctx.focus(&self.observatory_view);
             } else if self.current_workspace_state.is_warp_drive_open {
                 self.reset_focused_index_in_warp_drive(true, ctx);
             } else if self.is_theme_chooser_open() {
@@ -4335,10 +4299,9 @@ impl Workspace {
         {
             self.focus_active_tab(ctx);
         }
-        // Starts from a right panel: AI panel, resource center, observatory
+        // Starts from a right panel: AI panel, resource center
         else if self.ai_assistant_panel.is_self_or_child_focused(ctx)
             || self.resource_center_view.is_self_or_child_focused(ctx)
-            || self.is_observatory_view_focused(ctx)
         {
             if self.current_workspace_state.is_left_panel_open() {
                 if self.current_workspace_state.is_warp_drive_open {
@@ -9751,13 +9714,6 @@ impl Workspace {
                 .unwrap_or(DEFAULT_RIGHT_PANEL_WIDTH)
         });
 
-        let observatory_width = modal_sizes.map(|ms| {
-            ms.observatory_width
-                .lock()
-                .map(|guard| guard.size())
-                .unwrap_or(crate::terminal::resizable_data::DEFAULT_OBSERVATORY_WIDTH)
-        });
-
         WindowSnapshot {
             tabs,
             active_tab_index,
@@ -9772,7 +9728,6 @@ impl Workspace {
             vertical_tabs_panel_open: self.vertical_tabs_panel_open,
             left_panel_width,
             right_panel_width,
-            observatory_width,
             agent_management_filters: None,
             theme_override: self.theme_override.clone(),
         }
@@ -18160,25 +18115,6 @@ impl Workspace {
                     ChildView::new(&self.ai_assistant_panel).finish(),
                     &PanelPosition::Right,
                 ))
-            } else if self.current_workspace_state.is_observatory_open {
-                // P0-3: 观测台宽度可拖拽调整（clamp MIN 320 / MAX 0.6×window，
-                // 偏好经 ResizableData/WindowSnapshot 持久化）。
-                let observatory_content = Resizable::new(
-                    self.observatory_resizable_state.clone(),
-                    ChildView::new(&self.observatory_view).finish(),
-                )
-                .with_dragbar_side(warpui::elements::DragBarSide::Left)
-                .on_resize(|ctx, _| {
-                    ctx.notify();
-                })
-                .with_bounds_callback(Box::new(|window_size| {
-                    let min_width = crate::ai::observatory::view::OBSERVATORY_PANEL_MIN_WIDTH;
-                    let max_width = window_size.x()
-                        * crate::ai::observatory::view::OBSERVATORY_PANEL_MAX_WIDTH_RATIO;
-                    (min_width, max_width.max(min_width))
-                }))
-                .finish();
-                Some(self.render_panel(app, observatory_content, &PanelPosition::Right))
             } else {
                 log::warn!(
                     "is_right_panel_open() returned true, but neither the resource center nor AI \
@@ -18278,9 +18214,9 @@ impl Workspace {
     fn render_observatory_button(
         &self,
         appearance: &Appearance,
-        _ctx: &AppContext,
+        app: &AppContext,
     ) -> Box<dyn Element> {
-        let is_active = self.current_workspace_state.is_observatory_open;
+        let is_active = self.find_observatory_pane_locator(app).is_some();
         let theme = appearance.theme();
         let icon_color = if is_active {
             theme.main_text_color(theme.background())

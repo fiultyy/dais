@@ -38,7 +38,7 @@ pub struct BlockRowGui {
 pub struct RunRowGui {
     pub id: String,
     pub objective: String,
-    pub created_at: String,
+    pub created_at: i64,
 }
 
 /// Task 列表行（最新 200；含 spec/result 观测字段）。
@@ -54,8 +54,10 @@ pub struct TaskRowGui {
     pub result: Option<String>,
     /// 依赖 task id 列表（JSON 文本原样）。
     pub deps: String,
-    /// 完成时间（SQLite 文本格式）。
-    pub completed_at: Option<String>,
+    /// 创建时间（epoch 秒，UTC）。
+    pub created_at: i64,
+    /// 完成时间（epoch 秒，UTC）。
+    pub completed_at: Option<i64>,
 }
 
 /// 最近消息行（最新 30）。
@@ -65,7 +67,7 @@ pub struct MessageRowGui {
     pub from_handle: String,
     pub to_handle: String,
     pub subject: String,
-    pub created_at: String,
+    pub created_at: i64,
 }
 
 /// 消息详情（点击消息行后加载，body 截断至 64 KiB）。
@@ -80,7 +82,7 @@ pub struct MessageDetailGui {
     pub body: String,
     pub message_type: String,
     pub priority: String,
-    pub created_at: String,
+    pub created_at: i64,
 }
 
 /// Block 详情（点击时间线行后加载，content 截断至 64 KiB）。
@@ -106,11 +108,11 @@ pub struct GateRowGui {
     pub question: String,
     pub options: Vec<String>,
     pub status: String,
-    pub created_at: String,
+    pub created_at: i64,
     /// 决策结果（resolved/timeout 时有值）。
     pub resolution: Option<String>,
-    /// 解决/超时时间（SQLite 文本格式）。
-    pub resolved_at: Option<String>,
+    /// 解决/超时时间（epoch 秒，UTC）。
+    pub resolved_at: Option<i64>,
 }
 
 // ---------------------------------------------------------------------------
@@ -153,7 +155,7 @@ pub struct ArchiveRowGui {
     pub kind: String,
     /// terminal_tail JSON 解析出的输出行（解析失败为空）。
     pub lines: Vec<String>,
-    pub created_at: String,
+    pub created_at: i64,
 }
 
 /// 选中 task 的 dispatch 行（dispatch_contexts JOIN worker_dispatches）。
@@ -163,7 +165,7 @@ pub struct DispatchRowGui {
     pub status: String,
     pub state: String,
     pub start_options: String,
-    pub created_at: String,
+    pub created_at: i64,
 }
 
 /// 活跃拦截会话行（GUI 交互 CC tab 的 proxy 运行态）。
@@ -763,6 +765,17 @@ impl ObservatoryModel {
         .ok()
     }
 
+    /// harness_blocks/raw_cache 的 timestamp 为毫秒 epoch（写侧
+    /// `as_millis()`），观测台统一用秒：>1e12 视为毫秒归一化（幂等，防
+    /// 双重除）。
+    fn ts_to_secs(ts: i64) -> i64 {
+        if ts > 1_000_000_000_000 {
+            ts / 1000
+        } else {
+            ts
+        }
+    }
+
     /// 加载 session 列表（按 last_ts 降序，上限 100；search_filter 子串过滤）。
     fn load_sessions(&self) -> Vec<SessionRowGui> {
         let conn = match Self::open_blocks_db() {
@@ -786,8 +799,8 @@ impl ObservatoryModel {
             Ok(SessionRowGui {
                 session_id: row.get(0)?,
                 block_count: row.get(1)?,
-                first_ts: row.get(2)?,
-                last_ts: row.get(3)?,
+                first_ts: Self::ts_to_secs(row.get(2)?),
+                last_ts: Self::ts_to_secs(row.get(3)?),
             })
         }) {
             Ok(r) => r,
@@ -833,7 +846,7 @@ impl ObservatoryModel {
                 block_type: row.get(2)?,
                 content_len: row.get(3)?,
                 preview,
-                timestamp: row.get(5)?,
+                timestamp: Self::ts_to_secs(row.get(5)?),
             })
         }) {
             Ok(r) => r,
@@ -879,7 +892,7 @@ impl ObservatoryModel {
                     row.get::<_, Option<i64>>(6)?.unwrap_or(0) as usize,
                     row.get::<_, Vec<u8>>(7)?,
                     row.get::<_, Option<String>>(8)?,
-                    row.get::<_, i64>(9)?,
+                    Self::ts_to_secs(row.get::<_, i64>(9)?),
                 ))
             })
             .map_err(|e| log::warn!("observatory: load_block_detail query error: {e}"))
@@ -952,7 +965,7 @@ impl ObservatoryModel {
                 direction: row.get(1)?,
                 content_len: row.get::<_, Option<i64>>(2)?.unwrap_or(0) as usize,
                 preview,
-                timestamp: row.get(4)?,
+                timestamp: Self::ts_to_secs(row.get(4)?),
             })
         }) {
             Ok(r) => r,
@@ -979,7 +992,7 @@ impl ObservatoryModel {
                         row.get::<_, String>(2)?,
                         row.get::<_, Option<i64>>(3)?.unwrap_or(0) as usize,
                         row.get::<_, Vec<u8>>(4)?,
-                        row.get::<_, i64>(5)?,
+                        Self::ts_to_secs(row.get::<_, i64>(5)?),
                     ))
                 },
             )
@@ -1016,7 +1029,7 @@ impl ObservatoryModel {
         let mut stmt = match conn.prepare(
             "SELECT dc.id, dc.status, \
                     COALESCE(wd.state, ''), COALESCE(wd.start_options, ''), \
-                    dc.created_at \
+                    CAST(strftime('%s', dc.created_at) AS INTEGER) \
              FROM dispatch_contexts dc \
              LEFT JOIN worker_dispatches wd ON wd.dispatch_id = dc.id \
              WHERE dc.task_id = ?1 \
@@ -1029,13 +1042,12 @@ impl ObservatoryModel {
             }
         };
         let rows = match stmt.query_map(rusqlite::params![task_id], |row| {
-            let created: String = row.get(4)?;
             Ok(DispatchRowGui {
                 dispatch_id: row.get(0)?,
                 status: row.get(1)?,
                 state: row.get(2)?,
                 start_options: row.get(3)?,
-                created_at: format_datetime_sqlite(&created),
+                created_at: row.get(4)?,
             })
         }) {
             Ok(r) => r,
@@ -1062,14 +1074,14 @@ impl ObservatoryModel {
             return Vec::new();
         };
         let Ok(mut stmt) = conn.prepare(
-            "SELECT dispatch_id, kind, content, created_at \
+            "SELECT dispatch_id, kind, content, CAST(strftime('%s', created_at) AS INTEGER) \
              FROM worker_terminal_archives ORDER BY created_at DESC LIMIT 5",
         ) else {
             return Vec::new();
         };
         let Ok(rows) = stmt.query_map([], |row| {
             let content: String = row.get(2)?;
-            let created: String = row.get(3)?;
+            let created: i64 = row.get(3)?;
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
@@ -1098,12 +1110,11 @@ impl ObservatoryModel {
                     dispatch_id,
                     kind,
                     lines,
-                    created_at: format_datetime_sqlite(&created),
+                    created_at: created,
                 }
             })
             .collect()
     }
-
     #[cfg(not(all(feature = "orchestration", feature = "local_fs")))]
     fn load_archives() -> Vec<ArchiveRowGui> {
         Vec::new()
@@ -1125,7 +1136,7 @@ impl ObservatoryModel {
                     .map(|r| RunRowGui {
                         id: r.id,
                         objective: r.objective,
-                        created_at: r.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+                        created_at: r.created_at.and_utc().timestamp(),
                     })
                     .collect()
             })
@@ -1145,9 +1156,8 @@ impl ObservatoryModel {
                         spec: t.spec,
                         result: t.result,
                         deps: t.deps,
-                        completed_at: t
-                            .completed_at
-                            .map(|c| c.format("%Y-%m-%d %H:%M:%S").to_string()),
+                        created_at: t.created_at.and_utc().timestamp(),
+                        completed_at: t.completed_at.map(|c| c.and_utc().timestamp()),
                     })
                     .collect()
             })
@@ -1167,11 +1177,9 @@ impl ObservatoryModel {
                         options: serde_json::from_str::<Vec<String>>(&g.options)
                             .unwrap_or_default(),
                         status: g.status,
-                        created_at: g.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+                        created_at: g.created_at.and_utc().timestamp(),
                         resolution: g.resolution,
-                        resolved_at: g
-                            .resolved_at
-                            .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
+                        resolved_at: g.resolved_at.map(|t| t.and_utc().timestamp()),
                     })
                     .collect()
             })
@@ -1189,11 +1197,9 @@ impl ObservatoryModel {
                         options: serde_json::from_str::<Vec<String>>(&g.options)
                             .unwrap_or_default(),
                         status: g.status,
-                        created_at: g.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+                        created_at: g.created_at.and_utc().timestamp(),
                         resolution: g.resolution,
-                        resolved_at: g
-                            .resolved_at
-                            .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
+                        resolved_at: g.resolved_at.map(|t| t.and_utc().timestamp()),
                     }
                 }));
             }
@@ -1233,7 +1239,8 @@ impl ObservatoryModel {
             None => return,
         };
         let mut stmt = match conn.prepare(
-            "SELECT sequence, from_handle, to_handle, subject, created_at \
+            "SELECT sequence, from_handle, to_handle, subject, \
+                    CAST(strftime('%s', created_at) AS INTEGER) \
              FROM messages ORDER BY sequence DESC LIMIT 30",
         ) {
             Ok(s) => s,
@@ -1294,7 +1301,8 @@ impl ObservatoryModel {
         let mut stmt = conn
             .prepare(
                 "SELECT sequence, id, run_id, from_handle, to_handle, subject, \
-                        substr(body, 1, 65536), type, priority, created_at \
+                        substr(body, 1, 65536), type, priority, \
+                        CAST(strftime('%s', created_at) AS INTEGER) \
                  FROM messages WHERE sequence = ?1 LIMIT 1",
             )
             .map_err(|e| log::warn!("observatory: load_message_detail prepare error: {e}"))
@@ -1348,6 +1356,20 @@ impl ObservatoryModel {
     }
 }
 
+#[cfg(test)]
+mod ts_tests {
+    use super::ObservatoryModel;
+
+    /// 写侧 timestamp 为毫秒（harness_integration session.rs as_millis()）；
+    /// 归一化必须幂等且兼容已是秒的值。
+    #[test]
+    fn test_ts_to_secs() {
+        assert_eq!(ObservatoryModel::ts_to_secs(1_786_794_375_662), 1_786_794_375);
+        assert_eq!(ObservatoryModel::ts_to_secs(1_786_794_375), 1_786_794_375);
+        assert_eq!(ObservatoryModel::ts_to_secs(0), 0);
+    }
+}
+
 impl Entity for ObservatoryModel {
     type Event = ObservatoryEvent;
 }
@@ -1368,17 +1390,6 @@ fn like_pattern(filter: &str) -> String {
         })
         .collect();
     format!("%{escaped}%")
-}
-
-/// SQLite NaiveDateTime 文本（"YYYY-MM-DD HH:MM:SS"）→ "MM-DD HH:MM"。
-/// 非预期形状原样返回。
-pub(crate) fn format_datetime_sqlite(s: &str) -> String {
-    let parts: Vec<&str> = s.split(' ').collect();
-    if parts.len() == 2 && parts[0].len() >= 10 && parts[1].len() >= 5 {
-        format!("{} {}", &parts[0][5..], &parts[1][..5])
-    } else {
-        s.to_string()
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1945,14 +1956,15 @@ mod tests {
 
         let mut stmt = conn
             .prepare(
-                "SELECT dc.id, dc.status, COALESCE(wd.state, ''), COALESCE(wd.start_options, ''), dc.created_at \
+                "SELECT dc.id, dc.status, COALESCE(wd.state, ''), COALESCE(wd.start_options, ''), \
+                        CAST(strftime('%s', dc.created_at) AS INTEGER) \
                  FROM dispatch_contexts dc \
                  LEFT JOIN worker_dispatches wd ON wd.dispatch_id = dc.id \
                  WHERE dc.task_id = ?1 \
                  ORDER BY dc.rowid DESC LIMIT 20",
             )
             .unwrap();
-        let rows: Vec<(String, String, String, String, String)> = stmt
+        let rows: Vec<(String, String, String, String, i64)> = stmt
             .query_map(rusqlite::params!["task-1"], |row| {
                 Ok((
                     row.get(0)?,
@@ -1972,8 +1984,7 @@ mod tests {
         assert_eq!(rows[1].0, "ctx-1");
         assert_eq!(rows[1].2, "ready");
         assert!(rows[1].3.contains("cwd"));
-        assert_eq!(rows[1].4, "2026-08-15 03:54:47");
-        assert_eq!(format_datetime_sqlite(&rows[1].4), "08-15 03:54");
+        assert_eq!(rows[1].4, 1_786_766_087); // strftime('%s','2026-08-15 03:54:47')
 
         // ── messages：与 model load_message_detail 同源 SQL ──
         conn.execute_batch(
@@ -1992,7 +2003,8 @@ mod tests {
         let detail = conn
             .query_row(
                 "SELECT sequence, id, run_id, from_handle, to_handle, subject, \
-                        substr(body, 1, 65536), type, priority, created_at \
+                        substr(body, 1, 65536), type, priority, \
+                        CAST(strftime('%s', created_at) AS INTEGER) \
                  FROM messages WHERE sequence = ?1 LIMIT 1",
                 rusqlite::params![1i64],
                 |row| {
@@ -2006,7 +2018,7 @@ mod tests {
                         row.get::<_, String>(6)?,
                         row.get::<_, String>(7)?,
                         row.get::<_, String>(8)?,
-                        row.get::<_, String>(9)?,
+                        row.get::<_, i64>(9)?,
                     ))
                 },
             )
@@ -2016,6 +2028,7 @@ mod tests {
         assert_eq!(detail.6, "all good");
         assert_eq!(detail.7, "status");
         assert_eq!(detail.8, "normal");
+        assert_eq!(detail.9, 1_786_766_400); // strftime('%s','2026-08-15 04:00:00')
         // 未命中 sequence → query_row Err（model 侧映射为 None → last_error）
         let missing: rusqlite::Result<i64> = conn.query_row(
             "SELECT sequence FROM messages WHERE sequence = 999 LIMIT 1",

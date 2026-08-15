@@ -4,8 +4,9 @@
 //! - blocks/sessions: `harness_blocks.db`（rusqlite 只读直查）
 //! - orchestration: orchestration store（cfg(feature="orchestration")）
 //!
-//! 挂载: 右侧面板第三种内容（`CurrentWorkspaceState.is_observatory_open`）。
+//! 挂载: 独立 tab pane（工具条眼睛按钮 → `Workspace::toggle_observatory`）。
 
+pub mod format;
 pub mod model;
 pub mod row;
 pub mod view;

@@ -3504,6 +3504,7 @@ intercept-tab-tooltip = 傍受：{ $mode } · { $count } ブロックを取得�
 
 # ── Observatory panel ────────────────────────────────────────────────
 observatory-title = 観測台
+observatory-pane-title = 観測台
 observatory-tab-sessions = セッション
 observatory-tab-orchestration = オーケストレーション
 observatory-sessions-empty = インターセプトセッションなし
@@ -3568,3 +3569,10 @@ observatory-gates-resolved-title = 最近の決定
 observatory-gate-resolved-row = [{ $status }] { $resolution } · { $time }
 observatory-archives-title = Worker ターミナル出力アーカイブ
 observatory-archive-meta = { $id } · { $kind } · { $time }
+observatory-time-just-now = たった今
+observatory-time-minutes = { $n } 分
+observatory-time-hours = { $n } 時間
+observatory-time-days = { $n } 日
+observatory-time-months = { $n } か月
+observatory-time-years = { $n } 年
+observatory-list-truncated = { $shown } 件表示 · 上限 { $cap }（続きあり）

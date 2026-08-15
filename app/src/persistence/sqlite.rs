@@ -1075,7 +1075,6 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
                 warp_drive_index_width: window.warp_drive_index_width,
                 left_panel_open: Some(window.left_panel_open),
                 vertical_tabs_panel_open: Some(window.vertical_tabs_panel_open),
-                observatory_width: window.observatory_width,
                 fullscreen_state: window.fullscreen_state as i32,
                 agent_management_filters: window
                     .agent_management_filters
@@ -1280,6 +1279,14 @@ fn save_pane_state(
             // `save_app_state`. Reaching this arm would mean a `pane_nodes`
             // row had already been inserted with no corresponding
             // `pane_leaves` row, which would break restoration.
+            debug_assert!(
+                false,
+                "save_pane_state called for non-persisted LeafContents variant"
+            );
+            return Ok(());
+        }
+        LeafContents::Observatory => {
+            // 观测台 pane 不持久化（业务态在 singleton model），逻辑同 SshServer。
             debug_assert!(
                 false,
                 "save_pane_state called for non-persisted LeafContents variant"
@@ -1526,6 +1533,9 @@ fn save_pane_state(
             diesel::insert_into(schema::ambient_agent_panes::dsl::ambient_agent_panes)
                 .values(ambient_agent_pane)
                 .execute(conn)?;
+        }
+        LeafContents::Observatory => {
+            // Unreachable: filtered by `is_persisted` in `save_app_state`.
         }
         LeafContents::SshServer { .. } => {
             // Unreachable: filtered by `is_persisted` in `save_app_state`.
@@ -2849,7 +2859,6 @@ fn read_sqlite_data(
                 warp_drive_index_width: window.warp_drive_index_width,
                 left_panel_open: window_left_panel_open,
                 vertical_tabs_panel_open: window.vertical_tabs_panel_open.unwrap_or(false),
-                observatory_width: window.observatory_width,
                 fullscreen_state: fullscreen_state_val,
                 left_panel_width,
                 right_panel_width,

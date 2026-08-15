@@ -8,8 +8,9 @@ use std::cell::RefCell;
 use warpui::elements::{
     Border, ChildView, ClippedScrollStateHandle, ClippedScrollable, ConstrainedBox, Container,
     CornerRadius, CrossAxisAlignment, Empty, Expanded, Fill as ElementFill, Flex, Hoverable,
-    MainAxisAlignment, MainAxisSize, MouseStateHandle, ParentElement, ScrollbarWidth, Shrinkable,
-    Text, UniformList, UniformListState,
+    MainAxisAlignment, MainAxisSize, MouseStateHandle, ParentElement, ScrollStateHandle,
+    Scrollable, ScrollableElement, ScrollbarWidth, Shrinkable, Text, UniformList,
+    UniformListState,
 };
 use warpui::r#async::SpawnedFutureHandle;
 use warpui::r#async::Timer;
@@ -27,9 +28,12 @@ use warp_core::ui::theme::WarpTheme;
 use harness_integration::{HarnessType, InterceptMode};
 
 use super::model::{
-    format_datetime_sqlite, ActiveInterceptRowGui, BlockDetailGui, BlockRowGui, DraftField,
-    MessageDetailGui, ObservatoryModel, ObservatoryTab, RawDetailGui, RawRowGui, RunRowGui,
-    SessionRowGui, TaskRowGui,
+    ActiveInterceptRowGui, BlockDetailGui, BlockRowGui, DraftField, MessageDetailGui,
+    ObservatoryModel, ObservatoryTab, RawDetailGui, RawRowGui, RunRowGui, TaskRowGui,
+};
+use super::format::{
+    absolute_time_millis, compact_bytes, compact_count, format_duration_row_ms,
+    relative_time_text,
 };
 use super::row::{list_row, status_dot_element};
 use crate::ai::blocklist::agent_view::agent_input_footer::AgentInputButtonTheme;
@@ -61,12 +65,13 @@ const SMALL_FONT_SIZE: f32 = 12.;
 const DETAIL_MAX_HEIGHT: f32 = 260.;
 /// 观测台周期自动刷新间隔（ms）。
 const OBSERVATORY_REFRESH_INTERVAL_MS: u64 = 5_000;
-/// 面板最小宽度（Resizable clamp 下限）。
-pub const OBSERVATORY_PANEL_MIN_WIDTH: f32 = 320.;
-/// 面板最大宽度比例（Resizable clamp 上限 = 0.6 × window）。
-pub const OBSERVATORY_PANEL_MAX_WIDTH_RATIO: f32 = 0.6;
-/// 面板默认宽度。
-pub const OBSERVATORY_PANEL_DEFAULT_WIDTH: f32 = 480.;
+
+// ── 列表硬上限（DV24：达到上限必须可见提示，禁止静默截断） ──
+const SESSIONS_CAP: usize = 100;
+const BLOCKS_CAP: usize = 500;
+const MESSAGES_CAP: usize = 30;
+const RUNS_CAP: usize = 50;
+const TASKS_CAP: usize = 200;
 
 // ── Action ────────────────────────────────────────────────────────────────────
 
@@ -154,21 +159,29 @@ pub struct ObservatoryPanelView {
     refresh_timer_handle: Option<SpawnedFutureHandle>,
     /// 上一帧 busy 状态（渲染缓存：检测 send 完成边沿，同步 composer 输入框）。
     prev_busy: std::cell::Cell<bool>,
-    // ── P0-1 虚拟化列表状态（UniformList + 滚动口） ──
-    /// Sessions tab: 滚动列表区滚动状态（sessions + blocks + raw 单一滚动口）。
-    sessions_scroll: ClippedScrollStateHandle,
+    // ── P0-1 虚拟化列表状态（Scrollable + UniformList） ──
+    /// Sessions tab: sessions 列表滚动状态。
+    sessions_scroll_state: ScrollStateHandle,
     /// Sessions tab: sessions 列表 UniformList 状态。
     sessions_list: UniformListState,
+    /// Sessions tab: blocks 时间线滚动状态。
+    blocks_scroll_state: ScrollStateHandle,
     /// Sessions tab: blocks 时间线 UniformList 状态。
     blocks_list: UniformListState,
+    /// Raw 流量滚动状态。
+    raw_scroll_state: ScrollStateHandle,
     /// Raw 流量列表状态。
     raw_list: UniformListState,
-    /// Orchestration tab: 滚动列表区滚动状态。
-    orchestration_scroll: ClippedScrollStateHandle,
+    /// Orchestration tab: 消息滚动状态。
+    messages_scroll_state: ScrollStateHandle,
     /// Orchestration tab: 消息列表状态。
     messages_list: UniformListState,
+    /// Orchestration tab: 归档滚动状态。
+    archives_scroll_state: ScrollStateHandle,
     /// Orchestration tab: 归档列表状态。
     archives_list: UniformListState,
+    /// Orchestration tab: runs/gates 区滚动状态（ClippedScrollable）。
+    orchestration_clipped_scroll: ClippedScrollStateHandle,
 }
 
 impl ObservatoryPanelView {
@@ -433,13 +446,17 @@ impl ObservatoryPanelView {
             refresh_count_button,
             refresh_timer_handle: None,
             prev_busy: std::cell::Cell::new(false),
-            sessions_scroll: ClippedScrollStateHandle::default(),
+            sessions_scroll_state: ScrollStateHandle::default(),
             sessions_list: UniformListState::new(),
+            blocks_scroll_state: ScrollStateHandle::default(),
             blocks_list: UniformListState::new(),
+            raw_scroll_state: ScrollStateHandle::default(),
             raw_list: UniformListState::new(),
-            orchestration_scroll: ClippedScrollStateHandle::default(),
+            messages_scroll_state: ScrollStateHandle::default(),
             messages_list: UniformListState::new(),
+            archives_scroll_state: ScrollStateHandle::default(),
             archives_list: UniformListState::new(),
+            orchestration_clipped_scroll: ClippedScrollStateHandle::default(),
         };
         // 首次启动 5s 自动刷新 timer（此前无首调，timer 从未跑起来——
         // render 是 &self 无法启动，start_refresh_timer 只在回调内自续期）。
@@ -504,8 +521,8 @@ impl ObservatoryPanelView {
             InterceptMode::HooksOnly => crate::t!("intercept-mode-hooks-only"),
             InterceptMode::Bypass => crate::t!("intercept-mode-bypass"),
         };
-        let count = model.block_count_total(app);
-        let blocks_text = crate::t!("observatory-blocks-captured", count = count);
+        let blocks_text =
+            crate::t!("observatory-blocks-captured", count = compact_count(model.block_count_total(app)));
 
         let mut row = Flex::row()
             .with_main_axis_size(MainAxisSize::Max)
@@ -634,14 +651,9 @@ impl ObservatoryPanelView {
                 .finish(),
         );
 
-        // ── 滚动列表区：sessions + blocks + raw，单一滚动口 ──
-        let mut scroll_col = Flex::column()
-            .with_main_axis_size(MainAxisSize::Min)
-            .with_spacing(SPACING);
-
-        // 会话列表（≤100 行；UniformList 虚拟化）
+        // ── 会话列表（≤100 行；虚拟化滚动区，占剩余高度） ──
         if snapshot.sessions.is_empty() {
-            scroll_col.add_child(self.render_empty_state(
+            col.add_child(self.render_empty_state(
                 &crate::t!("observatory-sessions-empty"),
                 appearance,
                 theme,
@@ -652,7 +664,8 @@ impl ObservatoryPanelView {
                 snapshot.sessions.len(),
             );
             let handles = self.session_row_handles.borrow().clone();
-            let sessions: Vec<(String, bool)> = snapshot
+            let now = chrono::Utc::now().timestamp();
+            let sessions: Vec<(String, bool, i64)> = snapshot
                 .sessions
                 .iter()
                 .map(|s| {
@@ -661,17 +674,21 @@ impl ObservatoryPanelView {
                         model
                             .selected_session()
                             .is_some_and(|id| id == s.session_id),
+                        s.last_ts,
                     )
                 })
                 .collect();
             // 闭包按 'static 捕获：theme 克隆 + 字体参数 Copy
             let theme = theme.clone();
+            let theme_for_list = theme.clone();
             let font_family = appearance.ui_font_family();
             let font_size = appearance.ui_font_size();
             let build = move |range: std::ops::Range<usize>, _app: &AppContext| {
                 (range.start..range.end)
-                    .filter_map(|i| sessions.get(i).map(|(sid, sel)| (sid.clone(), *sel, i)))
-                    .map(|(session_id, is_selected, i)| {
+                    .filter_map(|i| {
+                        sessions.get(i).map(|(sid, sel, ts)| (sid.clone(), *sel, *ts, i))
+                    })
+                    .map(|(session_id, is_selected, last_ts, i)| {
                         let handle = handles[i].clone();
                         let inner = list_row(
                             &theme,
@@ -680,7 +697,7 @@ impl ObservatoryPanelView {
                             None,
                             truncate_str(&session_id, 16),
                             None,
-                            None,
+                            Some(relative_time_text(now, last_ts)),
                         );
                         let theme = theme.clone();
                         Hoverable::new(handle, move |state| {
@@ -706,17 +723,41 @@ impl ObservatoryPanelView {
                     .collect::<Vec<_>>()
                     .into_iter()
             };
-            scroll_col.add_child(self.wrap_virtual_list(
-                self.sessions_list.clone(),
-                snapshot.sessions.len(),
-                build,
-            ));
+            // 固定视口高度（ClippedScrollable 有限约束；选中后让位给 blocks）
+            let sessions_max_h = if model.selected_session().is_some() {
+                120.
+            } else {
+                480.
+            };
+            col.add_child(
+                ConstrainedBox::new(
+                    self.wrap_virtual_list(
+                        self.sessions_scroll_state.clone(),
+                        self.sessions_list.clone(),
+                        snapshot.sessions.len(),
+                        build,
+                        &theme_for_list,
+                    ),
+                )
+                .with_max_height(sessions_max_h)
+                .finish(),
+            );
+            if let Some(hint) =
+                Self::truncated_hint(
+                    snapshot.sessions.len(),
+                    SESSIONS_CAP,
+                    appearance,
+                    appearance.theme(),
+                )
+            {
+                col.add_child(hint);
+            }
         }
 
-        // Block 时间线（选中 session 时；UniformList 虚拟化，500 行只建可见行）
+        // ── Block 时间线（选中 session 时；虚拟化，500 行只建可见行） ──
         if model.selected_session().is_some() {
             if snapshot.blocks.is_empty() {
-                scroll_col.add_child(self.render_empty_state(
+                col.add_child(self.render_empty_state(
                     &crate::t!("observatory-blocks-empty"),
                     appearance,
                     theme,
@@ -740,6 +781,7 @@ impl ObservatoryPanelView {
                 // 闭包按 'static 捕获：theme 克隆 + 行数据克隆 + 字体参数 Copy
                 let blocks_full: Vec<BlockRowGui> = snapshot.blocks.clone();
                 let theme = theme.clone();
+                let theme_for_list = theme.clone();
                 let font_family = appearance.ui_font_family();
                 let font_size = appearance.ui_font_size();
                 let build = move |range: std::ops::Range<usize>, _app: &AppContext| {
@@ -774,30 +816,37 @@ impl ObservatoryPanelView {
                         .collect::<Vec<_>>()
                         .into_iter()
                 };
-                scroll_col.add_child(self.wrap_virtual_list(
-                    self.blocks_list.clone(),
-                    snapshot.blocks.len(),
-                    build,
-                ));
+                col.add_child(
+                    ConstrainedBox::new(
+                        self.wrap_virtual_list(
+                            self.blocks_scroll_state.clone(),
+                            self.blocks_list.clone(),
+                            snapshot.blocks.len(),
+                            build,
+                            &theme_for_list,
+                        ),
+                    )
+                    .with_max_height(360.)
+                    .finish(),
+                );
+                if let Some(hint) =
+                    Self::truncated_hint(
+                        snapshot.blocks.len(),
+                        BLOCKS_CAP,
+                        appearance,
+                        appearance.theme(),
+                    )
+                {
+                    col.add_child(hint);
+                }
             }
         }
-
-        // Raw 代理流量（选中 session 时；虚拟化）
+        // ── Raw 代理流量（选中 session 时；虚拟化） ──
         if model.selected_session().is_some() {
-            scroll_col.add_child(self.render_raw_list(app));
+            let raw_section = self.render_raw_list(app);
+            // raw 列表给固定较小高度（详情可展开）
+            col.add_child(ConstrainedBox::new(raw_section).with_max_height(160.).finish());
         }
-
-        col.add_child(
-            ClippedScrollable::vertical(
-                self.sessions_scroll.clone(),
-                scroll_col.finish(),
-                ScrollbarWidth::Auto,
-                theme.disabled_text_color(theme.background()).into(),
-                theme.main_text_color(theme.background()).into(),
-                ElementFill::None,
-            )
-            .finish(),
-        );
 
         // ── 固定详情区（选中项，不随列表滚动） ──
         if let Some(detail) = model.block_detail() {
@@ -810,19 +859,32 @@ impl ObservatoryPanelView {
         Shrinkable::new(1., col.finish()).finish()
     }
 
-    /// UniformList 包裹 helper（等高 LIST_ROW_HEIGHT 行；UniformList 自带
-    /// 滚轮滚动，外包 ClippedScrollable 提供滚动口与滚动条）。
+    /// UniformList 包裹 helper：Scrollable(vertical) + UniformList
+    /// （global_search 同款虚拟化滚动模式；Scrollable 传递有限高度约束，
+    /// UniformList 实现 ScrollableElement 自管滚动与可见行窗口）。
     fn wrap_virtual_list<F, G>(
         &self,
-        state: UniformListState,
+        scroll_state: ScrollStateHandle,
+        list_state: UniformListState,
         item_count: usize,
         build_items: F,
+        theme: &WarpTheme,
     ) -> Box<dyn Element>
     where
         F: Fn(std::ops::Range<usize>, &AppContext) -> G + 'static,
         G: Iterator<Item = Box<dyn Element>> + 'static,
     {
-        UniformList::new(state, item_count, build_items).finish()
+        let list = UniformList::new(list_state, item_count, build_items);
+        Scrollable::vertical(
+            scroll_state,
+            list.finish_scrollable(),
+            ScrollbarWidth::Auto,
+            theme.nonactive_ui_detail().into(),
+            theme.active_ui_detail().into(),
+            ElementFill::None,
+        )
+        .with_overlayed_scrollbar()
+        .finish()
     }
 
     /// Raw 代理流量列表（时间升序，虚拟化）。详情卡固定在 tab 底部（见
@@ -875,6 +937,7 @@ impl ObservatoryPanelView {
                 .collect();
             // 闭包按 'static 捕获：theme 克隆 + 字体参数 Copy
             let theme = theme.clone();
+            let theme_for_list = theme.clone();
             let font_family = appearance.ui_font_family();
             let font_size = appearance.ui_font_size();
             let raws_full: Vec<RawRowGui> = snapshot.raw_entries.clone();
@@ -909,11 +972,19 @@ impl ObservatoryPanelView {
                     .collect::<Vec<_>>()
                     .into_iter()
             };
-            col.add_child(self.wrap_virtual_list(
-                self.raw_list.clone(),
-                snapshot.raw_entries.len(),
-                build,
-            ));
+            col.add_child(
+                ConstrainedBox::new(
+                    self.wrap_virtual_list(
+                        self.raw_scroll_state.clone(),
+                        self.raw_list.clone(),
+                        snapshot.raw_entries.len(),
+                        build,
+                        &theme_for_list,
+                    ),
+                )
+                .with_max_height(160.)
+                .finish(),
+            );
         }
 
         Container::new(col.finish())
@@ -947,7 +1018,7 @@ impl ObservatoryPanelView {
             "observatory-raw-detail-meta",
             direction = detail.direction.clone(),
             len = detail.content_len,
-            ts = format_timestamp(detail.timestamp),
+            ts = absolute_time_millis(Some(detail.timestamp)),
         );
 
         let mut col = Flex::column()
@@ -1006,7 +1077,7 @@ impl ObservatoryPanelView {
             "observatory-message-detail-meta",
             from = detail.from_handle.clone(),
             to = detail.to_handle.clone(),
-            ts = format_datetime_sqlite(&detail.created_at),
+            ts = absolute_time_millis(Some(detail.created_at)),
         );
         let type_text = crate::t!(
             "observatory-message-detail-kind",
@@ -1068,40 +1139,6 @@ impl ObservatoryPanelView {
             .finish()
     }
 
-    /// 单行 session 渲染（row.rs list_row 版本，等高行）。
-    fn render_session_row(
-        &self,
-        session: &SessionRowGui,
-        _is_selected: bool,
-        appearance: &Appearance,
-        theme: &WarpTheme,
-    ) -> Box<dyn Element> {
-        list_row(
-            theme,
-            appearance.ui_font_family(),
-            appearance.ui_font_size(),
-            None,
-            truncate_str(&session.session_id, 16),
-            Some(format!("{} blocks", session.block_count)),
-            Some(format_timestamp(session.last_ts)),
-        )
-    }
-
-    /// 单行 block 时间线条目渲染（row.rs list_row 版本，等高行）。
-    fn render_block_row(
-        &self,
-        block: &BlockRowGui,
-        _is_selected: bool,
-        appearance: &Appearance,
-        theme: &WarpTheme,
-    ) -> Box<dyn Element> {
-        render_block_list_row(
-            block,
-            appearance.ui_font_family(),
-            appearance.ui_font_size(),
-            theme,
-        )
-    }
 
     /// Block 详情卡片：元信息 + metadata + content 全文（换行渲染）。
     fn render_block_detail(
@@ -1115,7 +1152,7 @@ impl ObservatoryPanelView {
             block_type = detail.block_type.clone(),
             seq = detail.sequence,
             len = detail.content_len,
-            ts = format_timestamp(detail.timestamp),
+            ts = absolute_time_millis(Some(detail.timestamp)),
         );
 
         let mut col = Flex::column()
@@ -1221,6 +1258,7 @@ impl ObservatoryPanelView {
         let theme = appearance.theme();
         let model = self.model.as_ref(app);
         let snapshot = model.snapshot();
+        let now = chrono::Utc::now().timestamp();
 
         let mut col = Flex::column()
             .with_main_axis_size(MainAxisSize::Min)
@@ -1273,6 +1311,25 @@ impl ObservatoryPanelView {
                     theme,
                 ));
             }
+            if let Some(hint) = Self::truncated_hint(
+                snapshot.runs.len(),
+                RUNS_CAP,
+                appearance,
+                appearance.theme(),
+            )
+            {
+                scroll_col.add_child(hint);
+            }
+            if let Some(hint) =
+                Self::truncated_hint(
+                    snapshot.tasks.len(),
+                    TASKS_CAP,
+                    appearance,
+                    appearance.theme(),
+                )
+            {
+                scroll_col.add_child(hint);
+            }
         }
 
         // Pending gates
@@ -1285,7 +1342,7 @@ impl ObservatoryPanelView {
                 snapshot.recent_messages.len(),
             );
             let handles = self.message_row_handles.borrow().clone();
-            let msgs: Vec<(i64, String, bool)> = snapshot
+            let msgs: Vec<(i64, String, bool, i64)> = snapshot
                 .recent_messages
                 .iter()
                 .map(|m| {
@@ -1293,11 +1350,13 @@ impl ObservatoryPanelView {
                         m.seq,
                         format!("{} → {}: {}", m.from_handle, m.to_handle, m.subject),
                         model.selected_message().is_some_and(|s| s == m.seq),
+                        m.created_at,
                     )
                 })
                 .collect();
             // 闭包按 'static 捕获：theme 克隆 + 字体参数 Copy
             let theme = theme.clone();
+            let theme_for_list = theme.clone();
             let font_family = appearance.ui_font_family();
             let font_size = appearance.ui_font_size();
             let build = move |range: std::ops::Range<usize>, _app: &AppContext| {
@@ -1305,12 +1364,19 @@ impl ObservatoryPanelView {
                     .filter_map(|i| {
                         msgs.get(i)
                             .cloned()
-                            .map(|(seq, text, sel)| (seq, text, sel, i))
+                            .map(|(seq, text, sel, ts)| (seq, text, sel, ts, i))
                     })
-                    .map(|(seq, msg_text, is_selected, i)| {
+                    .map(|(seq, msg_text, is_selected, msg_ts, i)| {
                         let handle = handles[i].clone();
-                        let inner =
-                            list_row(&theme, font_family, font_size, None, msg_text, None, None);
+                        let inner = list_row(
+                            &theme,
+                            font_family,
+                            font_size,
+                            None,
+                            msg_text,
+                            None,
+                            Some(relative_time_text(now, msg_ts)),
+                        );
                         let theme = theme.clone();
                         Hoverable::new(handle, move |state| {
                             let mut container =
@@ -1335,11 +1401,26 @@ impl ObservatoryPanelView {
                     .collect::<Vec<_>>()
                     .into_iter()
             };
-            scroll_col.add_child(self.wrap_virtual_list(
-                self.messages_list.clone(),
+            // 消息列表独立滚动口（Scrollable 有限高度约束）
+            scroll_col.add_child(
+                ConstrainedBox::new(self.wrap_virtual_list(
+                    self.messages_scroll_state.clone(),
+                    self.messages_list.clone(),
+                    snapshot.recent_messages.len(),
+                    build,
+                    &theme_for_list,
+                ))
+                .with_max_height(180.)
+                .finish(),
+            );
+            if let Some(hint) = Self::truncated_hint(
                 snapshot.recent_messages.len(),
-                build,
-            ));
+                MESSAGES_CAP,
+                appearance,
+                appearance.theme(),
+            ) {
+                scroll_col.add_child(hint);
+            }
         }
 
         // Worker 终端输出归档（最新 5；meta 行 + tail 3 行扁平展开为虚拟化行）
@@ -1362,7 +1443,7 @@ impl ObservatoryPanelView {
                         "observatory-archive-meta",
                         id = truncate_str(&a.dispatch_id, 22),
                         kind = a.kind.clone(),
-                        time = a.created_at.clone(),
+                        time = relative_time_text(now, a.created_at),
                     )];
                     // tail 语义：只显示最后 3 行
                     rows.extend(
@@ -1378,6 +1459,7 @@ impl ObservatoryPanelView {
                 .collect();
             // 闭包按 'static 捕获：theme 克隆 + 字体参数 Copy
             let theme = theme.clone();
+            let theme_for_list = theme.clone();
             let font_family = appearance.ui_font_family();
             let build = move |range: std::ops::Range<usize>, _app: &AppContext| {
                 (range.start..range.end)
@@ -1391,22 +1473,33 @@ impl ObservatoryPanelView {
                     .collect::<Vec<_>>()
                     .into_iter()
             };
-            scroll_col.add_child(self.wrap_virtual_list(
-                self.archives_list.clone(),
-                archive_rows_len(&snapshot.archives),
-                build,
-            ));
+            scroll_col.add_child(
+                ConstrainedBox::new(self.wrap_virtual_list(
+                    self.archives_scroll_state.clone(),
+                    self.archives_list.clone(),
+                    archive_rows_len(&snapshot.archives),
+                    build,
+                    &theme_for_list,
+                ))
+                .with_max_height(120.)
+                .finish(),
+            );
         }
 
-        // 唯一滚动口（内容超出面板高度时滚动）
+        // runs/gates 滚动口（ClippedScrollable 可裁剪任意元素树；messages/
+        // archives 的 UniformList 有各自独立滚动口与有限高度约束）。
         col.add_child(
-            ClippedScrollable::vertical(
-                self.orchestration_scroll.clone(),
-                scroll_col.finish(),
-                ScrollbarWidth::Auto,
-                theme.disabled_text_color(theme.background()).into(),
-                theme.main_text_color(theme.background()).into(),
-                ElementFill::None,
+            Expanded::new(
+                1.,
+                ClippedScrollable::vertical(
+                    self.orchestration_clipped_scroll.clone(),
+                    scroll_col.finish(),
+                    ScrollbarWidth::Auto,
+                    theme.disabled_text_color(theme.background()).into(),
+                    theme.main_text_color(theme.background()).into(),
+                    ElementFill::None,
+                )
+                .finish(),
             )
             .finish(),
         );
@@ -1439,7 +1532,8 @@ impl ObservatoryPanelView {
         theme: &WarpTheme,
     ) -> Box<dyn Element> {
         let objective = truncate_str(&run.objective, 40);
-        let created_at = &run.created_at;
+        let created_at =
+            relative_time_text(chrono::Utc::now().timestamp(), run.created_at);
         let is_run_selected = selected_run.is_some_and(|s| s == run.id);
         let run_id = run.id.clone();
 
@@ -1523,6 +1617,32 @@ impl ObservatoryPanelView {
                 .with_color(super::row::status_dot(&task.status, theme).1)
                 .finish(),
             );
+            // 耗时（DV11/DV18 列表行档）：完成 → 冻结终值；运行中 → 实时累计；
+            // 其余未起算 → "—"。
+            let now = chrono::Utc::now().timestamp();
+            let duration = match task.completed_at {
+                Some(c) => {
+                    format_duration_row_ms(Some((c - task.created_at).max(0) as u64 * 1000))
+                }
+                None if matches!(
+                    task.status.as_str(),
+                    "running" | "claimed" | "dispatched" | "dispatching"
+                ) =>
+                {
+                    format_duration_row_ms(Some((now - task.created_at).max(0) as u64 * 1000))
+                }
+                None => super::format::UNKNOWN_DASH.to_string(),
+            };
+            task_row.add_child(
+                Text::new(
+                    duration,
+                    appearance.ui_font_family(),
+                    appearance.ui_font_size(),
+                )
+                .with_color(theme.disabled_ui_text_color().into_solid())
+                .soft_wrap(false)
+                .finish(),
+            );
             let task_row = task_row.finish();
 
             let theme = theme.clone();
@@ -1553,6 +1673,7 @@ impl ObservatoryPanelView {
 
     /// 选中 task 的详情面板：id/status + 派发按钮 + 最近 dispatch 反馈。
     fn render_task_panel(&self, app: &AppContext) -> Box<dyn Element> {
+        let now = chrono::Utc::now().timestamp();
         let appearance = Appearance::as_ref(app);
         let theme = appearance.theme();
         let model = self.model.as_ref(app);
@@ -1719,7 +1840,7 @@ impl ObservatoryPanelView {
                 row.add_child(Expanded::new(1., Empty::new().finish()).finish());
                 row.add_child(
                     Text::new(
-                        d.created_at.clone(),
+                        relative_time_text(now, d.created_at),
                         appearance.ui_font_family(),
                         SMALL_FONT_SIZE,
                     )
@@ -1744,6 +1865,7 @@ impl ObservatoryPanelView {
         let theme = appearance.theme();
         let model = self.model.as_ref(app);
         let snapshot = model.snapshot();
+        let now = chrono::Utc::now().timestamp();
 
         let mut col = Flex::column()
             .with_main_axis_size(MainAxisSize::Min)
@@ -1785,7 +1907,8 @@ impl ObservatoryPanelView {
                 let is_selected = model.selected_gate().is_some_and(|g| g == gate.id);
                 let gate_id = gate.id.clone();
                 let question = truncate_str(&gate.question, 80);
-                let created = &gate.created_at;
+                let created =
+                    relative_time_text(chrono::Utc::now().timestamp(), gate.created_at);
 
                 let mut gate_col = Flex::column().with_spacing(SPACING / 2.);
                 let mut header = Flex::row()
@@ -1904,9 +2027,8 @@ impl ObservatoryPanelView {
                 let resolution = gate.resolution.clone().unwrap_or_else(|| "-".to_string());
                 let time = gate
                     .resolved_at
-                    .as_deref()
-                    .map(format_datetime_sqlite)
-                    .unwrap_or_else(|| "-".to_string());
+                    .map(|t| relative_time_text(now, t))
+                    .unwrap_or_else(|| super::format::UNKNOWN_DASH.to_string());
                 col.add_child(
                     Text::new(
                         crate::t!(
@@ -2143,7 +2265,7 @@ impl ObservatoryPanelView {
             col.add_child(
                 Container::new(
                     Text::new(
-                        crate::t!("observatory-proxy-saved", time = format_timestamp(ts),),
+                        crate::t!("observatory-proxy-saved", time = absolute_time_millis(Some(ts))),
                         appearance.ui_font_family(),
                         SMALL_FONT_SIZE,
                     )
@@ -2248,10 +2370,42 @@ impl ObservatoryPanelView {
         .with_vertical_padding(PANEL_PADDING)
         .finish()
     }
+
+    /// 聚焦搜索框（pane focus_contents 入口）。
+    pub(crate) fn focus_search(&mut self, ctx: &mut ViewContext<Self>) {
+        ctx.focus(&self.search_input);
+    }
+
+    /// 截断提示行（DV24）：列表达到硬上限时显示，禁止静默丢弃。
+    fn truncated_hint(
+        len: usize,
+        cap: usize,
+        appearance: &Appearance,
+        theme: &WarpTheme,
+    ) -> Option<Box<dyn Element>> {
+        if len < cap {
+            return None;
+        }
+        Some(
+            Container::new(
+                Text::new(
+                    crate::t!("observatory-list-truncated", shown = len, cap = cap),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.nonactive_ui_text_color().into_solid())
+                .soft_wrap(false)
+                .finish(),
+            )
+            .with_horizontal_padding(PANEL_PADDING)
+            .finish(),
+        )
+    }
 }
 
 impl Entity for ObservatoryPanelView {
-    type Event = ObservatoryPanelAction;
+    /// pane 体系关闭通道（header X 按钮 → PaneEvent::Close）。
+    type Event = crate::pane_group::PaneEvent;
 }
 impl TypedActionView for ObservatoryPanelView {
     type Action = ObservatoryPanelAction;
@@ -2473,14 +2627,9 @@ impl View for ObservatoryPanelView {
                 .finish(),
             );
         }
-
-        // 面板在 panels row 的非 flexible 槽位中拿到水平无限约束（面板宽度由
-        // 内容自然撑出），内部水平 Flex-Max 会撞无限约束 assert。这里把宽度
-        // clamp 到固定上限（P0-3 后由外层 Resizable 决定实际宽度，此处仅兜底
-        // 防无限约束 assert），使行级 Max/Expanded 布局有效。
-        ConstrainedBox::new(Shrinkable::new(1., col.finish()).finish())
-            .with_max_width(OBSERVATORY_PANEL_DEFAULT_WIDTH.max(1600.))
-            .finish()
+        // tab 模式下 pane 槽位给有限宽度约束，无需旧 panels-row 时代的
+        // max_width 兜底；直接交给父级布局。
+        Shrinkable::new(1., col.finish()).finish()
     }
 }
 
@@ -2491,20 +2640,6 @@ fn truncate_str(s: &str, max_len: usize) -> String {
     super::row::truncate_str(s, max_len)
 }
 
-/// 观测台 Resizable 状态：优先从 ResizableData 单例取（会话恢复持久化
-/// 路径，ModalSizes::ObservatoryWidth），取不到时按默认宽度新建。
-pub fn observatory_resizable_state(
-    ctx: &mut ViewContext<crate::workspace::Workspace>,
-) -> warpui::elements::ResizableStateHandle {
-    use crate::terminal::resizable_data::{ModalType, ResizableData};
-
-    let window_id = ctx.window_id();
-    ResizableData::as_ref(ctx)
-        .get_handle(window_id, ModalType::ObservatoryWidth)
-        .unwrap_or_else(|| {
-            warpui::elements::resizable_state_handle(OBSERVATORY_PANEL_DEFAULT_WIDTH)
-        })
-}
 
 /// 归档扁平化行数（1 meta + 最多 3 tail 行 / archive）。
 fn archive_rows_len(archives: &[super::model::ArchiveRowGui]) -> usize {
@@ -2519,6 +2654,7 @@ fn render_block_list_row(
     theme: &WarpTheme,
 ) -> Box<dyn Element> {
     let seq_text = crate::t!("observatory-block-seq", seq = block.sequence);
+    let now = chrono::Utc::now().timestamp();
     list_row(
         theme,
         font_family,
@@ -2526,7 +2662,11 @@ fn render_block_list_row(
         Some(&block.block_type),
         format!("{} · {}", block.block_type, seq_text),
         Some(truncate_str(&block.preview, 40)),
-        Some(format!("{}B", block.content_len)),
+        Some(format!(
+            "{} · {}",
+            compact_bytes(block.content_len),
+            relative_time_text(now, block.timestamp)
+        )),
     )
 }
 
@@ -2543,22 +2683,12 @@ fn render_raw_list_row(
         font_size,
         Some(&entry.direction),
         truncate_str(&entry.preview, 48),
-        Some(format!("{}B", entry.content_len)),
-        Some(format_timestamp(entry.timestamp)),
+        Some(compact_bytes(entry.content_len)),
+        Some(relative_time_text(
+            chrono::Utc::now().timestamp(),
+            entry.timestamp,
+        )),
     )
-}
-
-/// Unix timestamp 格式化为简洁时间文本。
-fn format_timestamp(ts: i64) -> String {
-    let dt = if ts > 1_000_000_000_000 {
-        chrono::DateTime::from_timestamp_millis(ts)
-    } else {
-        chrono::DateTime::from_timestamp(ts, 0)
-    };
-    match dt {
-        Some(dt) => dt.format("%m-%d %H:%M").to_string(),
-        None => format!("{}", ts),
-    }
 }
 
 /// block 类型 → badge 颜色（P0-2 起列表行走 row.rs 状态点；详情卡保留）。

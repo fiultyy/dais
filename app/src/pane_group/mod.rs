@@ -1729,6 +1729,10 @@ impl PaneGroup {
                 };
                 Ok((PaneData::new(pane_id), focus))
             }
+            #[cfg(not(target_family = "wasm"))]
+            LeafContents::Observatory => Err(anyhow::anyhow!(
+                "Observatory pane is not persisted and cannot be restored"
+            )),
             LeafContents::AIFact(snapshot) => {
                 if !FeatureFlag::AIRules.is_enabled() {
                     return Err(anyhow::anyhow!("AI fact pane not enabled"));
@@ -3476,6 +3480,16 @@ impl PaneGroup {
 
     pub fn has_pane_id(&self, pane_id: PaneId) -> bool {
         self.pane_contents.contains_key(&pane_id)
+    }
+
+    /// 查找本 pane group 中的观测台 pane id（无则 None）。
+    /// 用于「工具条点观测台 → 已有 tab 时聚焦切换」。
+    #[cfg(not(target_family = "wasm"))]
+    pub fn observatory_pane_id(&self) -> Option<PaneId> {
+        self.pane_contents
+            .keys()
+            .find(|pane_id| pane_id.pane_type() == pane::IPaneType::Observatory)
+            .copied()
     }
 
     /// Get the notebook view within the pane at `pane_index`.

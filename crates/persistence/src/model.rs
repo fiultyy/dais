@@ -43,7 +43,6 @@ pub struct Window {
     pub left_panel_open: Option<bool>,
     pub vertical_tabs_panel_open: Option<bool>,
     pub theme_override: Option<String>,
-    pub observatory_width: Option<f32>,
 }
 
 #[derive(Identifiable, Insertable, Queryable)]
@@ -305,7 +304,6 @@ pub struct NewWindow {
     pub agent_management_filters: Option<String>,
     pub left_panel_open: Option<bool>,
     pub vertical_tabs_panel_open: Option<bool>,
-    pub observatory_width: Option<f32>,
     pub theme_override: Option<String>,
 }
 
