@@ -233,6 +233,8 @@ pub struct ObservatoryModel {
     /// 选中的消息 sequence（messages 表 PK）。
     selected_message: Option<i64>,
     message_detail: Option<MessageDetailGui>,
+    /// 选中的 run id（composer 发送目标；None = 最新 run）。
+    selected_run: Option<String>,
 }
 
 impl ObservatoryModel {
@@ -259,7 +261,30 @@ impl ObservatoryModel {
             gate_draft: String::new(),
             selected_message: None,
             message_detail: None,
+            selected_run: None,
         }
+    }
+
+    /// 选中的 run（composer 目标）；None = 未选（用最新 run）。
+    pub fn selected_run(&self) -> Option<&str> {
+        self.selected_run.as_deref()
+    }
+
+    /// 选中/取消选中 run（composer 发送目标）。
+    pub fn select_run(&mut self, id: Option<String>, ctx: &mut ModelContext<Self>) {
+        self.selected_run = id;
+        ctx.emit(ObservatoryEvent::SnapshotUpdated);
+    }
+
+    /// composer 发送目标：选中 run（仍存在时）优先，否则最新 run。
+    /// 无 run 时 None（send_message 侧回退 "gui"）。
+    fn composer_target_run(&self) -> Option<String> {
+        if let Some(id) = &self.selected_run {
+            if self.snapshot.runs.iter().any(|r| &r.id == id) {
+                return Some(id.clone());
+            }
+        }
+        self.snapshot.runs.first().map(|r| r.id.clone())
     }
 
     // ── 只读访问 ───────────────────────────────────────────────────────
@@ -617,12 +642,9 @@ impl ObservatoryModel {
         let subject = self.draft_subject.clone();
         let body = self.draft_body.clone();
 
-        // 取最新 run_id 或 "gui"
+        // 发送目标：选中 run 优先，否则最新 run；无 run 时 "gui"
         let run_id = self
-            .snapshot
-            .runs
-            .first()
-            .map(|r| r.id.clone())
+            .composer_target_run()
             .unwrap_or_else(|| "gui".to_string());
 
         self.busy = true;
@@ -1443,6 +1465,15 @@ mod tests {
             });
             assert!(app.read_model(&model, |m, _| m.message_detail().is_none()));
             assert!(app.read_model(&model, |m, _| m.last_error().is_none()));
+            // run 选中状态转移（composer 目标；无 run 数据 → composer_target 回退 None）
+            model.update(&mut app, |m, ctx| {
+                m.select_run(Some("run-x".to_string()), ctx);
+            });
+            assert_eq!(app.read_model(&model, |m, _| m.selected_run().map(str::to_string)), Some("run-x".to_string()));
+            model.update(&mut app, |m, ctx| {
+                m.select_run(None, ctx);
+            });
+            assert!(app.read_model(&model, |m, _| m.selected_run().is_none()));
         });
     }
 

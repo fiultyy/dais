@@ -3562,3 +3562,5 @@ observatory-message-detail-body = 本文
 observatory-task-spec = タスク仕様
 observatory-task-result = 結果
 observatory-task-deps = 依存: { $deps }
+observatory-send-target = 送信先 run: { $run }
+observatory-send-target-none = run なし（"gui" 宛に送信）

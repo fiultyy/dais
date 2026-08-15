@@ -3644,3 +3644,5 @@ observatory-message-detail-body = 正文
 observatory-task-spec = 任务规格
 observatory-task-result = 结果
 observatory-task-deps = 依赖: { $deps }
+observatory-send-target = 发送到 run: { $run }
+observatory-send-target-none = 无 run（将发送到 "gui"）

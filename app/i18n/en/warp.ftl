@@ -3730,3 +3730,5 @@ observatory-message-detail-body = Body
 observatory-task-spec = Task spec
 observatory-task-result = Result
 observatory-task-deps = Deps: { $deps }
+observatory-send-target = Send to run: { $run }
+observatory-send-target-none = No runs (will send to "gui")

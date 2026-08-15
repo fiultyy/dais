@@ -78,6 +78,8 @@ pub enum ObservatoryPanelAction {
     SetSearch(String),
     SelectBlock(Option<String>),
     SelectTask(Option<String>),
+    /// 选中 run（composer 发送目标）。
+    SelectRun(Option<String>),
     DispatchTask(String),
     SelectGate(Option<String>),
     SelectRaw(Option<String>),
@@ -120,6 +122,8 @@ pub struct ObservatoryPanelView {
     message_row_handles: RefCell<Vec<MouseStateHandle>>,
     /// Task 行悬停状态句柄列表。
     task_row_handles: RefCell<Vec<MouseStateHandle>>,
+    /// Run 行悬停状态句柄列表（composer 目标选中）。
+    run_row_handles: RefCell<Vec<MouseStateHandle>>,
     /// Gate 行悬停状态句柄列表。
     gate_row_handles: RefCell<Vec<MouseStateHandle>>,
     /// Gate 选项 chip 悬停句柄列表（所有 gate 的 options 扁平展开）。
@@ -381,6 +385,7 @@ impl ObservatoryPanelView {
             send_button,
             message_row_handles: RefCell::new(Vec::new()),
             task_row_handles: RefCell::new(Vec::new()),
+            run_row_handles: RefCell::new(Vec::new()),
             gate_row_handles: RefCell::new(Vec::new()),
             gate_option_handles: RefCell::new(Vec::new()),
             raw_row_handles: RefCell::new(Vec::new()),
@@ -1134,8 +1139,14 @@ impl ObservatoryPanelView {
             ));
         } else {
             let selected_task = model.selected_task();
+            let selected_run = model.selected_run();
+            Self::ensure_handles(
+                &mut self.run_row_handles.borrow_mut(),
+                snapshot.runs.len(),
+            );
+            let run_handles = self.run_row_handles.borrow();
             let mut task_idx = 0usize;
-            for run in &snapshot.runs {
+            for (ri, run) in snapshot.runs.iter().enumerate() {
                 let run_tasks: Vec<&TaskRowGui> = snapshot
                     .tasks
                     .iter()
@@ -1154,6 +1165,8 @@ impl ObservatoryPanelView {
                     run,
                     &rows,
                     selected_task,
+                    selected_run,
+                    run_handles[ri].clone(),
                     &handles,
                     appearance,
                     theme,
@@ -1219,26 +1232,29 @@ impl ObservatoryPanelView {
 
         Shrinkable::new(1., col.finish()).finish()
     }
-
-    /// 单个 run 及其下属 tasks 渲染（task 行 Hoverable + 点击选中）。
+    /// 单个 run 及其下属 tasks 渲染（run/task 行 Hoverable + 点击选中）。
     #[allow(clippy::too_many_arguments)]
     fn render_run_entry(
         &self,
         run: &RunRowGui,
         run_tasks: &[(usize, &TaskRowGui)],
         selected_task: Option<&str>,
+        selected_run: Option<&str>,
+        run_handle: MouseStateHandle,
         handles: &[MouseStateHandle],
         appearance: &Appearance,
         theme: &WarpTheme,
     ) -> Box<dyn Element> {
         let objective = truncate_str(&run.objective, 40);
         let created_at = &run.created_at;
+        let is_run_selected = selected_run.is_some_and(|s| s == run.id);
+        let run_id = run.id.clone();
 
         let mut col = Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
             .with_spacing(SPACING / 2.);
 
-        // Run header
+        // Run header（可点击选中 → composer 目标）
         let mut run_row = Flex::row()
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
@@ -1255,11 +1271,23 @@ impl ObservatoryPanelView {
                 .with_color(theme.disabled_ui_text_color().into_solid())
                 .finish(),
         );
-        col.add_child(
-            Container::new(run_row.finish())
+        let run_header_row = run_row.finish();
+        let run_header = Hoverable::new(run_handle, move |state| {
+            let mut container = Container::new(run_header_row)
                 .with_horizontal_padding(PANEL_PADDING)
-                .finish(),
-        );
+                .with_vertical_padding(ROW_V_PADDING);
+            if is_run_selected {
+                container = container.with_background(internal_colors::fg_overlay_1(theme));
+            } else if state.is_hovered() {
+                container = container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
+            }
+            container.finish()
+        })
+        .on_click(move |ctx, _, _| {
+            ctx.dispatch_typed_action(ObservatoryPanelAction::SelectRun(Some(run_id.clone())));
+        })
+        .finish();
+        col.add_child(run_header);
 
         // 嵌套 tasks（可点击选中）
         for (handle_idx, task) in run_tasks {
@@ -1888,12 +1916,35 @@ impl ObservatoryPanelView {
     /// Composer 区域: draft_to / subject / body 输入框 + 发送按钮。
     fn render_composer(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
+        let theme = appearance.theme();
         let model = self.model.as_ref(app);
         let busy = model.busy();
 
         let mut col = Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
             .with_spacing(COMPOSER_SPACING);
+
+        // 发送目标 run（选中 run 优先，否则最新；无 run 时提示）
+        let target_text = match (
+            model.selected_run(),
+            model.snapshot().runs.first(),
+        ) {
+            (Some(sel), _) => crate::t!(
+                "observatory-send-target",
+                run = truncate_str(sel, 16),
+            ),
+            (None, Some(latest)) => crate::t!(
+                "observatory-send-target",
+                run = truncate_str(&latest.id, 16),
+            ),
+            (None, None) => crate::t!("observatory-send-target-none"),
+        };
+        col.add_child(
+            Text::new(target_text, appearance.ui_font_family(), SMALL_FONT_SIZE)
+                .with_color(theme.disabled_ui_text_color().into_solid())
+                .soft_wrap(false)
+                .finish(),
+        );
 
         col.add_child(ChildView::new(&self.draft_to_input).finish());
         col.add_child(ChildView::new(&self.draft_subject_input).finish());
@@ -1944,12 +1995,9 @@ impl ObservatoryPanelView {
     }
 }
 
-// ── Entity / View ────────────────────────────────────────────────────────────
-
 impl Entity for ObservatoryPanelView {
     type Event = ObservatoryPanelAction;
 }
-
 impl TypedActionView for ObservatoryPanelView {
     type Action = ObservatoryPanelAction;
 
@@ -2016,6 +2064,19 @@ impl TypedActionView for ObservatoryPanelView {
                 );
                 ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
                     model.select_task(id, ctx);
+                });
+            }
+
+            ObservatoryPanelAction::SelectRun(id) => {
+                let id = toggle_id(
+                    id,
+                    ObservatoryModel::handle(ctx)
+                        .as_ref(ctx)
+                        .selected_run()
+                        .map(str::to_string),
+                );
+                ObservatoryModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.select_run(id, ctx);
                 });
             }
             ObservatoryPanelAction::DispatchTask(task_id) => {
@@ -2115,6 +2176,8 @@ impl TypedActionView for ObservatoryPanelView {
         }
     }
 }
+
+// ── Entity / View ────────────────────────────────────────────────────────────
 
 impl View for ObservatoryPanelView {
     fn ui_name() -> &'static str {
