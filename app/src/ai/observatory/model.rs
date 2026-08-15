@@ -107,6 +107,10 @@ pub struct GateRowGui {
     pub options: Vec<String>,
     pub status: String,
     pub created_at: String,
+    /// 决策结果（resolved/timeout 时有值）。
+    pub resolution: Option<String>,
+    /// 解决/超时时间（SQLite 文本格式）。
+    pub resolved_at: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +176,8 @@ pub struct ObservatorySnapshot {
     pub tasks: Vec<TaskRowGui>,
     /// Pending gates（最新 50）。
     pub gates: Vec<GateRowGui>,
+    /// 最近已决 gates（resolved/timeout，最新 10，resolved_at 降序）。
+    pub resolved_gates: Vec<GateRowGui>,
     /// 选中 task 的 dispatches（最新 20）。
     pub dispatches: Vec<DispatchRowGui>,
     /// 活跃 GUI 交互拦截会话（Proxy tab 展示）。
@@ -1044,10 +1050,37 @@ impl ObservatoryModel {
                             .unwrap_or_default(),
                         status: g.status,
                         created_at: g.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+                        resolution: g.resolution,
+                        resolved_at: g
+                            .resolved_at
+                            .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
                     })
                     .collect()
             })
             .unwrap_or_default();
+
+        // 已决 gates（resolved + timeout 合并，resolved_at 降序取最新 10）
+        let mut decided: Vec<GateRowGui> = Vec::new();
+        for status in ["resolved", "timeout"] {
+            if let Ok(gates) = s.list_gates(None, Some(status)) {
+                decided.extend(gates.into_iter().map(|g| GateRowGui {
+                    id: g.id,
+                    task_id: g.task_id,
+                    question: g.question,
+                    options: serde_json::from_str::<Vec<String>>(&g.options)
+                        .unwrap_or_default(),
+                    status: g.status,
+                    created_at: g.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+                    resolution: g.resolution,
+                    resolved_at: g
+                        .resolved_at
+                        .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
+                }));
+            }
+        }
+        decided.sort_by(|a, b| b.resolved_at.cmp(&a.resolved_at));
+        decided.truncate(10);
+        self.snapshot.resolved_gates = decided;
 
         // 选中的 gate 已不再是 pending → 清除选中
         if let Some(gid) = self.selected_gate.clone() {
@@ -1066,6 +1099,7 @@ impl ObservatoryModel {
         self.snapshot.runs = Vec::new();
         self.snapshot.tasks = Vec::new();
         self.snapshot.gates = Vec::new();
+        self.snapshot.resolved_gates = Vec::new();
         self.snapshot.recent_messages = Vec::new();
     }
 

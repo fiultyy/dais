@@ -3732,3 +3732,5 @@ observatory-task-result = Result
 observatory-task-deps = Deps: { $deps }
 observatory-send-target = Send to run: { $run }
 observatory-send-target-none = No runs (will send to "gui")
+observatory-gates-resolved-title = Recently decided
+observatory-gate-resolved-row = [{ $status }] { $resolution } · { $time }

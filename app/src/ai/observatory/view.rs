@@ -1669,6 +1669,45 @@ impl ObservatoryPanelView {
             }
         }
 
+        // ── 最近已决 gates（决策历史：resolution + 时间） ──
+        if !snapshot.resolved_gates.is_empty() {
+            col.add_child(
+                Text::new(
+                    crate::t!("observatory-gates-resolved-title"),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.nonactive_ui_text_color().into_solid())
+                .finish(),
+            );
+            for gate in &snapshot.resolved_gates {
+                let resolution = gate
+                    .resolution
+                    .clone()
+                    .unwrap_or_else(|| "-".to_string());
+                let time = gate
+                    .resolved_at
+                    .as_deref()
+                    .map(format_datetime_sqlite)
+                    .unwrap_or_else(|| "-".to_string());
+                col.add_child(
+                    Text::new(
+                        crate::t!(
+                            "observatory-gate-resolved-row",
+                            status = gate.status.clone(),
+                            resolution = truncate_str(&resolution, 40),
+                            time = time,
+                        ),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.disabled_ui_text_color().into_solid())
+                    .soft_wrap(false)
+                    .finish(),
+                );
+            }
+        }
+
         Container::new(col.finish())
             .with_horizontal_padding(0.)
             .finish()

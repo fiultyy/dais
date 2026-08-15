@@ -3646,3 +3646,5 @@ observatory-task-result = 结果
 observatory-task-deps = 依赖: { $deps }
 observatory-send-target = 发送到 run: { $run }
 observatory-send-target-none = 无 run（将发送到 "gui"）
+observatory-gates-resolved-title = 最近已决
+observatory-gate-resolved-row = [{ $status }] { $resolution } · { $time }
