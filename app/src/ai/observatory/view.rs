@@ -5,13 +5,14 @@
 //! 仅维护渲染缓存（鼠标悬停句柄、子输入框句柄等纯 UI 状态）。
 
 use std::cell::RefCell;
+use warpui::elements::{
+    Border, ChildView, ClippedScrollStateHandle, ClippedScrollable, ConstrainedBox, Container,
+    CornerRadius, CrossAxisAlignment, Empty, Expanded, Fill as ElementFill, Flex, Hoverable,
+    MainAxisAlignment, MainAxisSize, MouseStateHandle, ParentElement, ScrollbarWidth, Shrinkable,
+    Text, UniformList, UniformListState,
+};
 use warpui::r#async::SpawnedFutureHandle;
 use warpui::r#async::Timer;
-use warpui::elements::{
-    Border, ChildView, ConstrainedBox, Container, CornerRadius, CrossAxisAlignment, Empty,
-    Expanded, Flex, Hoverable, MainAxisSize, MainAxisAlignment, MouseStateHandle, ParentElement,
-    Shrinkable, Text,
-};
 use warpui::scene::Radius;
 use warpui::{
     AppContext, Element, Entity, ModelHandle, SingletonEntity, TypedActionView, View, ViewContext,
@@ -22,22 +23,21 @@ use warp_core::ui::appearance::Appearance;
 use warp_core::ui::theme::color::internal_colors;
 use warp_core::ui::theme::Fill;
 use warp_core::ui::theme::WarpTheme;
-use warpui::color::ColorU;
-
 
 use harness_integration::{HarnessType, InterceptMode};
 
-use crate::view_components::action_button::{ActionButton, ButtonSize};
-use crate::view_components::{SubmittableTextInput, SubmittableTextInputEvent};
-use crate::ai::blocklist::agent_view::agent_input_footer::AgentInputButtonTheme;
-use crate::terminal::intercept_sessions::InterceptSessionsModel;
 use super::model::{
     format_datetime_sqlite, ActiveInterceptRowGui, BlockDetailGui, BlockRowGui, DraftField,
     MessageDetailGui, ObservatoryModel, ObservatoryTab, RawDetailGui, RawRowGui, RunRowGui,
     SessionRowGui, TaskRowGui,
 };
+use super::row::{list_row, status_dot_element};
+use crate::ai::blocklist::agent_view::agent_input_footer::AgentInputButtonTheme;
+use crate::terminal::intercept_sessions::InterceptSessionsModel;
+use crate::view_components::action_button::{ActionButton, ButtonSize};
+use crate::view_components::{SubmittableTextInput, SubmittableTextInputEvent};
 
-// ── 布局常量 ─────────────────────────────────────────────────────────────────
+// ── 布局常量（集中收口，P0-3） ──────────────────────────────────────────────
 
 /// 面板内边距。
 const PANEL_PADDING: f32 = 12.;
@@ -49,21 +49,24 @@ const SECTION_SPACING: f32 = 10.;
 const TAB_H_PADDING: f32 = 12.;
 /// Tab 按钮垂直内边距。
 const TAB_V_PADDING: f32 = 6.;
-/// Session 行垂直内边距。
-const ROW_V_PADDING: f32 = 6.;
+/// 列表行内边距（水平；垂直方向由 LIST_ROW_HEIGHT 固定行高收口）。
+const ROW_H_PADDING: f32 = 8.;
 /// Composer 输入框间距。
 const COMPOSER_SPACING: f32 = 8.;
 /// Block type badge 角半径。
 const BADGE_RADIUS: f32 = 4.;
 /// 小号字体（详情/辅助文本）。
 const SMALL_FONT_SIZE: f32 = 12.;
+/// 详情卡内容最大高度（超出内部滚动）。
+const DETAIL_MAX_HEIGHT: f32 = 260.;
 /// 观测台周期自动刷新间隔（ms）。
 const OBSERVATORY_REFRESH_INTERVAL_MS: u64 = 5_000;
-
-/// 面板最大宽度（与右面板默认宽对齐；面板槽位水平约束无限，需自 clamp）。
-const OBSERVATORY_PANEL_MAX_WIDTH: f32 = 480.;
-
-
+/// 面板最小宽度（Resizable clamp 下限）。
+pub const OBSERVATORY_PANEL_MIN_WIDTH: f32 = 320.;
+/// 面板最大宽度比例（Resizable clamp 上限 = 0.6 × window）。
+pub const OBSERVATORY_PANEL_MAX_WIDTH_RATIO: f32 = 0.6;
+/// 面板默认宽度。
+pub const OBSERVATORY_PANEL_DEFAULT_WIDTH: f32 = 480.;
 
 // ── Action ────────────────────────────────────────────────────────────────────
 
@@ -151,6 +154,21 @@ pub struct ObservatoryPanelView {
     refresh_timer_handle: Option<SpawnedFutureHandle>,
     /// 上一帧 busy 状态（渲染缓存：检测 send 完成边沿，同步 composer 输入框）。
     prev_busy: std::cell::Cell<bool>,
+    // ── P0-1 虚拟化列表状态（UniformList + 滚动口） ──
+    /// Sessions tab: 滚动列表区滚动状态（sessions + blocks + raw 单一滚动口）。
+    sessions_scroll: ClippedScrollStateHandle,
+    /// Sessions tab: sessions 列表 UniformList 状态。
+    sessions_list: UniformListState,
+    /// Sessions tab: blocks 时间线 UniformList 状态。
+    blocks_list: UniformListState,
+    /// Raw 流量列表状态。
+    raw_list: UniformListState,
+    /// Orchestration tab: 滚动列表区滚动状态。
+    orchestration_scroll: ClippedScrollStateHandle,
+    /// Orchestration tab: 消息列表状态。
+    messages_list: UniformListState,
+    /// Orchestration tab: 归档列表状态。
+    archives_list: UniformListState,
 }
 
 impl ObservatoryPanelView {
@@ -295,7 +313,9 @@ impl ObservatoryPanelView {
         let base_handle = upstream_base_input.clone();
         ctx.subscribe_to_view(&upstream_base_input, move |_me, _, event, ctx| {
             if let SubmittableTextInputEvent::Submit(content) = event {
-                ctx.dispatch_typed_action(&ObservatoryPanelAction::SetUpstreamBase(content.clone()));
+                ctx.dispatch_typed_action(&ObservatoryPanelAction::SetUpstreamBase(
+                    content.clone(),
+                ));
                 base_handle.update(ctx, |input, ctx| {
                     let editor = input.editor().clone();
                     let text = content.clone();
@@ -313,7 +333,9 @@ impl ObservatoryPanelView {
         let auth_env_handle = upstream_auth_env_input.clone();
         ctx.subscribe_to_view(&upstream_auth_env_input, move |_me, _, event, ctx| {
             if let SubmittableTextInputEvent::Submit(content) = event {
-                ctx.dispatch_typed_action(&ObservatoryPanelAction::SetUpstreamAuthEnv(content.clone()));
+                ctx.dispatch_typed_action(&ObservatoryPanelAction::SetUpstreamAuthEnv(
+                    content.clone(),
+                ));
                 auth_env_handle.update(ctx, |input, ctx| {
                     let editor = input.editor().clone();
                     let text = content.clone();
@@ -324,20 +346,26 @@ impl ObservatoryPanelView {
 
         // 任务派发按钮（选中 task 由 handle_action 侧读取）
         let dispatch_button = ctx.add_typed_action_view(|_ctx| {
-            ActionButton::new(crate::t!("observatory-task-dispatch"), AgentInputButtonTheme)
-                .with_size(ButtonSize::AgentInputButton)
-                .on_click(|ctx| {
-                    ctx.dispatch_typed_action(ObservatoryPanelAction::DispatchSelectedTask);
-                })
+            ActionButton::new(
+                crate::t!("observatory-task-dispatch"),
+                AgentInputButtonTheme,
+            )
+            .with_size(ButtonSize::AgentInputButton)
+            .on_click(|ctx| {
+                ctx.dispatch_typed_action(ObservatoryPanelAction::DispatchSelectedTask);
+            })
         });
 
         // 代理 tab: 刷新 block 计数按钮
         let refresh_count_button = ctx.add_typed_action_view(|_ctx| {
-            ActionButton::new(crate::t!("observatory-proxy-refresh-count"), AgentInputButtonTheme)
-                .with_size(ButtonSize::AgentInputButton)
-                .on_click(|ctx| {
-                    ctx.dispatch_typed_action(ObservatoryPanelAction::RefreshBlockCount);
-                })
+            ActionButton::new(
+                crate::t!("observatory-proxy-refresh-count"),
+                AgentInputButtonTheme,
+            )
+            .with_size(ButtonSize::AgentInputButton)
+            .on_click(|ctx| {
+                ctx.dispatch_typed_action(ObservatoryPanelAction::RefreshBlockCount);
+            })
         });
 
         // 订阅 model 事件 → 重绘；busy true→false 边沿（send 完成）时
@@ -405,6 +433,13 @@ impl ObservatoryPanelView {
             refresh_count_button,
             refresh_timer_handle: None,
             prev_busy: std::cell::Cell::new(false),
+            sessions_scroll: ClippedScrollStateHandle::default(),
+            sessions_list: UniformListState::new(),
+            blocks_list: UniformListState::new(),
+            raw_list: UniformListState::new(),
+            orchestration_scroll: ClippedScrollStateHandle::default(),
+            messages_list: UniformListState::new(),
+            archives_list: UniformListState::new(),
         };
         // 首次启动 5s 自动刷新 timer（此前无首调，timer 从未跑起来——
         // render 是 &self 无法启动，start_refresh_timer 只在回调内自续期）。
@@ -478,19 +513,31 @@ impl ObservatoryPanelView {
             .with_spacing(SPACING);
 
         row.add_child(
-            Text::new(title_text, appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.active_ui_text_color().into())
-                .finish(),
+            Text::new(
+                title_text,
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.active_ui_text_color().into())
+            .finish(),
         );
         row.add_child(
-            Text::new(mode_label, appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.nonactive_ui_text_color().into_solid())
-                .finish(),
+            Text::new(
+                mode_label,
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.nonactive_ui_text_color().into_solid())
+            .finish(),
         );
         row.add_child(
-            Text::new(blocks_text, appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.nonactive_ui_text_color().into_solid())
-                .finish(),
+            Text::new(
+                blocks_text,
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.nonactive_ui_text_color().into_solid())
+            .finish(),
         );
         row.add_child(Expanded::new(1., Empty::new().finish()).finish());
         row.add_child(ChildView::new(&self.refresh_button).finish());
@@ -540,9 +587,13 @@ impl ObservatoryPanelView {
                     theme.disabled_ui_text_color().into_solid()
                 };
                 let mut container = Container::new(
-                    Text::new(label.clone(), appearance.ui_font_family(), appearance.ui_font_size())
-                        .with_color(text_color)
-                        .finish(),
+                    Text::new(
+                        label.clone(),
+                        appearance.ui_font_family(),
+                        appearance.ui_font_size(),
+                    )
+                    .with_color(text_color)
+                    .finish(),
                 )
                 .with_horizontal_padding(TAB_H_PADDING)
                 .with_vertical_padding(TAB_V_PADDING);
@@ -564,6 +615,8 @@ impl ObservatoryPanelView {
             .finish()
     }
 
+    /// Sessions tab：搜索框 + 滚动列表区（sessions + blocks + raw 虚拟化）
+    /// + 固定详情区（选中 block/raw 详情卡，不随列表滚动丢失）。
     fn render_sessions_tab(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
         let theme = appearance.theme();
@@ -572,105 +625,209 @@ impl ObservatoryPanelView {
 
         let mut col = Flex::column()
             .with_main_axis_size(MainAxisSize::Min)
-            .with_spacing(SECTION_SPACING);
+            .with_spacing(SPACING);
 
-        // ── 搜索框 ──
+        // ── 搜索框（固定区） ──
         col.add_child(
             Container::new(ChildView::new(&self.search_input).finish())
                 .with_horizontal_padding(PANEL_PADDING)
                 .finish(),
         );
 
-        // ── 会话列表 ──
+        // ── 滚动列表区：sessions + blocks + raw，单一滚动口 ──
+        let mut scroll_col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Min)
+            .with_spacing(SPACING);
+
+        // 会话列表（≤100 行；UniformList 虚拟化）
         if snapshot.sessions.is_empty() {
-            col.add_child(self.render_empty_state(
+            scroll_col.add_child(self.render_empty_state(
                 &crate::t!("observatory-sessions-empty"),
                 appearance,
                 theme,
             ));
         } else {
-            Self::ensure_handles(&mut self.session_row_handles.borrow_mut(), snapshot.sessions.len());
-            let handles = self.session_row_handles.borrow();
-            for (i, session) in snapshot.sessions.iter().enumerate() {
-                let is_selected = model
-                    .selected_session()
-                    .is_some_and(|s| s == session.session_id);
-                let handle = handles[i].clone();
-                let session_id = session.session_id.clone();
-
-                let inner = self.render_session_row(session, is_selected, appearance, theme);
-                let hoverable = Hoverable::new(handle, move |state| {
-                    let mut container = Container::new(inner)
-                        .with_horizontal_padding(PANEL_PADDING)
-                        .with_vertical_padding(ROW_V_PADDING);
-                    if is_selected {
-                        container = container.with_background(internal_colors::fg_overlay_1(theme));
-                    } else if state.is_hovered() {
-                        container = container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
-                    }
-                    container.finish()
+            Self::ensure_handles(
+                &mut self.session_row_handles.borrow_mut(),
+                snapshot.sessions.len(),
+            );
+            let handles = self.session_row_handles.borrow().clone();
+            let sessions: Vec<(String, bool)> = snapshot
+                .sessions
+                .iter()
+                .map(|s| {
+                    (
+                        s.session_id.clone(),
+                        model
+                            .selected_session()
+                            .is_some_and(|id| id == s.session_id),
+                    )
                 })
-        .on_click(move |ctx, _, _| {
-                    ctx.dispatch_typed_action(ObservatoryPanelAction::SelectSession(Some(session_id.clone())));
-                })
-                .finish();
-                col.add_child(hoverable);
-            }
+                .collect();
+            // 闭包按 'static 捕获：theme 克隆 + 字体参数 Copy
+            let theme = theme.clone();
+            let font_family = appearance.ui_font_family();
+            let font_size = appearance.ui_font_size();
+            let build = move |range: std::ops::Range<usize>, _app: &AppContext| {
+                (range.start..range.end)
+                    .filter_map(|i| sessions.get(i).map(|(sid, sel)| (sid.clone(), *sel, i)))
+                    .map(|(session_id, is_selected, i)| {
+                        let handle = handles[i].clone();
+                        let inner = list_row(
+                            &theme,
+                            font_family,
+                            font_size,
+                            None,
+                            truncate_str(&session_id, 16),
+                            None,
+                            None,
+                        );
+                        let theme = theme.clone();
+                        Hoverable::new(handle, move |state| {
+                            let mut container =
+                                Container::new(inner).with_horizontal_padding(PANEL_PADDING);
+                            if is_selected {
+                                container = container
+                                    .with_background(internal_colors::fg_overlay_1(&theme));
+                            } else if state.is_hovered() {
+                                container = container.with_background(Fill::Solid(
+                                    internal_colors::neutral_3(&theme),
+                                ));
+                            }
+                            container.finish()
+                        })
+                        .on_click(move |ctx, _, _| {
+                            ctx.dispatch_typed_action(ObservatoryPanelAction::SelectSession(Some(
+                                session_id.clone(),
+                            )));
+                        })
+                        .finish()
+                    })
+                    .collect::<Vec<_>>()
+                    .into_iter()
+            };
+            scroll_col.add_child(self.wrap_virtual_list(
+                self.sessions_list.clone(),
+                snapshot.sessions.len(),
+                build,
+            ));
         }
 
-        // ── Block 时间线（选中 session 时展示） ──
+        // Block 时间线（选中 session 时；UniformList 虚拟化，500 行只建可见行）
         if model.selected_session().is_some() {
             if snapshot.blocks.is_empty() {
-                col.add_child(self.render_empty_state(
+                scroll_col.add_child(self.render_empty_state(
                     &crate::t!("observatory-blocks-empty"),
                     appearance,
                     theme,
                 ));
             } else {
-                Self::ensure_handles(&mut self.block_row_handles.borrow_mut(), snapshot.blocks.len());
-                let handles = self.block_row_handles.borrow();
-                for (i, block) in snapshot.blocks.iter().enumerate() {
-                    let handle = handles[i].clone();
-                    let is_selected = model
-                        .selected_block()
-                        .is_some_and(|b| b == block.id);
-                    let block_id = block.id.clone();
-                    let block_el = self.render_block_row(block, is_selected, appearance, theme);
-                    let hoverable = Hoverable::new(handle, move |state| {
-                        let mut container = Container::new(block_el)
-                            .with_horizontal_padding(PANEL_PADDING)
-                            .with_vertical_padding(ROW_V_PADDING);
-                        if is_selected {
-                            container = container.with_background(internal_colors::fg_overlay_1(theme));
-                        } else if state.is_hovered() {
-                            container = container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
-                        }
-                        container.finish()
+                Self::ensure_handles(
+                    &mut self.block_row_handles.borrow_mut(),
+                    snapshot.blocks.len(),
+                );
+                let handles = self.block_row_handles.borrow().clone();
+                let blocks: Vec<(String, bool)> = snapshot
+                    .blocks
+                    .iter()
+                    .map(|b| {
+                        (
+                            b.id.clone(),
+                            model.selected_block().is_some_and(|id| id == b.id),
+                        )
                     })
-                    .on_click(move |ctx, _, _| {
-                        ctx.dispatch_typed_action(ObservatoryPanelAction::SelectBlock(Some(block_id.clone())));
-                    })
-                    .finish();
-                    col.add_child(hoverable);
-                }
+                    .collect();
+                // 闭包按 'static 捕获：theme 克隆 + 行数据克隆 + 字体参数 Copy
+                let blocks_full: Vec<BlockRowGui> = snapshot.blocks.clone();
+                let theme = theme.clone();
+                let font_family = appearance.ui_font_family();
+                let font_size = appearance.ui_font_size();
+                let build = move |range: std::ops::Range<usize>, _app: &AppContext| {
+                    (range.start..range.end)
+                        .filter_map(|i| blocks.get(i).cloned().map(|(bid, sel)| (bid, sel, i)))
+                        .map(|(block_id, is_selected, i)| {
+                            let handle = handles[i].clone();
+                            let block = &blocks_full[i];
+                            let inner =
+                                render_block_list_row(block, font_family, font_size, &theme);
+                            let theme = theme.clone();
+                            Hoverable::new(handle, move |state| {
+                                let mut container =
+                                    Container::new(inner).with_horizontal_padding(PANEL_PADDING);
+                                if is_selected {
+                                    container = container
+                                        .with_background(internal_colors::fg_overlay_1(&theme));
+                                } else if state.is_hovered() {
+                                    container = container.with_background(Fill::Solid(
+                                        internal_colors::neutral_3(&theme),
+                                    ));
+                                }
+                                container.finish()
+                            })
+                            .on_click(move |ctx, _, _| {
+                                ctx.dispatch_typed_action(ObservatoryPanelAction::SelectBlock(
+                                    Some(block_id.clone()),
+                                ));
+                            })
+                            .finish()
+                        })
+                        .collect::<Vec<_>>()
+                        .into_iter()
+                };
+                scroll_col.add_child(self.wrap_virtual_list(
+                    self.blocks_list.clone(),
+                    snapshot.blocks.len(),
+                    build,
+                ));
             }
         }
 
-        // ── Block 详情（选中 block 时展示） ──
+        // Raw 代理流量（选中 session 时；虚拟化）
+        if model.selected_session().is_some() {
+            scroll_col.add_child(self.render_raw_list(app));
+        }
+
+        col.add_child(
+            ClippedScrollable::vertical(
+                self.sessions_scroll.clone(),
+                scroll_col.finish(),
+                ScrollbarWidth::Auto,
+                theme.disabled_text_color(theme.background()).into(),
+                theme.main_text_color(theme.background()).into(),
+                ElementFill::None,
+            )
+            .finish(),
+        );
+
+        // ── 固定详情区（选中项，不随列表滚动） ──
         if let Some(detail) = model.block_detail() {
             col.add_child(self.render_block_detail(detail, appearance, theme));
         }
-
-        // ── Raw 代理流量（选中 session 时展示） ──
-        if model.selected_session().is_some() {
-            col.add_child(self.render_raw_section(app));
+        if let Some(detail) = model.raw_detail() {
+            col.add_child(self.render_raw_detail(detail, appearance, theme));
         }
 
         Shrinkable::new(1., col.finish()).finish()
     }
 
-    /// Raw 代理流量列表（时间升序）+ 选中详情卡片。
-    fn render_raw_section(&self, app: &AppContext) -> Box<dyn Element> {
+    /// UniformList 包裹 helper（等高 LIST_ROW_HEIGHT 行；UniformList 自带
+    /// 滚轮滚动，外包 ClippedScrollable 提供滚动口与滚动条）。
+    fn wrap_virtual_list<F, G>(
+        &self,
+        state: UniformListState,
+        item_count: usize,
+        build_items: F,
+    ) -> Box<dyn Element>
+    where
+        F: Fn(std::ops::Range<usize>, &AppContext) -> G + 'static,
+        G: Iterator<Item = Box<dyn Element>> + 'static,
+    {
+        UniformList::new(state, item_count, build_items).finish()
+    }
+
+    /// Raw 代理流量列表（时间升序，虚拟化）。详情卡固定在 tab 底部（见
+    /// render_sessions_tab）。
+    fn render_raw_list(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
         let theme = appearance.theme();
         let model = self.model.as_ref(app);
@@ -705,35 +862,58 @@ impl ObservatoryPanelView {
                 &mut self.raw_row_handles.borrow_mut(),
                 snapshot.raw_entries.len(),
             );
-            let handles = self.raw_row_handles.borrow();
-            for (i, entry) in snapshot.raw_entries.iter().enumerate() {
-                let handle = handles[i].clone();
-                let is_selected = model.selected_raw().is_some_and(|r| r == entry.id);
-                let raw_id = entry.id.clone();
-                let row_el = self.render_raw_row(entry, appearance, theme);
-                let hoverable = Hoverable::new(handle, move |state| {
-                    let mut container = Container::new(row_el)
-                        .with_horizontal_padding(PANEL_PADDING)
-                        .with_vertical_padding(ROW_V_PADDING);
-                    if is_selected {
-                        container = container.with_background(internal_colors::fg_overlay_1(theme));
-                    } else if state.is_hovered() {
-                        container =
-                            container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
-                    }
-                    container.finish()
+            let handles = self.raw_row_handles.borrow().clone();
+            let raws: Vec<(String, bool)> = snapshot
+                .raw_entries
+                .iter()
+                .map(|r| {
+                    (
+                        r.id.clone(),
+                        model.selected_raw().is_some_and(|id| id == r.id),
+                    )
                 })
-                .on_click(move |ctx, _, _| {
-                    ctx.dispatch_typed_action(ObservatoryPanelAction::SelectRaw(Some(raw_id.clone())));
-                })
-                .finish();
-                col.add_child(hoverable);
-            }
-        }
-
-        // 选中 raw 的详情卡片
-        if let Some(detail) = model.raw_detail() {
-            col.add_child(self.render_raw_detail(detail, appearance, theme));
+                .collect();
+            // 闭包按 'static 捕获：theme 克隆 + 字体参数 Copy
+            let theme = theme.clone();
+            let font_family = appearance.ui_font_family();
+            let font_size = appearance.ui_font_size();
+            let raws_full: Vec<RawRowGui> = snapshot.raw_entries.clone();
+            let build = move |range: std::ops::Range<usize>, _app: &AppContext| {
+                (range.start..range.end)
+                    .filter_map(|i| raws.get(i).cloned().map(|(rid, sel)| (rid, sel, i)))
+                    .map(|(raw_id, is_selected, i)| {
+                        let handle = handles[i].clone();
+                        let entry = &raws_full[i];
+                        let row_el = render_raw_list_row(entry, font_family, font_size, &theme);
+                        let theme = theme.clone();
+                        Hoverable::new(handle, move |state| {
+                            let mut container =
+                                Container::new(row_el).with_horizontal_padding(PANEL_PADDING);
+                            if is_selected {
+                                container = container
+                                    .with_background(internal_colors::fg_overlay_1(&theme));
+                            } else if state.is_hovered() {
+                                container = container.with_background(Fill::Solid(
+                                    internal_colors::neutral_3(&theme),
+                                ));
+                            }
+                            container.finish()
+                        })
+                        .on_click(move |ctx, _, _| {
+                            ctx.dispatch_typed_action(ObservatoryPanelAction::SelectRaw(Some(
+                                raw_id.clone(),
+                            )));
+                        })
+                        .finish()
+                    })
+                    .collect::<Vec<_>>()
+                    .into_iter()
+            };
+            col.add_child(self.wrap_virtual_list(
+                self.raw_list.clone(),
+                snapshot.raw_entries.len(),
+                build,
+            ));
         }
 
         Container::new(col.finish())
@@ -741,59 +921,19 @@ impl ObservatoryPanelView {
             .finish()
     }
 
-    /// 单行 raw 流量条目。
+    /// 单行 raw 流量条目（row.rs list_row 版本）。
     fn render_raw_row(
         &self,
         entry: &RawRowGui,
         appearance: &Appearance,
         theme: &WarpTheme,
     ) -> Box<dyn Element> {
-        let is_request = entry.direction == "request";
-        let dir_color = if is_request {
-            theme.accent().into_solid()
-        } else {
-            theme.nonactive_ui_text_color().into_solid()
-        };
-        let size_text = format!("{}B", entry.content_len);
-        let time_text = format_timestamp(entry.timestamp);
-        let preview = truncate_str(&entry.preview, 60);
-
-        let mut row = Flex::row()
-            .with_cross_axis_alignment(CrossAxisAlignment::Center)
-            .with_spacing(SPACING);
-
-        let badge = Container::new(
-            Text::new(
-                entry.direction.clone(),
-                appearance.ui_font_family(),
-                appearance.ui_font_size(),
-            )
-            .with_color(dir_color)
-            .finish(),
+        render_raw_list_row(
+            entry,
+            appearance.ui_font_family(),
+            appearance.ui_font_size(),
+            theme,
         )
-        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
-        .with_horizontal_padding(4.)
-        .with_vertical_padding(2.)
-        .finish();
-        row.add_child(badge);
-        row.add_child(
-            Text::new(size_text, appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.disabled_ui_text_color().into_solid())
-                .finish(),
-        );
-        row.add_child(Expanded::new(1., Empty::new().finish()).finish());
-        row.add_child(
-            Text::new(preview, appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.nonactive_ui_text_color().into_solid())
-                .soft_wrap(false)
-                .finish(),
-        );
-        row.add_child(
-            Text::new(time_text, appearance.ui_font_family(), SMALL_FONT_SIZE)
-                .with_color(theme.disabled_ui_text_color().into_solid())
-                .finish(),
-        );
-        row.finish()
     }
 
     /// Raw 载荷详情卡片。
@@ -838,9 +978,13 @@ impl ObservatoryPanelView {
             .finish(),
         );
         col.add_child(
-            Text::new(truncate_str(&detail.content, 16000), appearance.ui_font_family(), SMALL_FONT_SIZE)
-                .with_color(theme.sub_text_color(theme.background()).into())
-                .finish(),
+            Text::new(
+                truncate_str(&detail.content, 16000),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.sub_text_color(theme.background()).into())
+            .finish(),
         );
 
         Container::new(col.finish())
@@ -884,9 +1028,13 @@ impl ObservatoryPanelView {
             .finish(),
         );
         col.add_child(
-            Text::new(format!("{} · {}", detail.subject, meta_text), appearance.ui_font_family(), SMALL_FONT_SIZE)
-                .with_color(theme.sub_text_color(theme.background()).into())
-                .finish(),
+            Text::new(
+                format!("{} · {}", detail.subject, meta_text),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.sub_text_color(theme.background()).into())
+            .finish(),
         );
         col.add_child(
             Text::new(type_text, appearance.ui_font_family(), SMALL_FONT_SIZE)
@@ -903,9 +1051,13 @@ impl ObservatoryPanelView {
             .finish(),
         );
         col.add_child(
-            Text::new(truncate_str(&detail.body, 16000), appearance.ui_font_family(), SMALL_FONT_SIZE)
-                .with_color(theme.sub_text_color(theme.background()).into())
-                .finish(),
+            Text::new(
+                truncate_str(&detail.body, 16000),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.sub_text_color(theme.background()).into())
+            .finish(),
         );
 
         Container::new(col.finish())
@@ -916,110 +1068,39 @@ impl ObservatoryPanelView {
             .finish()
     }
 
-    /// 单行 session 渲染（无悬停/边框包裹——由调用者 Hoverable 负责）。
+    /// 单行 session 渲染（row.rs list_row 版本，等高行）。
     fn render_session_row(
         &self,
         session: &SessionRowGui,
-        is_selected: bool,
+        _is_selected: bool,
         appearance: &Appearance,
         theme: &WarpTheme,
     ) -> Box<dyn Element> {
-        let display_id = truncate_str(&session.session_id, 16);
-        let count_text = format!("{} blocks", session.block_count);
-        let time_text = format_timestamp(session.last_ts);
-
-        let mut row = Flex::row()
-            .with_main_axis_size(MainAxisSize::Max)
-            .with_cross_axis_alignment(CrossAxisAlignment::Center)
-            .with_spacing(SPACING);
-
-        row.add_child(
-            Text::new(display_id, appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.main_text_color(theme.background()).into())
-                .soft_wrap(false)
-                .finish(),
-        );
-        row.add_child(Expanded::new(1., Empty::new().finish()).finish());
-        row.add_child(
-            Text::new(count_text, appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.sub_text_color(theme.background()).into())
-                .finish(),
-        );
-        row.add_child(
-            Text::new(time_text, appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.disabled_ui_text_color().into_solid())
-                .finish(),
-        );
-
-        if is_selected {
-            Container::new(row.finish())
-                .with_border(Border::left(2.).with_border_fill(theme.accent()))
-                .finish()
-        } else {
-            row.finish()
-        }
+        list_row(
+            theme,
+            appearance.ui_font_family(),
+            appearance.ui_font_size(),
+            None,
+            truncate_str(&session.session_id, 16),
+            Some(format!("{} blocks", session.block_count)),
+            Some(format_timestamp(session.last_ts)),
+        )
     }
 
-    /// 单行 block 时间线条目渲染。
+    /// 单行 block 时间线条目渲染（row.rs list_row 版本，等高行）。
     fn render_block_row(
         &self,
         block: &BlockRowGui,
-        is_selected: bool,
+        _is_selected: bool,
         appearance: &Appearance,
         theme: &WarpTheme,
     ) -> Box<dyn Element> {
-        let badge_color = block_type_color(&block.block_type, theme);
-        let seq_text = crate::t!("observatory-block-seq", seq = block.sequence);
-        let content_text = format!("{}B", block.content_len);
-        let preview = truncate_str(&block.preview, 80);
-
-        let mut row = Flex::row()
-            .with_cross_axis_alignment(CrossAxisAlignment::Center)
-            .with_spacing(SPACING);
-
-        // block_type badge
-        let badge = Container::new(
-            Text::new(
-                block.block_type.clone(),
-                appearance.ui_font_family(),
-                appearance.ui_font_size(),
-            )
-            .with_color(badge_color)
-            .finish(),
+        render_block_list_row(
+            block,
+            appearance.ui_font_family(),
+            appearance.ui_font_size(),
+            theme,
         )
-        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
-        .with_horizontal_padding(4.)
-        .with_vertical_padding(2.)
-        .finish();
-        row.add_child(badge);
-
-        row.add_child(
-            Text::new(seq_text, appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.sub_text_color(theme.background()).into())
-                .finish(),
-        );
-        row.add_child(
-            Text::new(content_text, appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.disabled_ui_text_color().into_solid())
-                .finish(),
-        );
-
-        // 预览占满剩余空间，截断
-        row.add_child(Expanded::new(1., Empty::new().finish()).finish());
-        row.add_child(
-            Text::new(preview, appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.nonactive_ui_text_color().into_solid())
-                .soft_wrap(false)
-                .finish(),
-        );
-
-        if is_selected {
-            Container::new(row.finish())
-                .with_border(Border::left(2.).with_border_fill(theme.accent()))
-                .finish()
-        } else {
-            row.finish()
-        }
     }
 
     /// Block 详情卡片：元信息 + metadata + content 全文（换行渲染）。
@@ -1096,9 +1177,13 @@ impl ObservatoryPanelView {
             .finish(),
         );
         col.add_child(
-            Text::new(truncate_str(&detail.metadata, 4000), appearance.ui_font_family(), SMALL_FONT_SIZE)
-                .with_color(theme.sub_text_color(theme.background()).into())
-                .finish(),
+            Text::new(
+                truncate_str(&detail.metadata, 4000),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.sub_text_color(theme.background()).into())
+            .finish(),
         );
 
         // Content
@@ -1112,9 +1197,13 @@ impl ObservatoryPanelView {
             .finish(),
         );
         col.add_child(
-            Text::new(truncate_str(&detail.content, 16000), appearance.ui_font_family(), SMALL_FONT_SIZE)
-                .with_color(theme.sub_text_color(theme.background()).into())
-                .finish(),
+            Text::new(
+                truncate_str(&detail.content, 16000),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.sub_text_color(theme.background()).into())
+            .finish(),
         );
 
         Container::new(col.finish())
@@ -1125,7 +1214,8 @@ impl ObservatoryPanelView {
             .finish()
     }
 
-    /// Orchestration tab 内容: runs + tasks + gates + messages + composer。
+    /// Orchestration tab 内容: 滚动列表区（runs+tasks / gates / messages /
+    /// archives，单一滚动口）+ 固定详情区（task 详情 + composer）。
     fn render_orchestration_tab(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
         let theme = appearance.theme();
@@ -1136,9 +1226,14 @@ impl ObservatoryPanelView {
             .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(SECTION_SPACING);
 
-        // ── Runs + Tasks（task 行可点击选中） ──
+        // ── 滚动列表区 ──
+        let mut scroll_col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Min)
+            .with_spacing(SECTION_SPACING);
+
+        // Runs + Tasks（task 行可点击选中）
         if snapshot.runs.is_empty() {
-            col.add_child(self.render_empty_state(
+            scroll_col.add_child(self.render_empty_state(
                 &crate::t!("observatory-runs-empty"),
                 appearance,
                 theme,
@@ -1146,10 +1241,7 @@ impl ObservatoryPanelView {
         } else {
             let selected_task = model.selected_task();
             let selected_run = model.selected_run();
-            Self::ensure_handles(
-                &mut self.run_row_handles.borrow_mut(),
-                snapshot.runs.len(),
-            );
+            Self::ensure_handles(&mut self.run_row_handles.borrow_mut(), snapshot.runs.len());
             let run_handles = self.run_row_handles.borrow();
             let mut task_idx = 0usize;
             for (ri, run) in snapshot.runs.iter().enumerate() {
@@ -1164,10 +1256,13 @@ impl ObservatoryPanelView {
                     task_idx + run_tasks.len(),
                 );
                 let handles = self.task_row_handles.borrow();
-                let rows: Vec<(usize, &TaskRowGui)> =
-                    run_tasks.into_iter().enumerate().map(|(i, t)| (task_idx + i, t)).collect();
+                let rows: Vec<(usize, &TaskRowGui)> = run_tasks
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, t)| (task_idx + i, t))
+                    .collect();
                 task_idx += rows.len();
-                col.add_child(self.render_run_entry(
+                scroll_col.add_child(self.render_run_entry(
                     run,
                     &rows,
                     selected_task,
@@ -1180,62 +1275,76 @@ impl ObservatoryPanelView {
             }
         }
 
-        // ── 选中 task 详情 + 派发 ──
-        col.add_child(self.render_task_panel(app));
+        // Pending gates
+        scroll_col.add_child(self.render_gates_section(app));
 
-        // ── Pending gates ──
-        col.add_child(self.render_gates_section(app));
-
-        // ── 最近 Messages ──
+        // 最近 Messages（UniformList 虚拟化）
         if !snapshot.recent_messages.is_empty() {
             Self::ensure_handles(
                 &mut self.message_row_handles.borrow_mut(),
                 snapshot.recent_messages.len(),
             );
-            let handles = self.message_row_handles.borrow();
-            for (i, msg) in snapshot.recent_messages.iter().enumerate() {
-                let handle = handles[i].clone();
-                let is_selected = model
-                    .selected_message()
-                    .is_some_and(|s| s == msg.seq);
-                let msg_text = format!("{} → {}: {}", msg.from_handle, msg.to_handle, msg.subject);
-                let seq = msg.seq;
-                let hoverable = Hoverable::new(handle, move |state| {
-                    let mut container = Container::new(
-                        Text::new(
-                            msg_text.clone(),
-                            appearance.ui_font_family(),
-                            appearance.ui_font_size(),
-                        )
-                        .with_color(theme.sub_text_color(theme.background()).into())
-                        .soft_wrap(false)
-                        .finish(),
+            let handles = self.message_row_handles.borrow().clone();
+            let msgs: Vec<(i64, String, bool)> = snapshot
+                .recent_messages
+                .iter()
+                .map(|m| {
+                    (
+                        m.seq,
+                        format!("{} → {}: {}", m.from_handle, m.to_handle, m.subject),
+                        model.selected_message().is_some_and(|s| s == m.seq),
                     )
-                    .with_horizontal_padding(PANEL_PADDING)
-                    .with_vertical_padding(ROW_V_PADDING);
-                    if is_selected {
-                        container = container.with_background(internal_colors::fg_overlay_1(theme));
-                    } else if state.is_hovered() {
-                        container = container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
-                    }
-                    container.finish()
                 })
-                .on_click(move |ctx, _, _| {
-                    ctx.dispatch_typed_action(ObservatoryPanelAction::SelectMessage(Some(seq)));
-                })
-                .finish();
-                col.add_child(hoverable);
-            }
+                .collect();
+            // 闭包按 'static 捕获：theme 克隆 + 字体参数 Copy
+            let theme = theme.clone();
+            let font_family = appearance.ui_font_family();
+            let font_size = appearance.ui_font_size();
+            let build = move |range: std::ops::Range<usize>, _app: &AppContext| {
+                (range.start..range.end)
+                    .filter_map(|i| {
+                        msgs.get(i)
+                            .cloned()
+                            .map(|(seq, text, sel)| (seq, text, sel, i))
+                    })
+                    .map(|(seq, msg_text, is_selected, i)| {
+                        let handle = handles[i].clone();
+                        let inner =
+                            list_row(&theme, font_family, font_size, None, msg_text, None, None);
+                        let theme = theme.clone();
+                        Hoverable::new(handle, move |state| {
+                            let mut container =
+                                Container::new(inner).with_horizontal_padding(PANEL_PADDING);
+                            if is_selected {
+                                container = container
+                                    .with_background(internal_colors::fg_overlay_1(&theme));
+                            } else if state.is_hovered() {
+                                container = container.with_background(Fill::Solid(
+                                    internal_colors::neutral_3(&theme),
+                                ));
+                            }
+                            container.finish()
+                        })
+                        .on_click(move |ctx, _, _| {
+                            ctx.dispatch_typed_action(ObservatoryPanelAction::SelectMessage(Some(
+                                seq,
+                            )));
+                        })
+                        .finish()
+                    })
+                    .collect::<Vec<_>>()
+                    .into_iter()
+            };
+            scroll_col.add_child(self.wrap_virtual_list(
+                self.messages_list.clone(),
+                snapshot.recent_messages.len(),
+                build,
+            ));
         }
 
-        // ── 选中消息详情卡片 ──
-        if let Some(detail) = model.message_detail() {
-            col.add_child(self.render_message_detail(detail, appearance, theme));
-        }
-
-        // ── Worker 终端输出归档（最新 5） ──
+        // Worker 终端输出归档（最新 5；meta 行 + tail 3 行扁平展开为虚拟化行）
         if !snapshot.archives.is_empty() {
-            col.add_child(
+            scroll_col.add_child(
                 Text::new(
                     crate::t!("observatory-archives-title"),
                     appearance.ui_font_family(),
@@ -1244,38 +1353,74 @@ impl ObservatoryPanelView {
                 .with_color(theme.nonactive_ui_text_color().into_solid())
                 .finish(),
             );
-            for archive in &snapshot.archives {
-                col.add_child(
-                    Text::new(
-                        crate::t!(
-                            "observatory-archive-meta",
-                            id = truncate_str(&archive.dispatch_id, 22),
-                            kind = archive.kind.clone(),
-                            time = archive.created_at.clone(),
-                        ),
-                        appearance.ui_font_family(),
-                        SMALL_FONT_SIZE,
-                    )
-                    .with_color(theme.disabled_ui_text_color().into_solid())
-                    .soft_wrap(false)
-                    .finish(),
-                );
-                // tail 语义：只显示最后 3 行
-                for line in archive.lines.iter().rev().take(3).rev() {
-                    col.add_child(
-                        Text::new(
-                            truncate_str(line, 120),
-                            appearance.ui_font_family(),
-                            SMALL_FONT_SIZE,
-                        )
-                        .with_color(theme.sub_text_color(theme.background()).into())
-                        .soft_wrap(false)
-                        .finish(),
+            // 扁平行：每个 archive = 1 meta 行 + 最多 3 tail 行
+            let archive_rows: Vec<String> = snapshot
+                .archives
+                .iter()
+                .flat_map(|a| {
+                    let mut rows = vec![crate::t!(
+                        "observatory-archive-meta",
+                        id = truncate_str(&a.dispatch_id, 22),
+                        kind = a.kind.clone(),
+                        time = a.created_at.clone(),
+                    )];
+                    // tail 语义：只显示最后 3 行
+                    rows.extend(
+                        a.lines
+                            .iter()
+                            .rev()
+                            .take(3)
+                            .rev()
+                            .map(|l| truncate_str(l, 120)),
                     );
-                }
-            }
+                    rows
+                })
+                .collect();
+            // 闭包按 'static 捕获：theme 克隆 + 字体参数 Copy
+            let theme = theme.clone();
+            let font_family = appearance.ui_font_family();
+            let build = move |range: std::ops::Range<usize>, _app: &AppContext| {
+                (range.start..range.end)
+                    .filter_map(|i| archive_rows.get(i).cloned())
+                    .map(|text| {
+                        Text::new(text, font_family, SMALL_FONT_SIZE)
+                            .with_color(theme.sub_text_color(theme.background()).into())
+                            .soft_wrap(false)
+                            .finish()
+                    })
+                    .collect::<Vec<_>>()
+                    .into_iter()
+            };
+            scroll_col.add_child(self.wrap_virtual_list(
+                self.archives_list.clone(),
+                archive_rows_len(&snapshot.archives),
+                build,
+            ));
         }
-        // ── Composer ──
+
+        // 唯一滚动口（内容超出面板高度时滚动）
+        col.add_child(
+            ClippedScrollable::vertical(
+                self.orchestration_scroll.clone(),
+                scroll_col.finish(),
+                ScrollbarWidth::Auto,
+                theme.disabled_text_color(theme.background()).into(),
+                theme.main_text_color(theme.background()).into(),
+                ElementFill::None,
+            )
+            .finish(),
+        );
+
+        // ── 固定详情区（不随列表滚动） ──
+        // 选中 task 详情 + 派发
+        col.add_child(self.render_task_panel(app));
+
+        // 选中消息详情卡片
+        if let Some(detail) = model.message_detail() {
+            col.add_child(self.render_message_detail(detail, appearance, theme));
+        }
+
+        // Composer
         col.add_child(self.render_composer(app));
 
         Shrinkable::new(1., col.finish()).finish()
@@ -1308,26 +1453,35 @@ impl ObservatoryPanelView {
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
             .with_spacing(SPACING);
         run_row.add_child(
-            Text::new(objective, appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.main_text_color(theme.background()).into())
-                .soft_wrap(false)
-                .finish(),
+            Text::new(
+                objective,
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.main_text_color(theme.background()).into())
+            .soft_wrap(false)
+            .finish(),
         );
         run_row.add_child(Expanded::new(1., Empty::new().finish()).finish());
         run_row.add_child(
-            Text::new(created_at.clone(), appearance.ui_font_family(), appearance.ui_font_size())
-                .with_color(theme.disabled_ui_text_color().into_solid())
-                .finish(),
+            Text::new(
+                created_at.clone(),
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.disabled_ui_text_color().into_solid())
+            .finish(),
         );
         let run_header_row = run_row.finish();
         let run_header = Hoverable::new(run_handle, move |state| {
             let mut container = Container::new(run_header_row)
                 .with_horizontal_padding(PANEL_PADDING)
-                .with_vertical_padding(ROW_V_PADDING);
+                .with_vertical_padding(ROW_H_PADDING);
             if is_run_selected {
                 container = container.with_background(internal_colors::fg_overlay_1(theme));
             } else if state.is_hovered() {
-                container = container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
+                container =
+                    container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
             }
             container.finish()
         })
@@ -1337,59 +1491,58 @@ impl ObservatoryPanelView {
         .finish();
         col.add_child(run_header);
 
-        // 嵌套 tasks（可点击选中）
+        // 嵌套 tasks（可点击选中；状态点 Icon + 语义色）
         for (handle_idx, task) in run_tasks {
             let handle = handles[*handle_idx].clone();
             let is_selected = selected_task.is_some_and(|s| s == task.id);
             let task_id = task.id.clone();
-            let status_color = task_status_color(&task.status);
             let title = truncate_str(&task.title, 36);
 
             let mut task_row = Flex::row()
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                 .with_spacing(SPACING);
-            // 状态色点
-            let dot = Container::new(
-                ConstrainedBox::new(Empty::new().finish())
-                    .with_width(6.)
-                    .with_height(6.)
-                    .finish(),
-            )
-            .with_background(status_color.clone())
-            .finish();
-            task_row.add_child(dot);
+            // 状态点（P0-2：Icon + 颜色映射）
+            task_row.add_child(status_dot_element(&task.status, theme));
             task_row.add_child(
-                Text::new(title, appearance.ui_font_family(), appearance.ui_font_size())
-                    .with_color(theme.sub_text_color(theme.background()).into())
-                    .soft_wrap(false)
-                    .finish(),
+                Text::new(
+                    title,
+                    appearance.ui_font_family(),
+                    appearance.ui_font_size(),
+                )
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .soft_wrap(false)
+                .finish(),
             );
+            task_row.add_child(Expanded::new(1., Empty::new().finish()).finish());
             task_row.add_child(
                 Text::new(
                     task.status.clone(),
                     appearance.ui_font_family(),
                     appearance.ui_font_size(),
                 )
-                .with_color(status_color.clone().into_solid())
+                .with_color(super::row::status_dot(&task.status, theme).1)
                 .finish(),
             );
             let task_row = task_row.finish();
 
+            let theme = theme.clone();
             let hoverable = Hoverable::new(handle, move |state| {
                 let mut container = Container::new(task_row)
                     .with_margin_left(PANEL_PADDING + 8.)
                     .with_horizontal_padding(4.)
                     .with_vertical_padding(2.);
                 if is_selected {
-                    container = container.with_background(internal_colors::fg_overlay_1(theme));
+                    container = container.with_background(internal_colors::fg_overlay_1(&theme));
                 } else if state.is_hovered() {
                     container =
-                        container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
+                        container.with_background(Fill::Solid(internal_colors::neutral_3(&theme)));
                 }
                 container.finish()
             })
             .on_click(move |ctx, _, _| {
-                ctx.dispatch_typed_action(ObservatoryPanelAction::SelectTask(Some(task_id.clone())));
+                ctx.dispatch_typed_action(ObservatoryPanelAction::SelectTask(Some(
+                    task_id.clone(),
+                )));
             })
             .finish();
             col.add_child(hoverable);
@@ -1446,9 +1599,13 @@ impl ObservatoryPanelView {
                     .finish(),
                 );
                 col.add_child(
-                    Text::new(truncate_str(&task.spec, 4000), appearance.ui_font_family(), SMALL_FONT_SIZE)
-                        .with_color(theme.sub_text_color(theme.background()).into())
-                        .finish(),
+                    Text::new(
+                        truncate_str(&task.spec, 4000),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.sub_text_color(theme.background()).into())
+                    .finish(),
                 );
             }
             // 依赖（非空时）
@@ -1476,9 +1633,13 @@ impl ObservatoryPanelView {
                     .finish(),
                 );
                 col.add_child(
-                    Text::new(truncate_str(result, 16000), appearance.ui_font_family(), SMALL_FONT_SIZE)
-                        .with_color(theme.sub_text_color(theme.background()).into())
-                        .finish(),
+                    Text::new(
+                        truncate_str(result, 16000),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.sub_text_color(theme.background()).into())
+                    .finish(),
                 );
             }
             col.add_child(ChildView::new(&self.dispatch_button).finish());
@@ -1528,7 +1689,7 @@ impl ObservatoryPanelView {
             );
         } else {
             for d in &snapshot.dispatches {
-                let status_color = task_status_color(&d.status);
+                let status_color = Fill::Solid(super::row::status_dot(&d.status, theme).1);
                 let mut row = Flex::row()
                     .with_cross_axis_alignment(CrossAxisAlignment::Center)
                     .with_spacing(SPACING);
@@ -1544,7 +1705,11 @@ impl ObservatoryPanelView {
                 );
                 row.add_child(
                     Text::new(
-                        format!("{}/{}", d.status, if d.state.is_empty() { "-" } else { &d.state }),
+                        format!(
+                            "{}/{}",
+                            d.status,
+                            if d.state.is_empty() { "-" } else { &d.state }
+                        ),
                         appearance.ui_font_family(),
                         SMALL_FONT_SIZE,
                     )
@@ -1611,10 +1776,7 @@ impl ObservatoryPanelView {
             );
             // 选项 chip 句柄扁平展开
             let total_options: usize = snapshot.gates.iter().map(|g| g.options.len()).sum();
-            Self::ensure_handles(
-                &mut self.gate_option_handles.borrow_mut(),
-                total_options,
-            );
+            Self::ensure_handles(&mut self.gate_option_handles.borrow_mut(), total_options);
             let row_handles = self.gate_row_handles.borrow();
             let option_handles = self.gate_option_handles.borrow();
             let mut option_idx = 0usize;
@@ -1631,16 +1793,24 @@ impl ObservatoryPanelView {
                     .with_cross_axis_alignment(CrossAxisAlignment::Center)
                     .with_spacing(SPACING);
                 header.add_child(
-                    Text::new(question.clone(), appearance.ui_font_family(), appearance.ui_font_size())
-                        .with_color(theme.main_text_color(theme.background()).into())
-                        .soft_wrap(false)
-                        .finish(),
+                    Text::new(
+                        question.clone(),
+                        appearance.ui_font_family(),
+                        appearance.ui_font_size(),
+                    )
+                    .with_color(theme.main_text_color(theme.background()).into())
+                    .soft_wrap(false)
+                    .finish(),
                 );
                 header.add_child(Expanded::new(1., Empty::new().finish()).finish());
                 header.add_child(
-                    Text::new(created.clone(), appearance.ui_font_family(), SMALL_FONT_SIZE)
-                        .with_color(theme.disabled_ui_text_color().into_solid())
-                        .finish(),
+                    Text::new(
+                        created.clone(),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.disabled_ui_text_color().into_solid())
+                    .finish(),
                 );
                 gate_col.add_child(header.finish());
 
@@ -1669,8 +1839,8 @@ impl ObservatoryPanelView {
                         .with_vertical_padding(3.)
                         .with_border(Border::all(1.).with_border_fill(theme.accent()));
                         if state.is_hovered() {
-                            container =
-                                container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
+                            container = container
+                                .with_background(Fill::Solid(internal_colors::neutral_3(theme)));
                         }
                         container.finish()
                     })
@@ -1691,17 +1861,19 @@ impl ObservatoryPanelView {
                 let hoverable = Hoverable::new(row_handles[i].clone(), move |state| {
                     let mut container = Container::new(inner)
                         .with_horizontal_padding(PANEL_PADDING)
-                        .with_vertical_padding(ROW_V_PADDING);
+                        .with_vertical_padding(ROW_H_PADDING);
                     if is_selected {
                         container = container.with_background(internal_colors::fg_overlay_1(theme));
                     } else if state.is_hovered() {
-                        container =
-                            container.with_background(Fill::Solid(internal_colors::neutral_3(theme)));
+                        container = container
+                            .with_background(Fill::Solid(internal_colors::neutral_3(theme)));
                     }
                     container.finish()
                 })
                 .on_click(move |ctx, _, _| {
-                    ctx.dispatch_typed_action(ObservatoryPanelAction::SelectGate(Some(gate_id.clone())));
+                    ctx.dispatch_typed_action(ObservatoryPanelAction::SelectGate(Some(
+                        gate_id.clone(),
+                    )));
                 })
                 .finish();
                 col.add_child(hoverable);
@@ -1729,10 +1901,7 @@ impl ObservatoryPanelView {
                 .finish(),
             );
             for gate in &snapshot.resolved_gates {
-                let resolution = gate
-                    .resolution
-                    .clone()
-                    .unwrap_or_else(|| "-".to_string());
+                let resolution = gate.resolution.clone().unwrap_or_else(|| "-".to_string());
                 let time = gate
                     .resolved_at
                     .as_deref()
@@ -1822,7 +1991,8 @@ impl ObservatoryPanelView {
                 .with_horizontal_padding(8.)
                 .with_vertical_padding(3.);
                 if is_active {
-                    container = container.with_border(Border::all(1.).with_border_fill(theme.accent()));
+                    container =
+                        container.with_border(Border::all(1.).with_border_fill(theme.accent()));
                 }
                 container.finish()
             })
@@ -1837,7 +2007,6 @@ impl ObservatoryPanelView {
                 .with_horizontal_padding(PANEL_PADDING)
                 .finish(),
         );
-
 
         // ── 活跃拦截会话（proxy 运行态） ──
         let snapshot = self.model.as_ref(app).snapshot();
@@ -1906,7 +2075,11 @@ impl ObservatoryPanelView {
                 .soft_wrap(false)
                 .finish(),
                 None => Text::new(
-                    format!("{} · {}", label, crate::t!("observatory-proxy-resolve-failed")),
+                    format!(
+                        "{} · {}",
+                        label,
+                        crate::t!("observatory-proxy-resolve-failed")
+                    ),
                     appearance.ui_font_family(),
                     SMALL_FONT_SIZE,
                 )
@@ -1933,7 +2106,11 @@ impl ObservatoryPanelView {
         let override_text = format!(
             "base: {} · auth env: {}",
             if base.is_empty() { "(auto)" } else { base },
-            if auth_env.is_empty() { "(default)" } else { auth_env },
+            if auth_env.is_empty() {
+                "(default)"
+            } else {
+                auth_env
+            },
         );
         col.add_child(
             Container::new(
@@ -1966,10 +2143,7 @@ impl ObservatoryPanelView {
             col.add_child(
                 Container::new(
                     Text::new(
-                        crate::t!(
-                            "observatory-proxy-saved",
-                            time = format_timestamp(ts),
-                        ),
+                        crate::t!("observatory-proxy-saved", time = format_timestamp(ts),),
                         appearance.ui_font_family(),
                         SMALL_FONT_SIZE,
                     )
@@ -2012,14 +2186,8 @@ impl ObservatoryPanelView {
             .with_spacing(COMPOSER_SPACING);
 
         // 发送目标 run（选中 run 优先，否则最新；无 run 时提示）
-        let target_text = match (
-            model.selected_run(),
-            model.snapshot().runs.first(),
-        ) {
-            (Some(sel), _) => crate::t!(
-                "observatory-send-target",
-                run = truncate_str(sel, 16),
-            ),
+        let target_text = match (model.selected_run(), model.snapshot().runs.first()) {
+            (Some(sel), _) => crate::t!("observatory-send-target", run = truncate_str(sel, 16),),
             (None, Some(latest)) => crate::t!(
                 "observatory-send-target",
                 run = truncate_str(&latest.id, 16),
@@ -2308,23 +2476,76 @@ impl View for ObservatoryPanelView {
 
         // 面板在 panels row 的非 flexible 槽位中拿到水平无限约束（面板宽度由
         // 内容自然撑出），内部水平 Flex-Max 会撞无限约束 assert。这里把宽度
-        // clamp 到固定上限，使行级 Max/Expanded 布局有效。
+        // clamp 到固定上限（P0-3 后由外层 Resizable 决定实际宽度，此处仅兜底
+        // 防无限约束 assert），使行级 Max/Expanded 布局有效。
         ConstrainedBox::new(Shrinkable::new(1., col.finish()).finish())
-            .with_max_width(OBSERVATORY_PANEL_MAX_WIDTH)
+            .with_max_width(OBSERVATORY_PANEL_DEFAULT_WIDTH.max(1600.))
             .finish()
     }
 }
 
 // ── 辅助函数 ────────────────────────────────────────────────────────────────
 
-/// 字符串截断，超过 max_len 字符加 "…"。
+/// 字符串截断，超过 max_len 字符加 "…"（row.rs 同款，保留旧调用点兼容）。
 fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.chars().count() <= max_len {
-        s.to_string()
-    } else {
-        let truncated: String = s.chars().take(max_len).collect();
-        format!("{}…", truncated)
-    }
+    super::row::truncate_str(s, max_len)
+}
+
+/// 观测台 Resizable 状态：优先从 ResizableData 单例取（会话恢复持久化
+/// 路径，ModalSizes::ObservatoryWidth），取不到时按默认宽度新建。
+pub fn observatory_resizable_state(
+    ctx: &mut ViewContext<crate::workspace::Workspace>,
+) -> warpui::elements::ResizableStateHandle {
+    use crate::terminal::resizable_data::{ModalType, ResizableData};
+
+    let window_id = ctx.window_id();
+    ResizableData::as_ref(ctx)
+        .get_handle(window_id, ModalType::ObservatoryWidth)
+        .unwrap_or_else(|| {
+            warpui::elements::resizable_state_handle(OBSERVATORY_PANEL_DEFAULT_WIDTH)
+        })
+}
+
+/// 归档扁平化行数（1 meta + 最多 3 tail 行 / archive）。
+fn archive_rows_len(archives: &[super::model::ArchiveRowGui]) -> usize {
+    archives.iter().map(|a| 1 + a.lines.len().min(3)).sum()
+}
+
+/// Block 时间线单行（等高行 + block_type 徽章 + 单行 preview）。
+fn render_block_list_row(
+    block: &BlockRowGui,
+    font_family: warpui::fonts::FamilyId,
+    font_size: f32,
+    theme: &WarpTheme,
+) -> Box<dyn Element> {
+    let seq_text = crate::t!("observatory-block-seq", seq = block.sequence);
+    list_row(
+        theme,
+        font_family,
+        font_size,
+        Some(&block.block_type),
+        format!("{} · {}", block.block_type, seq_text),
+        Some(truncate_str(&block.preview, 40)),
+        Some(format!("{}B", block.content_len)),
+    )
+}
+
+/// Raw 流量单行（等高行 + direction 状态点 + preview + 尺寸）。
+fn render_raw_list_row(
+    entry: &RawRowGui,
+    font_family: warpui::fonts::FamilyId,
+    font_size: f32,
+    theme: &WarpTheme,
+) -> Box<dyn Element> {
+    list_row(
+        theme,
+        font_family,
+        font_size,
+        Some(&entry.direction),
+        truncate_str(&entry.preview, 48),
+        Some(format!("{}B", entry.content_len)),
+        Some(format_timestamp(entry.timestamp)),
+    )
 }
 
 /// Unix timestamp 格式化为简洁时间文本。
@@ -2340,25 +2561,14 @@ fn format_timestamp(ts: i64) -> String {
     }
 }
 
-/// block 类型 → badge 颜色。
-fn block_type_color(block_type: &str, theme: &WarpTheme) -> ColorU {
+/// block 类型 → badge 颜色（P0-2 起列表行走 row.rs 状态点；详情卡保留）。
+fn block_type_color(block_type: &str, theme: &WarpTheme) -> warpui::color::ColorU {
     match block_type {
         "request" => theme.accent().into_solid(),
         "response" => internal_colors::neutral_6(theme),
         "event" => internal_colors::neutral_4(theme),
         "error" => theme.ui_error_color(),
         _ => theme.nonactive_ui_text_color().into_solid(),
-    }
-}
-
-/// task status → 颜色（不依赖 theme，使用固定语义色）。
-fn task_status_color(status: &str) -> Fill {
-    match status {
-        "completed" => Fill::Solid(ColorU { r: 80, g: 200, b: 120, a: 255 }),
-        "failed" => Fill::Solid(ColorU { r: 220, g: 80, b: 80, a: 255 }),
-        "ready" => Fill::Solid(ColorU { r: 220, g: 180, b: 60, a: 255 }),
-        "dispatched" => Fill::Solid(ColorU { r: 80, g: 140, b: 220, a: 255 }),
-        _ => Fill::Solid(ColorU { r: 150, g: 150, b: 150, a: 255 }),
     }
 }
 

@@ -7,5 +7,5 @@
 //! 挂载: 右侧面板第三种内容（`CurrentWorkspaceState.is_observatory_open`）。
 
 pub mod model;
+pub mod row;
 pub mod view;
-

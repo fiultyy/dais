@@ -6,7 +6,6 @@ pub mod global_search;
 pub(crate) mod launch_modal;
 pub(crate) mod left_panel;
 pub(crate) mod onboarding;
-pub(crate) mod zap_launch_modal;
 pub(crate) mod right_panel;
 pub(crate) mod server_file_browser;
 mod startup_directory;
@@ -16,6 +15,7 @@ mod tests;
 mod vertical_tabs;
 #[cfg(target_family = "wasm")]
 mod wasm_view;
+pub(crate) mod zap_launch_modal;
 
 use self::vertical_tabs::telemetry::{VerticalTabsDisplayOption, VerticalTabsTelemetryEvent};
 use self::vertical_tabs::{
@@ -99,18 +99,16 @@ use crate::util::openable_file_type::{resolve_file_target_with_editor_choice, Ed
 
 use crate::ai::blocklist::history_model::LoadedConversationData;
 use crate::ai::blocklist::FORK_PREFIX;
+use crate::terminal::cli_agent::{CLIAgentInstallEvent, CLIAgentInstallModel};
 #[cfg(not(target_family = "wasm"))]
 use crate::terminal::cli_agent_sessions::plugin_manager::{plugin_manager_for, PluginModalKind};
 use crate::terminal::cli_agent_sessions::{CLIAgentSessionsModel, CLIAgentSessionsModelEvent};
-use crate::terminal::cli_agent::{CLIAgentInstallEvent, CLIAgentInstallModel};
 use crate::terminal::CLIAgent;
 use crate::workspace::header_toolbar_editor::{HeaderToolbarEditorEvent, HeaderToolbarEditorModal};
 use crate::workspace::header_toolbar_item::HeaderToolbarItemKind;
 use crate::workspace::tab_settings::TabCloseButtonPosition;
 use crate::workspace::view::codex_modal::{CodexModal, CodexModalEvent};
-use crate::workspace::view::zap_launch_modal::{
-    ZapLaunchModal, ZapLaunchModalEvent,
-};
+use crate::workspace::view::zap_launch_modal::{ZapLaunchModal, ZapLaunchModalEvent};
 use crate::workspace::{ForkFromExchange, ForkedConversationDestination};
 use crate::BlocklistAIHistoryModel;
 
@@ -291,6 +289,8 @@ use crate::workspaces::user_workspaces::UserWorkspaces;
 use ::settings::{Setting, ToggleableSetting};
 use warp_core::features::FeatureFlag;
 
+#[cfg(not(target_family = "wasm"))]
+use crate::ai::observatory::view::ObservatoryPanelView;
 use crate::search::{self, QueryFilter};
 use crate::terminal::view::{
     SyncEvent, SyncInputType, TerminalAction, NOTIFICATIONS_TROUBLESHOOT_URL,
@@ -339,8 +339,6 @@ use crate::{
     settings,
     ui_components::blended_colors,
 };
-#[cfg(not(target_family = "wasm"))]
-use crate::ai::observatory::view::ObservatoryPanelView;
 use crate::{send_telemetry_from_ctx, GlobalResourceHandles};
 
 use futures::Future;
@@ -355,8 +353,8 @@ use std::time::Duration;
 #[cfg(target_os = "macos")]
 use std::time::{SystemTime, UNIX_EPOCH};
 use warp_core::context_flag::ContextFlag;
-use warp_core::HostId;
 use warp_core::semantic_selection::SemanticSelection;
+use warp_core::HostId;
 use warp_util::path::{user_friendly_path, LineAndColumnArg};
 use warpui::fonts::Weight;
 use warpui::modals::{AlertDialogWithCallbacks, AppModalCallback};
@@ -367,7 +365,7 @@ use warpui::clipboard::ClipboardContent;
 use warpui::elements::Percentage;
 use warpui::elements::{
     CacheOption, DispatchEventResult, DraggableState, DropTarget, EventHandler, Image,
-    MouseInBehavior, Rect,
+    MouseInBehavior, Rect, Resizable, ResizableStateHandle,
 };
 use warpui::ui_components::button::Button;
 use warpui::windowing::{StateEvent, WindowManager};
@@ -929,6 +927,9 @@ pub struct Workspace {
     /// 观测台面板（Observatory）。
     #[cfg(not(target_family = "wasm"))]
     observatory_view: ViewHandle<ObservatoryPanelView>,
+    /// 观测台面板宽度 Resizable 状态（P0-3：clamp 320 / 0.6×window）。
+    #[cfg(not(target_family = "wasm"))]
+    observatory_resizable_state: ResizableStateHandle,
     should_show_ai_assistant_warm_welcome: bool,
     ai_assistant_close_warm_welcome_mouse_state_handle: MouseStateHandle,
     auth_override_warning_modal: ViewHandle<AuthOverrideWarningModal>,
@@ -1371,11 +1372,7 @@ impl Workspace {
                     id_to_force_expand = Some(workflow.id);
                 }
                 if let Some(id) = id_to_force_expand {
-                    self.open_workflow_with_existing(
-                        id,
-                        &ZapDriveObjectSettings::default(),
-                        ctx,
-                    );
+                    self.open_workflow_with_existing(id, &ZapDriveObjectSettings::default(), ctx);
                     ObjectStoreModel::handle(ctx).update(ctx, |object_store_model, ctx| {
                         object_store_model.force_expand_object_and_ancestors(id, ctx);
                     });
@@ -1454,14 +1451,11 @@ impl Workspace {
 
     /// 构造观测台面板视图。
     #[cfg(not(target_family = "wasm"))]
-    fn build_observatory_view(
-        ctx: &mut ViewContext<Self>,
-    ) -> ViewHandle<ObservatoryPanelView> {
+    fn build_observatory_view(ctx: &mut ViewContext<Self>) -> ViewHandle<ObservatoryPanelView> {
         use crate::ai::observatory::model::ObservatoryModel;
         let model = ObservatoryModel::handle(ctx);
-        let observatory_view = ctx.add_typed_action_view(|ctx| {
-            ObservatoryPanelView::new(model.clone(), ctx)
-        });
+        let observatory_view =
+            ctx.add_typed_action_view(|ctx| ObservatoryPanelView::new(model.clone(), ctx));
         observatory_view
     }
 
@@ -2941,6 +2935,10 @@ impl Workspace {
             ai_assistant_panel,
             #[cfg(not(target_family = "wasm"))]
             observatory_view,
+            #[cfg(not(target_family = "wasm"))]
+            observatory_resizable_state: crate::ai::observatory::view::observatory_resizable_state(
+                ctx,
+            ),
             should_show_ai_assistant_warm_welcome,
             ai_assistant_close_warm_welcome_mouse_state_handle: Default::default(),
             auth_override_warning_modal,
@@ -3936,9 +3934,7 @@ impl Workspace {
                     #[cfg(not(target_family = "wasm"))]
                     {
                         crate::ai::harness_intercept::intercept_cli_agent_command(
-                            agent,
-                            view_id,
-                            ctx,
+                            agent, view_id, ctx,
                         )
                         .unwrap_or_else(|| agent.command_prefix().to_string())
                     }
@@ -4303,7 +4299,6 @@ impl Workspace {
 
         ctx.notify();
     }
-
 
     #[cfg(not(target_family = "wasm"))]
     /// Observatory 面板（或其子视图）是否持有焦点。
@@ -6300,9 +6295,7 @@ impl Workspace {
                     open_in_active_window: false,
                 },
             ),
-            NewSessionMenuItem::OpenLaunchConfigDocs => {
-                ctx.open_url("")
-            }
+            NewSessionMenuItem::OpenLaunchConfigDocs => ctx.open_url(""),
             #[cfg(feature = "local_fs")]
             NewSessionMenuItem::CreateNewTabConfig => {
                 self.create_and_open_new_tab_config(ctx);
@@ -9758,6 +9751,13 @@ impl Workspace {
                 .unwrap_or(DEFAULT_RIGHT_PANEL_WIDTH)
         });
 
+        let observatory_width = modal_sizes.map(|ms| {
+            ms.observatory_width
+                .lock()
+                .map(|guard| guard.size())
+                .unwrap_or(crate::terminal::resizable_data::DEFAULT_OBSERVATORY_WIDTH)
+        });
+
         WindowSnapshot {
             tabs,
             active_tab_index,
@@ -9772,6 +9772,7 @@ impl Workspace {
             vertical_tabs_panel_open: self.vertical_tabs_panel_open,
             left_panel_width,
             right_panel_width,
+            observatory_width,
             agent_management_filters: None,
             theme_override: self.theme_override.clone(),
         }
@@ -10356,9 +10357,7 @@ impl Workspace {
     }
 
     pub fn open_autoupdate_failure_link(&mut self, ctx: &mut ViewContext<Self>) {
-        ctx.open_url(
-            "",
-        );
+        ctx.open_url("");
     }
 
     pub fn add_terminal_tab(&mut self, hide_homepage: bool, ctx: &mut ViewContext<Self>) {
@@ -12600,11 +12599,7 @@ impl Workspace {
                 self.open_workflow_with_command(command.clone(), ctx)
             }
             pane_group::Event::OpenCloudWorkflowForEdit(workflow_id) => self
-                .open_workflow_with_existing(
-                    *workflow_id,
-                    &ZapDriveObjectSettings::default(),
-                    ctx,
-                ),
+                .open_workflow_with_existing(*workflow_id, &ZapDriveObjectSettings::default(), ctx),
             pane_group::Event::OpenWorkflowModalWithTemporary(workflow) => {
                 self.open_workflow_with_temporary(*workflow.clone(), ctx)
             }
@@ -14010,12 +14005,7 @@ impl Workspace {
                 );
             }
             DrivePanelEvent::OpenSearch => {
-                self.open_palette_action(
-                    PaletteMode::ZapDrive,
-                    PaletteSource::ZapDrive,
-                    None,
-                    ctx,
-                );
+                self.open_palette_action(PaletteMode::ZapDrive, PaletteSource::ZapDrive, None, ctx);
             }
             DrivePanelEvent::OpenNotebook(source) => {
                 self.open_notebook(source, &ZapDriveObjectSettings::default(), ctx, true)
@@ -14023,12 +14013,9 @@ impl Workspace {
             DrivePanelEvent::OpenEnvVarCollection(source) => {
                 self.open_env_var_collection(source, false, ctx)
             }
-            DrivePanelEvent::OpenWorkflowInPane(source, mode) => self.open_workflow_in_pane(
-                source,
-                &ZapDriveObjectSettings::default(),
-                *mode,
-                ctx,
-            ),
+            DrivePanelEvent::OpenWorkflowInPane(source, mode) => {
+                self.open_workflow_in_pane(source, &ZapDriveObjectSettings::default(), *mode, ctx)
+            }
             DrivePanelEvent::OpenAIFactCollection => {
                 self.open_ai_fact_collection_pane(None, None, ctx);
                 send_telemetry_from_ctx!(
@@ -16656,9 +16643,7 @@ impl Workspace {
                 self.render_agent_management_view_button(appearance, ctx)
             }
             HeaderToolbarItemKind::CodeReview => self.render_right_panel_button(appearance, ctx),
-            HeaderToolbarItemKind::Observatory => {
-                self.render_observatory_button(appearance, ctx)
-            }
+            HeaderToolbarItemKind::Observatory => self.render_observatory_button(appearance, ctx),
             HeaderToolbarItemKind::NotificationsMailbox => {
                 self.render_notifications_mailbox_button(appearance, ctx)
             }
@@ -16711,33 +16696,24 @@ impl Workspace {
             let icon = agent.icon().unwrap_or(icons::Icon::LayoutAlt01);
             let theme = appearance.theme();
             let icon_color = theme.sub_text_color(theme.background());
-            let button = icon_button_with_color(
-                appearance,
-                icon,
-                false,
-                handle.clone(),
-                icon_color,
-            )
-            .with_hovered_styles(UiComponentStyles {
-                font_color: Some(icon_color.into()),
-                background: Some(theme.surface_2().into()),
-                ..UiComponentStyles::default()
-            })
-            .with_clicked_styles(UiComponentStyles {
-                font_color: Some(icon_color.into()),
-                background: Some(theme.background().into()),
-                ..UiComponentStyles::default()
-            })
-            // 图标缩小到 14×14：padding 从 4 增大到 5.0，按钮外框 24×24 不变
-            .with_style(UiComponentStyles::default()
-                .set_padding(Coords::uniform(5.0))
-            );
+            let button =
+                icon_button_with_color(appearance, icon, false, handle.clone(), icon_color)
+                    .with_hovered_styles(UiComponentStyles {
+                        font_color: Some(icon_color.into()),
+                        background: Some(theme.surface_2().into()),
+                        ..UiComponentStyles::default()
+                    })
+                    .with_clicked_styles(UiComponentStyles {
+                        font_color: Some(icon_color.into()),
+                        background: Some(theme.background().into()),
+                        ..UiComponentStyles::default()
+                    })
+                    // 图标缩小到 14×14：padding 从 4 增大到 5.0，按钮外框 24×24 不变
+                    .with_style(UiComponentStyles::default().set_padding(Coords::uniform(5.0)));
 
             let agent_name = agent.display_name().to_string();
             let button = button
-                .with_tooltip(
-                    self.render_tab_bar_icon_button_tooltip(appearance, agent_name, None),
-                )
+                .with_tooltip(self.render_tab_bar_icon_button_tooltip(appearance, agent_name, None))
                 .build()
                 .on_click(move |ctx, _, _| {
                     ctx.dispatch_typed_action(WorkspaceAction::AddSpecificAgentTab(agent));
@@ -18185,11 +18161,24 @@ impl Workspace {
                     &PanelPosition::Right,
                 ))
             } else if self.current_workspace_state.is_observatory_open {
-                Some(self.render_panel(
-                    app,
+                // P0-3: 观测台宽度可拖拽调整（clamp MIN 320 / MAX 0.6×window，
+                // 偏好经 ResizableData/WindowSnapshot 持久化）。
+                let observatory_content = Resizable::new(
+                    self.observatory_resizable_state.clone(),
                     ChildView::new(&self.observatory_view).finish(),
-                    &PanelPosition::Right,
-                ))
+                )
+                .with_dragbar_side(warpui::elements::DragBarSide::Left)
+                .on_resize(|ctx, _| {
+                    ctx.notify();
+                })
+                .with_bounds_callback(Box::new(|window_size| {
+                    let min_width = crate::ai::observatory::view::OBSERVATORY_PANEL_MIN_WIDTH;
+                    let max_width = window_size.x()
+                        * crate::ai::observatory::view::OBSERVATORY_PANEL_MAX_WIDTH_RATIO;
+                    (min_width, max_width.max(min_width))
+                }))
+                .finish();
+                Some(self.render_panel(app, observatory_content, &PanelPosition::Right))
             } else {
                 log::warn!(
                     "is_right_panel_open() returned true, but neither the resource center nor AI \
@@ -18299,16 +18288,15 @@ impl Workspace {
             theme.sub_text_color(theme.background())
         };
         let mouse_state = self.mouse_states.right_panel_icon.clone();
-        let content = ConstrainedBox::new(
-            icons::Icon::Eye.to_warpui_icon(icon_color).finish(),
-        )
-        .with_width(16.)
-        .with_height(16.)
-        .finish();
-        let hoverable = Hoverable::new(mouse_state, move |_state| content)
-            .on_click(move |ctx, _app, _position| {
+        let content = ConstrainedBox::new(icons::Icon::Eye.to_warpui_icon(icon_color).finish())
+            .with_width(16.)
+            .with_height(16.)
+            .finish();
+        let hoverable = Hoverable::new(mouse_state, move |_state| content).on_click(
+            move |ctx, _app, _position| {
                 ctx.dispatch_typed_action(WorkspaceAction::ToggleObservatory);
-            });
+            },
+        );
         Container::new(hoverable.finish()).finish()
     }
 
@@ -18841,7 +18829,8 @@ impl Workspace {
         }
         // openWarp 独有:SSH 管理器,无 feature flag,默认始终显示。
         views.push(ToolPanelView::SshManager);
-        if FeatureFlag::ServerFileBrowser.is_enabled() && FeatureFlag::SshRemoteServer.is_enabled() {
+        if FeatureFlag::ServerFileBrowser.is_enabled() && FeatureFlag::SshRemoteServer.is_enabled()
+        {
             views.push(ToolPanelView::ServerFileBrowser);
         }
         // openWarp 独有:Skill 管理器,无 feature flag,local_fs 构建下默认显示。

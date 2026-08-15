@@ -152,6 +152,7 @@ fn test_terminal_window_snapshot(vertical_tabs_panel_open: bool) -> WindowSnapsh
         warp_drive_index_width: None,
         left_panel_open: false,
         vertical_tabs_panel_open,
+        observatory_width: None,
         left_panel_width: None,
         right_panel_width: None,
         agent_management_filters: None,
@@ -236,6 +237,7 @@ fn test_sqlite_round_trips_custom_vertical_tabs_title() {
             warp_drive_index_width: None,
             left_panel_open: false,
             vertical_tabs_panel_open: false,
+            observatory_width: None,
             left_panel_width: None,
             right_panel_width: None,
             agent_management_filters: None,
@@ -309,6 +311,7 @@ fn test_sqlite_round_trips_code_pane_with_multiple_tabs() {
             warp_drive_index_width: None,
             left_panel_open: false,
             vertical_tabs_panel_open: false,
+            observatory_width: None,
             left_panel_width: None,
             right_panel_width: None,
             agent_management_filters: None,
@@ -418,9 +421,7 @@ fn test_migrate_zap_app_group_sqlite_copies_newer_legacy_files() {
         fs::read_to_string(target_db.with_extension("sqlite-shm")).unwrap(),
         "legacy-shm"
     );
-    assert!(state_dir
-        .join(".zap-app-group-sqlite-migrated")
-        .exists());
+    assert!(state_dir.join(".zap-app-group-sqlite-migrated").exists());
 }
 
 #[cfg(target_os = "macos")]

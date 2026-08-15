@@ -257,7 +257,6 @@ pub struct ObservatoryModel {
 }
 
 impl ObservatoryModel {
-
     pub fn new(_ctx: &mut ModelContext<Self>) -> Self {
         Self {
             snapshot: ObservatorySnapshot::default(),
@@ -415,11 +414,7 @@ impl ObservatoryModel {
     }
 
     /// 选中/取消选中 session。None → 清空 blocks。
-    pub fn select_session(
-        &mut self,
-        id: Option<String>,
-        ctx: &mut ModelContext<Self>,
-    ) {
+    pub fn select_session(&mut self, id: Option<String>, ctx: &mut ModelContext<Self>) {
         self.selected_session = id.clone();
         // 联动清除子选中：换/取消 session 时，旧 session 的 block/raw
         // 详情不再有效（防孤立详情卡片与失配选中态）
@@ -441,12 +436,7 @@ impl ObservatoryModel {
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
 
-    pub fn set_draft(
-        &mut self,
-        field: DraftField,
-        value: String,
-        ctx: &mut ModelContext<Self>,
-    ) {
+    pub fn set_draft(&mut self, field: DraftField, value: String, ctx: &mut ModelContext<Self>) {
         match field {
             DraftField::To => self.draft_to = value,
             DraftField::Subject => self.draft_subject = value,
@@ -479,15 +469,13 @@ impl ObservatoryModel {
         self.last_error = None;
         self.selected_block = id.clone();
         self.block_detail = match &id {
-            Some(bid) => {
-                match self.load_block_detail(bid) {
-                    Some(d) => Some(d),
-                    None => {
-                        self.last_error = Some(format!("block {bid} not found"));
-                        None
-                    }
+            Some(bid) => match self.load_block_detail(bid) {
+                Some(d) => Some(d),
+                None => {
+                    self.last_error = Some(format!("block {bid} not found"));
+                    None
                 }
-            }
+            },
             None => None,
         };
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
@@ -498,15 +486,13 @@ impl ObservatoryModel {
         self.last_error = None;
         self.selected_raw = id.clone();
         self.raw_detail = match &id {
-            Some(rid) => {
-                match self.load_raw_detail(rid) {
-                    Some(d) => Some(d),
-                    None => {
-                        self.last_error = Some(format!("raw entry {rid} not found"));
-                        None
-                    }
+            Some(rid) => match self.load_raw_detail(rid) {
+                Some(d) => Some(d),
+                None => {
+                    self.last_error = Some(format!("raw entry {rid} not found"));
+                    None
                 }
-            }
+            },
             None => None,
         };
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
@@ -586,12 +572,7 @@ impl ObservatoryModel {
     }
 
     /// 解决 pending gate（store 同步调用），成功后刷新编排数据。
-    pub fn resolve_gate(
-        &mut self,
-        gate_id: &str,
-        resolution: &str,
-        ctx: &mut ModelContext<Self>,
-    ) {
+    pub fn resolve_gate(&mut self, gate_id: &str, resolution: &str, ctx: &mut ModelContext<Self>) {
         #[cfg(feature = "orchestration")]
         {
             use ::ai::agent::orchestration::connection::store;
@@ -694,14 +675,13 @@ impl ObservatoryModel {
         }
 
         // 3. 活跃 GUI 交互拦截会话（Proxy tab）
-        self.snapshot.active_intercepts =
-            crate::ai::harness_intercept::active_gui_intercepts()
-                .into_iter()
-                .map(|a| ActiveInterceptRowGui {
-                    session_id: a.session_id,
-                    proxy_port: a.proxy_port,
-                    hook_url: a.hook_url,
-                })
+        self.snapshot.active_intercepts = crate::ai::harness_intercept::active_gui_intercepts()
+            .into_iter()
+            .map(|a| ActiveInterceptRowGui {
+                session_id: a.session_id,
+                proxy_port: a.proxy_port,
+                hook_url: a.hook_url,
+            })
             .collect();
 
         // 4. Worker 终端输出归档（orchestration tab）
@@ -774,7 +754,10 @@ impl ObservatoryModel {
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )
         .map_err(|e| {
-            log::warn!("observatory: cannot open block store {}: {e}", path.display());
+            log::warn!(
+                "observatory: cannot open block store {}: {e}",
+                path.display()
+            );
             e
         })
         .ok()
@@ -873,7 +856,18 @@ impl ObservatoryModel {
             )
             .map_err(|e| log::warn!("observatory: load_block_detail prepare error: {e}"))
             .ok()?;
-        let (id, session_id, parent_id, harness_type, block_type, sequence, content_len, content, metadata, timestamp) = stmt
+        let (
+            id,
+            session_id,
+            parent_id,
+            harness_type,
+            block_type,
+            sequence,
+            content_len,
+            content,
+            metadata,
+            timestamp,
+        ) = stmt
             .query_row(rusqlite::params![block_id], |row| {
                 Ok((
                     row.get::<_, String>(0)?,
@@ -1146,10 +1140,7 @@ impl ObservatoryModel {
                     .map(|t| TaskRowGui {
                         id: t.id,
                         run_id: t.run_id,
-                        title: t
-                            .task_title
-                            .or(t.display_name)
-                            .unwrap_or_default(),
+                        title: t.task_title.or(t.display_name).unwrap_or_default(),
                         status: t.status,
                         spec: t.spec,
                         result: t.result,
@@ -1190,18 +1181,20 @@ impl ObservatoryModel {
         let mut decided: Vec<GateRowGui> = Vec::new();
         for status in ["resolved", "timeout"] {
             if let Ok(gates) = s.list_gates(None, Some(status)) {
-                decided.extend(gates.into_iter().map(|g| GateRowGui {
-                    id: g.id,
-                    task_id: g.task_id,
-                    question: g.question,
-                    options: serde_json::from_str::<Vec<String>>(&g.options)
-                        .unwrap_or_default(),
-                    status: g.status,
-                    created_at: g.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
-                    resolution: g.resolution,
-                    resolved_at: g
-                        .resolved_at
-                        .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
+                decided.extend(gates.into_iter().map(|g| {
+                    GateRowGui {
+                        id: g.id,
+                        task_id: g.task_id,
+                        question: g.question,
+                        options: serde_json::from_str::<Vec<String>>(&g.options)
+                            .unwrap_or_default(),
+                        status: g.status,
+                        created_at: g.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+                        resolution: g.resolution,
+                        resolved_at: g
+                            .resolved_at
+                            .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
+                    }
                 }));
             }
         }
@@ -1406,31 +1399,44 @@ mod tests {
         let db_path = tmp.path().join("harness_blocks.db");
 
         // 用 BlockStore 写入两个 session 的样例 blocks
-        let store = harness_integration::BlockStore::open(db_path.to_string_lossy().to_string()).unwrap();
+        let store =
+            harness_integration::BlockStore::open(db_path.to_string_lossy().to_string()).unwrap();
 
         let ts_base: i64 = 1700000000000;
         let all_blocks = vec![
             // session-a: 3 个 prompt blocks
             harness_integration::HarnessBlock::new(
-                "session-a", "claude",
-                harness_integration::BlockType::UserPrompt, 0,
-                b"prompt content 0".to_vec(), ts_base,
+                "session-a",
+                "claude",
+                harness_integration::BlockType::UserPrompt,
+                0,
+                b"prompt content 0".to_vec(),
+                ts_base,
             ),
             harness_integration::HarnessBlock::new(
-                "session-a", "claude",
-                harness_integration::BlockType::UserPrompt, 1,
-                b"prompt content 1".to_vec(), ts_base + 1000,
+                "session-a",
+                "claude",
+                harness_integration::BlockType::UserPrompt,
+                1,
+                b"prompt content 1".to_vec(),
+                ts_base + 1000,
             ),
             harness_integration::HarnessBlock::new(
-                "session-a", "claude",
-                harness_integration::BlockType::UserPrompt, 2,
-                b"prompt content 2".to_vec(), ts_base + 2000,
+                "session-a",
+                "claude",
+                harness_integration::BlockType::UserPrompt,
+                2,
+                b"prompt content 2".to_vec(),
+                ts_base + 2000,
             ),
             // session-b: 1 个 response block，时间戳更大
             harness_integration::HarnessBlock::new(
-                "session-b", "claude",
-                harness_integration::BlockType::Response, 0,
-                b"response data".to_vec(), ts_base + 5000,
+                "session-b",
+                "claude",
+                harness_integration::BlockType::Response,
+                0,
+                b"response data".to_vec(),
+                ts_base + 5000,
             ),
         ];
 
@@ -1516,7 +1522,10 @@ mod tests {
             assert!(app.read_model(&model, |m, _| m.snapshot().sessions.is_empty()));
             assert!(app.read_model(&model, |m, _| m.snapshot().blocks.is_empty()));
             assert!(app.read_model(&model, |m, _| m.selected_session().is_none()));
-            assert_eq!(app.read_model(&model, |m, _| m.active_tab()), ObservatoryTab::Sessions);
+            assert_eq!(
+                app.read_model(&model, |m, _| m.active_tab()),
+                ObservatoryTab::Sessions
+            );
             assert!(!app.read_model(&model, |m, _| m.busy()));
             assert!(app.read_model(&model, |m, _| m.last_error().is_none()));
             assert!(app.read_model(&model, |m, _| m.draft_to().is_empty()));
@@ -1527,13 +1536,19 @@ mod tests {
             model.update(&mut app, |m, ctx| {
                 m.set_active_tab(ObservatoryTab::Orchestration, ctx);
             });
-            assert_eq!(app.read_model(&model, |m, _| m.active_tab()), ObservatoryTab::Orchestration);
+            assert_eq!(
+                app.read_model(&model, |m, _| m.active_tab()),
+                ObservatoryTab::Orchestration
+            );
 
             // 切回 Sessions（重复设同值应无变化）
             model.update(&mut app, |m, ctx| {
                 m.set_active_tab(ObservatoryTab::Orchestration, ctx);
             });
-            assert_eq!(app.read_model(&model, |m, _| m.active_tab()), ObservatoryTab::Orchestration);
+            assert_eq!(
+                app.read_model(&model, |m, _| m.active_tab()),
+                ObservatoryTab::Orchestration
+            );
 
             // set_draft
             model.update(&mut app, |m, ctx| {
@@ -1541,15 +1556,27 @@ mod tests {
                 m.set_draft(DraftField::Subject, "hello".to_string(), ctx);
                 m.set_draft(DraftField::Body, "world".to_string(), ctx);
             });
-            assert_eq!(app.read_model(&model, |m, _| m.draft_to().to_string()), "agent-1");
-            assert_eq!(app.read_model(&model, |m, _| m.draft_subject().to_string()), "hello");
-            assert_eq!(app.read_model(&model, |m, _| m.draft_body().to_string()), "world");
+            assert_eq!(
+                app.read_model(&model, |m, _| m.draft_to().to_string()),
+                "agent-1"
+            );
+            assert_eq!(
+                app.read_model(&model, |m, _| m.draft_subject().to_string()),
+                "hello"
+            );
+            assert_eq!(
+                app.read_model(&model, |m, _| m.draft_body().to_string()),
+                "world"
+            );
 
             // select_block 不存在的 block → 选中态保留 + last_error 置位
             model.update(&mut app, |m, ctx| {
                 m.select_block(Some("missing-block".to_string()), ctx);
             });
-            assert_eq!(app.read_model(&model, |m, _| m.selected_block().map(str::to_string)), Some("missing-block".to_string()));
+            assert_eq!(
+                app.read_model(&model, |m, _| m.selected_block().map(str::to_string)),
+                Some("missing-block".to_string())
+            );
             assert!(app.read_model(&model, |m, _| m.block_detail().is_none()));
             assert!(app.read_model(&model, |m, _| m.last_error().is_some()));
 
@@ -1564,7 +1591,10 @@ mod tests {
             model.update(&mut app, |m, ctx| {
                 m.select_task(Some("task-1".to_string()), ctx);
             });
-            assert_eq!(app.read_model(&model, |m, _| m.selected_task().map(str::to_string)), Some("task-1".to_string()));
+            assert_eq!(
+                app.read_model(&model, |m, _| m.selected_task().map(str::to_string)),
+                Some("task-1".to_string())
+            );
             model.update(&mut app, |m, ctx| {
                 m.select_task(None, ctx);
             });
@@ -1574,14 +1604,23 @@ mod tests {
             model.update(&mut app, |m, ctx| {
                 m.set_search_filter("claude".to_string(), ctx);
             });
-            assert_eq!(app.read_model(&model, |m, _| m.search_filter().to_string()), "claude");
+            assert_eq!(
+                app.read_model(&model, |m, _| m.search_filter().to_string()),
+                "claude"
+            );
             // select_gate / set_gate_draft 状态转移
             model.update(&mut app, |m, ctx| {
                 m.select_gate(Some("gate-1".to_string()), ctx);
                 m.set_gate_draft("proceed".to_string(), ctx);
             });
-            assert_eq!(app.read_model(&model, |m, _| m.selected_gate().map(str::to_string)), Some("gate-1".to_string()));
-            assert_eq!(app.read_model(&model, |m, _| m.gate_draft().to_string()), "proceed");
+            assert_eq!(
+                app.read_model(&model, |m, _| m.selected_gate().map(str::to_string)),
+                Some("gate-1".to_string())
+            );
+            assert_eq!(
+                app.read_model(&model, |m, _| m.gate_draft().to_string()),
+                "proceed"
+            );
             model.update(&mut app, |m, ctx| {
                 m.select_gate(None, ctx);
             });
@@ -1591,7 +1630,10 @@ mod tests {
             model.update(&mut app, |m, ctx| {
                 m.select_session(Some("nonexistent".to_string()), ctx);
             });
-            assert_eq!(app.read_model(&model, |m, _| m.selected_session().map(str::to_string)), Some("nonexistent".to_string()));
+            assert_eq!(
+                app.read_model(&model, |m, _| m.selected_session().map(str::to_string)),
+                Some("nonexistent".to_string())
+            );
             // blocks 应为空（session 不存在于 DB）
             assert!(app.read_model(&model, |m, _| m.snapshot().blocks.is_empty()));
 
@@ -1605,7 +1647,10 @@ mod tests {
             model.update(&mut app, |m, ctx| {
                 m.select_raw(Some("missing-raw".to_string()), ctx);
             });
-            assert_eq!(app.read_model(&model, |m, _| m.selected_raw().map(str::to_string)), Some("missing-raw".to_string()));
+            assert_eq!(
+                app.read_model(&model, |m, _| m.selected_raw().map(str::to_string)),
+                Some("missing-raw".to_string())
+            );
             assert!(app.read_model(&model, |m, _| m.raw_detail().is_none()));
             assert!(app.read_model(&model, |m, _| m.last_error().is_some()));
             model.update(&mut app, |m, ctx| {
@@ -1617,7 +1662,10 @@ mod tests {
             model.update(&mut app, |m, ctx| {
                 m.select_message(Some(i64::MAX), ctx);
             });
-            assert_eq!(app.read_model(&model, |m, _| m.selected_message()), Some(i64::MAX));
+            assert_eq!(
+                app.read_model(&model, |m, _| m.selected_message()),
+                Some(i64::MAX)
+            );
             assert!(app.read_model(&model, |m, _| m.message_detail().is_none()));
             assert!(app.read_model(&model, |m, _| m.last_error().is_some()));
             model.update(&mut app, |m, ctx| {
@@ -1629,7 +1677,10 @@ mod tests {
             model.update(&mut app, |m, ctx| {
                 m.select_run(Some("run-x".to_string()), ctx);
             });
-            assert_eq!(app.read_model(&model, |m, _| m.selected_run().map(str::to_string)), Some("run-x".to_string()));
+            assert_eq!(
+                app.read_model(&model, |m, _| m.selected_run().map(str::to_string)),
+                Some("run-x".to_string())
+            );
             model.update(&mut app, |m, ctx| {
                 m.select_run(None, ctx);
             });
@@ -1665,21 +1716,34 @@ mod tests {
     fn test_search_filter_and_block_detail_queries() {
         let tmp = tempfile::tempdir().unwrap();
         let db_path = tmp.path().join("harness_blocks.db");
-        let store = harness_integration::BlockStore::open(db_path.to_string_lossy().to_string()).unwrap();
+        let store =
+            harness_integration::BlockStore::open(db_path.to_string_lossy().to_string()).unwrap();
 
         let ts: i64 = 1_700_000_000_000;
         let mut a0 = harness_integration::HarnessBlock::new(
-            "alpha", "claude", harness_integration::BlockType::UserPrompt, 0,
-            b"fix the login bug".to_vec(), ts,
+            "alpha",
+            "claude",
+            harness_integration::BlockType::UserPrompt,
+            0,
+            b"fix the login bug".to_vec(),
+            ts,
         );
         a0.metadata = serde_json::json!({"meta": true});
         let a1 = harness_integration::HarnessBlock::new(
-            "alpha", "claude", harness_integration::BlockType::Response, 1,
-            b"all good".to_vec(), ts + 1000,
+            "alpha",
+            "claude",
+            harness_integration::BlockType::Response,
+            1,
+            b"all good".to_vec(),
+            ts + 1000,
         );
         let b0 = harness_integration::HarnessBlock::new(
-            "beta", "claude", harness_integration::BlockType::UserPrompt, 0,
-            b"other prompt".to_vec(), ts + 2000,
+            "beta",
+            "claude",
+            harness_integration::BlockType::UserPrompt,
+            0,
+            b"other prompt".to_vec(),
+            ts + 2000,
         );
         for blk in [&a0, &a1, &b0] {
             store.insert_block(blk).unwrap();
@@ -1689,27 +1753,37 @@ mod tests {
 
         // 1. session 过滤（model load_sessions 同源 SQL）
         let pattern = like_pattern("alph");
-        let mut stmt = conn.prepare(
-            "SELECT session_id, COUNT(*), MIN(timestamp), MAX(timestamp) \
+        let mut stmt = conn
+            .prepare(
+                "SELECT session_id, COUNT(*), MIN(timestamp), MAX(timestamp) \
              FROM harness_blocks \
              WHERE (?1 = '' OR session_id LIKE ?1 ESCAPE '\\') \
              GROUP BY session_id ORDER BY MAX(timestamp) DESC LIMIT 100",
-        ).unwrap();
+            )
+            .unwrap();
         let sessions: Vec<String> = stmt
             .query_map(rusqlite::params![pattern], |row| row.get::<_, String>(0))
-            .unwrap().filter_map(|r| r.ok()).collect();
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
         assert_eq!(sessions, vec!["alpha"]);
 
         // 空过滤 → 全量
-        let mut stmt = conn.prepare(
-            "SELECT session_id, COUNT(*), MIN(timestamp), MAX(timestamp) \
+        let mut stmt = conn
+            .prepare(
+                "SELECT session_id, COUNT(*), MIN(timestamp), MAX(timestamp) \
              FROM harness_blocks \
              WHERE (?1 = '' OR session_id LIKE ?1 ESCAPE '\\') \
              GROUP BY session_id ORDER BY MAX(timestamp) DESC LIMIT 100",
-        ).unwrap();
+            )
+            .unwrap();
         let all: Vec<String> = stmt
-            .query_map(rusqlite::params![like_pattern("")], |row| row.get::<_, String>(0))
-            .unwrap().filter_map(|r| r.ok()).collect();
+            .query_map(rusqlite::params![like_pattern("")], |row| {
+                row.get::<_, String>(0)
+            })
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
         assert_eq!(all.len(), 2);
 
         // 2. block 内容过滤（model load_blocks 同源 SQL）："login" 只命中 alpha seq0
@@ -1725,8 +1799,10 @@ mod tests {
         let hits: Vec<(String, u32)> = stmt
             .query_map(rusqlite::params!["alpha", pattern], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? as u32))
- })
-            .unwrap().filter_map(|r| r.ok()).collect();
+            })
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].0, a0.id);
         assert_eq!(hits[0].1, 0);
@@ -1796,7 +1872,9 @@ mod tests {
             )
             .unwrap();
         let hits: Vec<String> = stmt
-            .query_map(rusqlite::params!["alpha", pattern], |row| row.get::<_, String>(0))
+            .query_map(rusqlite::params!["alpha", pattern], |row| {
+                row.get::<_, String>(0)
+            })
             .unwrap()
             .filter_map(|r| r.ok())
             .collect();
@@ -1814,7 +1892,9 @@ mod tests {
             )
             .unwrap();
         let hits: Vec<String> = stmt
-            .query_map(rusqlite::params!["alpha", pattern], |row| row.get::<_, String>(0))
+            .query_map(rusqlite::params!["alpha", pattern], |row| {
+                row.get::<_, String>(0)
+            })
             .unwrap()
             .filter_map(|r| r.ok())
             .collect();
@@ -1874,7 +1954,13 @@ mod tests {
             .unwrap();
         let rows: Vec<(String, String, String, String, String)> = stmt
             .query_map(rusqlite::params!["task-1"], |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
             })
             .unwrap()
             .filter_map(|r| r.ok())
