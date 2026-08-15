@@ -3648,3 +3648,5 @@ observatory-send-target = 发送到 run: { $run }
 observatory-send-target-none = 无 run（将发送到 "gui"）
 observatory-gates-resolved-title = 最近已决
 observatory-gate-resolved-row = [{ $status }] { $resolution } · { $time }
+observatory-archives-title = Worker 终端输出归档
+observatory-archive-meta = { $id } · { $kind } · { $time }

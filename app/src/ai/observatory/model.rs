@@ -145,6 +145,17 @@ pub struct RawDetailGui {
     pub timestamp: i64,
 }
 
+/// Worker 终端输出归档行（worker_terminal_archives；dispatch_id 为 worker
+/// session id 空间，与 dispatch_contexts 不 JOIN——id 体系不同，独立展示）。
+#[derive(Clone, Debug)]
+pub struct ArchiveRowGui {
+    pub dispatch_id: String,
+    pub kind: String,
+    /// terminal_tail JSON 解析出的输出行（解析失败为空）。
+    pub lines: Vec<String>,
+    pub created_at: String,
+}
+
 /// 选中 task 的 dispatch 行（dispatch_contexts JOIN worker_dispatches）。
 #[derive(Clone, Debug)]
 pub struct DispatchRowGui {
@@ -182,6 +193,8 @@ pub struct ObservatorySnapshot {
     pub dispatches: Vec<DispatchRowGui>,
     /// 活跃 GUI 交互拦截会话（Proxy tab 展示）。
     pub active_intercepts: Vec<ActiveInterceptRowGui>,
+    /// Worker 终端输出归档（最新 5）。
+    pub archives: Vec<ArchiveRowGui>,
     pub recent_messages: Vec<MessageRowGui>,
 }
 
@@ -634,7 +647,10 @@ impl ObservatoryModel {
                     proxy_port: a.proxy_port,
                     hook_url: a.hook_url,
                 })
-                .collect();
+            .collect();
+
+        // 4. Worker 终端输出归档（orchestration tab）
+        self.snapshot.archives = Self::load_archives();
 
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
@@ -985,6 +1001,62 @@ impl ObservatoryModel {
     /// local_fs 未开（或 orchestration 关）时 dispatches 留空。
     #[cfg(not(all(feature = "orchestration", feature = "local_fs")))]
     fn load_dispatches(&self, _task_id: &str) -> Vec<DispatchRowGui> {
+        Vec::new()
+    }
+
+    /// 加载 worker 终端输出归档（最新 5，created_at 降序）。
+    /// 注意：archives.dispatch_id 是 worker session id 空间（session_*），
+    /// 与 dispatch_contexts（ctx_*）不同体系，故独立列表不 JOIN。
+    #[cfg(all(feature = "orchestration", feature = "local_fs"))]
+    fn load_archives() -> Vec<ArchiveRowGui> {
+        let Some(conn) = Self::open_warp_sqlite() else {
+            return Vec::new();
+        };
+        let Ok(mut stmt) = conn.prepare(
+            "SELECT dispatch_id, kind, content, created_at \
+             FROM worker_terminal_archives ORDER BY created_at DESC LIMIT 5",
+        ) else {
+            return Vec::new();
+        };
+        let Ok(rows) = stmt.query_map([], |row| {
+            let content: String = row.get(2)?;
+            let created: String = row.get(3)?;
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                content,
+                created,
+            ))
+        }) else {
+            return Vec::new();
+        };
+        rows.filter_map(|r| r.ok())
+            .map(|(dispatch_id, kind, content, created)| {
+                // terminal_tail content = {"lines":[...]}；解析失败留空
+                let lines = serde_json::from_str::<serde_json::Value>(&content)
+                    .ok()
+                    .and_then(|v| {
+                        v.get("lines").and_then(|l| {
+                            l.as_array().map(|arr| {
+                                arr.iter()
+                                    .filter_map(|s| s.as_str().map(str::to_string))
+                                    .collect::<Vec<_>>()
+                            })
+                        })
+                    })
+                    .unwrap_or_default();
+                ArchiveRowGui {
+                    dispatch_id,
+                    kind,
+                    lines,
+                    created_at: format_datetime_sqlite(&created),
+                }
+            })
+            .collect()
+    }
+
+    #[cfg(not(all(feature = "orchestration", feature = "local_fs")))]
+    fn load_archives() -> Vec<ArchiveRowGui> {
         Vec::new()
     }
 
@@ -1811,5 +1883,40 @@ mod tests {
             |row| row.get(0),
         );
         assert!(missing.is_err());
+
+        // ── archives：与 model load_archives 同源 SQL + terminal_tail JSON 解析 ──
+        conn.execute_batch(
+            "CREATE TABLE worker_terminal_archives (dispatch_id TEXT PRIMARY KEY, \
+             resource_id TEXT, kind TEXT, content TEXT, created_at TEXT);",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO worker_terminal_archives VALUES ('session_1', 'res1', 'terminal_tail', \
+             '{\"lines\":[\"line1\",\"line2\",\"line3\"]}', '2026-08-15 05:00:00')",
+            [],
+        )
+        .unwrap();
+        let (kind, content): (String, String) = conn
+            .query_row(
+                "SELECT kind, content FROM worker_terminal_archives \
+                 ORDER BY created_at DESC LIMIT 5",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(kind, "terminal_tail");
+        let parsed: Vec<String> = serde_json::from_str::<serde_json::Value>(&content)
+            .ok()
+            .and_then(|v| {
+                v.get("lines").and_then(|l| {
+                    l.as_array().map(|arr| {
+                        arr.iter()
+                            .filter_map(|s| s.as_str().map(str::to_string))
+                            .collect::<Vec<_>>()
+                    })
+                })
+            })
+            .unwrap_or_default();
+        assert_eq!(parsed, vec!["line1", "line2", "line3"]);
     }
 }

@@ -1227,6 +1227,48 @@ impl ObservatoryPanelView {
             col.add_child(self.render_message_detail(detail, appearance, theme));
         }
 
+        // ── Worker 终端输出归档（最新 5） ──
+        if !snapshot.archives.is_empty() {
+            col.add_child(
+                Text::new(
+                    crate::t!("observatory-archives-title"),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.nonactive_ui_text_color().into_solid())
+                .finish(),
+            );
+            for archive in &snapshot.archives {
+                col.add_child(
+                    Text::new(
+                        crate::t!(
+                            "observatory-archive-meta",
+                            id = truncate_str(&archive.dispatch_id, 22),
+                            kind = archive.kind.clone(),
+                            time = archive.created_at.clone(),
+                        ),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.disabled_ui_text_color().into_solid())
+                    .soft_wrap(false)
+                    .finish(),
+                );
+                // tail 语义：只显示最后 3 行
+                for line in archive.lines.iter().rev().take(3).rev() {
+                    col.add_child(
+                        Text::new(
+                            truncate_str(line, 120),
+                            appearance.ui_font_family(),
+                            SMALL_FONT_SIZE,
+                        )
+                        .with_color(theme.sub_text_color(theme.background()).into())
+                        .soft_wrap(false)
+                        .finish(),
+                    );
+                }
+            }
+        }
         // ── Composer ──
         col.add_child(self.render_composer(app));
 

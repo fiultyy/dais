@@ -3566,3 +3566,5 @@ observatory-send-target = 送信先 run: { $run }
 observatory-send-target-none = run なし（"gui" 宛に送信）
 observatory-gates-resolved-title = 最近の決定
 observatory-gate-resolved-row = [{ $status }] { $resolution } · { $time }
+observatory-archives-title = Worker ターミナル出力アーカイブ
+observatory-archive-meta = { $id } · { $kind } · { $time }
