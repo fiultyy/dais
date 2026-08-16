@@ -362,6 +362,13 @@ impl TerminalManager {
             ctx,
         );
 
+        // 外部捕获 (T3): 本地 pane 绑定 view 身份 → 首个 shell bootstrap 时
+        // 武装同名 harness 包装函数(远端 pane 不绑定 → 永不武装)。
+        #[cfg(not(target_family = "wasm"))]
+        pty_controller.update(ctx, |controller, _| {
+            controller.enable_external_capture_arming(view.id());
+        });
+
         wire_up_remote_server_controller_with_view(&remote_server_controller, &view, ctx);
 
         #[cfg(windows)]

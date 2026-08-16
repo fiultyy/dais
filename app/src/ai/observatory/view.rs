@@ -111,6 +111,8 @@ pub enum ObservatoryPanelAction {
     SetUpstreamBase(String),
     /// 代理配置：设置 auth env var 覆盖。
     SetUpstreamAuthEnv(String),
+    /// 外部捕获：切换 pane 级 harness 捕获开关（持久化）。
+    ToggleExternalCapture,
     /// 代理配置：重查 block 计数。
     RefreshBlockCount,
 }
@@ -155,6 +157,8 @@ pub struct ObservatoryPanelView {
     gate_resolution_input: ViewHandle<SubmittableTextInput>,
     /// 代理 tab: mode 选项 chip 句柄（Full/HooksOnly/Bypass）。
     mode_chip_handles: [MouseStateHandle; 3],
+    /// 外部捕获开关 chip 悬停状态。
+    external_capture_chip_handle: MouseStateHandle,
     /// 代理 tab: upstream base 输入框。
     upstream_base_input: ViewHandle<SubmittableTextInput>,
     /// 代理 tab: auth env 输入框。
@@ -455,6 +459,7 @@ impl ObservatoryPanelView {
                 MouseStateHandle::default(),
                 MouseStateHandle::default(),
             ],
+            external_capture_chip_handle: MouseStateHandle::default(),
             upstream_base_input,
             upstream_auth_env_input,
             dispatch_button,
@@ -2270,6 +2275,99 @@ impl ObservatoryPanelView {
                 .finish(),
         );
 
+        // ── 外部捕获（T3: pane 级 harness 嗅探登记） ──
+        let snapshot_reg = self.model.as_ref(app).snapshot();
+        let now_secs = chrono::Utc::now().timestamp();
+        let external_enabled = intercept.external_capture_enabled();
+        let ext_chip = Hoverable::new(
+            self.external_capture_chip_handle.clone(),
+            move |state| {
+                let text_color = if external_enabled {
+                    theme.active_ui_text_color().into()
+                } else if state.is_hovered() {
+                    theme.nonactive_ui_text_color().into()
+                } else {
+                    theme.disabled_ui_text_color().into_solid()
+                };
+                let mut container = Container::new(
+                    Text::new(
+                        crate::t!("observatory-external-capture-toggle"),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(text_color)
+                    .finish(),
+                )
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
+                .with_horizontal_padding(8.)
+                .with_vertical_padding(3.);
+                if external_enabled {
+                    container =
+                        container.with_border(Border::all(1.).with_border_fill(theme.accent()));
+                }
+                container.finish()
+            },
+        )
+        .on_click(move |ctx, _, _| {
+            ctx.dispatch_typed_action(ObservatoryPanelAction::ToggleExternalCapture);
+        })
+        .finish();
+        let mut ext_col = Flex::column().with_spacing(SPACING);
+        ext_col.add_child(
+            Text::new(
+                crate::t!("observatory-external-capture-title"),
+                appearance.ui_font_family(),
+                appearance.ui_font_size(),
+            )
+            .with_color(theme.active_ui_text_color().into())
+            .finish(),
+        );
+        ext_col.add_child(Container::new(ext_chip).finish());
+        if snapshot_reg.external_registrations.is_empty() {
+            ext_col.add_child(
+                Text::new(
+                    crate::t!("observatory-external-capture-empty"),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.disabled_ui_text_color().into_solid())
+                .finish(),
+            );
+        } else {
+            for reg in &snapshot_reg.external_registrations {
+                ext_col.add_child(
+                    Text::new(
+                        crate::t!(
+                            "observatory-external-capture-row",
+                            session = truncate_str(&reg.session_id, 8),
+                            harness = reg.harness.clone(),
+                            port = reg.proxy_port,
+                            age = relative_time_text(now_secs, reg.last_activity_secs),
+                        ),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.sub_text_color(theme.background()).into())
+                    .soft_wrap(false)
+                    .finish(),
+                );
+            }
+        }
+        ext_col.add_child(
+            Text::new(
+                crate::t!("observatory-external-capture-hint"),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.disabled_ui_text_color().into_solid())
+            .soft_wrap(false)
+            .finish(),
+        );
+        col.add_child(
+            Container::new(ext_col.finish())
+                .with_vertical_padding(SPACING)
+                .finish(),
+        );
         // ── 活跃拦截会话（proxy 运行态） ──
         let snapshot = self.model.as_ref(app).snapshot();
         let mut active_col = Flex::column().with_spacing(SPACING);
@@ -2715,6 +2813,12 @@ impl TypedActionView for ObservatoryPanelView {
                 let env = env.clone();
                 InterceptSessionsModel::handle(ctx).update(ctx, |model, ctx| {
                     model.set_upstream_auth_env(env, ctx);
+                });
+            }
+            ObservatoryPanelAction::ToggleExternalCapture => {
+                InterceptSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                    let next = !model.external_capture_enabled();
+                    model.set_external_capture_enabled(next, ctx);
                 });
             }
             ObservatoryPanelAction::RefreshBlockCount => {

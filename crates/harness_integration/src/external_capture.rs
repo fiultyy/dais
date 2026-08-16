@@ -157,8 +157,55 @@ struct LiveRegistration {
     forwarder: JoinHandle<()>,
     /// `RawEvent` arrival time (ms, injected clock); the idle signal.
     activity: Arc<AtomicI64>,
+    /// Lazy Spawn (T3): the Spawn block built at registration with a
+    /// reserved sequence number, inserted only once the session shows
+    /// activity — the first `RawEvent` (forwarder forces it) or any hook
+    /// block (detected via `ctx.seq_count()` on [`Self::tick`]). Never-active
+    /// registrations stay invisible: no empty sessions pile up.
+    pending_spawn: Arc<Mutex<Option<HarnessBlock>>>,
 }
 
+impl LiveRegistration {
+    fn materialize_spawn(&self, force: bool) -> bool {
+        materialize_spawn(&self.ctx, &self.store, &self.pending_spawn, force)
+    }
+
+    /// Teardown bookkeeping: materialize the lazy Spawn if the session was
+    /// active, then record the `Exit` block. Never-active sessions write
+    /// nothing at all.
+    fn finalize(&self, reason: &str) {
+        if self.materialize_spawn(false) {
+            record_external_exit(&self.store, &self.ctx, reason);
+        }
+    }
+}
+
+/// Lazy-Spawn core: insert the reserved Spawn block once the session shows
+/// activity — `force` (a `RawEvent` just arrived on the forwarder) or
+/// `ctx.seq_count()` past the reservation (a hook block took a later
+/// sequence, seen on a tick). Returns `true` iff the session is (or just
+/// became) active; idle sessions stay invisible.
+fn materialize_spawn(
+    ctx: &SessionContext,
+    store: &Arc<Mutex<BlockStore>>,
+    pending: &Mutex<Option<HarnessBlock>>,
+    force: bool,
+) -> bool {
+    let mut pending = pending.lock();
+    match pending.as_ref() {
+        // Active iff a LATER block exists: the reservation itself consumed
+        // one sequence number, so anything at or beyond sequence+1 means a
+        // hook/raw block already took a number.
+        Some(block) if force || ctx.seq_count() > block.sequence + 1 => {
+            let block = pending.take().expect("checked Some above");
+            let s = store.lock();
+            let _ = s.insert_block(&block);
+            true
+        }
+        Some(_) => false,
+        None => true,
+    }
+}
 
 impl Drop for LiveRegistration {
     fn drop(&mut self) {
@@ -214,29 +261,28 @@ fn harness_type_str(harness: HarnessType) -> &'static str {
     }
 }
 
-/// Record the session-opening `Spawn` block with `mode: "external"`.
+/// Build (but do NOT insert) the session-opening `Spawn` block with
+/// `mode: "external"`. The sequence number is reserved at build time;
+/// lazy materialization (see [`materialize_spawn`]) inserts it only once
+/// the session shows activity.
 ///
 /// Local (not `harness_spawn::record_spawn`) on purpose: `InterceptMode` has
 /// no `External` variant — adding one would break exhaustive UI matches in
 /// the app — and external metadata carries the registration reason.
-fn record_external_spawn(store: &Arc<Mutex<BlockStore>>, ctx: &SessionContext) {
-    let block = {
-        let mut b = HarnessBlock::new(
-            &ctx.session_id,
-            &ctx.harness_type,
-            BlockType::Spawn,
-            ctx.next_seq(),
-            Vec::new(),
-            ctx.now_ms(),
-        );
-        b.metadata = serde_json::json!({
-            "mode": "external",
-            "harness_type": ctx.harness_type,
-        });
-        b
-    };
-    let s = store.lock();
-    let _ = s.insert_block(&block);
+fn external_spawn_block(ctx: &SessionContext) -> HarnessBlock {
+    let mut b = HarnessBlock::new(
+        &ctx.session_id,
+        &ctx.harness_type,
+        BlockType::Spawn,
+        ctx.next_seq(),
+        Vec::new(),
+        ctx.now_ms(),
+    );
+    b.metadata = serde_json::json!({
+        "mode": "external",
+        "harness_type": ctx.harness_type,
+    });
+    b
 }
 
 /// Record the terminal `Exit` block (`reason`: "idle_timeout" | "stopped").
@@ -370,14 +416,24 @@ impl ExternalCaptureManager {
         let activity = Arc::new(AtomicI64::new((self.clock)()));
         let born_at = activity.load(Ordering::Relaxed);
 
+        // Lazy Spawn: reserve the sequence and build the block, insertion is
+        // deferred until the session shows activity.
+        let pending_spawn = Arc::new(Mutex::new(Some(external_spawn_block(&ctx))));
+
         let (fwd_tx, proc_rx) = tokio::sync::mpsc::channel(256);
         let forwarder = {
             let activity = activity.clone();
             let clock = self.clock.clone();
+            let pending_spawn = pending_spawn.clone();
+            let ctx = ctx.clone();
+            let store = store.clone();
             tokio::spawn(async move {
                 let mut raw_rx = raw_rx;
                 while let Some(event) = raw_rx.recv().await {
                     activity.store(clock(), Ordering::Relaxed);
+                    // First raw event = the session is real → materialize
+                    // the reserved Spawn block now.
+                    materialize_spawn(&ctx, &store, &pending_spawn, true);
                     if fwd_tx.send(event).await.is_err() {
                         break;
                     }
@@ -391,7 +447,7 @@ impl ExternalCaptureManager {
             ctx.clone(),
         ));
 
-        record_external_spawn(&store, &ctx);
+        // (Spawn is NOT recorded here — see `pending_spawn` above.)
 
         let registration = Registration {
             id: RegistrationId(self.next_id),
@@ -427,6 +483,7 @@ impl ExternalCaptureManager {
             processor,
             forwarder,
             activity,
+            pending_spawn,
         };
 
         self.next_id += 1;
@@ -434,37 +491,68 @@ impl ExternalCaptureManager {
         Ok(registration)
     }
 
-    /// Graceful stop: records the `Exit` block (`reason: "stopped"`) and
-    /// tears the registration down (drops proxy + hook server). Blocks stay
-    /// in the store. Returns `false` if the id was unknown.
+    /// Graceful stop: materializes the lazy Spawn if the session was active,
+    /// records the `Exit` block (`reason: "stopped"`) and tears the
+    /// registration down (drops proxy + hook server). Blocks stay in the
+    /// store. Returns `false` if the id was unknown.
     pub fn stop_registration(&mut self, id: RegistrationId) -> bool {
         match self.entries.remove(&id) {
             Some(entry) => {
-                record_external_exit(&entry.live.store, &entry.live.ctx, "stopped");
+                entry.live.finalize("stopped");
                 true
             }
             None => false,
         }
     }
 
+    /// Periodic maintenance tick (T3): first materializes lazy Spawns for
+    /// hook-only sessions (`ctx.seq_count()` past the reservation means a
+    /// hook block already exists), then reclaims idle registrations via
+    /// [`Self::reap_idle`]. The app wires this on a ≤60s timer; returns the
+    /// reaped ids for logging.
+    pub fn tick(&mut self) -> Vec<RegistrationId> {
+        self.tick_except(&[])
+    }
+
+    /// [`Self::tick`] variant that never reaps the given ids. The app's
+    /// pane-armed registrations are exempt from idle reaping for as long as
+    /// their pane lives ("pane 存活=通道存活" — the armed shell functions
+    /// embed this registration's port, so reaping under a live pane would
+    /// strand them on a dead port); they are torn down by
+    /// `stop_registration` when the pane closes instead.
+    pub fn tick_except(&mut self, protected: &[RegistrationId]) -> Vec<RegistrationId> {
+        for entry in self.entries.values() {
+            entry.live.materialize_spawn(false);
+        }
+        self.reap_idle_except(protected)
+    }
+
     /// Reclaim registrations idle beyond [`IDLE_TIMEOUT_MS`] (no `RawEvent`,
     /// injected clock): each is unregistered, its proxy + hook server
     /// dropped, and an `Exit` block (`reason: "idle_timeout"`) recorded.
-    /// Returns the reaped ids. The app (T3) calls this on a periodic tick;
-    /// blocks stay in the DB (observatory history).
+    /// Returns the reaped ids. Prefer calling [`Self::tick`] (which also
+    /// materializes lazy Spawns); blocks stay in the DB (observatory history).
     pub fn reap_idle(&mut self) -> Vec<RegistrationId> {
+        self.reap_idle_except(&[])
+    }
+
+    /// [`Self::reap_idle`] variant that spares the given ids (see
+    /// [`Self::tick_except`]).
+    pub fn reap_idle_except(&mut self, protected: &[RegistrationId]) -> Vec<RegistrationId> {
         let now = (self.clock)();
         let reaped: Vec<RegistrationId> = self
             .entries
             .iter()
-            .filter(|(_, entry)| {
-                now.saturating_sub(entry.live.activity.load(Ordering::Relaxed)) > IDLE_TIMEOUT_MS
+            .filter(|(id, entry)| {
+                !protected.contains(id)
+                    && now.saturating_sub(entry.live.activity.load(Ordering::Relaxed))
+                        > IDLE_TIMEOUT_MS
             })
             .map(|(id, _)| *id)
             .collect();
         for id in &reaped {
             if let Some(entry) = self.entries.remove(id) {
-                record_external_exit(&entry.live.store, &entry.live.ctx, "idle_timeout");
+                entry.live.finalize("idle_timeout");
             }
         }
         reaped
@@ -513,10 +601,17 @@ impl ExternalCaptureManager {
 /// captures the port/path at registration time and replays them here.
 ///
 /// Key sets per harness (via [`ProxyManager::env_injection_for`], reused —
-/// not duplicated):
-/// - `ClaudeCode` → `ANTHROPIC_BASE_URL` + `NODE_EXTRA_CA_CERTS` + hook vars
+/// not duplicated; base-URL rewrite, never `HTTPS_PROXY` — the proxy is a
+/// reverse proxy without CONNECT tunneling):
+/// - `ClaudeCode` | `Omp` → `ANTHROPIC_BASE_URL` + `NODE_EXTRA_CA_CERTS` + hook vars
 /// - `Codex` → `OPENAI_BASE_URL` + hook vars
-/// - `Omp` | `Generic` → `HTTPS_PROXY` + `SSL_CERT_FILE` + hook vars
+/// - `Generic` → hook vars only (no known base-URL var to rewrite; API
+///   capture incomplete by design, hook events survive)
+///
+/// Always appends `NO_PROXY`/`no_proxy` = `127.0.0.1,localhost` (both
+/// cases: some clients read only one) so the harness's own hook callbacks
+/// to `http://127.0.0.1:<port>` are never re-routed through a host-level
+/// `HTTPS_PROXY`/`https_proxy`.
 pub fn env_lines_for(
     proxy_port: u16,
     ca_path: &Path,
@@ -531,6 +626,8 @@ pub fn env_lines_for(
             .collect();
     env.push((HOOK_SERVER_URL_ENV.to_string(), hook_url.to_string()));
     env.push((HOOK_TOKEN_ENV.to_string(), hook_token.to_string()));
+    env.push(("NO_PROXY".to_string(), "127.0.0.1,localhost".to_string()));
+    env.push(("no_proxy".to_string(), "127.0.0.1,localhost".to_string()));
     env
 }
 
@@ -600,49 +697,67 @@ mod tests {
     fn lines(harness: HarnessType) -> (Vec<(String, String)>, HashMap<String, String>) {
         let env = env_lines_for(PORT, Path::new(CA), HOOK_URL, HOOK_TOKEN, harness);
         let map = env_map(&env);
-        // Hook vars are always present and correctly valued.
+        // Hook vars and NO_PROXY (both cases) are always present and valued.
         assert_eq!(map.get(HOOK_SERVER_URL_ENV).unwrap(), HOOK_URL);
         assert_eq!(map.get(HOOK_TOKEN_ENV).unwrap(), HOOK_TOKEN);
+        assert_eq!(map.get("NO_PROXY").unwrap(), "127.0.0.1,localhost");
+        assert_eq!(map.get("no_proxy").unwrap(), "127.0.0.1,localhost");
         (env, map)
     }
 
     #[test]
     fn env_lines_for_claude_code() {
         let (env, map) = lines(HarnessType::ClaudeCode);
-        // Exactly: ANTHROPIC_BASE_URL + NODE_EXTRA_CA_CERTS + 2 hook keys.
-        assert_eq!(env.len(), 4);
+        // Exactly: ANTHROPIC_BASE_URL + NODE_EXTRA_CA_CERTS + 2 hook keys
+        // + 2 NO_PROXY keys.
+        assert_eq!(env.len(), 6);
         assert_eq!(
             map.get("ANTHROPIC_BASE_URL").unwrap(),
             "https://127.0.0.1:8443"
         );
         assert_eq!(map.get("NODE_EXTRA_CA_CERTS").unwrap(), CA);
         assert!(!map.contains_key("HTTPS_PROXY"));
-        assert!(!map.contains_key("SSL_CERT_FILE"));
         assert!(!map.contains_key("OPENAI_BASE_URL"));
     }
 
     #[test]
     fn env_lines_for_codex() {
         let (env, map) = lines(HarnessType::Codex);
-        // Exactly: OPENAI_BASE_URL + 2 hook keys (no CA var for Codex).
-        assert_eq!(env.len(), 3);
+        // Exactly: OPENAI_BASE_URL + 2 hook keys + 2 NO_PROXY keys.
+        assert_eq!(env.len(), 5);
         assert_eq!(map.get("OPENAI_BASE_URL").unwrap(), "https://127.0.0.1:8443");
         assert!(!map.contains_key("NODE_EXTRA_CA_CERTS"));
         assert!(!map.contains_key("HTTPS_PROXY"));
-        assert!(!map.contains_key("SSL_CERT_FILE"));
     }
 
+    /// Omp reuses ClaudeCode's base-URL rewrite (it honors
+    /// ANTHROPIC_BASE_URL as its gateway var — see omp --help env list).
+    /// The reverse proxy has no CONNECT tunneling, so HTTPS_PROXY must
+    /// never appear for any harness.
     #[test]
-    fn env_lines_for_omp_and_generic_share_https_proxy_shape() {
-        for harness in [HarnessType::Omp, HarnessType::Generic] {
-            let (env, map) = lines(harness);
-            // Exactly: HTTPS_PROXY + SSL_CERT_FILE + 2 hook keys.
-            assert_eq!(env.len(), 4, "{harness:?}");
-            assert_eq!(map.get("HTTPS_PROXY").unwrap(), "https://127.0.0.1:8443");
-            assert_eq!(map.get("SSL_CERT_FILE").unwrap(), CA);
-            assert!(!map.contains_key("ANTHROPIC_BASE_URL"));
-            assert!(!map.contains_key("OPENAI_BASE_URL"));
-        }
+    fn env_lines_for_omp_shares_claude_code_shape() {
+        let (env, map) = lines(HarnessType::Omp);
+        assert_eq!(env.len(), 6);
+        assert_eq!(
+            map.get("ANTHROPIC_BASE_URL").unwrap(),
+            "https://127.0.0.1:8443"
+        );
+        assert_eq!(map.get("NODE_EXTRA_CA_CERTS").unwrap(), CA);
+        assert!(!map.contains_key("HTTPS_PROXY"));
+        assert!(!map.contains_key("OPENAI_BASE_URL"));
+    }
+
+    /// Generic fallback: no proxy vars at all (no known base-URL var to
+    /// rewrite) — hook events only, API capture incomplete by design.
+    #[test]
+    fn env_lines_for_generic_is_hooks_only() {
+        let (env, map) = lines(HarnessType::Generic);
+        assert_eq!(env.len(), 4, "hook pair + NO_PROXY pair only");
+        assert!(!map.contains_key("HTTPS_PROXY"));
+        assert!(!map.contains_key("SSL_CERT_FILE"));
+        assert!(!map.contains_key("ANTHROPIC_BASE_URL"));
+        assert!(!map.contains_key("OPENAI_BASE_URL"));
+        assert!(!map.contains_key("NODE_EXTRA_CA_CERTS"));
     }
 
     // ── manager shell state ────────────────────────────────────────────────

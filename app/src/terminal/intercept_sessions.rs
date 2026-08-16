@@ -24,6 +24,8 @@ pub enum InterceptSessionsModelEvent {
     ModeChanged,
     /// The explicit upstream overrides (api base / auth env) changed.
     UpstreamChanged,
+    /// External capture (pane-level harness capture) toggled.
+    ExternalCaptureChanged,
     /// The captured block count was refreshed.
     BlocksChanged,
 }
@@ -36,7 +38,10 @@ pub struct InterceptSessionsModel {
     /// Explicit auth env-var name override (e.g. `ANTHROPIC_API_KEY`).
     /// Empty = keep the resolved default from [`UpstreamConfig`].
     upstream_auth_env: String,
-    /// Cached captured-block count from the persistent BlockStore.
+    /// 外部捕获开关 (T3): pane 级 harness 嗅探登记 + env 注入。
+    /// 默认开 (票面口径); 持久化到 intercept_config.json。
+    external_capture_enabled: bool,
+    /// Captured-block count from the persistent BlockStore.
     block_count: u64,
     /// Persistent block store at `<state_dir>/harness_blocks.db`.
     /// `None` when the store cannot be opened (read-only queries then report 0).
@@ -45,8 +50,9 @@ pub struct InterceptSessionsModel {
     last_saved_at: Option<i64>,
     /// 最近一次配置写盘失败原因；成功后清空。渲染层据此给出保存反馈。
     last_persist_error: Option<String>,
+    /// 外部捕获周期 tick 定时器句柄 (60s; 无则下次 update 补挂)。
+    external_capture_timer: Option<warpui::r#async::SpawnedFutureHandle>,
 }
-
 /// 持久化的拦截配置（`<state_dir>/intercept_config.json`）。
 /// block 计数等运行态不持久化。
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -54,6 +60,8 @@ struct PersistedConfig {
     mode: Option<InterceptMode>,
     upstream_base: Option<String>,
     upstream_auth_env: Option<String>,
+    /// `None` (旧文件) → 默认开。
+    external_capture_enabled: Option<bool>,
 }
 
 fn config_path() -> Option<std::path::PathBuf> {
@@ -85,7 +93,7 @@ fn save_persisted_config(cfg: &PersistedConfig) -> Result<(), String> {
     std::fs::write(&path, raw).map_err(|e| format!("{}: {e}", path.display()))
 }
 impl InterceptSessionsModel {
-    pub fn new(_ctx: &mut ModelContext<Self>) -> Self {
+    pub fn new(ctx: &mut ModelContext<Self>) -> Self {
         // flag 未开启时不打开/创建 DB,避免未启用用户产生启动期文件 IO
         // (create_dir_all + SQLite open + COUNT(*))。store 保持 None,
         // refresh_block_count 在 flag 开启后按需惰性打开。
@@ -104,15 +112,25 @@ impl InterceptSessionsModel {
         } else {
             PersistedConfig::default()
         };
-        Self {
+        let mut model = Self {
             mode: persisted.mode.unwrap_or(InterceptMode::Full),
             upstream_base: persisted.upstream_base.unwrap_or_default(),
             upstream_auth_env: persisted.upstream_auth_env.unwrap_or_default(),
+            external_capture_enabled: persisted.external_capture_enabled.unwrap_or(true),
             block_count,
             store,
             last_saved_at: None,
             last_persist_error: None,
+            external_capture_timer: None,
+        };
+        // 开关开时挂周期 tick (惰性 ensure: CA 首代发生在首个登记或 tick,
+        // 不阻塞启动)。
+        if model.external_capture_enabled
+            && crate::features::FeatureFlag::AgentHarness.is_enabled()
+        {
+            model.start_external_capture_timer(ctx);
         }
+        model
     }
 
     /// 当前配置写盘（mode/upstream 覆盖变更时调用），并记录保存结果
@@ -122,6 +140,7 @@ impl InterceptSessionsModel {
             mode: Some(self.mode),
             upstream_base: Some(self.upstream_base.clone()),
             upstream_auth_env: Some(self.upstream_auth_env.clone()),
+            external_capture_enabled: Some(self.external_capture_enabled),
         });
         match result {
             Ok(()) => {
@@ -162,6 +181,55 @@ impl InterceptSessionsModel {
         ctx.emit(InterceptSessionsModelEvent::ModeChanged);
     }
 
+    // ── external capture (T3) ─────────────────────────────────────────────
+
+    /// 外部捕获开关 (pane 级 harness 嗅探登记 + env 注入)。
+    pub fn external_capture_enabled(&self) -> bool {
+        self.external_capture_enabled
+    }
+
+    /// 切换外部捕获开关并持久化。开启时挂周期 tick (60s: 懒 Spawn 物化 +
+    /// 闲置回收); 关闭只影响**新** pane 的注入, 存量登记保留至自然销毁。
+    pub fn set_external_capture_enabled(&mut self, enabled: bool, ctx: &mut ModelContext<Self>) {
+        if self.external_capture_enabled == enabled {
+            return;
+        }
+        self.external_capture_enabled = enabled;
+        if enabled {
+            self.start_external_capture_timer(ctx);
+        } else {
+            self.external_capture_timer = None;
+        }
+        self.persist();
+        ctx.emit(InterceptSessionsModelEvent::ExternalCaptureChanged);
+    }
+
+    /// 挂 60s 周期 tick (自续期; flag/开关关闭时停)。
+    /// 启动预热 ensure_initialized 也在此触发 (防 CA 首代延迟占锁,
+    /// orch1 审计点 b) — tick 首轮即预热。
+    fn start_external_capture_timer(&mut self, ctx: &mut ModelContext<Self>) {
+        if self.external_capture_timer.is_some() {
+            return;
+        }
+        self.external_capture_timer = Some(ctx.spawn(
+            async move {
+                warpui::r#async::Timer::after(std::time::Duration::from_millis(
+                    crate::ai::external_capture_rt::TICK_INTERVAL_MS,
+                ))
+                .await;
+            },
+            |me, _unit, ctx| {
+                me.external_capture_timer = None;
+                if !crate::features::FeatureFlag::AgentHarness.is_enabled()
+                    || !me.external_capture_enabled
+                {
+                    return;
+                }
+                crate::ai::external_capture_rt::tick();
+                me.start_external_capture_timer(ctx);
+            },
+        ));
+    }
     // ── upstream overrides ────────────────────────────────────────────────
 
     /// Explicit API base override; empty means auto-detect.
@@ -277,10 +345,12 @@ mod tests {
             mode: InterceptMode::Full,
             upstream_base: base.to_string(),
             upstream_auth_env: auth_env.to_string(),
+            external_capture_enabled: true,
             block_count: 0,
             store: None,
             last_saved_at: None,
             last_persist_error: None,
+            external_capture_timer: None,
         }
     }
 
@@ -291,17 +361,20 @@ mod tests {
             mode: Some(InterceptMode::HooksOnly),
             upstream_base: Some("http://localhost:9999".to_string()),
             upstream_auth_env: Some("MY_KEY".to_string()),
+            external_capture_enabled: Some(false),
         };
         let raw = serde_json::to_string(&cfg).unwrap();
         let back: PersistedConfig = serde_json::from_str(&raw).unwrap();
         assert_eq!(back.mode, Some(InterceptMode::HooksOnly));
         assert_eq!(back.upstream_base.as_deref(), Some("http://localhost:9999"));
         assert_eq!(back.upstream_auth_env.as_deref(), Some("MY_KEY"));
+        assert_eq!(back.external_capture_enabled, Some(false));
 
         // 空对象（旧文件/损坏后 default）→ 全 None → 构造时安全回退默认
         let empty: PersistedConfig = serde_json::from_str("{}").unwrap();
         assert_eq!(empty.mode, None);
         assert_eq!(empty.upstream_base, None);
+        assert_eq!(empty.external_capture_enabled, None, "旧文件缺字段→默认开");
 
         // 非法 JSON → load 侧 unwrap_or_default 吞掉
         let bad: Option<PersistedConfig> = serde_json::from_str("not json").ok();

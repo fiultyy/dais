@@ -3551,6 +3551,12 @@ observatory-raw-detail-meta = { $direction } · { $len } B · { $ts }
 observatory-raw-detail-content = 内容
 observatory-dispatches-title = ディスパッチ詳細
 observatory-dispatches-empty = このタスクにディスパッチなし
+observatory-external-capture-title = 外部キャプチャ（pane 内 harness）
+observatory-external-capture-toggle = キャプチャ オン/オフ
+observatory-external-capture-empty = アクティブな登録はありません
+observatory-external-capture-row = { $session } · { $harness } · プロキシ {$port} · { $age }
+observatory-external-capture-hint = 新しい pane で omp/claude/codex の最初のコマンドをキャプチャ。既存 pane は遡り注入されません
+
 observatory-active-title = アクティブなインターセプトセッション
 observatory-active-empty = アクティブなセッションなし
 observatory-active-hook = hook: { $url }

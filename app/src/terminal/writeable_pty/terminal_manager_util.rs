@@ -34,6 +34,7 @@ pub fn wire_up_pty_controller_with_view<T: EventLoopSender>(
     let view_weak_handle = terminal_view.downgrade();
     let model_clone = model.clone();
 
+    let view_weak_handle_for_events = view_weak_handle.clone();
     ctx.subscribe_to_view(terminal_view, move |_view, event, ctx| {
         // NOTE: we cannot simply use the strong reference (the model handle argument to this wire_up fn)
         // because it'll create a reference cycle with the `subscribe_to_model` usage below. Instead,
@@ -79,9 +80,40 @@ pub fn wire_up_pty_controller_with_view<T: EventLoopSender>(
                     return;
                 };
 
-                model_clone.lock().block_list_mut().active_block_mut().set_cloud_workflow_state(event.workflow_id);
+                model_clone
+                    .lock()
+                    .block_list_mut()
+                    .active_block_mut()
+                    .set_cloud_workflow_state(event.workflow_id);
+                // 外部捕获 (T3): pane(view) 首条 harness 命令 → 嗅探登记 +
+                // export 前缀注入(真实 shell 环境变更, 持续到 pane 生命期)。
+                // 前缀只改变写入 PTY 的字节, block 显示/历史仍用原命令。
+                #[cfg(not(target_family = "wasm"))]
+                let command = {
+                    let enabled = view_weak_handle_for_events.upgrade(ctx).is_some_and(|view| {
+                        let _ = &view;
+                        use warpui::SingletonEntity as _;
+                        crate::terminal::intercept_sessions::InterceptSessionsModel::as_ref(&*ctx)
+                            .external_capture_enabled()
+                    });
+                    let view_id = view_weak_handle_for_events.upgrade(ctx).map(|v| v.id());
+                    match view_id {
+                        Some(id) => {
+                            let prefix = crate::ai::external_capture_rt::env_prefix_for_command(
+                                id, &event.command, enabled,
+                            );
+                            match prefix {
+                                Some(p) => format!("{}{}", p, event.command),
+                                None => event.command.clone(),
+                            }
+                        }
+                        None => event.command.clone(),
+                    }
+                };
+                #[cfg(target_family = "wasm")]
+                let command = event.command.clone();
                 controller.update(ctx, |controller, ctx| {
-                    controller.write_command(&event.command, shell_type, event.source.clone(), ctx)
+                    controller.write_command(&command, shell_type, event.source.clone(), ctx)
                 });
 
                 if event.should_add_command_to_history {

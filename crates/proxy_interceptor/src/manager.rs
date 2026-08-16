@@ -43,6 +43,21 @@ impl ProxyManager {
     /// explicit values (no live [`ProxyHandle`] needed — external captures
     /// assemble env from recorded values; see harness_integration's
     /// `external_capture` module).
+    ///
+    /// Injection shape is base-URL rewrite, NOT `HTTPS_PROXY`: the proxy is a
+    /// reverse proxy (base+path forwarding, no CONNECT tunneling), so an
+    /// `HTTPS_PROXY`-conforming client would send CONNECT and fail.
+    ///
+    /// CAVEAT (T3 round 2, source-verified against oh-my-pi): `Omp` shares
+    /// ClaudeCode's env *shape*, but omp resolves an explicit provider
+    /// `model.baseUrl` AHEAD of these envs in both API families
+    /// (`resolveAnthropicBaseUrl` — non-official baseUrl wins over
+    /// `ANTHROPIC_BASE_URL`; `resolveOpenAIRequestSetup` —
+    /// `model.baseUrl ?? OPENAI_BASE_URL`). Built-in providers with baked-in
+    /// base URLs (e.g. zhipu-coding-plan) therefore bypass the proxy entirely
+    /// until omp grows a process-level override entry. `Generic` gets no
+    /// proxy vars: with no known base-URL var to rewrite, only hook events
+    /// survive (accepted per design).
     pub fn env_injection_for(
         port: u16,
         ca_cert_path: &std::path::Path,
@@ -51,15 +66,12 @@ impl ProxyManager {
         let base = format!("https://127.0.0.1:{}", port);
         let ca = ca_cert_path.display().to_string();
         match harness {
-            HarnessType::ClaudeCode => vec![
+            HarnessType::ClaudeCode | HarnessType::Omp => vec![
                 ("ANTHROPIC_BASE_URL", base),
                 ("NODE_EXTRA_CA_CERTS", ca),
             ],
             HarnessType::Codex => vec![("OPENAI_BASE_URL", base)],
-            HarnessType::Omp | HarnessType::Generic => vec![
-                ("HTTPS_PROXY", base),
-                ("SSL_CERT_FILE", ca),
-            ],
+            HarnessType::Generic => vec![],
         }
     }
 

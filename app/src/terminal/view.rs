@@ -25456,6 +25456,11 @@ impl MenuPositioningProvider for TerminalViewMenuPositioningProvider {
 
 impl Drop for TerminalView {
     fn drop(&mut self) {
+        // 外部捕获 (T3): pane(view) 销毁 → 停对应登记(Exit block +
+        // proxy/hook 双 drop)。undo 隐藏不 drop view, 通道保留 — 与
+        // "pane 存活=通道存活"一致; 强杀路径由 60s tick 的闲置回收兜底。
+        #[cfg(not(target_family = "wasm"))]
+        crate::ai::external_capture_rt::stop_by_view(self.id());
         if let Some((is_bootstrapped, pending_shell, has_pending_ssh_session)) =
             self.model.try_lock().map(|model| {
                 (

@@ -48,6 +48,9 @@ pub mod facts;
 /// Zap 拦截接线：Integration（proxy+hooks）挂进 AgentDriver 的 harness spawn。
 #[cfg(not(target_family = "wasm"))]
 pub mod harness_intercept;
+/// 外部捕获运行时 (T3): pane 级 harness 嗅探登记 + export 前缀注入。
+#[cfg(not(target_family = "wasm"))]
+pub mod external_capture_rt;
 /// Observatory 面板 — 拦截会话观测 + 编排状态视图（右侧面板）。
 #[cfg(not(target_family = "wasm"))]
 pub mod observatory;

@@ -3633,6 +3633,12 @@ observatory-raw-detail-meta = { $direction } · { $len } B · { $ts }
 observatory-raw-detail-content = 内容
 observatory-dispatches-title = 派发明细
 observatory-dispatches-empty = 该任务暂无派发
+observatory-external-capture-title = 外部捕获（pane 内 harness）
+observatory-external-capture-toggle = 捕获 开/关
+observatory-external-capture-empty = 暂无活动登记
+observatory-external-capture-row = { $session } · { $harness } · 代理端口 {$port} · { $age }
+observatory-external-capture-hint = 新 pane 敲 omp/claude/codex 首命令即被捕获；存量 pane 不回溯注入
+
 observatory-active-title = 活跃拦截会话
 observatory-active-empty = 暂无活跃拦截会话
 observatory-active-hook = hook: { $url }

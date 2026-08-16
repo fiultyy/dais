@@ -4,7 +4,7 @@ use async_channel::{Receiver, Sender};
 use parking_lot::FairMutex;
 use thiserror::Error;
 use warpui::r#async::block_on;
-use warpui::{Entity, ModelContext, ModelHandle, SingletonEntity};
+use warpui::{Entity, EntityId, ModelContext, ModelHandle, SingletonEntity};
 
 use crate::ai::agent::AIAgentPtyWriteMode;
 use crate::terminal::input::CommandExecutionSource;
@@ -105,6 +105,11 @@ pub struct PtyController<T: EventLoopSender> {
     /// complete, it will be dropped to clean up the temporary file.
     #[cfg(not(target_family = "wasm"))]
     bootstrap_file: Option<TempBootstrapFile>,
+    /// 外部捕获 (T3): 绑定的 terminal view(pane)身份; `None` = 该 controller
+    /// 未启用武装(远端 pane / 旧调用路径)。设置后首个本地 shell 的 bootstrap
+    /// 会武装同名 harness 包装函数。
+    #[cfg(not(target_family = "wasm"))]
+    external_capture_view: Option<EntityId>,
     tmux_control_mode: Option<TmuxControlMode>,
     in_flight_native_completions_state: Option<NativeShellCompletionsState>,
 }
@@ -259,6 +264,8 @@ impl<T: EventLoopSender> PtyController<T> {
             is_bracketed_paste_enabled: false,
             #[cfg(not(target_family = "wasm"))]
             bootstrap_file: None,
+            #[cfg(not(target_family = "wasm"))]
+            external_capture_view: None,
             tmux_control_mode: None,
             in_flight_native_completions_state: None,
         }
@@ -405,8 +412,71 @@ impl<T: EventLoopSender> PtyController<T> {
             return;
         }
 
-        let bootstrap = bootstrap::script_for_shell(shell_type, &crate::ASSETS);
+        let mut bootstrap = bootstrap::script_for_shell(shell_type, &crate::ASSETS);
+        // 外部捕获 (T3): 首个本地 shell 的 bootstrap 脚本尾部追加同名
+        // harness 包装函数 — 覆盖手敲路径(键盘直通不经 ExecuteCommand)。
+        #[cfg(not(target_family = "wasm"))]
+        {
+            bootstrap = self.external_capture_arming_suffix_for(
+                bootstrap,
+                pending_session_info,
+                shell_type,
+                ctx,
+            );
+        }
         self.write_bootstrap_script_to_shell(pending_session_info, ctx, shell_type, bootstrap);
+    }
+
+    /// 外部捕获 (T3) 武装入口: 视图已绑定 + 非子 shell + 方言支持 + 功能
+    /// flag 与开关都开时, 向 bootstrap 脚本尾部追加同名 harness 包装函数
+    /// (`omp/ompi/claude/claude-code/codex`)。任一条件不满足或登记失败 →
+    /// 原样返回(pane 启动绝不因此阻塞)。仅本地 pane: 远端 manager 不绑定
+    /// 视图身份([`Self::enable_external_capture_arming`] 只在 local_tty 调)。
+    #[cfg(not(target_family = "wasm"))]
+    fn external_capture_arming_suffix_for(
+        &self,
+        bootstrap: Cow<'static, [u8]>,
+        pending_session_info: &SessionInfo,
+        shell_type: ShellType,
+        ctx: &mut ModelContext<Self>,
+    ) -> Cow<'static, [u8]> {
+        use crate::ai::external_capture_rt::ArmingDialect;
+
+        let Some(view_id) = self.external_capture_view else {
+            return bootstrap;
+        };
+        // 子 shell 不武装(函数不经继承跨 shell, pane 级一通道一武装)。
+        if pending_session_info.subshell_info.is_some() {
+            return bootstrap;
+        }
+        let dialect = match shell_type {
+            ShellType::Bash | ShellType::Zsh => ArmingDialect::Posix,
+            ShellType::Fish => ArmingDialect::Fish,
+            // PowerShell 走 permanent bootstrap file 共享文件, 且非本票
+            // 验收环境(Windows) — 不武装。
+            ShellType::PowerShell => return bootstrap,
+        };
+        if !crate::features::FeatureFlag::AgentHarness.is_enabled() {
+            return bootstrap;
+        }
+        let enabled = crate::terminal::intercept_sessions::InterceptSessionsModel::as_ref(ctx)
+            .external_capture_enabled();
+        match crate::ai::external_capture_rt::bootstrap_arming_suffix(view_id, dialect, enabled) {
+            // heredoc 感知插入(案B): 追加到脚本尾部会被 ZLE 当用户命令
+            // 回显(EOM 之后的独立输入行), 必须插进 heredoc 不可见区。
+            Some(defs) => Cow::Owned(
+                crate::ai::external_capture_rt::insert_arming_into_script(&bootstrap, &defs),
+            ),
+            None => bootstrap,
+        }
+    }
+
+    /// 外部捕获 (T3): 绑定 terminal view(pane) 身份并启用 bootstrap 武装。
+    /// 只应由本地 pane 的 manager(local_tty) 调用; 远端 pane 不调用 →
+    /// 永不武装(远端 shell 里注入的 127.0.0.1 指向错误主机)。
+    #[cfg(not(target_family = "wasm"))]
+    pub fn enable_external_capture_arming(&mut self, view: EntityId) {
+        self.external_capture_view = Some(view);
     }
 
     /// Writes the bytes to to terminate and run the bootstrap script.

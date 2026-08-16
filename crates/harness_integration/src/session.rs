@@ -31,6 +31,14 @@ impl SessionContext {
         self.seq.fetch_add(1, Ordering::Relaxed)
     }
 
+    /// Number of sequence numbers handed out so far (i.e. `next_seq()` calls).
+    /// External capture uses this to detect that a session has produced any
+    /// block (raw or hook) without observing the block itself: any count
+    /// above a reserved number means later blocks already exist.
+    pub fn seq_count(&self) -> u32 {
+        self.seq.load(Ordering::Relaxed)
+    }
+
     /// Current Unix epoch milliseconds.
     pub fn now_ms(&self) -> i64 {
         use std::time::{SystemTime, UNIX_EPOCH};

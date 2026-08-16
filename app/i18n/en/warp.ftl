@@ -3719,6 +3719,12 @@ observatory-raw-detail-meta = { $direction } · { $len } B · { $ts }
 observatory-raw-detail-content = Content
 observatory-dispatches-title = Dispatches
 observatory-dispatches-empty = No dispatches for this task
+observatory-external-capture-title = External capture (pane harness)
+observatory-external-capture-toggle = Capture on/off
+observatory-external-capture-empty = No active registrations
+observatory-external-capture-row = { $session } · { $harness } · proxy {$port} · { $age }
+observatory-external-capture-hint = New panes: first omp/claude/codex command is captured; existing panes are not retro-injected
+
 observatory-active-title = Active intercept sessions
 observatory-active-empty = No active intercept sessions
 observatory-active-hook = hook: { $url }
