@@ -127,7 +127,13 @@ async fn real_proxy_full_session() {
         harness_integration::RawCache::open_in_memory().unwrap(),
     ));
     let cache_clone = raw_cache.clone();
-    let proc_task = tokio::spawn(run_raw_processor(raw_rx, store_clone, cache_clone, ctx_clone));
+    let proc_task = tokio::spawn(run_raw_processor(
+        raw_rx,
+        store_clone,
+        cache_clone,
+        ctx_clone,
+        ResponseFormat::AnthropicSSE,
+    ));
 
     // ── 5. HTTPS request through proxy (simulating the harness) ──────────
     let ca_pem = std::fs::read(&handle.ca_cert_path).unwrap();

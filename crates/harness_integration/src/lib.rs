@@ -26,7 +26,9 @@ mod hook_server;
 mod raw_processor;
 mod session;
 
-pub use block_builder::{parse_anthropic_request, parse_anthropic_response};
+pub use block_builder::{
+    parse_anthropic_request, parse_anthropic_response, parse_openai_request, parse_openai_response,
+};
 pub use entry_gateway::{EntryGateway, EntrySessionInfo};
 pub use harness_spawn::{
     build_spawn_env, env_to_map, record_exit, record_spawn,
@@ -159,6 +161,9 @@ impl Integration {
         if self.proxy.is_some() {
             return Ok(self.proxy.as_ref().unwrap().handle.port);
         }
+        // Wire-form tiebreak default for the capture processor (T6):
+        // per-event detection still decides from the wire itself.
+        let default_format = upstream.response_format;
         let mut handle = manager.allocate(upstream).await.map_err(anyhow::Error::msg)?;
         let raw_rx = std::mem::replace(&mut handle.raw_rx, {
             // Replace with a closed receiver so the moved-out field is valid.
@@ -171,6 +176,7 @@ impl Integration {
             self.store.clone(),
             self.raw_cache.clone(),
             self.ctx.clone(),
+            default_format,
         ));
 
         let port = handle.port;

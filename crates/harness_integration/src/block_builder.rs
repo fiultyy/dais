@@ -1,5 +1,5 @@
-//! BlockBuilder — parse Anthropic Messages API request/response bodies into
-//! typed [`HarnessBlock`]s.
+//! BlockBuilder — parse Anthropic Messages API / OpenAI Chat Completions
+//! request/response bodies into typed [`HarnessBlock`]s.
 //!
 //! ## Request parsing
 //! [`parse_anthropic_request`] extracts:
@@ -8,13 +8,24 @@
 //!   parent_id points to the SystemPrompt block if present)
 //! - `UserPrompt` block for each user-role message
 //! - Tool definitions are additionally recorded in the SystemPrompt block's `metadata`
+//!
+//! [`parse_openai_request`] (T6) handles the Chat Completions wire shape:
+//! system/developer-role messages inside `messages` merge into one
+//! `SystemPrompt` block; the rest are preserved in wire order (`user` →
+//! `UserPrompt`, `assistant` history → `PromptSegment` with `role` metadata).
 //! ## Response parsing
 //! [`parse_anthropic_response`] handles both:
 //! - Non-streaming JSON (single `message` object)
 //! - Streaming SSE (reconstructed from accumulated chunks)
 //!
+//! [`parse_openai_response`] (T6) handles both openai shapes — non-streaming
+//! `chat.completion` JSON and streaming `chat.completion.chunk` SSE — and is
+//! strict: bodies that are not chat-completion shaped yield no blocks so the
+//! caller can fall back to the anthropic parser.
+//!
 //! Produces a single `Response` block with assistant text as `content` and
-//! token `usage` / `stop_reason` / `model` in `metadata`.
+//! token `usage` / `stop_reason` (anthropic) or `finish_reason` (openai) /
+//! `model` in `metadata`.
 
 use harness_blocks::{BlockType, HarnessBlock};
 use serde_json::Value;
@@ -86,7 +97,8 @@ fn extract_content_text(content: &Value) -> String {
     }
 }
 
-// ── request ──────────────────────────────────────────────────────────────
+// ── anthropic request ────────────────────────────────────────────────────
+
 /// Parse an Anthropic Messages API request body into blocks.
 ///
 /// Produces at most one `SystemPrompt` block (carrying tool definitions in
@@ -206,6 +218,96 @@ pub fn parse_anthropic_request(body: &[u8], ctx: &SessionContext) -> Vec<Harness
     blocks
 }
 
+// ── openai request ───────────────────────────────────────────────────────
+
+/// Parse an OpenAI Chat Completions request body into blocks.
+///
+/// Mirrors the anthropic-form extraction on the `messages`-array wire shape:
+/// - `system`/`developer`-role messages merge into one `SystemPrompt` block
+///   (anthropic hoists system to a top-level field, openai keeps it inside
+///   `messages`; the at-most-one semantics stay aligned with the
+///   anthropic form)
+/// - remaining messages are preserved in wire order: `user` → `UserPrompt`,
+///   `assistant` history → `PromptSegment` (metadata `role` = `assistant`)
+/// - `tool`-role messages are skipped (their content is a bare tool_call_id)
+///
+/// Silently returns an empty vec when the body is not JSON or has no
+/// `messages` array (e.g. the `/v1/responses` wire form) so the capture
+/// pipeline degrades exactly like the anthropic parsers.
+pub fn parse_openai_request(body: &[u8], ctx: &SessionContext) -> Vec<HarnessBlock> {
+    let root: Value = match serde_json::from_slice(body) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::debug!("parse_openai_request: not valid JSON ({e})");
+            return Vec::new();
+        }
+    };
+    let Some(messages) = root.get("messages").and_then(|v| v.as_array()) else {
+        tracing::debug!("parse_openai_request: no messages array, skipping");
+        return Vec::new();
+    };
+
+    let mut blocks = Vec::new();
+    let model = root
+        .get("model")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    // System messages → one merged SystemPrompt (aligned with the anthropic
+    // form's at-most-one semantics).
+    let system_text = messages
+        .iter()
+        .filter(|m| is_system_role(m))
+        .map(|m| extract_content_text(m.get("content").unwrap_or(&Value::Null)))
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+    if !system_text.is_empty() {
+        let metadata = serde_json::json!({
+            "source": "openai_request",
+            "model": model,
+        });
+        blocks.push(make_block(
+            ctx,
+            BlockType::SystemPrompt,
+            system_text.into_bytes(),
+            metadata,
+        ));
+    }
+
+    // Remaining messages in wire order.
+    for msg in messages {
+        let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("");
+        let text = extract_content_text(msg.get("content").unwrap_or(&Value::Null));
+        if text.is_empty() {
+            continue;
+        }
+        let (block_type, role_meta) = match role {
+            "user" => (BlockType::UserPrompt, None),
+            "assistant" => (BlockType::PromptSegment, Some("assistant")),
+            _ => continue, // system handled above; tool/unknown out of T6 scope
+        };
+        let mut metadata = serde_json::json!({
+            "source": "openai_request",
+            "model": model,
+        });
+        if let Some(r) = role_meta {
+            metadata["role"] = Value::String(r.to_string());
+        }
+        blocks.push(make_block(ctx, block_type, text.into_bytes(), metadata));
+    }
+
+    blocks
+}
+
+fn is_system_role(msg: &Value) -> bool {
+    matches!(
+        msg.get("role").and_then(|v| v.as_str()),
+        Some("system") | Some("developer")
+    )
+}
+
 // ── response ─────────────────────────────────────────────────────────────
 
 /// Parse an Anthropic Messages API response body into a `Response` block.
@@ -244,6 +346,169 @@ pub fn parse_anthropic_response(body: &[u8], ctx: &SessionContext) -> Vec<Harnes
         p.text.into_bytes(),
         metadata,
     )]
+}
+
+// ── openai response ──────────────────────────────────────────────────────
+
+/// Parse an OpenAI Chat Completions response body into a `Response` block.
+///
+/// Handles both wire shapes:
+/// - Non-streaming JSON (single `chat.completion` object)
+/// - Streaming SSE (`chat.completion.chunk` events reconstructed from the
+///   accumulated chunks; usage arrives on the final chunk when the harness
+///   opted into it via `stream_options.include_usage`)
+///
+/// Produces a single block with:
+/// - `content` = assistant text (`choices[0].message.content` / accumulated
+///   `choices[0].delta.content`)
+/// - `metadata` = `{ source, model, finish_reason, usage: { input_tokens,
+///   output_tokens } }` — `prompt_tokens`/`completion_tokens` are renamed to
+///   the anthropic-aligned `input_tokens`/`output_tokens`.
+///
+/// Strict: returns an empty vec for bodies that are not chat-completion
+/// shaped, so the caller can fall back to the anthropic parser.
+pub fn parse_openai_response(body: &[u8], ctx: &SessionContext) -> Vec<HarnessBlock> {
+    let text = String::from_utf8_lossy(body);
+
+    let parsed = if text.trim_start().starts_with('{') {
+        parse_openai_json_response(&text)
+    } else {
+        parse_openai_sse_response(&text)
+    };
+
+    let Some(p) = parsed else {
+        tracing::debug!("parse_openai_response: unrecognised body, skipping");
+        return Vec::new();
+    };
+
+    let metadata = serde_json::json!({
+        "source": "openai_response",
+        "model": p.model,
+        "finish_reason": p.stop_reason,
+        "usage": {
+            "input_tokens": p.input_tokens,
+            "output_tokens": p.output_tokens,
+        },
+    });
+
+    vec![make_block(
+        ctx,
+        BlockType::Response,
+        p.text.into_bytes(),
+        metadata,
+    )]
+}
+
+fn parse_openai_json_response(text: &str) -> Option<ParsedResponse> {
+    let root: Value = serde_json::from_str(text).ok()?;
+    // Strict chat-completion shape: anthropic JSON (`type: "message"`)
+    // never carries `object: "chat.completion"` or a `choices` array.
+    if root.get("object").and_then(|v| v.as_str()) != Some("chat.completion")
+        && root.get("choices").and_then(|v| v.as_array()).is_none()
+    {
+        return None;
+    }
+    let choice = root
+        .get("choices")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first())?;
+    let message = choice.get("message").unwrap_or(&Value::Null);
+    let usage = root.get("usage").unwrap_or(&Value::Null);
+    Some(ParsedResponse {
+        text: extract_content_text(message.get("content").unwrap_or(&Value::Null)),
+        model: root
+            .get("model")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        stop_reason: choice
+            .get("finish_reason")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        input_tokens: usage
+            .get("prompt_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0),
+        output_tokens: usage
+            .get("completion_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0),
+    })
+}
+
+/// Parse a reconstructed openai SSE stream (concatenated chunks).
+///
+/// Walks every `data: {json}` line, keeping only `chat.completion.chunk`
+/// objects: `delta.content` accumulates, the last non-null `finish_reason`
+/// wins, and `usage` (present on the final chunk when requested) is taken
+/// last-wins. Returns `None` when no chunk object was seen.
+fn parse_openai_sse_response(text: &str) -> Option<ParsedResponse> {
+    let mut content = String::new();
+    let mut model = String::new();
+    let mut finish_reason = String::new();
+    let mut input_tokens = 0u64;
+    let mut output_tokens = 0u64;
+    let mut saw_chunk = false;
+
+    for line in text.lines() {
+        let line = line.trim();
+        let json_str = if let Some(rest) = line.strip_prefix("data: ") {
+            rest
+        } else if let Some(rest) = line.strip_prefix("data:") {
+            rest
+        } else {
+            continue;
+        };
+        let Ok(evt) = serde_json::from_str::<Value>(json_str) else {
+            continue; // includes the `data: [DONE]` sentinel
+        };
+        if evt.get("object").and_then(|v| v.as_str()) != Some("chat.completion.chunk") {
+            continue;
+        }
+        saw_chunk = true;
+        if model.is_empty() {
+            if let Some(m) = evt.get("model").and_then(|v| v.as_str()) {
+                model = m.to_string();
+            }
+        }
+        if let Some(choice) = evt
+            .get("choices")
+            .and_then(|v| v.as_array())
+            .and_then(|a| a.first())
+        {
+            if let Some(t) = choice
+                .get("delta")
+                .and_then(|d| d.get("content"))
+                .and_then(|v| v.as_str())
+            {
+                content.push_str(t);
+            }
+            if let Some(f) = choice.get("finish_reason").and_then(|v| v.as_str()) {
+                finish_reason = f.to_string();
+            }
+        }
+        if let Some(u) = evt.get("usage") {
+            if let Some(p) = u.get("prompt_tokens").and_then(|v| v.as_u64()) {
+                input_tokens = p;
+            }
+            if let Some(c) = u.get("completion_tokens").and_then(|v| v.as_u64()) {
+                output_tokens = c;
+            }
+        }
+    }
+
+    if !saw_chunk {
+        return None;
+    }
+
+    Some(ParsedResponse {
+        text: content,
+        model,
+        stop_reason: finish_reason,
+        input_tokens,
+        output_tokens,
+    })
 }
 
 struct ParsedResponse {
@@ -459,7 +724,8 @@ mod tests {
 
     #[test]
     fn parse_request_no_system() {
-        let body = br#"{"model":"claude","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}"#;
+        let body =
+            br#"{"model":"claude","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}"#;
         let c = ctx();
         let blocks = parse_anthropic_request(body, &c);
         assert_eq!(blocks.len(), 1);
@@ -535,5 +801,144 @@ data: {\"type\":\"message_stop\"}\n";
         let c = ctx();
         let blocks = parse_anthropic_response(b"garbage", &c);
         assert!(blocks.is_empty());
+    }
+    // ── openai ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_openai_request_system_user_assistant() {
+        let body = br#"{
+            "model": "gpt-4o",
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hi there"},
+                {"role": "user", "content": [{"type":"text","text":"What is 2+2?"}]}
+            ]
+        }"#;
+        let c = ctx();
+        let blocks = parse_openai_request(body, &c);
+
+        // 1 SystemPrompt (merged system role) + UserPrompt + PromptSegment
+        // (assistant history) + UserPrompt — wire order preserved.
+        assert_eq!(blocks.len(), 4);
+        assert_eq!(blocks[0].block_type, BlockType::SystemPrompt);
+        assert_eq!(
+            String::from_utf8_lossy(&blocks[0].content),
+            "You are a helpful assistant."
+        );
+        assert_eq!(blocks[0].metadata["source"], "openai_request");
+        assert_eq!(blocks[0].metadata["model"], "gpt-4o");
+
+        assert_eq!(blocks[1].block_type, BlockType::UserPrompt);
+        assert_eq!(String::from_utf8_lossy(&blocks[1].content), "Hello");
+        assert_eq!(blocks[1].metadata["source"], "openai_request");
+
+        assert_eq!(blocks[2].block_type, BlockType::PromptSegment);
+        assert_eq!(String::from_utf8_lossy(&blocks[2].content), "Hi there");
+        assert_eq!(blocks[2].metadata["source"], "openai_request");
+        assert_eq!(blocks[2].metadata["role"], "assistant");
+
+        assert_eq!(blocks[3].block_type, BlockType::UserPrompt);
+        assert_eq!(String::from_utf8_lossy(&blocks[3].content), "What is 2+2?");
+    }
+
+    #[test]
+    fn parse_openai_request_merges_system_messages() {
+        let body = br#"{
+            "model": "gpt-4o",
+            "messages": [
+                {"role": "system", "content": "Line one"},
+                {"role": "developer", "content": "Line two"},
+                {"role": "user", "content": "hi"}
+            ]
+        }"#;
+        let c = ctx();
+        let blocks = parse_openai_request(body, &c);
+        assert_eq!(blocks.len(), 2);
+        assert_eq!(blocks[0].block_type, BlockType::SystemPrompt);
+        assert_eq!(
+            String::from_utf8_lossy(&blocks[0].content),
+            "Line one\nLine two"
+        );
+        assert_eq!(blocks[1].block_type, BlockType::UserPrompt);
+    }
+
+    #[test]
+    fn parse_openai_request_without_system() {
+        let body = br#"{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}]}"#;
+        let c = ctx();
+        let blocks = parse_openai_request(body, &c);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].block_type, BlockType::UserPrompt);
+        assert_eq!(blocks[0].metadata["source"], "openai_request");
+    }
+
+    #[test]
+    fn parse_openai_request_not_chat_shape() {
+        let c = ctx();
+        // /v1/responses wire form (input, no messages array) → no blocks.
+        assert!(parse_openai_request(br#"{"model":"gpt-5","input":"hi"}"#, &c).is_empty());
+        assert!(parse_openai_request(b"not json", &c).is_empty());
+    }
+
+    #[test]
+    fn parse_openai_response_json_chat_completion() {
+        let body = br#"{
+            "id": "chatcmpl-1",
+            "object": "chat.completion",
+            "model": "gpt-4o",
+            "choices": [{"index": 0,
+                         "message": {"role": "assistant", "content": "ok-openai"},
+                         "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 4, "total_tokens": 7}
+        }"#;
+        let c = ctx();
+        let blocks = parse_openai_response(body, &c);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].block_type, BlockType::Response);
+        assert_eq!(String::from_utf8_lossy(&blocks[0].content), "ok-openai");
+        assert_eq!(blocks[0].metadata["source"], "openai_response");
+        assert_eq!(blocks[0].metadata["model"], "gpt-4o");
+        assert_eq!(blocks[0].metadata["finish_reason"], "stop");
+        assert_eq!(blocks[0].metadata["usage"]["input_tokens"], 3);
+        assert_eq!(blocks[0].metadata["usage"]["output_tokens"], 4);
+    }
+
+    #[test]
+    fn parse_openai_response_sse_chunks() {
+        let body = b"\
+data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"He\"},\"finish_reason\":null}]}\n\
+\n\
+data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"llo\"},\"finish_reason\":null}]}\n\
+\n\
+data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\
+\n\
+data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-4o\",\"choices\":[],\"usage\":{\"prompt_tokens\":9,\"completion_tokens\":12}}\n\
+\n\
+data: [DONE]\n";
+
+        let c = ctx();
+        let blocks = parse_openai_response(body, &c);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].block_type, BlockType::Response);
+        assert_eq!(String::from_utf8_lossy(&blocks[0].content), "Hello");
+        assert_eq!(blocks[0].metadata["source"], "openai_response");
+        assert_eq!(blocks[0].metadata["model"], "gpt-4o");
+        assert_eq!(blocks[0].metadata["finish_reason"], "stop");
+        assert_eq!(blocks[0].metadata["usage"]["input_tokens"], 9);
+        assert_eq!(blocks[0].metadata["usage"]["output_tokens"], 12);
+    }
+
+    #[test]
+    fn parse_openai_response_strict_not_chat_shape() {
+        let c = ctx();
+        // Anthropic JSON must not be claimed by the openai parser.
+        let anthropic = br#"{"type":"message","content":[{"type":"text","text":"Hi"}],"model":"claude-3","usage":{"input_tokens":1,"output_tokens":2}}"#;
+        assert!(parse_openai_response(anthropic, &c).is_empty());
+        // Anthropic SSE lines are not chat.completion.chunk objects.
+        let anthropic_sse =
+            b"data: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-3\"}}\n";
+        assert!(parse_openai_response(anthropic_sse, &c).is_empty());
+        assert!(parse_openai_response(b"garbage", &c).is_empty());
     }
 }

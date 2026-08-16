@@ -8,7 +8,10 @@
 //! 3. **session 归并**: `/cc` `/omp` `/pi` 各自归并 `external-cc/omp/pi`,
 //!    Spawn(懒发) + harness 串正确;
 //! 4. **blocks 成对**: SystemPrompt + UserPrompt + Response,
-//!    `metadata.source` = `anthropic_request`/`anthropic_response`。
+//!    `metadata.source` = `anthropic_request`/`anthropic_response`
+//!    (anthropic 形) 与 `openai_request`/`openai_response` (openai 形,
+//!    T6 起真解析: system 消息提取 SystemPrompt, 回包提取
+//!    content/usage/finish_reason)。
 //!
 //! 注: 全链只走 loopback(入口/上游均 127.0.0.1 随机端口), 不出网 —
 //! 不落 `#[ignore]` 慢标记; 出真网的测试才需标记供 CI 选跑。
@@ -369,22 +372,31 @@ async fn t4_full_chain_rewrite_transparent_auth_sessions_and_paired_blocks() {
             assert_eq!(spawns[0].metadata["mode"], "external");
             assert_eq!(spawns[0].metadata["harness_type"], harness);
 
-            // SystemPrompt 成对(anthropic 形): 内容/来源/模型。
+            // SystemPrompt 成对: anthropic 形(顶层 system 字段) + openai 形
+            // (messages 内 system role, T6 起同样提取) 各一。
             let sys: Vec<_> = blocks
                 .iter()
                 .filter(|b| b.block_type == BlockType::SystemPrompt)
                 .collect();
-            assert_eq!(sys.len(), 1, "{session} SystemPrompt 恰一个");
-            assert_eq!(sys[0].content, format!("t4-system-{p}").into_bytes());
-            assert_eq!(sys[0].metadata["source"], "anthropic_request");
+            assert_eq!(sys.len(), 2, "{session} SystemPrompt 恰两个(anthropic+openai)");
+            let ant_sys = sys
+                .iter()
+                .find(|b| b.content == format!("t4-system-{p}").into_bytes())
+                .unwrap();
+            assert_eq!(ant_sys.metadata["source"], "anthropic_request");
             assert_eq!(
-                sys[0].metadata["model"],
+                ant_sys.metadata["model"],
                 format!("t4-anthropic-model-{p}")
             );
+            let oai_sys = sys
+                .iter()
+                .find(|b| b.content == b"t4-openai-system".to_vec())
+                .unwrap();
+            assert_eq!(oai_sys.metadata["source"], "openai_request");
+            assert_eq!(oai_sys.metadata["model"], "zap/glm-5.2");
 
-            // UserPrompt 成对: anthropic 用户消息 + openai 用户消息
-            // (openai 形 system 在 messages 数组内, 不产生 SystemPrompt — 现状)。
-            // /omp 另收零凭据请求 → 多一条。
+            // UserPrompt 成对: anthropic 用户消息 + openai 用户消息,
+            // 来源各自按形标注。/omp 另收零凭据请求 → 多一条。
             let mut users: Vec<String> = blocks
                 .iter()
                 .filter(|b| b.block_type == BlockType::UserPrompt)
@@ -401,12 +413,22 @@ async fn t4_full_chain_rewrite_transparent_auth_sessions_and_paired_blocks() {
             expected.sort();
             assert_eq!(users, expected, "{session} UserPrompt 成对");
             for b in blocks.iter().filter(|b| b.block_type == BlockType::UserPrompt) {
-                assert_eq!(b.metadata["source"], "anthropic_request");
+                let content = String::from_utf8_lossy(&b.content);
+                let expected_source = if content.starts_with("t4-openai-user-") {
+                    "openai_request"
+                } else {
+                    "anthropic_request"
+                };
+                assert_eq!(
+                    b.metadata["source"], expected_source,
+                    "{session} UserPrompt {content} 来源"
+                );
             }
 
             // Response 成对: anthropic SSE 回包 + openai JSON 回包
-            // (+/omp 零凭据回包)。文本提取是 anthropic-only 解析
-            // (openai 文本不提取 — 既有缺口, 只钉 source/model, 不钉内容)。
+            // (+/omp 零凭据回包)。两形各自解析: anthropic 提
+            // content/usage/stop_reason, openai 提 content/usage
+            // (prompt/completion→input/output)/finish_reason。
             let mut models: Vec<String> = blocks
                 .iter()
                 .filter(|b| b.block_type == BlockType::Response)
@@ -443,17 +465,29 @@ async fn t4_full_chain_rewrite_transparent_auth_sessions_and_paired_blocks() {
                 .find(|b| b.block_type == BlockType::Response
                     && b.metadata["model"] == "zap/glm-5.2")
                 .unwrap();
-            assert_eq!(oai_resp.metadata["source"], "anthropic_response");
+            assert_eq!(oai_resp.metadata["source"], "openai_response");
+            assert_eq!(
+                oai_resp.content,
+                b"ok-openai".to_vec(),
+                "{session} openai 回包文本"
+            );
+            assert_eq!(oai_resp.metadata["usage"]["input_tokens"], 3);
+            assert_eq!(oai_resp.metadata["usage"]["output_tokens"], 4);
+            assert_eq!(oai_resp.metadata["finish_reason"], "stop");
 
             // 除 Spawn/Exit 外, 所有捕获块 source ∈ {anthropic_request,
-            // anthropic_response} — 无来源不明的块。
+            // anthropic_response, openai_request, openai_response} —
+            // 无来源不明的块。
             for b in &blocks {
                 if matches!(b.block_type, BlockType::Spawn | BlockType::Exit) {
                     continue;
                 }
                 let src = b.metadata["source"].as_str().unwrap_or_default();
                 assert!(
-                    src == "anthropic_request" || src == "anthropic_response",
+                    src == "anthropic_request"
+                        || src == "anthropic_response"
+                        || src == "openai_request"
+                        || src == "openai_response",
                     "{session} 块 {} source 异常: {src}",
                     b.block_type
                 );
