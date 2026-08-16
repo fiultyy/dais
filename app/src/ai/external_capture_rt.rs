@@ -68,10 +68,11 @@ pub fn ensure_gateway(port: u16) -> Result<(), String> {
     Ok(())
 }
 
-/// 停入口网关(落 Exit + 端口释放)。幂等。
+/// 停入口网关(落 Exit + 端口释放)。幂等。stop 同步等 graceful 收尾
+/// (上限 2s, 超时 abort 兜底) — 本函数返回时端口确定不可连。
 pub fn shutdown() {
     if let Some(gw) = GATEWAY.lock().take() {
-        gw.stop();
+        RT.block_on(gw.stop());
         log::info!("external-capture: entry gateway stopped");
     }
 }
@@ -445,12 +446,12 @@ mod tests {
                 None,
                 "入口已关, 开关开也不武装"
             );
-            // graceful shutdown 有窗口 — 轮询等端口真关(上限 2s)。
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-            while std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {
-                assert!(std::time::Instant::now() < deadline, "entry 端口关后必须不可连");
-                std::thread::sleep(std::time::Duration::from_millis(50));
-            }
+            // T7: stop 同步等端口释放(graceful 优先, 超时 abort 兜底) —
+            // shutdown 返回即确定不可连, 旧轮询已删。
+            assert!(
+                std::net::TcpStream::connect(("127.0.0.1", port)).is_err(),
+                "shutdown 返回后 entry 端口必须立即不可连"
+            );
         })();
 
         shutdown(); // 幂等兜底(断言失败也勿泄漏网关到其他测试)

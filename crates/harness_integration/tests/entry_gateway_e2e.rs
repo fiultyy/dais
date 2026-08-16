@@ -496,10 +496,9 @@ async fn t4_full_chain_rewrite_transparent_auth_sessions_and_paired_blocks() {
     }
     .await;
 
-    // ── stop: 三 session 落 Exit, 端口释放 ─────────────────────────────
+    // ── stop: 三 session 落 Exit, 端口释放(stop 同步等收尾, 返回即释放) ──
     let port = gw.port();
-    gw.stop();
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    gw.stop().await;
     assert!(
         std::net::TcpStream::connect(("127.0.0.1", port)).is_err(),
         "entry 端口 stop 后必须释放"

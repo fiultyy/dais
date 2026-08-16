@@ -15,6 +15,7 @@
 
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::body::Body;
 use axum::extract::State;
@@ -22,6 +23,7 @@ use axum::http::Request;
 use axum::response::IntoResponse;
 use axum::Router;
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 
 use crate::handler::{proxy_handler, SharedState};
 use crate::upstream::{HarnessType, UpstreamConfig};
@@ -62,11 +64,18 @@ fn user_claude_base_url() -> Option<String> {
         .map(str::to_string)
 }
 
+/// graceful 关停等待上限: 在途请求(SSE 长连等)自然完结的时间窗; 到点
+/// axum-server 内置强停(serve 任务仍悬挂时另有外层 abort 兜底)。
+const STOP_GRACE: Duration = Duration::from_secs(2);
+
 pub struct EntryServer {
     pub port: u16,
     /// `(prefix, receiver)`: 每前缀一条旁路捕获流, 上层归并到各自 session。
     pub raw_rxs: Vec<(&'static str, mpsc::Receiver<RawEvent>)>,
     handle: axum_server::Handle,
+    /// serve 任务句柄: stop 先 graceful 等它收尾, 超时 abort — 任务以任一
+    /// 方式结束 = 监听器随 future drop → 端口确定释放。
+    task: JoinHandle<()>,
 }
 
 impl EntryServer {
@@ -100,7 +109,7 @@ impl EntryServer {
 
         let server_handle = handle.clone();
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
-        tokio::spawn(async move {
+        let task = tokio::spawn(async move {
             if let Err(e) = axum_server::bind(addr)
                 .handle(server_handle)
                 .serve(app.into_make_service())
@@ -119,11 +128,24 @@ impl EntryServer {
             port: bound.port(),
             raw_rxs,
             handle,
+            task,
         })
     }
 
-    pub fn stop(self) {
-        self.handle.shutdown();
+    /// 停止并**同步等端口释放**: 先 graceful — 在途连接自然完结, 上限
+    /// [`STOP_GRACE`], 到点 axum-server 内置强停(0.7 的 `shutdown()` 不
+    /// drain, 直接断在途连接, 故用 `graceful_shutdown`)。等 serve 任务
+    /// 落地后返回; 外层 timeout(2×) + abort 兜底任务悬挂的 pathological
+    /// 场景。返回时监听器必已 drop — 端口确定不可连。
+    pub async fn stop(mut self) {
+        self.handle.graceful_shutdown(Some(STOP_GRACE));
+        if tokio::time::timeout(STOP_GRACE * 2, &mut self.task)
+            .await
+            .is_err()
+        {
+            self.task.abort();
+            let _ = self.task.await;
+        }
     }
 }
 

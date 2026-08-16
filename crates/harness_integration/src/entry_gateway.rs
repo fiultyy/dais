@@ -229,15 +229,17 @@ impl EntryGateway {
             .collect()
     }
 
-    /// 显式停止: 落 Exit block(活跃 session) + 端口释放。
-    pub fn stop(mut self) {
+    /// 显式停止: 落 Exit block(活跃 session) + **同步等端口释放** —
+    /// graceful 优先(在途请求自然完结, 上限 2s), 超时 abort serve 任务
+    /// 兜底; 返回时端口确定不可连(见 [`EntryServer::stop`])。
+    pub async fn stop(mut self) {
         for c in &self.captures {
             c.forwarder.abort();
             c.processor.abort();
             c.finalize();
         }
         if let Some(server) = self.server.take() {
-            server.stop();
+            server.stop().await;
         }
     }
 }
