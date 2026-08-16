@@ -3,7 +3,10 @@ use std::collections::HashSet;
 use pathfinder_geometry::vector::vec2f;
 
 use crate::{
-    elements::{Axis, ConstrainedBox, Empty, Flex, ParentElement, SavePosition, Stack},
+    elements::{
+        Axis, ConstrainedBox, Empty, Fill, Flex, MainAxisSize, ParentElement, SavePosition,
+        ScrollbarWidth, Stack,
+    },
     platform::WindowStyle,
     units::IntoPixels,
     App, Element, Entity, Presenter, TypedActionView, WindowInvalidation,
@@ -159,5 +162,137 @@ fn test_scroll_to_position() {
             presenter.build_scene(window_size, scale_factor, None, ctx);
             assert_float_eq!(scroll_state.scroll_start().as_f32(), 20.);
         });
+    });
+}
+
+/// View whose root IS the scrollable (finite viewport: window bounds).
+#[derive(Default)]
+struct WheelView {
+    scroll_handle: ClippedScrollStateHandle,
+    /// Wrap in a `Flex::column(Min)` — reproduces the observatory sidebar
+    /// bug shape where a flex parent hands its non-flex child an
+    /// unconstrained main axis.
+    wrap_in_min_col: bool,
+}
+
+impl Entity for WheelView {
+    type Event = ();
+}
+
+impl crate::core::View for WheelView {
+    fn ui_name() -> &'static str {
+        "clipped_wheel_view"
+    }
+
+    fn render(&self, _: &crate::AppContext) -> Box<dyn crate::Element> {
+        let mut children = vec![];
+        for i in 0..10 {
+            children.push(
+                ConstrainedBox::new(Empty::new().finish())
+                    .with_height(20.)
+                    .with_width(100.)
+                    .finish(),
+            );
+            let _ = i;
+        }
+        // Scrollable shell (what `ClippedScrollable::vertical` returns) owns
+        // wheel dispatch; plain (non-list) content is exactly the shape the
+        // observatory block-detail sidebar renders.
+        let scrollable = ClippedScrollable::vertical(
+            self.scroll_handle.clone(),
+            Flex::column().with_children(children).finish(),
+            ScrollbarWidth::Auto,
+            Fill::None,
+            Fill::None,
+            Fill::None,
+        )
+        .finish();
+        if self.wrap_in_min_col {
+            Flex::column()
+                .with_main_axis_size(MainAxisSize::Min)
+                .with_child(scrollable)
+                .finish()
+        } else {
+            scrollable
+        }
+    }
+}
+
+impl TypedActionView for WheelView {
+    type Action = ();
+}
+
+fn wheel_scene_and_scroll(
+    app: &mut crate::App,
+    wrap_in_min_col: bool,
+) -> (f32, f32) {
+    let (window_id, view) = app.add_window(WindowStyle::NotStealFocus, |_| WheelView {
+        scroll_handle: ClippedScrollStateHandle::default(),
+        wrap_in_min_col,
+    });
+    let scroll_state = view.read(app, |v, _| v.scroll_handle.clone());
+    let mut presenter = Presenter::new(window_id);
+    let mut updated = HashSet::new();
+    updated.insert(app.root_view_id(window_id).unwrap());
+    let invalidation = WindowInvalidation {
+        updated,
+        ..Default::default()
+    };
+    let presenter = std::rc::Rc::new(std::cell::RefCell::new(presenter));
+    app.update({
+        let presenter = presenter.clone();
+        let scroll_state = scroll_state.clone();
+        move |ctx| {
+            presenter.borrow_mut().invalidate(invalidation, ctx);
+            // 10 children × 20px = 200px of content in a 100px window.
+            presenter
+                .borrow_mut()
+                .build_scene(vec2f(100., 100.), 1., None, ctx);
+            let before = scroll_state.scroll_start().as_f32();
+            ctx.simulate_window_event(
+                crate::Event::ScrollWheel {
+                    position: vec2f(50., 50.),
+                    delta: vec2f(0., -3.),
+                    precise: false,
+                    modifiers: Default::default(),
+                },
+                window_id,
+                presenter.clone(),
+            );
+            let after = scroll_state.scroll_start().as_f32();
+            (before, after)
+        }
+    })
+}
+
+/// Positive control: with a finite viewport (root = scrollable, window
+/// bounds) the wheel scrolls plain (non-list) content.
+#[test]
+fn test_clipped_scrollable_wheel_scrolls_plain_content_with_finite_viewport() {
+    App::test((), |mut app| async move {
+        let (before, after) = wheel_scene_and_scroll(&mut app, false);
+        assert_float_eq!(before, 0.);
+        assert!(
+            after > before,
+            "wheel must scroll when viewport is finite, got {before} -> {after}"
+        );
+    });
+}
+
+/// Root-cause pin: under an unconstrained main axis (flex `column(Min)`
+/// wrapping the scrollable — the observatory block-detail sidebar shape)
+/// the viewport grows to full content height, `scroll()`'s
+/// `child_size > clipped_size` is never true, and the wheel is silently
+/// dropped. This is why that sidebar must not be wrapped in a plain flex
+/// column; give the scrollable a finite viewport instead.
+#[test]
+fn test_clipped_scrollable_wheel_noop_under_unconstrained_viewport() {
+    App::test((), |mut app| async move {
+        let (before, after) = wheel_scene_and_scroll(&mut app, true);
+        let msg = "wheel must be a silent no-op under an unconstrained viewport (documented root cause)";
+        assert!(
+            (after - 0.).abs() < f32::EPSILON,
+            "{msg}, got {before} -> {after}"
+        );
     });
 }

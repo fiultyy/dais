@@ -3744,3 +3744,5 @@ observatory-time-days = { $n } d
 observatory-time-months = { $n } mo
 observatory-time-years = { $n } y
 observatory-list-truncated = { $shown } shown · more available (cap { $cap })
+
+observatory-blocks-sidebar-title = Blocks · { $session }

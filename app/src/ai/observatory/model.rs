@@ -3,6 +3,7 @@
 //! 所有状态（快照、选中 session、tab、composer 草稿、busy/error）集中于本 model，
 //! 视图纯渲染 + 派发意图（MVU 单一数据源）。singleton 注册，cfg(not(wasm)) 门控。
 
+use std::cell::Cell;
 use std::path::PathBuf;
 use std::process::Stdio;
 use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
@@ -256,6 +257,8 @@ pub struct ObservatoryModel {
     message_detail: Option<MessageDetailGui>,
     /// 选中的 run id（composer 发送目标；None = 最新 run）。
     selected_run: Option<String>,
+    /// 一次性标志：blocks 侧栏需滚动到最新一条（消费后清除）。
+    pub(crate) scroll_blocks_to_latest: Cell<bool>,
 }
 
 impl ObservatoryModel {
@@ -282,12 +285,18 @@ impl ObservatoryModel {
             selected_message: None,
             message_detail: None,
             selected_run: None,
+            scroll_blocks_to_latest: Cell::new(false),
         }
     }
 
     /// 选中的 run（composer 目标）；None = 未选（用最新 run）。
     pub fn selected_run(&self) -> Option<&str> {
         self.selected_run.as_deref()
+    }
+
+    /// 消费一次性标志：blocks 侧栏是否需滚到最新一条。
+    pub(crate) fn take_scroll_blocks_to_latest(&self) -> bool {
+        self.scroll_blocks_to_latest.replace(false)
     }
 
     /// 选中/取消选中 run（composer 发送目标）。
@@ -416,7 +425,9 @@ impl ObservatoryModel {
     }
 
     /// 选中/取消选中 session。None → 清空 blocks。
+    /// 切换 session 时置 `scroll_blocks_to_latest`（侧栏打开即滚到最新一条）。
     pub fn select_session(&mut self, id: Option<String>, ctx: &mut ModelContext<Self>) {
+        let changed = self.selected_session != id;
         self.selected_session = id.clone();
         // 联动清除子选中：换/取消 session 时，旧 session 的 block/raw
         // 详情不再有效（防孤立详情卡片与失配选中态）
@@ -425,6 +436,13 @@ impl ObservatoryModel {
             self.block_detail = None;
             self.selected_raw = None;
             self.raw_detail = None;
+        } else if changed {
+            self.selected_block = None;
+            self.block_detail = None;
+            self.selected_raw = None;
+            self.raw_detail = None;
+            // 新 session 的 blocks 视图从最新一条开始（即时滚动到底）
+            self.scroll_blocks_to_latest.set(true);
         }
         // 若选中了 session，立即加载其 blocks/raw；否则清空
         self.snapshot.blocks = match &self.selected_session {
@@ -1696,6 +1714,26 @@ mod tests {
                 m.select_run(None, ctx);
             });
             assert!(app.read_model(&model, |m, _| m.selected_run().is_none()));
+        });
+    }
+
+    /// take_scroll_blocks_to_latest 的 take 语义回归：消费一次后必须为
+    /// false（历史上这里只读不清，导致每次 render 重新 scroll_to 底部，
+    /// 用户滚轮被反复弹回——"锁定底部"的根因）。
+    #[test]
+    fn test_take_scroll_blocks_to_latest_is_one_shot() {
+        warpui::App::test((), |mut app| async move {
+            app.add_singleton_model(
+                crate::terminal::intercept_sessions::InterceptSessionsModel::new,
+            );
+            let model = app.add_singleton_model(ObservatoryModel::new);
+            assert!(!app.read_model(&model, |m, _| m.take_scroll_blocks_to_latest()));
+            model.update(&mut app, |m, _| {
+                m.scroll_blocks_to_latest.set(true);
+            });
+            assert!(app.read_model(&model, |m, _| m.take_scroll_blocks_to_latest()));
+            assert!(!app.read_model(&model, |m, _| m.take_scroll_blocks_to_latest()));
+            assert!(!app.read_model(&model, |m, _| m.take_scroll_blocks_to_latest()));
         });
     }
 

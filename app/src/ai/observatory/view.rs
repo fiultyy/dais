@@ -7,10 +7,10 @@
 use std::cell::RefCell;
 use warpui::elements::{
     Border, ChildView, ClippedScrollStateHandle, ClippedScrollable, ConstrainedBox, Container,
-    CornerRadius, CrossAxisAlignment, Empty, Expanded, Fill as ElementFill, Flex, Hoverable,
-    MainAxisAlignment, MainAxisSize, MouseStateHandle, ParentElement, ScrollStateHandle,
-    Scrollable, ScrollableElement, ScrollbarWidth, Shrinkable, Text, UniformList,
-    UniformListState,
+    CornerRadius, CrossAxisAlignment, DragBarSide, Empty, Expanded, Fill as ElementFill, Flex,
+    Hoverable, MainAxisAlignment, MainAxisSize, MouseStateHandle, ParentElement, Resizable,
+    ScrollStateHandle, Scrollable, ScrollableElement, ScrollbarWidth, Shrinkable, Text,
+    UniformList, UniformListState,
 };
 use warpui::r#async::SpawnedFutureHandle;
 use warpui::r#async::Timer;
@@ -70,6 +70,14 @@ const OBSERVATORY_REFRESH_INTERVAL_MS: u64 = 5_000;
 const SESSIONS_CAP: usize = 100;
 const BLOCKS_CAP: usize = 500;
 const MESSAGES_CAP: usize = 30;
+
+// ── 侧栏几何（sessions tab：主列 + blocks 侧栏 + block 详情侧栏） ──
+/// Blocks 侧栏默认/最小宽度。
+const BLOCKS_SIDEBAR_DEFAULT_WIDTH: f32 = 320.;
+const BLOCKS_SIDEBAR_MIN_WIDTH: f32 = 240.;
+/// Block 详情侧栏默认/最小宽度。
+const BLOCK_DETAIL_SIDEBAR_DEFAULT_WIDTH: f32 = 360.;
+const BLOCK_DETAIL_SIDEBAR_MIN_WIDTH: f32 = 280.;
 const RUNS_CAP: usize = 50;
 const TASKS_CAP: usize = 200;
 
@@ -182,6 +190,13 @@ pub struct ObservatoryPanelView {
     archives_list: UniformListState,
     /// Orchestration tab: runs/gates 区滚动状态（ClippedScrollable）。
     orchestration_clipped_scroll: ClippedScrollStateHandle,
+    // ── 侧栏体系（session → blocks → block 详情） ──
+    /// Blocks 侧栏 Resizable 状态。
+    blocks_sidebar_resize_state: warpui::elements::ResizableStateHandle,
+    /// Block 详情侧栏 Resizable 状态。
+    block_detail_sidebar_resize_state: warpui::elements::ResizableStateHandle,
+    /// Block 详情侧栏滚动状态。
+    block_detail_scroll_state: ClippedScrollStateHandle,
 }
 
 impl ObservatoryPanelView {
@@ -457,6 +472,13 @@ impl ObservatoryPanelView {
             archives_scroll_state: ScrollStateHandle::default(),
             archives_list: UniformListState::new(),
             orchestration_clipped_scroll: ClippedScrollStateHandle::default(),
+            blocks_sidebar_resize_state: warpui::elements::resizable_state_handle(
+                BLOCKS_SIDEBAR_DEFAULT_WIDTH,
+            ),
+            block_detail_sidebar_resize_state: warpui::elements::resizable_state_handle(
+                BLOCK_DETAIL_SIDEBAR_DEFAULT_WIDTH,
+            ),
+            block_detail_scroll_state: ClippedScrollStateHandle::default(),
         };
         // 首次启动 5s 自动刷新 timer（此前无首调，timer 从未跑起来——
         // render 是 &self 无法启动，start_refresh_timer 只在回调内自续期）。
@@ -632,28 +654,29 @@ impl ObservatoryPanelView {
             .finish()
     }
 
-    /// Sessions tab：搜索框 + 滚动列表区（sessions + blocks + raw 虚拟化）
-    /// + 固定详情区（选中 block/raw 详情卡，不随列表滚动丢失）。
+    /// Sessions tab：搜索框 + 会话主列；点击会话 → 右侧滑出 blocks 侧栏
+    /// （Resizable 可拖宽，打开即滚到最新一条）；点击 block → 再滑出
+    /// block 详情侧栏（宽度独立）。raw/详情区收进侧栏体系。
     fn render_sessions_tab(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
         let theme = appearance.theme();
         let model = self.model.as_ref(app);
         let snapshot = model.snapshot();
 
-        let mut col = Flex::column()
+        let mut main_col = Flex::column()
             .with_main_axis_size(MainAxisSize::Min)
             .with_spacing(SPACING);
 
         // ── 搜索框（固定区） ──
-        col.add_child(
+        main_col.add_child(
             Container::new(ChildView::new(&self.search_input).finish())
                 .with_horizontal_padding(PANEL_PADDING)
                 .finish(),
         );
 
-        // ── 会话列表（≤100 行；虚拟化滚动区，占剩余高度） ──
+        // ── 会话主列（≤100 行；虚拟化滚动，占满剩余高度） ──
         if snapshot.sessions.is_empty() {
-            col.add_child(self.render_empty_state(
+            main_col.add_child(self.render_empty_state(
                 &crate::t!("observatory-sessions-empty"),
                 appearance,
                 theme,
@@ -723,14 +746,9 @@ impl ObservatoryPanelView {
                     .collect::<Vec<_>>()
                     .into_iter()
             };
-            // 固定视口高度（ClippedScrollable 有限约束；选中后让位给 blocks）
-            let sessions_max_h = if model.selected_session().is_some() {
-                120.
-            } else {
-                480.
-            };
-            col.add_child(
-                ConstrainedBox::new(
+            main_col.add_child(
+                Expanded::new(
+                    1.,
                     self.wrap_virtual_list(
                         self.sessions_scroll_state.clone(),
                         self.sessions_list.clone(),
@@ -739,7 +757,6 @@ impl ObservatoryPanelView {
                         &theme_for_list,
                     ),
                 )
-                .with_max_height(sessions_max_h)
                 .finish(),
             );
             if let Some(hint) =
@@ -750,113 +767,228 @@ impl ObservatoryPanelView {
                     appearance.theme(),
                 )
             {
+                main_col.add_child(hint);
+            }
+        }
+
+        // ── 未选会话：主列独占 ──
+        if model.selected_session().is_none() {
+            return Shrinkable::new(1., main_col.finish()).finish();
+        }
+
+        // ── blocks 侧栏（选中会话滑出） ──
+        let blocks_sidebar = self.render_blocks_sidebar(app);
+
+        // ── block 详情二级侧栏（选中 block 滑出） ──
+        let row = if model.block_detail().is_some() {
+            Flex::row()
+                .with_main_axis_size(MainAxisSize::Max)
+                .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+                .with_child(Shrinkable::new(1., main_col.finish()).finish())
+                .with_child(blocks_sidebar)
+                .with_child(self.render_block_detail_sidebar(app))
+                .finish()
+        } else {
+            Flex::row()
+                .with_main_axis_size(MainAxisSize::Max)
+                .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+                .with_child(Shrinkable::new(1., main_col.finish()).finish())
+                .with_child(blocks_sidebar)
+                .finish()
+        };
+
+        ConstrainedBox::new(row).with_max_height(1600.).finish()
+    }
+
+    /// Blocks 侧栏：session 的时间线 + raw 流量（垂直两段，各自滚动）。
+    /// Resizable 可拖宽；打开/切换会话时滚到最新一条。
+    fn render_blocks_sidebar(&self, app: &AppContext) -> Box<dyn Element> {
+        let appearance = Appearance::as_ref(app);
+        let theme = appearance.theme();
+        let model = self.model.as_ref(app);
+        let snapshot = model.snapshot();
+
+        let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_spacing(SPACING);
+
+        // 侧栏头：标题 + 会话 id + 关闭按钮语义（再点选中行取消）
+        let title = crate::t!(
+            "observatory-blocks-sidebar-title",
+            session = truncate_str(
+                model.selected_session().unwrap_or_default(),
+                20
+            ),
+        );
+        col.add_child(
+            Container::new(
+                Text::new(
+                    title,
+                    appearance.ui_font_family(),
+                    appearance.ui_font_size(),
+                )
+                .with_color(theme.active_ui_text_color().into())
+                .soft_wrap(false)
+                .finish(),
+            )
+            .with_horizontal_padding(PANEL_PADDING)
+            .with_vertical_padding(SPACING)
+            .finish(),
+        );
+
+        // Block 时间线（虚拟化；主滚动区占剩余高度）
+        if snapshot.blocks.is_empty() {
+            col.add_child(self.render_empty_state(
+                &crate::t!("observatory-blocks-empty"),
+                appearance,
+                theme,
+            ));
+        } else {
+            Self::ensure_handles(
+                &mut self.block_row_handles.borrow_mut(),
+                snapshot.blocks.len(),
+            );
+            let handles = self.block_row_handles.borrow().clone();
+            let blocks: Vec<(String, bool)> = snapshot
+                .blocks
+                .iter()
+                .map(|b| {
+                    (
+                        b.id.clone(),
+                        model.selected_block().is_some_and(|id| id == b.id),
+                    )
+                })
+                .collect();
+            // 闭包按 'static 捕获：theme 克隆 + 行数据克隆 + 字体参数 Copy
+            let blocks_full: Vec<BlockRowGui> = snapshot.blocks.clone();
+            let theme = theme.clone();
+            let theme_for_list = theme.clone();
+            let font_family = appearance.ui_font_family();
+            let font_size = appearance.ui_font_size();
+            let build = move |range: std::ops::Range<usize>, _app: &AppContext| {
+                (range.start..range.end)
+                    .filter_map(|i| blocks.get(i).cloned().map(|(bid, sel)| (bid, sel, i)))
+                    .map(|(block_id, is_selected, i)| {
+                        let handle = handles[i].clone();
+                        let block = &blocks_full[i];
+                        let inner =
+                            render_block_list_row(block, font_family, font_size, &theme);
+                        let theme = theme.clone();
+                        Hoverable::new(handle, move |state| {
+                            let mut container =
+                                Container::new(inner).with_horizontal_padding(PANEL_PADDING);
+                            if is_selected {
+                                // DSH 选中：inset 2px brand 描边（行卡外圈）。
+                                container = container
+                                    .with_background(internal_colors::fg_overlay_1(&theme))
+                                    .with_border(
+                                        Border::all(2.).with_border_fill(theme.accent()),
+                                    );
+                            } else if state.is_hovered() {
+                                container = container.with_background(Fill::Solid(
+                                    internal_colors::neutral_3(&theme),
+                                ));
+                            }
+                            container.finish()
+                        })
+                        .on_click(move |ctx, _, _| {
+                            ctx.dispatch_typed_action(ObservatoryPanelAction::SelectBlock(
+                                Some(block_id.clone()),
+                            ));
+                        })
+                        .finish()
+                    })
+                    .collect::<Vec<_>>()
+                    .into_iter()
+            };
+            // 打开/切换会话：一次性滚动到最新一条。`scroll_to` 是
+            // UniformListState 内置通道，layout 时消费，无重入。
+            let latest = snapshot.blocks.len().saturating_sub(1);
+            if self.model.as_ref(app).take_scroll_blocks_to_latest() {
+                self.blocks_list.scroll_to(latest);
+            }
+            col.add_child(
+                Expanded::new(
+                    1.,
+                    self.wrap_virtual_list(
+                        self.blocks_scroll_state.clone(),
+                        self.blocks_list.clone(),
+                        snapshot.blocks.len(),
+                        build,
+                        &theme_for_list,
+                    ),
+                )
+                .finish(),
+            );
+            if let Some(hint) =
+                Self::truncated_hint(
+                    snapshot.blocks.len(),
+                    BLOCKS_CAP,
+                    appearance,
+                    appearance.theme(),
+                )
+            {
                 col.add_child(hint);
             }
         }
 
-        // ── Block 时间线（选中 session 时；虚拟化，500 行只建可见行） ──
-        if model.selected_session().is_some() {
-            if snapshot.blocks.is_empty() {
-                col.add_child(self.render_empty_state(
-                    &crate::t!("observatory-blocks-empty"),
-                    appearance,
-                    theme,
-                ));
-            } else {
-                Self::ensure_handles(
-                    &mut self.block_row_handles.borrow_mut(),
-                    snapshot.blocks.len(),
-                );
-                let handles = self.block_row_handles.borrow().clone();
-                let blocks: Vec<(String, bool)> = snapshot
-                    .blocks
-                    .iter()
-                    .map(|b| {
-                        (
-                            b.id.clone(),
-                            model.selected_block().is_some_and(|id| id == b.id),
-                        )
-                    })
-                    .collect();
-                // 闭包按 'static 捕获：theme 克隆 + 行数据克隆 + 字体参数 Copy
-                let blocks_full: Vec<BlockRowGui> = snapshot.blocks.clone();
-                let theme = theme.clone();
-                let theme_for_list = theme.clone();
-                let font_family = appearance.ui_font_family();
-                let font_size = appearance.ui_font_size();
-                let build = move |range: std::ops::Range<usize>, _app: &AppContext| {
-                    (range.start..range.end)
-                        .filter_map(|i| blocks.get(i).cloned().map(|(bid, sel)| (bid, sel, i)))
-                        .map(|(block_id, is_selected, i)| {
-                            let handle = handles[i].clone();
-                            let block = &blocks_full[i];
-                            let inner =
-                                render_block_list_row(block, font_family, font_size, &theme);
-                            let theme = theme.clone();
-                            Hoverable::new(handle, move |state| {
-                                let mut container =
-                                    Container::new(inner).with_horizontal_padding(PANEL_PADDING);
-                                if is_selected {
-                                    container = container
-                                        .with_background(internal_colors::fg_overlay_1(&theme));
-                                } else if state.is_hovered() {
-                                    container = container.with_background(Fill::Solid(
-                                        internal_colors::neutral_3(&theme),
-                                    ));
-                                }
-                                container.finish()
-                            })
-                            .on_click(move |ctx, _, _| {
-                                ctx.dispatch_typed_action(ObservatoryPanelAction::SelectBlock(
-                                    Some(block_id.clone()),
-                                ));
-                            })
-                            .finish()
-                        })
-                        .collect::<Vec<_>>()
-                        .into_iter()
-                };
-                col.add_child(
-                    ConstrainedBox::new(
-                        self.wrap_virtual_list(
-                            self.blocks_scroll_state.clone(),
-                            self.blocks_list.clone(),
-                            snapshot.blocks.len(),
-                            build,
-                            &theme_for_list,
-                        ),
-                    )
-                    .with_max_height(360.)
-                    .finish(),
-                );
-                if let Some(hint) =
-                    Self::truncated_hint(
-                        snapshot.blocks.len(),
-                        BLOCKS_CAP,
-                        appearance,
-                        appearance.theme(),
-                    )
-                {
-                    col.add_child(hint);
-                }
-            }
-        }
-        // ── Raw 代理流量（选中 session 时；虚拟化） ──
-        if model.selected_session().is_some() {
-            let raw_section = self.render_raw_list(app);
-            // raw 列表给固定较小高度（详情可展开）
-            col.add_child(ConstrainedBox::new(raw_section).with_max_height(160.).finish());
-        }
+        // Raw 流量（底部固定高度段）
+        let raw_section = self.render_raw_list(app);
+        col.add_child(ConstrainedBox::new(raw_section).with_max_height(160.).finish());
 
-        // ── 固定详情区（选中项，不随列表滚动） ──
-        if let Some(detail) = model.block_detail() {
-            col.add_child(self.render_block_detail(detail, appearance, theme));
-        }
-        if let Some(detail) = model.raw_detail() {
-            col.add_child(self.render_raw_detail(detail, appearance, theme));
-        }
+        // 侧栏容器：Resizable 拖宽（左拉手柄），带背景与分隔边。
+        let theme = appearance.theme();
+        let sidebar = Container::new(
+            ConstrainedBox::new(col.finish())
+                .with_min_width(BLOCKS_SIDEBAR_MIN_WIDTH)
+                .finish(),
+        )
+        .with_background(Fill::Solid(internal_colors::neutral_1(theme)))
+        .with_border(Border::left(1.).with_border_fill(theme.outline()))
+        .finish();
 
-        Shrinkable::new(1., col.finish()).finish()
+        Resizable::new(self.blocks_sidebar_resize_state.clone(), sidebar)
+            .with_dragbar_side(DragBarSide::Left)
+            .with_bounds_callback(Box::new(|window_size| {
+                let min = BLOCKS_SIDEBAR_MIN_WIDTH;
+                let max = (window_size.x() * 0.4).max(min);
+                (min, max)
+            }))
+            .finish()
+    }
+
+    /// Block 详情二级侧栏：元信息 + metadata + content 全文（内部滚动）。
+    fn render_block_detail_sidebar(&self, app: &AppContext) -> Box<dyn Element> {
+        let appearance = Appearance::as_ref(app);
+        let theme = appearance.theme();
+        let model = self.model.as_ref(app);
+        let Some(detail) = model.block_detail() else {
+            return Empty::new().finish();
+        };
+
+        let content = self.render_block_detail_body(detail, appearance, theme);
+        // 不加包装 col：flex 非-flex child 通道给主轴 [0,∞]，会把
+        // ClippedScrollable 的视口撑成内容全高（constraint.apply 不收
+        // 缩），scroll() 的 child_size > clipped_size 恒假 → 滚轮静默
+        // no-op。有限高度由 row 的 Stretch 直接传下来，与 blocks 侧栏
+        // 同构（orchestration tab 用 Expanded 是同一原理的显式版）。
+        let sidebar = Container::new(
+            ConstrainedBox::new(content)
+                .with_min_width(BLOCK_DETAIL_SIDEBAR_MIN_WIDTH)
+                .finish(),
+        )
+        .with_background(Fill::Solid(internal_colors::neutral_1(theme)))
+        .with_border(Border::left(1.).with_border_fill(theme.outline()))
+        .finish();
+
+        Resizable::new(self.block_detail_sidebar_resize_state.clone(), sidebar)
+            .with_dragbar_side(DragBarSide::Left)
+            .with_bounds_callback(Box::new(|window_size| {
+                let min = BLOCK_DETAIL_SIDEBAR_MIN_WIDTH;
+                let max = (window_size.x() * 0.5).max(min);
+                (min, max)
+            }))
+            .finish()
     }
 
     /// UniformList 包裹 helper：Scrollable(vertical) + UniformList
@@ -1140,8 +1272,8 @@ impl ObservatoryPanelView {
     }
 
 
-    /// Block 详情卡片：元信息 + metadata + content 全文（换行渲染）。
-    fn render_block_detail(
+    /// Block 详情侧栏滚动体：元信息 + metadata + content 全文。
+    fn render_block_detail_body(
         &self,
         detail: &BlockDetailGui,
         appearance: &Appearance,
@@ -1243,12 +1375,20 @@ impl ObservatoryPanelView {
             .finish(),
         );
 
-        Container::new(col.finish())
-            .with_horizontal_padding(PANEL_PADDING)
-            .with_vertical_padding(SPACING)
-            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
-            .with_background(Fill::Solid(internal_colors::neutral_2(theme)))
-            .finish()
+        Container::new(
+            ClippedScrollable::vertical(
+                self.block_detail_scroll_state.clone(),
+                col.finish(),
+                ScrollbarWidth::Auto,
+                theme.disabled_text_color(theme.background()).into(),
+                theme.main_text_color(theme.background()).into(),
+                ElementFill::None,
+            )
+            .finish(),
+        )
+        .with_horizontal_padding(PANEL_PADDING)
+        .with_vertical_padding(SPACING)
+        .finish()
     }
 
     /// Orchestration tab 内容: 滚动列表区（runs+tasks / gates / messages /
@@ -2606,11 +2746,18 @@ impl View for ObservatoryPanelView {
         // Tab 切换行
         col.add_child(self.render_tab_bar(app));
 
-        // Tab 内容
+        // Tab 内容（Expanded：root col(Max) 的有限主轴空间分配给内容，
+        // 杜绝非-flex child 通道的 ∞ 约束传给内部虚拟列表）。
         match active_tab {
-            ObservatoryTab::Sessions => col.add_child(self.render_sessions_tab(app)),
-            ObservatoryTab::Orchestration => col.add_child(self.render_orchestration_tab(app)),
-            ObservatoryTab::Proxy => col.add_child(self.render_proxy_tab(app)),
+            ObservatoryTab::Sessions => col.add_child(
+                Expanded::new(1., self.render_sessions_tab(app)).finish(),
+            ),
+            ObservatoryTab::Orchestration => col.add_child(
+                Expanded::new(1., self.render_orchestration_tab(app)).finish(),
+            ),
+            ObservatoryTab::Proxy => {
+                col.add_child(Expanded::new(1., self.render_proxy_tab(app)).finish())
+            }
         }
 
         // 错误态（面板级：refresh 为三 tab 共用的全量刷新，任何 tab 下都需可见）
@@ -2646,28 +2793,203 @@ fn archive_rows_len(archives: &[super::model::ArchiveRowGui]) -> usize {
     archives.iter().map(|a| 1 + a.lines.len().min(3)).sum()
 }
 
-/// Block 时间线单行（等高行 + block_type 徽章 + 单行 preview）。
+/// DSH TrajectoryCell 对齐：block 类型 → kind 标签 + 语义色。
+/// 色值全部走主题语义色（TK7：禁裸 RGB）；语义映射：
+/// system 灰（spawn/system_prompt/exit）、user 绿（user_prompt）、
+/// context 绿弱化 68%（prompt_segment）、message brand×error 混合
+/// （response/response_chunk，chunk 弱化+缩进）、tool amber（tool_call/
+/// pty_raw）、subtool amber 弱化+缩进 28px（tool_result）。
+struct BlockKindStyle {
+    label: String,
+    color: warpui::color::ColorU,
+    indent: bool,
+    dim: bool,
+}
+
+fn block_kind_style(block_type: &str, theme: &WarpTheme) -> BlockKindStyle {
+    let success = warp_core::ui::theme::Fill::success().into_solid();
+    let warn = warp_core::ui::theme::Fill::warn().into_solid();
+    let gray = internal_colors::neutral_5(theme);
+    // message = brand × error 各半混合
+    let accent = theme.accent().into_solid();
+    let error = theme.ui_error_color();
+    let message = warpui::color::ColorU::new(
+        (accent.r / 2).saturating_add(error.r / 2),
+        (accent.g / 2).saturating_add(error.g / 2),
+        (accent.b / 2).saturating_add(error.b / 2),
+        255,
+    );
+    let dimmed = |c: warpui::color::ColorU| warpui::color::ColorU::new(c.r, c.g, c.b, 173); // 68% (TK7 弱化)
+    match block_type {
+        "spawn" | "system_prompt" | "exit" => BlockKindStyle {
+            label: match block_type {
+                "spawn" => "SPAWN".to_string(),
+                "system_prompt" => "SYSTEM".to_string(),
+                _ => "EXIT".to_string(),
+            },
+            color: gray,
+            indent: false,
+            dim: false,
+        },
+        "prompt_segment" => BlockKindStyle {
+            label: "CONTEXT".to_string(),
+            color: dimmed(success),
+            indent: false,
+            dim: false,
+        },
+        "user_prompt" => BlockKindStyle {
+            label: "USER".to_string(),
+            color: success,
+            indent: false,
+            dim: false,
+        },
+        "response" => BlockKindStyle {
+            label: "MESSAGE".to_string(),
+            color: message,
+            indent: false,
+            dim: false,
+        },
+        "response_chunk" => BlockKindStyle {
+            label: "CHUNK".to_string(),
+            color: dimmed(message),
+            indent: true,
+            dim: true,
+        },
+        "tool_call" => BlockKindStyle {
+            label: "TOOL".to_string(),
+            color: warn,
+            indent: false,
+            dim: false,
+        },
+        "pty_raw" => BlockKindStyle {
+            label: "PTY".to_string(),
+            color: warn,
+            indent: false,
+            dim: false,
+        },
+        "tool_result" => BlockKindStyle {
+            label: "RESULT".to_string(),
+            color: dimmed(warn),
+            indent: true,
+            dim: true,
+        },
+        other => BlockKindStyle {
+            label: "BLOCK".to_string(),
+            color: gray,
+            indent: false,
+            dim: false,
+        }
+        .with_label(other),
+    }
+}
+
+impl BlockKindStyle {
+    fn with_label(mut self, raw: &str) -> Self {
+        // 未知类型退回原始短标（≤8 字符大写，适配 80px tag 槽）。
+        self.label = raw.chars().take(8).flat_map(|c| c.to_uppercase()).collect();
+        self
+    }
+}
+
+/// Block 时间线单行：DSH TrajectoryCell 式（80px tag 槽 + kind 色标签 +
+/// 单行 preview + 右侧尺寸/时间）。行高 38px 圆角 8 左边 2px kind 色，
+/// bg-layer-3；子单元（chunk/result）缩进 28px。
 fn render_block_list_row(
     block: &BlockRowGui,
     font_family: warpui::fonts::FamilyId,
     font_size: f32,
     theme: &WarpTheme,
 ) -> Box<dyn Element> {
+    let style = block_kind_style(&block.block_type, theme);
     let seq_text = crate::t!("observatory-block-seq", seq = block.sequence);
     let now = chrono::Utc::now().timestamp();
-    list_row(
-        theme,
-        font_family,
-        font_size,
-        Some(&block.block_type),
-        format!("{} · {}", block.block_type, seq_text),
-        Some(truncate_str(&block.preview, 40)),
-        Some(format!(
-            "{} · {}",
-            compact_bytes(block.content_len),
-            relative_time_text(now, block.timestamp)
-        )),
+
+    let mut row = Flex::row()
+        .with_main_axis_size(MainAxisSize::Max)
+        .with_cross_axis_alignment(CrossAxisAlignment::Center)
+        .with_spacing(SPACING);
+    if style.indent {
+        row.add_child(ConstrainedBox::new(Empty::new().finish()).with_width(28.).finish());
+    }
+    // 80px 固定 tag 槽：22px 高圆角 6 的 kind 色标签（底 25% alpha，
+    // 文字 kind 主色）。注意垂直 padding 必须 ≤2：text.rs 对
+    // soft_wrap(false) 的 Text 有 don't-render-if-not-fit 丢弃逻辑，
+    // 13px×1.2 行高=15.6，需保证 22-2×padding ≥ 15.6，否则文字不画。
+    let chip = Container::new(
+        Text::new(style.label, font_family, 13.)
+            .with_color(style.color)
+            .soft_wrap(false)
+            .finish(),
     )
+    .with_horizontal_padding(6.)
+    .with_vertical_padding(2.)
+    .with_corner_radius(CornerRadius::with_all(Radius::Pixels(6.)))
+    .with_background(Fill::Solid(warpui::color::ColorU::new(
+        style.color.r,
+        style.color.g,
+        style.color.b,
+        64,
+    )))
+    .finish();
+    row.add_child(
+        ConstrainedBox::new(chip)
+            .with_width(80.)
+            .with_height(22.)
+            .finish(),
+    );
+
+    row.add_child(
+        Text::new(
+            truncate_str(&block.preview, 40),
+            font_family,
+            font_size,
+        )
+        .with_color(
+            if style.dim {
+                theme.disabled_ui_text_color().into_solid()
+            } else {
+                theme.sub_text_color(theme.background()).into_solid()
+            },
+        )
+        .soft_wrap(false)
+        .finish(),
+    );
+    row.add_child(Expanded::new(1., Empty::new().finish()).finish());
+    row.add_child(
+        Text::new(
+            format!("{} · {}", seq_text, compact_bytes(block.content_len)),
+            font_family,
+            font_size - 1.,
+        )
+        .with_color(theme.disabled_ui_text_color().into_solid())
+        .soft_wrap(false)
+        .finish(),
+    );
+    row.add_child(
+        Text::new(
+            relative_time_text(now, block.timestamp),
+            font_family,
+            font_size - 1.,
+        )
+        .with_color(theme.disabled_ui_text_color().into_solid())
+        .soft_wrap(false)
+        .finish(),
+    );
+
+    ConstrainedBox::new(
+        Container::new(
+            Container::new(row.finish())
+                .with_horizontal_padding(8.)
+                .finish(),
+        )
+        .with_vertical_padding((38. - font_size - 10.).max(2.) / 2.)
+        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(8.)))
+        .with_background(Fill::Solid(internal_colors::neutral_2(theme)))
+        .with_border(Border::left(2.).with_border_fill(Fill::Solid(style.color)))
+        .finish(),
+    )
+    .with_height(38.)
+    .finish()
 }
 
 /// Raw 流量单行（等高行 + direction 状态点 + preview + 尺寸）。

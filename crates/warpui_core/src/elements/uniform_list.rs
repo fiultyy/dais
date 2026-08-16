@@ -120,10 +120,20 @@ where
             delta.y()
         };
 
+        let scroll_max = self.scroll_max.unwrap_or_default();
+        // scroll_max can be negative when the viewport is taller than all
+        // items; clamp to zero so a wheel event can't push scroll_top negative
+        // (negative offsets paint "shadow" rows — see autoscroll).
+        let scroll_max = if scroll_max < Lines::zero() {
+            Lines::zero()
+        } else {
+            scroll_max
+        };
+
         let mut state = self.state.0.lock();
         state.scroll_top = (state.scroll_top - delta.into_lines())
             .max(Lines::zero())
-            .min(self.scroll_max.unwrap());
+            .min(scroll_max);
 
         ctx.notify();
         true
@@ -222,7 +232,6 @@ where
                 item.layout(item_constraint, ctx, app);
             }
         }
-
         self.size = Some(size);
         size
     }
@@ -314,11 +323,19 @@ where
     }
 
     fn scroll(&mut self, delta: Pixels, ctx: &mut EventContext) {
+        // Negative scroll_max (viewport taller than all items) must clamp to
+        // zero — same rationale as scroll_internal.
+        let scroll_max = self.scroll_max.unwrap_or_default();
+        let scroll_max = if scroll_max < Lines::zero() {
+            Lines::zero()
+        } else {
+            scroll_max
+        };
         let mut state = self.state.0.lock();
         state.scroll_top = (state.scroll_top
             - delta.to_lines(self.line_height.unwrap_or_default()))
         .max(Lines::zero())
-        .min(self.scroll_max.unwrap());
+        .min(scroll_max);
         ctx.notify();
     }
 }

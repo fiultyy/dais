@@ -3658,3 +3658,5 @@ observatory-time-days = { $n } 天
 observatory-time-months = { $n } 月
 observatory-time-years = { $n } 年
 observatory-list-truncated = 已显示 { $shown } 条 · 上限 { $cap }（有更多）
+
+observatory-blocks-sidebar-title = Blocks · { $session }
