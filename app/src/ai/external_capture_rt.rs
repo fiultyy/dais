@@ -232,6 +232,10 @@ type _ViewId = EntityId;
 mod tests {
     use super::*;
 
+    /// T4: HOME/XDG/GATEWAY 都是进程级全局 — 本模块内改动它们的测试必须
+    /// 串行(test 线程并行跑, 否则互相踩)。
+    static T4_LOCK: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
+
     #[test]
     fn alias_defs_shapes() {
         let posix = alias_defs(8787, ArmingDialect::Posix);
@@ -250,6 +254,7 @@ mod tests {
 
     #[test]
     fn cc_entry_settings_merges_user_env_and_overrides_base_url() {
+        let _env = T4_LOCK.lock();
         let dir = tempfile::tempdir().unwrap();
         let orig_home = std::env::var("HOME").ok();
         std::env::set_var("HOME", dir.path());
@@ -304,10 +309,166 @@ mod tests {
         assert!(String::from_utf8_lossy(&out).ends_with("function cc-zap; x; end"));
     }
 
+    // ── T4-E2E 回归钉 ──────────────────────────────────────────────────
+
+    /// 别名函数体: cc-zap 携 --settings 全路径(入 HOME), omp/pi 携
+    /// --model zap/glm-5.2; 裸命令(claude/omp/pi)零函数定义 — bootstrap
+    /// 注入不劫持裸调用。
+    #[test]
+    fn t4_alias_bodies_pin_settings_path_model_and_zero_bare_hijack() {
+        let _env = T4_LOCK.lock();
+        let dir = tempfile::tempdir().unwrap();
+        let orig_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", dir.path());
+        let result = (|| {
+            let settings = dir
+                .path()
+                .join(".config/zap/cc-entry-settings.json")
+                .display()
+                .to_string();
+
+            let posix = alias_defs(8787, ArmingDialect::Posix);
+            // 取别名段: 从本别名定义起点到下一别名起点(defs 以 ';' 直连,
+            // def 体内也含 ';', 不能简单 split)。
+            let seg = |hay: &str, name: &str, next: &str| -> String {
+                let s = hay.find(name).unwrap_or_else(|| panic!("{name} 缺失: {hay}"));
+                let rest = &hay[s..];
+                let e = rest.find(next).unwrap_or(rest.len());
+                rest[..e].trim_end_matches(';').to_string()
+            };
+            // cc-zap: --settings 全路径; 不带 --model。
+            let cc = seg(&posix, "cc-zap()", "omp-zap()");
+            assert_eq!(
+                cc,
+                format!(r#"cc-zap(){{ command claude --settings '{settings}' "$@"; }}"#)
+            );
+            assert!(!cc.contains("--model"), "cc-zap 不携带 --model");
+            // omp-zap / pi-zap: --model zap/glm-5.2; 不带 --settings。
+            for (name, bin, next) in [
+                ("omp-zap", "omp", "pi-zap()"),
+                ("pi-zap", "pi", "\u{0}none"),
+            ] {
+                let d = seg(&posix, &format!("{name}()"), next);
+                assert_eq!(
+                    d,
+                    format!(r#"{name}(){{ command {bin} --model zap/glm-5.2 "$@"; }}"#)
+                );
+                assert!(!d.contains("--settings"), "{name} 不携带 --settings");
+            }
+            // fish 方言: 三别名齐全(pi 也钉)。
+            let fish = alias_defs(8787, ArmingDialect::Fish);
+            assert_eq!(
+                seg(&fish, "function pi-zap", "\u{0}none"),
+                "function pi-zap; command pi --model zap/glm-5.2 $argv; end"
+            );
+
+            // 裸命令零劫持: 不存在裸名(claude/omp/pi)函数定义。
+            for defs in [&posix, &fish] {
+                for bare in ["claude()", "omp()", "pi()"] {
+                    assert!(
+                        !defs.contains(bare),
+                        "bootstrap 后缀不得定义裸命令 {bare}: {defs}"
+                    );
+                }
+            }
+        })();
+        match orig_home {
+            Some(h) => std::env::set_var("HOME", h),
+            None => std::env::remove_var("HOME"),
+        }
+        result
+    }
+
+    /// cc-entry-settings.json: 端口参数贯通(BASE_URL 随入口端口变化)。
+    /// 只读断言(不写盘), 覆盖优先级由上方 merge 测试钉。
+    #[test]
+    fn t4_cc_entry_settings_port_wires_into_base_url() {
+        for port in [8787u16, 39021] {
+            let v: serde_json::Value =
+                serde_json::from_str(&cc_entry_settings_content(port)).unwrap();
+            assert_eq!(
+                v["env"]["ANTHROPIC_BASE_URL"],
+                format!("http://127.0.0.1:{port}/cc"),
+                "端口 {port} 必须贯通到 BASE_URL 覆盖"
+            );
+        }
+    }
+
+    /// 生命周期回归钉: 开 → 入口在跑 + bootstrap 武装(别名 + settings 落盘);
+    /// 关 → 端口关闭 + 不再武装(开关开也不武装) — 裸命令回到零劫持。
+    #[test]
+    fn t4_gateway_lifecycle_switch_off_closes_entry_port() {
+        let _env = T4_LOCK.lock();
+        let dir = tempfile::tempdir().unwrap();
+        let orig_home = std::env::var("HOME").ok();
+        let orig_state = std::env::var("XDG_STATE_HOME").ok();
+        std::env::set_var("HOME", dir.path());
+        // 观测 DB 落临时 state 目录, 不碰真实用户 state。
+        std::env::set_var("XDG_STATE_HOME", dir.path());
+        assert!(
+            warp_core::paths::state_dir().starts_with(dir.path()),
+            "XDG_STATE_HOME 重定向未生效, 中止以免污染真实 state"
+        );
+        // state 子目录(zap/)不存在时 BlockStore 打不开 — 应用启动路径会
+        // 先建目录, 测试里同样预建。
+        std::fs::create_dir_all(warp_core::paths::state_dir()).unwrap();
+
+        let result = (|| {
+            ensure_gateway(0).expect("随机端口绑定必成");
+            let port = entry_port().expect("开关开 → 入口在跑");
+            assert_ne!(port, 0);
+
+            // 开关开 + 入口在跑 → bootstrap 武装: 三别名 + settings 刷新落盘。
+            let suffix = bootstrap_arming_suffix(ArmingDialect::Posix, true).unwrap();
+            assert!(suffix.contains("cc-zap()"), "armed suffix: {suffix}");
+            assert!(suffix.contains("omp-zap()"));
+            assert!(suffix.contains("pi-zap()"));
+            let settings_path = dir
+                .path()
+                .join(".config/zap/cc-entry-settings.json");
+            let text = std::fs::read_to_string(&settings_path)
+                .expect("cc-entry-settings.json 必须随武装落盘");
+            let v: serde_json::Value = serde_json::from_str(&text).unwrap();
+            assert_eq!(
+                v["env"]["ANTHROPIC_BASE_URL"],
+                format!("http://127.0.0.1:{port}/cc")
+            );
+
+            // 开关关(入口在跑也不武装) — 裸命令零劫持。
+            assert_eq!(bootstrap_arming_suffix(ArmingDialect::Posix, false), None);
+
+            // 开关关 → shutdown: 端口关闭 + 不再武装(开也不)。
+            shutdown();
+            assert_eq!(entry_port(), None, "关 → entry_port None");
+            assert_eq!(
+                bootstrap_arming_suffix(ArmingDialect::Posix, true),
+                None,
+                "入口已关, 开关开也不武装"
+            );
+            // graceful shutdown 有窗口 — 轮询等端口真关(上限 2s)。
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+            while std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {
+                assert!(std::time::Instant::now() < deadline, "entry 端口关后必须不可连");
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+        })();
+
+        shutdown(); // 幂等兜底(断言失败也勿泄漏网关到其他测试)
+        match orig_home {
+            Some(h) => std::env::set_var("HOME", h),
+            None => std::env::remove_var("HOME"),
+        }
+        match orig_state {
+            Some(v) => std::env::set_var("XDG_STATE_HOME", v),
+            None => std::env::remove_var("XDG_STATE_HOME"),
+        }
+        result
+    }
+
     #[test]
     fn arming_suffix_disabled_is_none() {
+        let _env = T4_LOCK.lock();
         assert_eq!(bootstrap_arming_suffix(ArmingDialect::Posix, false), None);
-        // 开关开但入口未跑(测试进程无网关) → 同样 None(裸命令零劫持)。
         assert_eq!(bootstrap_arming_suffix(ArmingDialect::Posix, true), None);
     }
 }
