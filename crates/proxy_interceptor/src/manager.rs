@@ -39,10 +39,17 @@ impl ProxyManager {
         })
     }
 
-    /// 注入给 harness 进程的环境变量, 让其流量走本地 proxy。
-    pub fn env_injection(handle: &ProxyHandle, harness: HarnessType) -> Vec<(&'static str, String)> {
-        let base = format!("https://127.0.0.1:{}", handle.port);
-        let ca = handle.ca_cert_path.display().to_string();
+    /// Pure env-var core: build the harness-specific proxy environment from
+    /// explicit values (no live [`ProxyHandle`] needed — external captures
+    /// assemble env from recorded values; see harness_integration's
+    /// `external_capture` module).
+    pub fn env_injection_for(
+        port: u16,
+        ca_cert_path: &std::path::Path,
+        harness: HarnessType,
+    ) -> Vec<(&'static str, String)> {
+        let base = format!("https://127.0.0.1:{}", port);
+        let ca = ca_cert_path.display().to_string();
         match harness {
             HarnessType::ClaudeCode => vec![
                 ("ANTHROPIC_BASE_URL", base),
@@ -54,6 +61,17 @@ impl ProxyManager {
                 ("SSL_CERT_FILE", ca),
             ],
         }
+    }
+
+    /// 注入给 harness 进程的环境变量, 让其流量走本地 proxy。
+    pub fn env_injection(handle: &ProxyHandle, harness: HarnessType) -> Vec<(&'static str, String)> {
+        Self::env_injection_for(handle.port, &handle.ca_cert_path, harness)
+    }
+
+    /// Path of the persisted CA certificate (CA is owned for the manager's
+    /// lifetime; regenerated only if missing on disk).
+    pub fn ca_cert_path(&self) -> &std::path::Path {
+        &self.ca.ca_cert_path
     }
 }
 
