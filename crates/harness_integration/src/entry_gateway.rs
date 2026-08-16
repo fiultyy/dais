@@ -22,7 +22,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use harness_blocks::{BlockStore, BlockType, HarnessBlock, RawCache};
 use parking_lot::Mutex;
-use proxy_interceptor::EntryServer;
+use proxy_interceptor::{EntryServer, ResponseFormat};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
@@ -109,7 +109,6 @@ pub struct EntryGateway {
     server: Option<EntryServer>,
 }
 
-
 impl EntryGateway {
     /// 绑定端口(0 = 未运行/绑定失败)。
     pub fn port(&self) -> u16 {
@@ -184,11 +183,14 @@ impl EntryGateway {
                     }
                 })
             };
+            // 混合形状通道: 同一前缀会并行跑 anthropic/openai 形流量(T4 钉
+            // 此场景), 逐事件按线上形状分派; Generic = 不提供通道级倾向。
             let processor = tokio::spawn(run_raw_processor(
                 proc_rx,
                 store.clone(),
                 raw_cache,
                 ctx.clone(),
+                ResponseFormat::Generic,
             ));
 
             captures.push(EntryCapture {
