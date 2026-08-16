@@ -70,6 +70,8 @@ async fn proxy_passthrough_and_capture() {
     let resp = client
         .post(format!("https://127.0.0.1:{}/v1/messages", handle.port))
         .header("content-type", "application/json")
+        // 客户端自带凭据(T5 透明管道: zap 不注不剥, 原样转发)
+        .header("x-api-key", "sk-test-123")
         .body(r#"{"model":"claude-3","stream":true}"#)
         .send()
         .await
@@ -79,11 +81,11 @@ async fn proxy_passthrough_and_capture() {
     let body = resp.text().await.unwrap();
     assert_eq!(body, "data: hello\n\ndata: [DONE]\n\n");
 
-    // 4. auth 注入验证
+    // 4. auth 透明转发验证: 客户端的 x-api-key 原样到达上游
     assert_eq!(
         SEEN_API_KEY.lock().unwrap().as_deref(),
         Some("sk-test-123"),
-        "proxy 应从 env 读 key 并注入 x-api-key"
+        "透明管道: 客户端 x-api-key 应原样转发到上游"
     );
 
     // 5. raw 事件捕获

@@ -4,12 +4,14 @@
 //! 请求/响应旁路捕获到 mpsc channel (RawEvent), 业务流量 SSE 流式透传到上游。
 
 mod ca;
+mod entry;
 mod handler;
 mod manager;
 mod server;
 mod upstream;
 
 pub use ca::LocalCA;
+pub use entry::EntryServer;
 pub use manager::{ProxyHandle, ProxyManager};
 pub use server::ProxyServer;
 pub use upstream::{HarnessType, ResponseFormat, UpstreamConfig};

@@ -16,9 +16,10 @@ use crate::{RawEvent, RAW_CHANNEL_CAPACITY};
 /// 单请求 body 上限 64MB (信任边界: 防止 harness 异常撑爆内存)。
 const MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
 
-/// 转发时跳过的请求头: host 会错、auth 由代理重注入、content-length 由 reqwest 重算。
-const SKIPPED_REQUEST_HEADERS: [&str; 5] =
-    ["host", "authorization", "x-api-key", "content-length", "connection"];
+/// 转发时跳过的请求头: host 指向入口会错、content-length 由 reqwest 重算、
+/// connection 是 hop-by-hop。**auth 头(authorization/x-api-key)透明转发**
+/// (T5 透明管道: 客户端凭据原样到出口, zap 只改目的地+旁观捕获)。
+const SKIPPED_REQUEST_HEADERS: [&str; 3] = ["host", "content-length", "connection"];
 /// 透传响应时跳过的 hop-by-hop / 由 axum 重写的头。
 const SKIPPED_RESPONSE_HEADERS: [&str; 3] =
     ["transfer-encoding", "connection", "content-length"];
@@ -57,8 +58,7 @@ pub(crate) async fn proxy_handler(
         }
     }
 }
-
-async fn proxy_inner(
+pub(crate) async fn proxy_inner(
     state: Arc<SharedState>,
     req: Request<Body>,
 ) -> crate::Result<axum::response::Response> {
@@ -92,20 +92,13 @@ async fn proxy_inner(
         body: body_bytes.clone(),
     });
 
-    // 3. 构造上游请求
+    // 3. 构造上游请求(透明管道: auth 头原样透传, 不注不剥 — T5)
     let url = format!("{}{}", state.upstream.api_base, path);
     let mut rb = state
         .client
         .request(parts.method.clone(), &url)
         .body(body_bytes);
 
-    // 4. API key 运行时从 env 读, 不存储
-    if let Ok(key) = std::env::var(&state.upstream.api_key_env) {
-        rb = rb.header(
-            &state.upstream.auth_header,
-            format!("{}{}", state.upstream.auth_prefix, key),
-        );
-    }
     for (name, value) in &parts.headers {
         if SKIPPED_REQUEST_HEADERS.contains(&name.as_str()) {
             continue;

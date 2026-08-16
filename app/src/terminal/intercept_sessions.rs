@@ -50,8 +50,6 @@ pub struct InterceptSessionsModel {
     last_saved_at: Option<i64>,
     /// 最近一次配置写盘失败原因；成功后清空。渲染层据此给出保存反馈。
     last_persist_error: Option<String>,
-    /// 外部捕获周期 tick 定时器句柄 (60s; 无则下次 update 补挂)。
-    external_capture_timer: Option<warpui::r#async::SpawnedFutureHandle>,
 }
 /// 持久化的拦截配置（`<state_dir>/intercept_config.json`）。
 /// block 计数等运行态不持久化。
@@ -93,7 +91,7 @@ fn save_persisted_config(cfg: &PersistedConfig) -> Result<(), String> {
     std::fs::write(&path, raw).map_err(|e| format!("{}: {e}", path.display()))
 }
 impl InterceptSessionsModel {
-    pub fn new(ctx: &mut ModelContext<Self>) -> Self {
+    pub fn new(_ctx: &mut ModelContext<Self>) -> Self {
         // flag 未开启时不打开/创建 DB,避免未启用用户产生启动期文件 IO
         // (create_dir_all + SQLite open + COUNT(*))。store 保持 None,
         // refresh_block_count 在 flag 开启后按需惰性打开。
@@ -121,14 +119,10 @@ impl InterceptSessionsModel {
             store,
             last_saved_at: None,
             last_persist_error: None,
-            external_capture_timer: None,
         };
-        // 开关开时挂周期 tick (惰性 ensure: CA 首代发生在首个登记或 tick,
-        // 不阻塞启动)。
-        if model.external_capture_enabled
-            && crate::features::FeatureFlag::AgentHarness.is_enabled()
-        {
-            model.start_external_capture_timer(ctx);
+        // 开关开时起入口网关(T5 单端口常驻; 端口被占降级 warn)。
+        if model.external_capture_enabled {
+            model.start_entry_gateway();
         }
         model
     }
@@ -188,47 +182,33 @@ impl InterceptSessionsModel {
         self.external_capture_enabled
     }
 
-    /// 切换外部捕获开关并持久化。开启时挂周期 tick (60s: 懒 Spawn 物化 +
-    /// 闲置回收); 关闭只影响**新** pane 的注入, 存量登记保留至自然销毁。
+    /// 切换外部捕获开关并持久化。开启时起入口网关(8787, 单端口明文,
+    /// 幂等); 关闭时停网关(落 Exit + 端口释放, 连接拒绝)。
     pub fn set_external_capture_enabled(&mut self, enabled: bool, ctx: &mut ModelContext<Self>) {
         if self.external_capture_enabled == enabled {
             return;
         }
         self.external_capture_enabled = enabled;
         if enabled {
-            self.start_external_capture_timer(ctx);
+            self.start_entry_gateway();
         } else {
-            self.external_capture_timer = None;
+            crate::ai::external_capture_rt::shutdown();
         }
         self.persist();
         ctx.emit(InterceptSessionsModelEvent::ExternalCaptureChanged);
     }
 
-    /// 挂 60s 周期 tick (自续期; flag/开关关闭时停)。
-    /// 启动预热 ensure_initialized 也在此触发 (防 CA 首代延迟占锁,
-    /// orch1 审计点 b) — tick 首轮即预热。
-    fn start_external_capture_timer(&mut self, ctx: &mut ModelContext<Self>) {
-        if self.external_capture_timer.is_some() {
+    /// 起入口网关(开关开 + flag 开)。端口被占 → 记 warn 降级(开关仍开,
+    /// 观测台快照空; 下次 toggle 重试)。
+    fn start_entry_gateway(&mut self) {
+        if !crate::features::FeatureFlag::AgentHarness.is_enabled() {
             return;
         }
-        self.external_capture_timer = Some(ctx.spawn(
-            async move {
-                warpui::r#async::Timer::after(std::time::Duration::from_millis(
-                    crate::ai::external_capture_rt::TICK_INTERVAL_MS,
-                ))
-                .await;
-            },
-            |me, _unit, ctx| {
-                me.external_capture_timer = None;
-                if !crate::features::FeatureFlag::AgentHarness.is_enabled()
-                    || !me.external_capture_enabled
-                {
-                    return;
-                }
-                crate::ai::external_capture_rt::tick();
-                me.start_external_capture_timer(ctx);
-            },
-        ));
+        if let Err(e) = crate::ai::external_capture_rt::ensure_gateway(
+            crate::ai::external_capture_rt::ENTRY_PORT,
+        ) {
+            log::warn!("external-capture: {e}");
+        }
     }
     // ── upstream overrides ────────────────────────────────────────────────
 
@@ -350,7 +330,6 @@ mod tests {
             store: None,
             last_saved_at: None,
             last_persist_error: None,
-            external_capture_timer: None,
         }
     }
 

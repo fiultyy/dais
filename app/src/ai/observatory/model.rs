@@ -177,11 +177,11 @@ pub struct ActiveInterceptRowGui {
     pub hook_url: Option<String>,
 }
 
-/// 外部捕获活动登记行（T3，Proxy tab 聚合 UI 数据源）。
+/// 外部捕获入口网关行（T5，Proxy tab 聚合 UI 数据源）。
 #[derive(Clone, Debug)]
 pub struct ExternalCaptureRowGui {
     pub session_id: String,
-    /// harness 短名（omp / claude-code / codex / generic）。
+    /// harness 短名（claude-code / omp / pi, 入口前缀标识）。
     pub harness: String,
     pub proxy_port: u16,
     /// 最近活动（unix 秒，供 UI 相对时间）。
@@ -718,21 +718,15 @@ impl ObservatoryModel {
             })
             .collect();
 
-        // 3.5 外部捕获活动登记（T3, Proxy tab; snapshot 直读 rt）
+        // 3.5 外部捕获入口网关（T5, Proxy tab; snapshot 直读 rt）
         self.snapshot.external_registrations = crate::ai::external_capture_rt::snapshot()
             .into_iter()
             .map(|r| ExternalCaptureRowGui {
                 session_id: r.session_id,
-                harness: match r.harness {
-                    harness_integration::HarnessType::ClaudeCode => "claude-code",
-                    harness_integration::HarnessType::Codex => "codex",
-                    harness_integration::HarnessType::Omp => "omp",
-                    harness_integration::HarnessType::Generic => "generic",
-                }
-                .to_string(),
-                proxy_port: r.proxy_port,
+                harness: r.harness.to_string(),
+                proxy_port: r.port,
                 last_activity_secs: r.last_activity_ms / 1000,
-                born_at_secs: r.born_at / 1000,
+                born_at_secs: r.born_at_ms / 1000,
             })
             .collect();
 

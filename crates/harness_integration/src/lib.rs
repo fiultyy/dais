@@ -20,17 +20,14 @@
 //! [`SessionContext`] and orchestrates starting the proxy + hook server.
 
 mod block_builder;
-mod external_capture;
+mod entry_gateway;
 mod harness_spawn;
 mod hook_server;
 mod raw_processor;
 mod session;
 
 pub use block_builder::{parse_anthropic_request, parse_anthropic_response};
-pub use external_capture::{
-    env_lines_for, ExternalCaptureManager, Registration, RegistrationId, RegistrationSnapshot,
-    Slot, HOOK_SERVER_URL_ENV, HOOK_TOKEN_ENV, IDLE_TIMEOUT_MS,
-};
+pub use entry_gateway::{EntryGateway, EntrySessionInfo};
 pub use harness_spawn::{
     build_spawn_env, env_to_map, record_exit, record_spawn,
     resolve_intercept_mode, SpawnConfig, SpawnedSession, INTERCEPT_MODE_ENV,

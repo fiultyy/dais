@@ -85,32 +85,8 @@ pub fn wire_up_pty_controller_with_view<T: EventLoopSender>(
                     .block_list_mut()
                     .active_block_mut()
                     .set_cloud_workflow_state(event.workflow_id);
-                // 外部捕获 (T3): pane(view) 首条 harness 命令 → 嗅探登记 +
-                // export 前缀注入(真实 shell 环境变更, 持续到 pane 生命期)。
-                // 前缀只改变写入 PTY 的字节, block 显示/历史仍用原命令。
-                #[cfg(not(target_family = "wasm"))]
-                let command = {
-                    let enabled = view_weak_handle_for_events.upgrade(ctx).is_some_and(|view| {
-                        let _ = &view;
-                        use warpui::SingletonEntity as _;
-                        crate::terminal::intercept_sessions::InterceptSessionsModel::as_ref(&*ctx)
-                            .external_capture_enabled()
-                    });
-                    let view_id = view_weak_handle_for_events.upgrade(ctx).map(|v| v.id());
-                    match view_id {
-                        Some(id) => {
-                            let prefix = crate::ai::external_capture_rt::env_prefix_for_command(
-                                id, &event.command, enabled,
-                            );
-                            match prefix {
-                                Some(p) => format!("{}{}", p, event.command),
-                                None => event.command.clone(),
-                            }
-                        }
-                        None => event.command.clone(),
-                    }
-                };
-                #[cfg(target_family = "wasm")]
+                // 外部捕获 (T5): 别名是唯一入口(cc-zap/omp-zap/pi-zap 经
+                // bootstrap 静默武装), 裸命令零改写 — 此处不做任何注入。
                 let command = event.command.clone();
                 controller.update(ctx, |controller, ctx| {
                     controller.write_command(&command, shell_type, event.source.clone(), ctx)

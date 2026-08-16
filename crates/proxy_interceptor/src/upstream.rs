@@ -92,7 +92,7 @@ impl UpstreamConfig {
 
     /// Omp: 读 ~/.config/zap/omp-upstream.json
     /// { "api_base": "...", "api_key_env": "...", "response_format": "anthropic"|"openai"|"generic" }
-    fn from_omp_config() -> Result<Self> {
+    pub fn from_omp_config() -> Result<Self> {
         #[derive(serde::Deserialize)]
         struct OmpCfg {
             api_base: String,

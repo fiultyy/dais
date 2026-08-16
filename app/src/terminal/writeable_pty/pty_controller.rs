@@ -426,12 +426,11 @@ impl<T: EventLoopSender> PtyController<T> {
         }
         self.write_bootstrap_script_to_shell(pending_session_info, ctx, shell_type, bootstrap);
     }
-
-    /// 外部捕获 (T3) 武装入口: 视图已绑定 + 非子 shell + 方言支持 + 功能
-    /// flag 与开关都开时, 向 bootstrap 脚本尾部追加同名 harness 包装函数
-    /// (`omp/ompi/claude/claude-code/codex`)。任一条件不满足或登记失败 →
-    /// 原样返回(pane 启动绝不因此阻塞)。仅本地 pane: 远端 manager 不绑定
-    /// 视图身份([`Self::enable_external_capture_arming`] 只在 local_tty 调)。
+    /// 外部捕获 (T5) 武装入口: 本地 pane + 非子 shell + 方言支持 + 功能
+    /// flag 与开关都开时, 向 bootstrap 脚本不可见区插入三别名函数
+    /// (`cc-zap`/`omp-zap`/`pi-zap`)。任一条件不满足或入口未跑 →
+    /// 原样返回(pane 启动绝不因此阻塞, 裸命令零劫持)。远端 pane 不
+    /// 绑定视图身份(`enable_external_capture_arming` 只在 local_tty 调)。
     #[cfg(not(target_family = "wasm"))]
     fn external_capture_arming_suffix_for(
         &self,
@@ -442,10 +441,7 @@ impl<T: EventLoopSender> PtyController<T> {
     ) -> Cow<'static, [u8]> {
         use crate::ai::external_capture_rt::ArmingDialect;
 
-        let Some(view_id) = self.external_capture_view else {
-            return bootstrap;
-        };
-        // 子 shell 不武装(函数不经继承跨 shell, pane 级一通道一武装)。
+        // 子 shell 不武装(别名函数不经继承跨 shell)。
         if pending_session_info.subshell_info.is_some() {
             return bootstrap;
         }
@@ -459,11 +455,14 @@ impl<T: EventLoopSender> PtyController<T> {
         if !crate::features::FeatureFlag::AgentHarness.is_enabled() {
             return bootstrap;
         }
+        if self.external_capture_view.is_none() {
+            return bootstrap;
+        }
         let enabled = crate::terminal::intercept_sessions::InterceptSessionsModel::as_ref(ctx)
             .external_capture_enabled();
-        match crate::ai::external_capture_rt::bootstrap_arming_suffix(view_id, dialect, enabled) {
-            // heredoc 感知插入(案B): 追加到脚本尾部会被 ZLE 当用户命令
-            // 回显(EOM 之后的独立输入行), 必须插进 heredoc 不可见区。
+        match crate::ai::external_capture_rt::bootstrap_arming_suffix(dialect, enabled) {
+            // heredoc 感知插入: 追加到脚本尾部会被 ZLE 当用户命令回显
+            // (EOM 之后的独立输入行), 必须插进 heredoc 不可见区。
             Some(defs) => Cow::Owned(
                 crate::ai::external_capture_rt::insert_arming_into_script(&bootstrap, &defs),
             ),
@@ -471,9 +470,8 @@ impl<T: EventLoopSender> PtyController<T> {
         }
     }
 
-    /// 外部捕获 (T3): 绑定 terminal view(pane) 身份并启用 bootstrap 武装。
-    /// 只应由本地 pane 的 manager(local_tty) 调用; 远端 pane 不调用 →
-    /// 永不武装(远端 shell 里注入的 127.0.0.1 指向错误主机)。
+    /// 外部捕获 (T5): 标记本地 pane(远端 pane 不标记 → 永不武装; 入口
+    /// 是本机 loopback, 远端 shell 里的 127.0.0.1 指向错误主机)。
     #[cfg(not(target_family = "wasm"))]
     pub fn enable_external_capture_arming(&mut self, view: EntityId) {
         self.external_capture_view = Some(view);
