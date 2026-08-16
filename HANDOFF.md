@@ -176,3 +176,197 @@ cargo test -p ai --features orchestration --lib orchestration
   P2-2 规划内。
 - `cargo fmt` 本仓存在大量历史未格式化文件，本 commit 只格式化了
   触碰的文件。
+
+---
+
+# 外部捕获全程小节（2026-08-16）
+
+> 分支 `main` @ `4fddeef9`，三票递进: `82e4ce58`(T1c+T2b) →
+> `b0d0a85a`(T3) → `4fddeef9`(T5)。目标: 用户在手敲终端里跑的 harness
+> （`claude`/`omp`/`pi`）也被 zap 旁观捕获 — 不改 harness 源码、裸命令
+> 零改写。接手 agent 读本节 + 关键文件索引即可独立续作。
+
+## 最终架构（T5 口径 = main 现状）
+
+**别名是唯一入口（用户拍板）**，bootstrap 静默武装出三个 shell 函数:
+```
+cc-zap  = command claude --settings ~/.config/zap/cc-entry-settings.json
+omp-zap = command omp --model zap/glm-5.2
+pi-zap  = command pi   --model zap/glm-5.2
+```
+裸命令 `claude`/`omp`/`pi` 行为完全不变。
+
+数据流（omp 为例，括号为本机实证值）:
+```
+omp-zap → omp 读 ~/.omp/agent/models.yml 的 provider `zap`
+        (baseUrl http://127.0.0.1:8787/omp; apiKey "!jq -r
+         .env.ANTHROPIC_AUTH_TOKEN ~/.claude/settings.json")
+      → zap 入口 :8787 (明文 HTTP, 仅 loopback), 前缀 /omp 即 harness 标识
+      → strip 前缀(保留 query) → 每请求解析出口:
+        ~/.config/zap/omp-upstream.json (bigmodel /api/coding/paas/v4,
+        response_format=openai)
+      → auth 头(authorization/x-api-key)原样转发, 不剥不注 → 上游
+旁路:  每请求 RawEvent → 常驻观测 session external-omp
+        (state_dir/harness_blocks.db + harness_raw_cache.db) → 观测台
+```
+
+分层:
+- **网络面** `crates/proxy_interceptor/src/entry.rs` — `EntryServer` 绑
+  `127.0.0.1:8787` 明文，fallback handler 按最长前缀分流 `/cc` `/omp`
+  `/pi`，复用 TLS 路径的 `proxy_handler` 转发核心。出口解析每请求调用
+  （配置热更）: `/cc` 三级 = env `ZAP_UPSTREAM_BASE` > 用户
+  `~/.claude/settings.json` 的 `env.ANTHROPIC_BASE_URL` > 官方默认;
+  `/omp` `/pi` 共用 `UpstreamConfig::from_omp_config()`（读
+  omp-upstream.json）。解析失败 → 502，未知前缀 → 404（不猜测目的地）。
+- **数据面** `crates/harness_integration/src/entry_gateway.rs` —
+  `EntryGateway` = EntryServer + 每前缀一条捕获通道（forwarder +
+  `run_raw_processor`），归并到常驻 session `external-{cc,omp,pi}`
+  （harness 串 `claude-code`/`omp`/`pi`）。**Spawn 懒发**: 注册只预留
+  block，首个 RawEvent 才落库 — 零流量前缀在观测台不可见。`stop()`
+  落 Exit(reason=stopped) + 端口释放；常驻无 idle reap。DB 路径由调用方
+  注入（app 传观测台同一路径的两个 db，测试传临时文件）。
+- **武装面** `app/src/ai/external_capture_rt.rs`（313 行）— zap 进程级
+  单例 `GATEWAY`（专属单线程 tokio RT）: `ensure_gateway`（幂等，绑不上
+  → Err 降级）/ `shutdown` / `entry_port` / `snapshot`；别名函数定义
+  （单行投递安全，bash/zsh Posix 与 fish 两方言）+ heredoc 感知插入
+  `insert_arming_into_script`。
+- **接线** — `intercept_sessions.rs`: 开关 `external_capture_enabled`
+  （默认开，持久化 `<state_dir>/intercept_config.json`），app 启动即起
+  网关，toggle 即启停并发 `ExternalCaptureChanged` 事件;
+  `pty_controller.rs::external_capture_arming_suffix_for`: 本地 pane
+  首个 shell 的 bootstrap 时插别名，条件 = 本地 pane(`local_tty/
+  terminal_manager.rs:369` 标记) + 非 subshell + 方言支持 + FeatureFlag
+  `AgentHarness` + 开关开 + 入口在跑，任一不满足原样返回（绝不阻塞
+  pane 启动）; 观测台 `observatory/{model,view}.rs`:
+  `external_registrations` 快照行 + 开关 chip（i18n 键
+  `observatory-external-capture-*`）。
+
+## 演进与取舍（为什么长这样）
+
+### T1c 骨架 + T2b 登记链路（82e4ce58，已被 T5 整体移除）
+- `ExternalCaptureManager` 放 harness_integration（集成层定位:
+  proxy_interceptor 与 hook/block 数据层之间的缝），headless 可测。
+- T2b 形状: 每登记一个 uuid session + **专属 HookServer**（hook→session
+  归属由构造解决，token 隔离）+ 专属 TLS proxy（共享 ProxyManager，
+  CA 单次生成）+ raw 转发器 + Spawn（metadata `mode:"external"` —
+  刻意不加 `InterceptMode` 变体，避免破坏 app 侧 exhaustive match）。
+- 回收: 30min 无 RawEvent `reap_idle` / 显式 `stop_registration`，
+  blocks 留库供观测台历史; 时钟可注入（with_clock）测试不 sleep。
+- 测试: 双登记并行不串/seq 单调、hook token 归属隔离、注入时钟闲置
+  回收、端口释放（当时 lib 20/20 + 集成 1/1）。
+- **为何移除**: per-registration TLS proxy + hook server 是"劫持注入"
+  路线的地基，T5 改透明管道后整层作废。考古勿复活:
+  `git show 82e4ce58:crates/harness_integration/src/external_capture.rs`。
+
+### T3 手敲路径武装（b0d0a85a，一半被 T5 重写）
+保留至今的遗产:
+- **heredoc 感知插入**: zsh/bash 的 bootstrap 是 `read ... << 'EOM'`
+  结构，`EOM` 之后的字节会被 ZLE 当作用户命令回显执行（实测尾部追加
+  = pane 里可见的一大串污染）; 插入点必须在 EOM 标记**之前**（函数定义
+  随 `WARP_BOOTSTRAP_VAR` 一起 eval，零回显）。fish 走临时文件 source
+  本不回显，尾部追加即可。
+- **CC `--settings` 深覆盖实证**: CC 的 settings.json `env` 块优先级
+  **压过进程 env** — 裸 `export ANTHROPIC_BASE_URL=...` 会被用户
+  `~/.claude/settings.json` 静默覆盖（T3 三轮实证）。所以 cc-zap 必须
+  走 `--settings` 文件深覆盖。T5 把 T3 的临时文件固化为静态文件
+  `~/.config/zap/cc-entry-settings.json`: 用户 settings **全量透传合并**
+  （env/permissions/hooks/模型映射等所有顶层键）+ 仅覆盖
+  `ANTHROPIC_BASE_URL` → `http://127.0.0.1:8787/cc`; 每次武装前重生成
+  （端口/用户配置变化即生效），写失败仅记日志、旧文件降级可用。
+- **omp 源码级结论（T3）**: omp 的 baseUrl 硬编码在模型配置里，**无
+  进程级/env 覆盖入口** — env 注入路线对 omp 无效。T3 当时保留 env
+  形状等上游支持，T5 直接改走 **models.yml + `--model` 别名路线**:
+  编排侧在 omp 自己的 models.yml 里登记 provider `zap`（baseUrl 指向
+  入口 `/omp`），`omp-zap --model zap/glm-5.2` 命中该 provider。
+- codex 查证（T3）: 本机 config.toml 无 base_url 压制，
+  `OPENAI_BASE_URL` env 前缀有效。T5 未给 codex 前缀。
+
+被 T5 移除的 T3 旧路径: pane(view)级登记 `by_view`、ExecuteCommand
+嗅探 + `export` 前缀注入、claude wrapper 临时 settings 文件（NamedTempFile
+保活）、60s tick + `tick_except` 武装豁免回收、view drop 反查
+`stop_registration`。
+
+### T5 单端口 + 别名（4fddeef9，现行）
+- **单端口明文 vs TLS 反代**: 别名指向 `http://127.0.0.1:8787`
+  （loopback），客户端明文连入口 → 无 MITM 就无需 CA/
+  `NODE_EXTRA_CA_CERTS`。GUI 拦截路径（zap 自己 spawn 的 harness 走
+  `ProxyServer` TLS 反代 + CA 注入）不变，两路平行。
+- **auth 透明管道**: `handler.rs` 的 `SKIPPED_REQUEST_HEADERS` 从 5 个
+  减到 3 个 — `authorization`/`x-api-key` 不再剥掉重注，原样透传;
+  同时删除"从 `api_key_env` 读 env 重注 auth 头"的逻辑（该字段仍在
+  `UpstreamConfig` schema 里但不再用于注入）。客户端凭据自带（omp/pi
+  的 models 配置用 `!jq` 引用户 token），zap 只改目的地 + 旁观捕获。
+- **前缀即 harness 标识**: 单端口无连接身份，用户拍板每前缀归并一个
+  常驻 session，不再 per-registration。
+- 集成测试 `tests/entry_gateway.rs`: 前缀分流正确、未知前缀 404、
+  透明 auth（假上游断言收到的客户端凭据原样）、懒发归并
+  （external-pi 零流量零块）、stop 落 Exit + 端口释放（连接拒绝断言）。
+
+## 编排侧前置配置（zap 仓外，接手须知）
+
+zap 代码只读不写下列文件（唯一例外: cc-entry-settings.json 由 zap
+每次武装前重生成）:
+
+| 文件 | 作用 | 本机实值（2026-08-16） |
+|---|---|---|
+| `~/.config/zap/omp-upstream.json` | `/omp` `/pi` 出口，每请求热读 | api_base `https://open.bigmodel.cn/api/coding/paas/v4`; api_key_env ANTHROPIC_API_KEY; response_format openai |
+| `~/.omp/agent/models.yml` | omp 的 provider `zap`（编排侧写） | baseUrl `http://127.0.0.1:8787/omp`; apiKey `!jq -r .env.ANTHROPIC_AUTH_TOKEN ~/.claude/settings.json`; 模型 glm-5.2 / glm-5-turbo; api openai-completions |
+| `~/.pi/agent/models.json` | pi（**独立项目**，自有配置体系）同上 | baseUrl `http://127.0.0.1:8787/pi`; 同形状 |
+| `~/.config/zap/cc-entry-settings.json` | cc-zap 的 `--settings` 深覆盖 | 用户 settings 全量透传（env/hooks/permissions）+ BASE_URL 覆盖为 `/cc` |
+| `~/.claude/settings.json` | `/cc` 出口解析源 + token 源 | env.ANTHROPIC_BASE_URL `https://open.bigmodel.cn/api/anthropic` |
+
+敏感注意: cc-entry-settings.json 是用户 settings 的全量合并（含
+ANTHROPIC_AUTH_TOKEN 明文与 hooks/permissions），属本机敏感文件，
+截图/外发/贴 issue 时必须先脱敏。
+
+## 已知边界 / 遗留
+
+1. **端口硬编码**: `ENTRY_PORT=8787` 无配置口。被占 → 启动降级 warn
+   （开关开着但入口不可用、快照空），toggle 可重试。zap 双实例并行会
+   抢端口。
+2. **武装时机 = bootstrap**: 别名只在 pane 首个 shell 的 bootstrap 时
+   插入。开关后开/入口后起 → 已存在 pane 无别名，需开新 pane; 存量
+   pane 不回溯武装（设计内）。
+3. **武装面**: 仅本地 pane + 非 subshell + bash/zsh/fish。PowerShell
+   （permanent bootstrap 共享文件 + 非验收环境）与远端 pane（入口是
+   本机 loopback，远端 shell 里 127.0.0.1 指向错误主机）永不武装。
+4. **外部通道无 hook 事件**: T2b 曾有 per-registration HookServer，
+   T5 后外部 session 只有流量块（Spawn/请求/Exit），无 CC hooks
+   生命周期事件。需要时是新增项（hook → 归并 session 的归属设计需
+   重新解），不是回归。
+5. **codex 无前缀**: T5 只做了 cc/omp/pi。加回 = `entry.rs` 的 spec
+   扩一行 + 出口解析（openai 形状; T3 已查证 env 口当时有效，但现行
+   口径下同样应走别名 + codex 侧模型配置）。
+6. **`/omp` `/pi` 共用一份 omp-upstream.json**: 两前缀出口无法分化;
+   需要分化时扩配置 schema（如 per-prefix 文件）。
+7. **cc 模型映射靠透传**: cc-entry-settings 只覆盖 BASE_URL，模型映射
+   （ANTHROPIC_DEFAULT_*_MODEL）全靠用户 settings env 透传 — 用户没配
+   则 cc-zap 发官方模型名到中转出口，成败取决于出口兼容性。
+8. **response_format 三态** anthropic/openai/generic 决定 raw 解析器
+   分派; 本机 /omp /pi 出口为 openai（bigmodel coding 端点）。
+9. T1c/T2b/T3 旧路径已删干净（ExternalCaptureManager / tick_except /
+   pane 级登记），复活任何一块前先读上文"为何移除"。
+
+## 关键文件索引
+```
+crates/proxy_interceptor/src/entry.rs            EntryServer 网络面(214 行)
+crates/proxy_interceptor/src/handler.rs          proxy_handler 透明管道(auth 头透传)
+crates/proxy_interceptor/src/upstream.rs         UpstreamConfig 三级解析 + from_omp_config
+crates/harness_integration/src/entry_gateway.rs  EntryGateway 数据面(241 行)
+app/src/ai/external_capture_rt.rs                网关单例 + 别名武装(313 行)
+app/src/terminal/intercept_sessions.rs           开关持久化 + 网关启停
+app/src/terminal/writeable_pty/pty_controller.rs bootstrap 武装调用点
+app/src/terminal/local_tty/terminal_manager.rs   本地 pane 标记(:369)
+app/src/ai/observatory/{model,view}.rs           external_registrations 行 + 开关 chip
+crates/harness_integration/tests/entry_gateway.rs 端到端集成测试
+```
+
+## 验证命令
+```bash
+cargo test -p harness_integration --test entry_gateway   # 端到端(前缀/透明auth/懒发/stop)
+cargo test -p proxy_interceptor                          # 入口单测
+cargo test -p warp --features orchestration --lib external_capture  # rt 别名/合并单测
+cargo check -p warp --features orchestration
+```
+手动冒烟: 开关开 → 新开 pane 敲 `omp-zap` 跑一句 → 观测台 Sessions
+出现 external-omp 行且有请求块; `curl http://127.0.0.1:8787/nope` → 404。
