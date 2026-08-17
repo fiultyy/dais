@@ -115,6 +115,67 @@ pub enum ObservatoryPanelAction {
     ToggleExternalCapture,
     /// 代理配置：重查 block 计数。
     RefreshBlockCount,
+    /// SystemPrompt 详情：切换 分段折叠/原文 视图模式。
+    SetSystemPromptMode(SystemPromptViewMode),
+    /// SystemPrompt 详情：切换第 idx 段展开态（折叠模式下）。
+    ToggleSystemPromptSegment(usize),
+    /// SystemPrompt 详情：全部展开/全部收起（折叠模式下）。
+    ToggleAllSystemPromptSegments,
+}
+
+// ── SystemPrompt 分段折叠视图状态（T11） ──────────────────────────────────────
+
+/// SystemPrompt 详情内容区的视图模式。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SystemPromptViewMode {
+    /// 标记感知分段折叠（默认：全折叠，仅显标记名 + 摘要，点击展开原文）。
+    Folded,
+    /// 原文全文（旧行为，即全展开/raw）。
+    Raw,
+}
+
+/// SystemPrompt 分段折叠的纯 UI 状态（渲染缓存）：模式 + 展开集合 +
+/// 段头悬停句柄 + 解析缓存（block id / content 长度失配时重置重解析）。
+struct SystemPromptFoldView {
+    block_id: Option<String>,
+    content_len: usize,
+    mode: SystemPromptViewMode,
+    expanded: std::collections::HashSet<usize>,
+    segment_handles: Vec<MouseStateHandle>,
+    mode_chip_handles: [MouseStateHandle; 2],
+    expand_all_chip_handle: MouseStateHandle,
+    segments: Vec<super::system_prompt_segments::SystemPromptSegment>,
+}
+
+impl Default for SystemPromptFoldView {
+    fn default() -> Self {
+        Self {
+            block_id: None,
+            content_len: 0,
+            mode: SystemPromptViewMode::Folded,
+            expanded: std::collections::HashSet::new(),
+            segment_handles: Vec::new(),
+            mode_chip_handles: [MouseStateHandle::default(), MouseStateHandle::default()],
+            expand_all_chip_handle: MouseStateHandle::default(),
+            segments: Vec::new(),
+        }
+    }
+}
+
+impl SystemPromptFoldView {
+    /// 同步解析缓存：block id / 内容长度失配时重置模式与展开集并重解析
+    ///（block 切换防折叠态残留，T11 陷阱#4）；命中缓存则原样保留。
+    fn sync(&mut self, block_id: &str, content: &str) {
+        if self.block_id.as_deref() == Some(block_id) && self.content_len == content.len() {
+            return;
+        }
+        self.block_id = Some(block_id.to_string());
+        self.content_len = content.len();
+        self.mode = SystemPromptViewMode::Folded;
+        self.expanded.clear();
+        self.segments = super::system_prompt_segments::segment_system_prompt(content);
+        self.segment_handles.clear();
+    }
 }
 
 // ── ObservatoryPanelView ────────────────────────────────────────────────────
@@ -201,6 +262,8 @@ pub struct ObservatoryPanelView {
     block_detail_sidebar_resize_state: warpui::elements::ResizableStateHandle,
     /// Block 详情侧栏滚动状态。
     block_detail_scroll_state: ClippedScrollStateHandle,
+    /// SystemPrompt 分段折叠视图状态（T11；纯 UI 渲染缓存）。
+    system_prompt_view: RefCell<SystemPromptFoldView>,
 }
 
 impl ObservatoryPanelView {
@@ -484,6 +547,7 @@ impl ObservatoryPanelView {
                 BLOCK_DETAIL_SIDEBAR_DEFAULT_WIDTH,
             ),
             block_detail_scroll_state: ClippedScrollStateHandle::default(),
+            system_prompt_view: RefCell::new(SystemPromptFoldView::default()),
         };
         // 首次启动 5s 自动刷新 timer（此前无首调，timer 从未跑起来——
         // render 是 &self 无法启动，start_refresh_timer 只在回调内自续期）。
@@ -1393,7 +1457,8 @@ impl ObservatoryPanelView {
             .finish(),
         );
 
-        // Content
+        // Content：system_prompt 走标记感知分段折叠（T11）；
+        // 其余类型保持原文全文。
         col.add_child(
             Text::new(
                 crate::t!("observatory-block-detail-content"),
@@ -1403,15 +1468,19 @@ impl ObservatoryPanelView {
             .with_color(theme.nonactive_ui_text_color().into_solid())
             .finish(),
         );
-        col.add_child(
-            Text::new(
-                truncate_str(&detail.content, 16000),
-                appearance.ui_font_family(),
-                SMALL_FONT_SIZE,
-            )
-            .with_color(theme.sub_text_color(theme.background()).into())
-            .finish(),
-        );
+        if detail.block_type == "system_prompt" {
+            col.add_child(self.render_system_prompt_content(detail, appearance, theme));
+        } else {
+            col.add_child(
+                Text::new(
+                    truncate_str(&detail.content, 16000),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .finish(),
+            );
+        }
 
         Container::new(
             ClippedScrollable::vertical(
@@ -1427,6 +1496,258 @@ impl ObservatoryPanelView {
         .with_horizontal_padding(PANEL_PADDING)
         .with_vertical_padding(SPACING)
         .finish()
+    }
+
+    /// SystemPrompt 详情内容区（T11）：标记感知分段折叠。
+    ///
+    /// - 折叠模式（默认）：每段一行「▸ 标记名 · 摘要 · N 行」，点击展开
+    ///   段原文；附 全部展开/收起。段数/内容失配时重置折叠状态并重解析
+    ///   （block 切换防选中态残留）。
+    /// - 原文模式：与旧版一致的全文渲染（即全展开/raw 切换）。
+    fn render_system_prompt_content(
+        &self,
+        detail: &BlockDetailGui,
+        appearance: &Appearance,
+        theme: &WarpTheme,
+    ) -> Box<dyn Element> {
+        // ── 同步解析缓存（block id / 内容长度失配 → 重置重解析） ──
+        {
+            let mut view = self.system_prompt_view.borrow_mut();
+            view.sync(&detail.id, &detail.content);
+            let seg_count = view.segments.len();
+            Self::ensure_handles(&mut view.segment_handles, seg_count);
+        }
+
+
+        let view = self.system_prompt_view.borrow();
+        let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Min)
+            .with_spacing(SPACING);
+
+        // ── 模式 chips：分段（默认）/ 原文 ──
+        let mode = view.mode;
+        let modes = [
+            (
+                SystemPromptViewMode::Folded,
+                crate::t!("observatory-system-prompt-mode-folded"),
+                view.mode_chip_handles[0].clone(),
+            ),
+            (
+                SystemPromptViewMode::Raw,
+                crate::t!("observatory-system-prompt-mode-raw"),
+                view.mode_chip_handles[1].clone(),
+            ),
+        ];
+        let mut mode_row = Flex::row()
+            .with_cross_axis_alignment(CrossAxisAlignment::Center)
+            .with_spacing(SPACING);
+        for (chip_mode, label, handle) in modes {
+            let is_active = chip_mode == mode;
+            let chip = Hoverable::new(handle, move |state| {
+                let text_color = if is_active {
+                    theme.active_ui_text_color().into()
+                } else if state.is_hovered() {
+                    theme.nonactive_ui_text_color().into()
+                } else {
+                    theme.disabled_ui_text_color().into_solid()
+                };
+                let mut container = Container::new(
+                    Text::new(label.clone(), appearance.ui_font_family(), SMALL_FONT_SIZE)
+                        .with_color(text_color)
+                        .finish(),
+                )
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
+                .with_horizontal_padding(8.)
+                .with_vertical_padding(3.);
+                if is_active {
+                    container =
+                        container.with_border(Border::all(1.).with_border_fill(theme.accent()));
+                }
+                container.finish()
+            })
+            .on_click(move |ctx, _, _| {
+                ctx.dispatch_typed_action(ObservatoryPanelAction::SetSystemPromptMode(
+                    chip_mode,
+                ));
+            })
+            .finish();
+            mode_row.add_child(chip);
+        }
+        col.add_child(mode_row.finish());
+
+        if mode == SystemPromptViewMode::Raw {
+            // 原文模式：旧版全文渲染（raw/全展开）。
+            col.add_child(
+                Text::new(
+                    truncate_str(&detail.content, 16000),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .finish(),
+            );
+            return col.finish();
+        }
+
+        // ── 折叠模式 ──
+        let segments = &view.segments;
+        if segments.is_empty() {
+            drop(view);
+            col.add_child(
+                Text::new(
+                    crate::t!("observatory-system-prompt-empty"),
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(theme.disabled_ui_text_color().into_solid())
+                .finish(),
+            );
+            return col.finish();
+        }
+
+        let total = segments.len();
+        let all_expanded = view.expanded.len() == total;
+
+        // 全部展开/收起 chip + 段数统计
+        let expand_chip = Hoverable::new(view.expand_all_chip_handle.clone(), move |state| {
+            let text_color = if state.is_hovered() {
+                theme.nonactive_ui_text_color().into()
+            } else {
+                theme.disabled_ui_text_color().into_solid()
+            };
+            Container::new(
+                Text::new(
+                    if all_expanded {
+                        crate::t!("observatory-system-prompt-collapse-all")
+                    } else {
+                        crate::t!("observatory-system-prompt-expand-all")
+                    },
+                    appearance.ui_font_family(),
+                    SMALL_FONT_SIZE,
+                )
+                .with_color(text_color)
+                .finish(),
+            )
+            .finish()
+        })
+        .on_click(move |ctx, _, _| {
+            ctx.dispatch_typed_action(ObservatoryPanelAction::ToggleAllSystemPromptSegments);
+        })
+        .finish();
+        let mut ctrl_row = Flex::row()
+            .with_cross_axis_alignment(CrossAxisAlignment::Center)
+            .with_spacing(SPACING);
+        ctrl_row.add_child(expand_chip);
+        ctrl_row.add_child(Expanded::new(
+            1.,
+            Text::new(
+                crate::t!("observatory-system-prompt-segments-count", count = total),
+                appearance.ui_font_family(),
+                SMALL_FONT_SIZE,
+            )
+            .with_color(theme.disabled_ui_text_color().into_solid())
+            .finish(),
+        )
+        .finish());
+        col.add_child(ctrl_row.finish());
+
+        // 段列表
+        for (idx, seg) in segments.iter().enumerate() {
+            let expanded = view.expanded.contains(&idx);
+            let handle = view.segment_handles[idx].clone();
+            let title = match &seg.marker {
+                Some(m) => m.clone(),
+                None => crate::t!("observatory-system-prompt-preamble"),
+            };
+            let summary = if seg.summary.is_empty() {
+                crate::t!("observatory-system-prompt-empty")
+            } else {
+                seg.summary.clone()
+            };
+            let line_count = seg.line_count;
+            let body_text = truncate_str(&seg.text, 16000);
+
+            // 段头行：▸/▾ 标记名 · 摘要 · N 行（点击切换展开）。
+            let header = Hoverable::new(handle, move |state| {
+                let mut row = Flex::row()
+                    .with_cross_axis_alignment(CrossAxisAlignment::Center)
+                    .with_spacing(SPACING);
+                row.add_child(
+                    Text::new(
+                        format!("{} {}", if expanded { "▾" } else { "▸" }, title),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.active_ui_text_color().into())
+                    .finish(),
+                );
+                if !expanded {
+                    row.add_child(
+                        Expanded::new(
+                            1.,
+                            Text::new(
+                                summary,
+                                appearance.ui_font_family(),
+                                SMALL_FONT_SIZE,
+                            )
+                            .with_color(theme.sub_text_color(theme.background()).into())
+                            .finish(),
+                        )
+                        .finish(),
+                    );
+                }
+                row.add_child(
+                    Text::new(
+                        crate::t!("observatory-system-prompt-segment-lines", lines = line_count),
+                        appearance.ui_font_family(),
+                        SMALL_FONT_SIZE,
+                    )
+                    .with_color(theme.disabled_ui_text_color().into_solid())
+                    .finish(),
+                );
+                let mut container = Container::new(row.finish())
+                    .with_corner_radius(CornerRadius::with_all(Radius::Pixels(BADGE_RADIUS)))
+                    .with_horizontal_padding(4.)
+                    .with_vertical_padding(2.);
+                if state.is_hovered() {
+                    container = container.with_background(Fill::Solid(internal_colors::neutral_3(
+                        &theme,
+                    )));
+                } else if expanded {
+                    container = container.with_background(Fill::Solid(internal_colors::neutral_2(
+                        &theme,
+                    )));
+                }
+                container.finish()
+            })
+            .on_click(move |ctx, _, _| {
+                ctx.dispatch_typed_action(ObservatoryPanelAction::ToggleSystemPromptSegment(idx));
+            })
+            .finish();
+            col.add_child(header);
+
+            // 展开态：段原文（左侧 accent 边线 + 缩进）。
+            if expanded {
+                col.add_child(
+                    Container::new(
+                        Text::new(
+                            body_text,
+                            appearance.ui_font_family(),
+                            SMALL_FONT_SIZE,
+                        )
+                        .with_color(theme.sub_text_color(theme.background()).into())
+                        .finish(),
+                    )
+                    .with_border(
+                        Border::left(2.).with_border_fill(theme.accent()),
+                    )
+                    .with_horizontal_padding(8.)
+                    .finish(),
+                );
+            }
+        }
+
+        col.finish()
     }
 
     /// Orchestration tab 内容: 滚动列表区（runs+tasks / gates / messages /
@@ -2809,6 +3130,31 @@ impl TypedActionView for ObservatoryPanelView {
                     model.resolve_gate(&gate_id, &resolution, ctx);
                 });
             }
+            ObservatoryPanelAction::SetSystemPromptMode(mode) => {
+                let mode = *mode;
+                self.system_prompt_view.borrow_mut().mode = mode;
+                ctx.notify();
+            }
+            ObservatoryPanelAction::ToggleSystemPromptSegment(idx) => {
+                let idx = *idx;
+                let mut view = self.system_prompt_view.borrow_mut();
+                if idx < view.segments.len() {
+                    if !view.expanded.insert(idx) {
+                        view.expanded.remove(&idx);
+                    }
+                    ctx.notify();
+                }
+            }
+            ObservatoryPanelAction::ToggleAllSystemPromptSegments => {
+                let mut view = self.system_prompt_view.borrow_mut();
+                let total = view.segments.len();
+                if view.expanded.len() == total {
+                    view.expanded.clear();
+                } else {
+                    view.expanded = (0..total).collect();
+                }
+                ctx.notify();
+            }
             ObservatoryPanelAction::SelectRaw(id) => {
                 let id = toggle_id(
                     id,
@@ -3226,4 +3572,154 @@ fn toggle_seq(seq: Option<i64>, current: Option<i64>) -> Option<i64> {
         (Some(new), Some(cur)) if new == cur => None,
         (other, _) => other,
     }
+}
+
+#[cfg(test)]
+mod system_prompt_view_tests {
+    use super::*;
+
+    #[test]
+    fn fold_view_resets_on_block_or_content_change() {
+        let mut v = SystemPromptFoldView::default();
+        v.sync("b1", "intro\n# A\nbody\n");
+        assert_eq!(v.segments.len(), 2);
+        assert_eq!(v.segments[1].marker.as_deref(), Some("A"));
+
+        // 用户操作后：切原文 + 展开一段。
+        v.mode = SystemPromptViewMode::Raw;
+        v.expanded.insert(0);
+
+        // 同 block 同内容（5s 轮询重渲）：折叠状态必须保留。
+        v.sync("b1", "intro\n# A\nbody\n");
+        assert_eq!(v.mode, SystemPromptViewMode::Raw);
+        assert!(v.expanded.contains(&0));
+
+        // 切换 block：模式回默认折叠、展开集清空、重解析。
+        v.sync("b2", "intro2\n# B\ny\n");
+        assert_eq!(v.mode, SystemPromptViewMode::Folded);
+        assert!(v.expanded.is_empty());
+        assert_eq!(v.segments.len(), 2);
+        assert_eq!(v.segments[1].marker.as_deref(), Some("B"));
+
+        // 同 block 但内容变化（截断/更新）：同样重置。
+        v.expanded.insert(1);
+        v.sync("b2", "intro2\n# B\nmuch longer body\n");
+        assert!(v.expanded.is_empty());
+    }
+
+    #[test]
+    fn fold_view_handles_empty_content() {
+        let mut v = SystemPromptFoldView::default();
+        v.sync("b1", "   \n\n");
+        assert!(v.segments.is_empty());
+    }
+
+    /// 端到端冒烟：真实 View 上走一遍 折叠渲染 → 切原文 → 段展开 →
+    /// 全部展开 → block 切换重置（元素构建路径 + action 接线不 panic）。
+    #[test]
+    fn system_prompt_content_render_smoke() {
+        struct TestView;
+        impl Entity for TestView {
+            type Event = ();
+        }
+        impl View for TestView {
+            fn ui_name() -> &'static str {
+                "ObservatoryTestView"
+            }
+            fn render(&self, _app: &AppContext) -> Box<dyn Element> {
+                Empty::new().finish()
+            }
+        }
+        impl TypedActionView for TestView {
+            type Action = ();
+        }
+
+        let content = "You are Claude Code, Anthropic's official CLI for Claude.
+
+# Harness
+ - Tools run behind a user-selected permission mode.
+
+<env>
+Working directory: /home/yy/warpdotdev/zap
+</env>
+";
+        let detail = BlockDetailGui {
+            id: "b1".to_string(),
+            session_id: "s1".to_string(),
+            parent_id: None,
+            harness_type: "claude-code".to_string(),
+            block_type: "system_prompt".to_string(),
+            sequence: 1,
+            content_len: content.len(),
+            content: content.to_string(),
+            metadata: "{}".to_string(),
+            timestamp: 0,
+        };
+
+        warpui::App::test((), |mut app| async move {
+            crate::test_util::settings::initialize_settings_for_tests(&mut app);
+            app.add_singleton_model(|_| crate::appearance::Appearance::mock());
+            app.add_singleton_model(|_| {
+                crate::settings_view::keybindings::KeybindingChangedNotifier::new()
+            });
+            app.add_singleton_model(
+                crate::terminal::intercept_sessions::InterceptSessionsModel::new,
+            );
+            let model = app.add_singleton_model(ObservatoryModel::new);
+            let (window_id, _) = app.add_window(
+                warpui::platform::WindowStyle::NotStealFocus,
+                |_| TestView,
+            );
+            let view =
+                app.add_view(window_id, |ctx| ObservatoryPanelView::new(model.clone(), ctx));
+
+            view.update(&mut app, |v, ctx| {
+                // 默认折叠模式：渲染成功 + 解析出 preamble/Harness/env 3 段。
+                {
+                    let appearance = Appearance::as_ref(ctx);
+                    let theme = appearance.theme();
+                    let _el = v.render_system_prompt_content(&detail, appearance, theme);
+                    assert_eq!(v.system_prompt_view.borrow().segments.len(), 3);
+                    assert_eq!(
+                        v.system_prompt_view.borrow().mode,
+                        SystemPromptViewMode::Folded
+                    );
+                    assert!(v.system_prompt_view.borrow().expanded.is_empty());
+                }
+
+                // 切原文模式：渲染走 raw 分支，模式生效。
+                v.handle_action(
+                    &ObservatoryPanelAction::SetSystemPromptMode(SystemPromptViewMode::Raw),
+                    ctx,
+                );
+                {
+                    let appearance = Appearance::as_ref(ctx);
+                    let theme = appearance.theme();
+                    let _el = v.render_system_prompt_content(&detail, appearance, theme);
+                    assert_eq!(v.system_prompt_view.borrow().mode, SystemPromptViewMode::Raw);
+                }
+
+                // 段展开 toggle：0 展开 → 再点收起。
+                v.handle_action(&ObservatoryPanelAction::ToggleSystemPromptSegment(0), ctx);
+                assert!(v.system_prompt_view.borrow().expanded.contains(&0));
+                v.handle_action(&ObservatoryPanelAction::ToggleSystemPromptSegment(0), ctx);
+                assert!(!v.system_prompt_view.borrow().expanded.contains(&0));
+
+                // 全部展开 → 全部收起。
+                v.handle_action(&ObservatoryPanelAction::ToggleAllSystemPromptSegments, ctx);
+                assert_eq!(v.system_prompt_view.borrow().expanded.len(), 3);
+                {
+                    let appearance = Appearance::as_ref(ctx);
+                    let theme = appearance.theme();
+                    let _el = v.render_system_prompt_content(&detail, appearance, theme);
+                }
+                v.handle_action(&ObservatoryPanelAction::ToggleAllSystemPromptSegments, ctx);
+                assert!(v.system_prompt_view.borrow().expanded.is_empty());
+
+                // 越界段索引：静默 no-op（不 panic）。
+                v.handle_action(&ObservatoryPanelAction::ToggleSystemPromptSegment(99), ctx);
+            });
+        });
+    }
+
 }
