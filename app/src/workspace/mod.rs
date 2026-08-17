@@ -1109,31 +1109,21 @@ pub fn init(app: &mut AppContext) {
     }
 
     if FeatureFlag::Changelog.is_enabled() {
-        app.register_editable_bindings([
-            // Always show the "View latest changelog" action in the command palette,
-            // but without a keybinding when the update toast is not visible.
-            EditableBinding::new(
-                "workspace:view_changelog",
-                crate::t!("keybinding-desc-workspace-view-changelog"),
-                WorkspaceAction::ViewLatestChangelog,
-            )
-            .with_context_predicate(id!("Workspace") & !id!("UpdateToastVisible"))
-            .with_group(bindings::BindingGroup::Settings.as_str())
-            // Note that while the changelog resides in WarpEssentials, we should gate access to
-            // the changelog based on whether WarpEssentials is an available view.
-            .with_enabled(|| ContextFlag::WarpEssentials.is_enabled()),
-            // When the update toast is visible, register the keybinding as well.
-            EditableBinding::new(
-                "workspace:view_changelog",
-                crate::t!("keybinding-desc-workspace-view-changelog"),
-                WorkspaceAction::ViewLatestChangelog,
-            )
-            .with_context_predicate(id!("Workspace") & id!("UpdateToastVisible"))
-            .with_group(bindings::BindingGroup::Settings.as_str())
-            .with_custom_action(CustomAction::ViewChangelog)
-            .with_linux_or_windows_key_binding(format!("alt-{}", cmd_or_ctrl_shift("o")))
-            .with_enabled(|| ContextFlag::WarpEssentials.is_enabled()),
-        ]);
+        app.register_editable_bindings([EditableBinding::new(
+            "workspace:view_changelog",
+            crate::t!("keybinding-desc-workspace-view-changelog"),
+            WorkspaceAction::ViewLatestChangelog,
+        )
+        .with_context_predicate(id!("Workspace"))
+        .with_group(bindings::BindingGroup::Settings.as_str())
+        // Note that while the changelog resides in WarpEssentials, we should gate access to
+        // the changelog based on whether WarpEssentials is an available view.
+        .with_enabled(|| ContextFlag::WarpEssentials.is_enabled())
+        // 更新提示 toast 栈已随死管道拆除(其可见性 context 永不插入),
+        // 原先挂在 toast 可见性谓词上的 alt-cmd-shift-o 键位移到这里常驻保留,
+        // 用户入口不丢;菜单项展示与自定义仍经由 CustomAction::ViewChangelog。
+        .with_custom_action(CustomAction::ViewChangelog)
+        .with_linux_or_windows_key_binding(format!("alt-{}", cmd_or_ctrl_shift("o")))]);
     }
 
     // We use the same binding name for the AI Assistant and block list AI to preserve custom

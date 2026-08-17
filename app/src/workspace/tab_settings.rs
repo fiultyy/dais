@@ -544,6 +544,17 @@ define_settings_group!(TabSettings, settings: [
         description: "Whether to show a details sidecar when hovering over a vertical tab.",
     },
     header_toolbar_chip_selection: HeaderToolbarChipSelection,
+    // Cockpit 工具栏入口的一次性迁移标记(设备本地,不参与云同步):
+    // ensure_cockpit_in_config 只在标记为 false 时给旧 Custom 配置补插 Cockpit,
+    // 插过一次即置 true——之后用户手动移除 Cockpit 也不会在下次启动被回插。
+    cockpit_toolbar_migrated: CockpitToolbarMigrated {
+        type: bool,
+        default: false,
+        supported_platforms: SupportedPlatforms::ALL,
+        sync_to_cloud: SyncToCloud::Never,
+        private: true,
+        storage_key: "CockpitToolbarMigrated",
+    },
     new_tab_placement: NewTabPlacement,
     workspace_decoration_visibility: WorkspaceDecorationVisibility,
     close_button_position: TabCloseButtonPosition,

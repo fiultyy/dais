@@ -146,7 +146,7 @@ use crate::search::slash_command_menu::static_commands::commands;
 // Zap Wave 3-1:`AuthClient` trait 随 server_api/auth.rs 一同物理删。
 use crate::settings::{
     AISettings, AISettingsChangedEvent, CodeSettings, CodeSettingsChangedEvent, CtrlTabBehavior,
-    DefaultSessionMode, InputModeSettings,
+    DefaultSessionMode,
 };
 // Zap Wave 7-3:`environments_page::EnvironmentsPage` import 随 ambient-agent UI
 // 子系统物理删。
@@ -157,7 +157,6 @@ use crate::shell_indicator::ShellIndicatorType;
 use crate::terminal::available_shells::AvailableShell;
 #[cfg(target_os = "windows")]
 use crate::terminal::available_shells::AvailableShells;
-use crate::terminal::block_list_viewport::InputMode;
 use crate::terminal::ligature_settings::should_use_ligature_rendering;
 use crate::terminal::warpify::settings::WarpifySettings;
 use crate::ui_components::avatar::{Avatar, AvatarContent, StatusElementTypes};
@@ -940,7 +939,6 @@ pub struct Workspace {
     codex_modal: ViewHandle<CodexModal>,
     toast_stack: ViewHandle<DismissibleToastStack<WorkspaceAction>>,
     agent_toast_stack: ViewHandle<AgentToastStack>,
-    update_toast_stack: ViewHandle<DismissibleToastStack<WorkspaceAction>>,
     /// 通知中心信箱(标题栏右上角 Inbox 按钮的下拉浮层)。
     /// 仅在 `HOANotifications` feature flag 开启时实例化。
     notification_mailbox_view: Option<ViewHandle<NotificationMailboxView>>,
@@ -2741,9 +2739,6 @@ impl Workspace {
             });
         }
 
-        let update_toast_stack =
-            ctx.add_typed_action_view(|_| DismissibleToastStack::new(Duration::from_secs(4)));
-
         #[cfg(target_family = "wasm")]
         let wasm_nux_dialog = Self::build_wasm_nux_dialog(ctx);
 
@@ -2924,7 +2919,6 @@ impl Workspace {
             window_id: ctx.window_id(),
             toast_stack,
             agent_toast_stack,
-            update_toast_stack,
             notification_mailbox_view,
             notification_toast_stack,
             cached_keybindings,
@@ -3246,6 +3240,8 @@ impl Workspace {
                 self.sync_panel_positions_from_config(ctx);
                 ctx.notify();
             }
+            // Cockpit 工具栏一次性迁移标记:仅由启动迁移逻辑读写,UI 无需响应。
+            TabSettingsChangedEvent::CockpitToolbarMigrated { .. } => {}
         }
     }
 
@@ -4272,7 +4268,9 @@ impl Workspace {
     }
 
     /// This function shifts focus to the panel on the left.
-    /// The current focusable panels are: Zap Drive, theme chooser, AI, and resource center (keyboard shortcuts page only)
+    /// The current focusable panels are: Zap Drive, theme chooser, AI, resource center (keyboard shortcuts page only),
+    /// 以及 V2 左面板(ProjectExplorer / SshManager / SkillManager / Drive 等 ToolPanelView,
+    /// 开关是 pane_group 的 left_panel_open)。
     fn focus_left_panel(&mut self, ctx: &mut ViewContext<Self>) {
         // Starts from terminal
         if self.active_tab_pane_group().is_self_or_child_focused(ctx) {
@@ -4284,6 +4282,12 @@ impl Workspace {
                 ctx.focus(&self.ai_assistant_panel);
             } else if self.current_workspace_state.is_resource_center_open {
                 ctx.focus(&self.resource_center_view);
+            }
+            // V2 左面板:上述 legacy 状态都不成立时,若 pane_group 的 left_panel_open
+            // 已开,复用统一的左侧入口聚焦(内部走 left_panel_view.
+            // focus_active_view_on_entry)。追加在链尾,不影响既有 legacy 优先级。
+            else if self.is_left_panel_open(ctx) {
+                self.focus_left_region_entry(ctx);
             }
         }
         // Starts from a right panel: AI panel, resource center
@@ -4323,7 +4327,6 @@ impl Workspace {
         ctx.notify();
     }
 
-
     /// This function shifts focus to the panel on the right.
     fn focus_right_panel(&mut self, ctx: &mut ViewContext<Self>) {
         // Starts from terminal
@@ -4332,6 +4335,12 @@ impl Workspace {
                 ctx.focus(&self.ai_assistant_panel);
             } else if self.current_workspace_state.is_resource_center_open {
                 ctx.focus(&self.resource_center_view);
+            }
+            // V2 右面板:legacy 右侧状态都不成立时,若 pane_group 的 right_panel_open
+            // 已开,复用统一的右侧入口聚焦(内部聚焦 right_panel_view)。
+            // 放在两个 legacy 右侧状态之后、legacy 左侧回退之前,保持右先于左的原顺序。
+            else if self.active_tab_pane_group().as_ref(ctx).right_panel_open {
+                self.focus_right_region_entry(ctx);
             } else if self.current_workspace_state.is_warp_drive_open {
                 self.reset_focused_index_in_warp_drive(true, ctx);
             } else if self.is_theme_chooser_open() {
@@ -4348,7 +4357,12 @@ impl Workspace {
         else if self.ai_assistant_panel.is_self_or_child_focused(ctx)
             || self.resource_center_view.is_self_or_child_focused(ctx)
         {
-            if self.current_workspace_state.is_left_panel_open() {
+            // 原判断 WorkspaceState::is_left_panel_open() 只覆盖 legacy 的 theme_chooser,
+            // 不含 V2 左面板(pane_group.left_panel_open)——V2 开着时会误跳回终端。
+            // 这里先查 V2 并复用统一左侧入口,legacy 分支保持原顺序不动。
+            if self.is_left_panel_open(ctx) {
+                self.focus_left_region_entry(ctx);
+            } else if self.current_workspace_state.is_left_panel_open() {
                 if self.current_workspace_state.is_warp_drive_open {
                     self.reset_focused_index_in_warp_drive(true, ctx);
                 } else if self.is_theme_chooser_open() {
@@ -5106,10 +5120,16 @@ impl Workspace {
     /// D7: 既有用户的 `Custom` 工具栏选择不会自动获得新入口(P1 只改
     /// `default_left`, 老的持久化选择继续缺 Cockpit)。镜像 TabsPanel 的
     /// ensure 先例, 在 workspace 创建时补插 — 仅当该入口 `is_supported`
-    /// 且左右两侧都没有时, 插在 Observatory 之后(无 Observatory 则尾部),
-    /// 用户手动移除后因 already_present 不再回插。
+    /// 且左右两侧都没有时, 插在 Observatory 之后(无 Observatory 则尾部)。
+    /// 回插防护由 `cockpit_toolbar_migrated` 一次性迁移标记承担:仅首次
+    /// 迁移执行并置位;用户手动移除后两侧皆无, 但标记已 true, 不再回插
+    /// (原先依赖 already_present 的防回插在"移除后"恰好失效)。
     #[cfg(not(target_family = "wasm"))]
     fn ensure_cockpit_in_config(ctx: &mut ViewContext<Self>) {
+        // 一次性迁移标记已置位:老配置已完成过补插(或用户已手动移除),直接返回。
+        if *TabSettings::as_ref(ctx).cockpit_toolbar_migrated.value() {
+            return;
+        }
         if !HeaderToolbarItemKind::Cockpit.is_supported(ctx) {
             return;
         }
@@ -5121,6 +5141,9 @@ impl Workspace {
         if left.contains(&HeaderToolbarItemKind::Cockpit)
             || right.contains(&HeaderToolbarItemKind::Cockpit)
         {
+            // Cockpit 已在配置中:无需补插,但同样视为"迁移已完成"——此后用户
+            // 把它手动移除,下次启动不会再被插回。
+            Self::mark_cockpit_toolbar_migrated(ctx);
             return;
         }
 
@@ -5139,6 +5162,16 @@ impl Workspace {
             report_if_error!(settings
                 .header_toolbar_chip_selection
                 .set_value(selection, ctx));
+        });
+        // 插入成功后置位一次性迁移标记:设备本地、不云同步。
+        Self::mark_cockpit_toolbar_migrated(ctx);
+    }
+
+    /// 置位 Cockpit 工具栏一次性迁移标记(私有设置, 不参与云同步)。
+    #[cfg(not(target_family = "wasm"))]
+    fn mark_cockpit_toolbar_migrated(ctx: &mut ViewContext<Self>) {
+        TabSettings::handle(ctx).update(ctx, |settings, ctx| {
+            report_if_error!(settings.cockpit_toolbar_migrated.set_value(true, ctx));
         });
     }
 
@@ -5745,9 +5778,6 @@ impl Workspace {
     }
 
     fn view_latest_changelog(&mut self, ctx: &mut ViewContext<Self>) {
-        self.update_toast_stack.update(ctx, |stack, ctx| {
-            stack.clear_toasts(ctx);
-        });
         self.tips_completed.update(ctx, |tips_completed, ctx| {
             mark_feature_used_and_write_to_user_defaults(
                 Tip::Action(TipAction::Changelog),
@@ -12340,8 +12370,31 @@ impl Workspace {
         ctx.notify();
     }
 
-    fn handle_changelog_event(&mut self, _event: &ChangelogEvent, _ctx: &mut ViewContext<Self>) {
-        // Zap 是本地化 fork,不依赖私有 changelog 服务,不在更新后弹出 toast/resource-center。
+    fn handle_changelog_event(&mut self, event: &ChangelogEvent, ctx: &mut ViewContext<Self>) {
+        // 新语义:只处理用户主动发起的请求(UserAction)——打开 Resource Center 并切到
+        // Main 页(changelog section 挂在 Main 页内,自带 ChangelogModel 订阅,取数结果
+        // 与失败态都能正常渲染)。
+        // WindowLaunch(启动/更新后)保持静默:尊重 fork "更新后不自动弹 changelog" 的
+        // 语义——那是自动弹窗语义,不该连用户主动点击入口也一起吞掉。
+        match event {
+            // 失败(UserAction)也打开该页:section 对 ChangelogState::None 自渲染错误态
+            // ("Unable to fetch the latest changelog."),比用户点击后毫无反馈更合理。
+            ChangelogEvent::ChangelogRequestComplete {
+                request_type: ChangelogRequestType::UserAction,
+                ..
+            }
+            | ChangelogEvent::ChangelogRequestFailed {
+                request_type: ChangelogRequestType::UserAction,
+            } => {
+                // Resource Center 与 AI 助手面板互斥,参照 toggle_keybindings_page 的打开序列。
+                self.current_workspace_state.is_ai_assistant_panel_open = false;
+                self.open_resource_center_main_page(ctx);
+                self.update_resource_center_action_target(ctx);
+                ctx.notify();
+            }
+            // 启动时的自动检查与图片加载完成事件:无 UI 动作。
+            _ => {}
+        }
     }
 
     fn manual_check_for_update(&self, ctx: &mut ViewContext<Self>) {
@@ -18374,38 +18427,6 @@ impl Workspace {
         )
     }
 
-    /// Offset positioning for the update toast.
-    fn update_toast_positioning(
-        &self,
-        input_position_id: String,
-        app: &AppContext,
-    ) -> OffsetPositioning {
-        let input_mode = InputModeSettings::as_ref(app).input_mode.value();
-
-        match input_mode {
-            InputMode::PinnedToBottom => OffsetPositioning::offset_from_save_position_element(
-                input_position_id,
-                vec2f(-16., -16.),
-                PositionedElementOffsetBounds::WindowByPosition,
-                PositionedElementAnchor::TopRight,
-                ChildAnchor::BottomRight,
-            ),
-            InputMode::PinnedToTop => OffsetPositioning::offset_from_save_position_element(
-                input_position_id,
-                vec2f(-16., 16.),
-                PositionedElementOffsetBounds::WindowByPosition,
-                PositionedElementAnchor::BottomRight,
-                ChildAnchor::TopRight,
-            ),
-            InputMode::Waterfall => OffsetPositioning::offset_from_parent(
-                vec2f(-16., -16.),
-                ParentOffsetBounds::WindowByPosition,
-                ParentAnchor::BottomRight,
-                ChildAnchor::BottomRight,
-            ),
-        }
-    }
-
     fn add_toggle_setting_context_flags(&self, app: &AppContext, context: &mut Context) {
         let privacy_settings = PrivacySettings::as_ref(app);
         let editor_settings = AppEditorSettings::as_ref(app);
@@ -20846,14 +20867,6 @@ impl View for Workspace {
             }
         }
 
-        // We only want to register the temporary changelog shortcut if the changelog toast is
-        // visible.
-        // There is a collision between the default shortcut and `/open-repo`, so durable changelog
-        // access lives in the command palette and slash-command menu instead.
-        if self.update_toast_stack.as_ref(app).has_toasts() {
-            context.set.insert("UpdateToastVisible");
-        }
-
         if self.is_shared_session_viewer_focused(app) {
             context.set.insert("Workspace_ViewOnlySharedSession");
         }
@@ -21796,10 +21809,6 @@ impl View for Workspace {
             );
         }
 
-        let input_position_id = self
-            .get_active_input_view_handle(app)
-            .map(|input| app.view(&input).save_position_id());
-
         stack.add_positioned_overlay_child(
             ChildView::new(&self.toast_stack).finish(),
             self.global_toast_positioning(),
@@ -21861,15 +21870,6 @@ impl View for Workspace {
                         toast_anchor,
                         toast_child_anchor,
                     ),
-                );
-            }
-        }
-
-        if let Some(input_position_id) = input_position_id {
-            if FeatureFlag::AvatarInTabBar.is_enabled() && self.is_input_box_visible(app) {
-                stack.add_positioned_overlay_child(
-                    ChildView::new(&self.update_toast_stack).finish(),
-                    self.update_toast_positioning(input_position_id, app),
                 );
             }
         }
