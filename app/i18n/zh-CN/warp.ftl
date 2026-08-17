@@ -3666,3 +3666,5 @@ observatory-time-years = { $n } 年
 observatory-list-truncated = 已显示 { $shown } 条 · 上限 { $cap }（有更多）
 
 observatory-blocks-sidebar-title = Blocks · { $session }
+observatory-session-context = { $model } · 上下文 { $used } / { $window } tok · { $pct }
+observatory-session-context-unknown-window = { $model } · 上下文 { $used } tok

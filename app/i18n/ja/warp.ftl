@@ -3584,3 +3584,5 @@ observatory-time-years = { $n } 年
 observatory-list-truncated = { $shown } 件表示 · 上限 { $cap }（続きあり）
 
 observatory-blocks-sidebar-title = Blocks · { $session }
+observatory-session-context = { $model } · コンテキスト { $used } / { $window } tok · { $pct }
+observatory-session-context-unknown-window = { $model } · コンテキスト { $used } tok

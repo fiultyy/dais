@@ -457,3 +457,85 @@ CC 必须走进程 env 赋值前缀: settings env 块优先级压过进程 env(T
 - 标记唯一性依赖 `date +%s%N`（GNU date, Linux 验收环境）+ `$$`/
   `$fish_pid`; 理论上同 ns 同 pid 碰撞需进程 pid 复用+纳秒重合,
   实践可忽略。
+
+---
+
+# T10 外部 session 上下文占用显示小节（2026-08-17）
+
+> 现象: 观测台选中外部捕获 session（external-omp 等）后无上下文占用
+> 显示 — T5-T8 只做了透明管道捕获, T6 把 openai 形 usage 解析进了块
+> metadata, 但观测台 UI 从未消费。本节补读取/派生/UI 三环, 协议字节
+> 零改动。
+
+## 实证（缺哪环）
+
+p0review 实例 DB（`~/.local/state/zap-p0review/harness_blocks.db`）
+external-omp 块实测:
+- T6 解析产物在位: response 块 metadata 带
+  `{"model":"glm-5.3","source":"openai_response","usage":{"input_tokens":22221,"output_tokens":7}}`;
+- 响应侧模型与请求侧不同（请求 `zap/glm-5.2`, 上游 bigmodel 上报
+  `glm-5.3`）;
+- 旧 anthropic 形残留块 usage 全 0（需跳过）;
+- 窗口映射: omp `~/.omp/agent/models.yml` 声明 glm-5.2
+  `contextWindow: 131072`; models.dev 上 glm-5.3 多 provider 窗口
+  不一致（1048576 vs 1000000）→ 不可采信。
+
+缺的三环: ① UI 无上下文数据结构 ② 无派生逻辑 ③ 无渲染。
+
+## 实现（`app/src/ai/observatory/`）
+
+- **context_usage.rs（新, ~450 行含测试）**:
+  - `derive_session_context(conn, session_id, catalog)`: 只读 SQL 扫
+    最近 200 个相关块（新→旧）, 取第一个 usage 非零的 response 块的
+    `input+output` 为占用; model 取响应侧上游上报, 空则回落请求侧声明
+    （zap/glm-5.2 裸名匹配 glm-5.2）。
+  - 窗口分层映射: ① harness 自身模型配置（omp models.yml / pi
+    models.json 的 `contextWindow`, 即该 harness UI 自己用的分母,
+    zap 只读不写）② models.dev catalog（同名模型所有 provider 窗口
+    **一致才采信**, 歧义/未命中=None）。harness 归类: session 前缀
+    `external-{cc,omp,pi}` 优先, 回落块 harness_type（GUI 拦截路径
+    的 omp/pi session 同样读各自配置; CC 无配置文件 → 只走 catalog）。
+  - 与 app 自有会话 chat_stream `context_window_usage`（末轮
+    prompt+completion/window）同语义 — 聊天形 API 每请求携带全史,
+    末次响应即当前占用。
+- **model.rs**: `ObservatorySnapshot.session_context: Option<SessionContextInfo>`
+  ; `reload_selected_session_data()` 统一 blocks/raw/context 重载
+  （select_session / set_search_filter / refresh_auto 5s 轮询三口收拢,
+  无重复查询）; `models_dev_catalog()` 只读缓存辅助（cached() →
+  load_from_disk() 同步兜底 → None, 不触发网络拉取）。
+- **view.rs**: Blocks 侧栏标题下加一行
+  `模型 · 上下文 used / window tok · pct%`; 窗口未知降级
+  `模型 · 上下文 used tok`。i18n 键 `observatory-session-context[-unknown-window]`
+  三语言（en/zh-CN/ja）。
+
+## 红线遵守
+
+- 透明管道（entry.rs/handler.rs/raw_processor/block_builder）零改动;
+  T6 解析产物只读消费, 未回退。
+- harness 配置文件（models.yml/models.json）只读。
+
+## 验证
+
+- 单测 7 新增全绿 + 观测台既有 27 全绿: 末次非零 usage 选取/响应侧
+  model 优先、旧 0-usage 跳过+请求侧回落、omp yaml/pi json/catalog
+  一致性（歧义 None）/未声明 None、harness 前缀+类型归类。
+- 真实例（zap-p0review, WARP_DATA_PROFILE=p0review）:
+  1. 重建 zap-oss 重启实例, entry gateway :8787 正常;
+  2. 真链冒烟 `omp --model zap/glm-5.2 -p` → 实例 lane
+     `external-omp-t10final-*` 落库, usage input=22505 output=55
+     （T6/T8 链无回归）;
+  3. 以真实 DB 复现派生（与 Rust 实现逐字段同逻辑）:
+     `glm-5.3 · 21774 / 131072 tok · 17%`。
+- 已知限制: worker 环境无法像素级验证 GUI（zap 无 AT-SPI 树、
+  GNOME 截图 D-Bus 拒绝、无输入注入）; 渲染胶水（Container+Text）
+  与相邻标题行同构, 数据链已实证。用户开观测台选中外部 session
+  即见该行。
+
+## 边界
+
+- 窗口未知（zap/* 别名无 catalog 一致条目且 harness 配置缺失）只显
+  tokens 不显百分比 — 诚实降级, 不猜窗口。
+- catalog 依赖 models.dev 缓存（Providers 设置页打开时拉取）;
+  未拉取时 omp/pi 走配置文件不受影响。
+- occupancy 只含末轮 input+output, 不含缓存的 cache_read 分离量
+  （openai usage 未细分, 上游不报）。

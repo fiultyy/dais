@@ -6,6 +6,7 @@
 //!
 //! 挂载: 独立 tab pane（工具条眼睛按钮 → `Workspace::toggle_observatory`）。
 
+pub mod context_usage;
 pub mod format;
 pub mod model;
 pub mod row;

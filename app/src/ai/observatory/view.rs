@@ -841,6 +841,39 @@ impl ObservatoryPanelView {
             .finish(),
         );
 
+        // 上下文占用行（T10）：tokens + 模型；窗口已知时加占用率。
+        if let Some(ctx_info) = &snapshot.session_context {
+            let pct = ctx_info
+                .window_tokens
+                .filter(|w| *w > 0)
+                .map(|w| (ctx_info.used_tokens as f64 / w as f64).clamp(0.0, 1.0));
+            let text = match pct {
+                Some(p) => crate::t!(
+                    "observatory-session-context",
+                    model = ctx_info.model.clone(),
+                    used = super::format::compact_count(ctx_info.used_tokens),
+                    window =
+                        super::format::compact_count(ctx_info.window_tokens.unwrap_or_default()),
+                    pct = format!("{}%", (p * 100.0).round() as u32),
+                ),
+                None => crate::t!(
+                    "observatory-session-context-unknown-window",
+                    model = ctx_info.model.clone(),
+                    used = super::format::compact_count(ctx_info.used_tokens),
+                ),
+            };
+            col.add_child(
+                Container::new(
+                    Text::new(text, appearance.ui_font_family(), SMALL_FONT_SIZE)
+                        .with_color(theme.sub_text_color(theme.background()).into())
+                        .soft_wrap(false)
+                        .finish(),
+                )
+                .with_horizontal_padding(PANEL_PADDING)
+                .finish(),
+            );
+        }
+
         // Block 时间线（虚拟化；主滚动区占剩余高度）
         if snapshot.blocks.is_empty() {
             col.add_child(self.render_empty_state(

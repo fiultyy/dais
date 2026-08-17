@@ -3752,3 +3752,5 @@ observatory-time-years = { $n } y
 observatory-list-truncated = { $shown } shown · more available (cap { $cap })
 
 observatory-blocks-sidebar-title = Blocks · { $session }
+observatory-session-context = { $model } · context { $used } / { $window } tok · { $pct }
+observatory-session-context-unknown-window = { $model } · context { $used } tok

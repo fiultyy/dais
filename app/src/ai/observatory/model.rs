@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
 
+use super::context_usage;
 use crate::terminal::intercept_sessions::InterceptSessionsModel;
 
 // ---------------------------------------------------------------------------
@@ -196,6 +197,8 @@ pub struct ObservatorySnapshot {
     pub blocks: Vec<BlockRowGui>,
     /// 选中 session 的 raw 代理流量（时间升序，上限 200）。
     pub raw_entries: Vec<RawRowGui>,
+    /// 选中 session 的上下文占用摘要（T10；无 usage 数据时 None）。
+    pub session_context: Option<context_usage::SessionContextInfo>,
     /// 最新 50 runs。
     pub runs: Vec<RunRowGui>,
     /// 最新 200 tasks。
@@ -458,15 +461,8 @@ impl ObservatoryModel {
             // 新 session 的 blocks 视图从最新一条开始（即时滚动到底）
             self.scroll_blocks_to_latest.set(true);
         }
-        // 若选中了 session，立即加载其 blocks/raw；否则清空
-        self.snapshot.blocks = match &self.selected_session {
-            Some(sid) => self.load_blocks(sid),
-            None => Vec::new(),
-        };
-        self.snapshot.raw_entries = match &id {
-            Some(sid) => self.load_raw(sid),
-            None => Vec::new(),
-        };
+        // 若选中了 session，立即加载其 blocks/raw/上下文；否则清空
+        self.reload_selected_session_data();
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
 
@@ -487,14 +483,7 @@ impl ObservatoryModel {
         }
         self.search_filter = filter;
         self.snapshot.sessions = self.load_sessions();
-        self.snapshot.blocks = match &self.selected_session {
-            Some(sid) => self.load_blocks(sid),
-            None => Vec::new(),
-        };
-        self.snapshot.raw_entries = match &self.selected_session {
-            Some(sid) => self.load_raw(sid),
-            None => Vec::new(),
-        };
+        self.reload_selected_session_data();
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
 
@@ -634,27 +623,22 @@ impl ObservatoryModel {
     /// 定时自动刷新：与 [`Self::refresh`] 相同的数据面，
     /// 但保留 last_error（否则 5s 轮询会把错误信息瞬间冲掉）。
     pub fn refresh_auto(&mut self, ctx: &mut ModelContext<Self>) {
-        // 1. Sessions + blocks + raw
+        // 1. Sessions + blocks + raw + 上下文占用
         self.snapshot.sessions = self.load_sessions();
-        // 若当前选中 session 仍存在则刷新 blocks/raw，否则清空选中
-        self.snapshot.blocks = match &self.selected_session {
-            Some(sid) if self.snapshot.sessions.iter().any(|s| &s.session_id == sid) => {
-                self.load_blocks(sid)
-            }
-            _ => {
-                self.selected_session = None;
-                // session 失效联动清子选中（同 select_session 语义）
-                self.selected_block = None;
-                self.block_detail = None;
-                self.selected_raw = None;
-                self.raw_detail = None;
-                Vec::new()
-            }
-        };
-        self.snapshot.raw_entries = match &self.selected_session {
-            Some(sid) => self.load_raw(sid),
-            None => Vec::new(),
-        };
+        // 若当前选中 session 仍存在则刷新数据，否则清空选中
+        let selected_alive = self
+            .selected_session
+            .as_ref()
+            .is_some_and(|sid| self.snapshot.sessions.iter().any(|s| &s.session_id == sid));
+        if !selected_alive {
+            self.selected_session = None;
+            // session 失效联动清子选中（同 select_session 语义）
+            self.selected_block = None;
+            self.block_detail = None;
+            self.selected_raw = None;
+            self.raw_detail = None;
+        }
+        self.reload_selected_session_data();
 
         // 2. Orchestration（cfg 门控）
         self.load_orchestration_data();
@@ -900,6 +884,29 @@ impl ObservatoryModel {
             }
         };
         rows.filter_map(|r| r.ok()).collect()
+    }
+
+    /// 选中 session 的 blocks/raw/上下文占用整体重载（选中/刷新共用）。
+    fn reload_selected_session_data(&mut self) {
+        self.snapshot.blocks = match &self.selected_session {
+            Some(sid) => self.load_blocks(sid),
+            None => Vec::new(),
+        };
+        self.snapshot.raw_entries = match &self.selected_session {
+            Some(sid) => self.load_raw(sid),
+            None => Vec::new(),
+        };
+        self.snapshot.session_context = match &self.selected_session {
+            Some(sid) => self.load_session_context(sid),
+            None => None,
+        };
+    }
+
+    /// 选中 session 的上下文占用派生（T10）：只读 DB + 分层窗口映射
+    /// （harness 模型配置 → models.dev catalog，未知 → None 只显 tokens）。
+    fn load_session_context(&self, session_id: &str) -> Option<context_usage::SessionContextInfo> {
+        let conn = Self::open_blocks_db()?;
+        context_usage::derive_session_context(&conn, session_id, models_dev_catalog().as_ref())
     }
 
     /// 加载单个 block 的完整详情（content 截断至 64 KiB）。
@@ -1434,6 +1441,21 @@ fn like_pattern(filter: &str) -> String {
         })
         .collect();
     format!("%{escaped}%")
+}
+
+/// models.dev catalog 只读快照（T10 窗口映射二级来源）。
+/// 进程内缓存命中直接返回；未加载时尝试同步读磁盘缓存（观测台 5s
+/// 轮询路径不能阻塞），均失败 → None（窗口未知，UI 降级只显 tokens）。
+/// 不在此触发网络拉取 — Providers 设置页打开时自然会拉。
+fn models_dev_catalog() -> Option<crate::ai::agent_providers::models_dev::Catalog> {
+    if let Some(c) = crate::ai::agent_providers::models_dev::cached() {
+        return Some(c);
+    }
+    if crate::ai::agent_providers::models_dev::load_from_disk() {
+        crate::ai::agent_providers::models_dev::cached()
+    } else {
+        None
+    }
 }
 
 // ---------------------------------------------------------------------------
