@@ -110,6 +110,8 @@ impl HeaderToolbarItemKind {
     pub fn default_left() -> Vec<Self> {
         vec![
             Self::Observatory,
+            #[cfg(not(target_family = "wasm"))]
+            Self::Cockpit,
             Self::TabsPanel,
             Self::ToolsPanel,
             Self::AgentManagement,

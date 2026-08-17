@@ -145,8 +145,9 @@ impl BackingView for CockpitPanelView {
         ctx.emit(PaneEvent::Close);
     }
 
-    fn focus_contents(&mut self, _ctx: &mut ViewContext<Self>) {
-        // P0 无输入框/可聚焦子元素;P1 加筛选输入框后在此聚焦。
+    fn focus_contents(&mut self, ctx: &mut ViewContext<Self>) {
+        // P1:筛选输入框是首要可聚焦元素(observatory focus_search 同款)。
+        self.focus_filter(ctx);
     }
 
     fn render_header_content(
