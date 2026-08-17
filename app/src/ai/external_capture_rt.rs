@@ -13,8 +13,9 @@
 //!   污染)。`cc-zap` 走 `--settings` 深覆盖(静态文件
 //!   `~/.config/zap/cc-entry-settings.json`, env 块从用户 `~/.claude/
 //!   settings.json` 透传合并 + `ANTHROPIC_BASE_URL` 覆盖为入口 `/cc`);
-//!   `omp-zap`/`pi-zap` 传 `--model zap/glm-5.2`(models.yml 由编排侧写,
-//!   baseUrl 指向入口 `/omp`、`/pi`)。
+//!   `omp-zap`/`pi-zap` 传 `--model zap/<动态默认模型>`(启动时从各 CLI
+//!   独立配置读取默认模型 ID; `zap/` 前缀保证走入口 `/omp`、`/pi`,
+//!   models.yml 由编排侧写)。
 //!
 //! 生命周期: 外部捕获开关开 → [`ensure_gateway`](Self) 起 8787; 关 →
 //! [`shutdown`] 落 Exit + 端口释放。旧 T3 路径(pane 级登记/劫持裸命令/
@@ -119,6 +120,49 @@ pub enum ArmingDialect {
 /// 网关按标记键控 session(`external-<p>-<tag>`), 转发前剥头(管道字节
 /// 不变)。
 ///
+/// T9: 解析 CLI 独立默认模型 ID — 动态跟随, 替代 `alias_defs` 原铸死 glm-5.2。
+///
+/// - **omp**: 读 `$HOME/.omp/agent/config.yml` → `modelRoles.default`
+///   (如 `zhipu-coding-plan/glm-5.2` 或 `zhipu-coding-plan/glm-5-turbo`)。
+/// - **pi**: 读 `$HOME/.pi/agent/settings.json` → `defaultModel` (如 `glm-5.2`)。
+/// 提取裸模型 ID(去 provider 前缀 + `:effort` 后缀)。任意环节缺省/解析失败
+/// → 兜底 `"glm-5.2"`(原铸死值)。
+fn resolve_default_model_id(cli: &str) -> String {
+    const FALLBACK: &str = "glm-5.2";
+    let home = std::env::var("HOME").unwrap_or_default();
+    let raw = match cli {
+        "omp" => {
+            let path = std::path::Path::new(&home).join(".omp/agent/config.yml");
+            std::fs::read_to_string(&path)
+                .ok()
+                .and_then(|s| serde_yaml::from_str::<serde_yaml::Value>(&s).ok())
+                .and_then(|v| {
+                    v.get("modelRoles")?
+                        .get("default")?
+                        .as_str()
+                        .map(String::from)
+                })
+        }
+        "pi" => {
+            let path = std::path::Path::new(&home).join(".pi/agent/settings.json");
+            std::fs::read_to_string(&path)
+                .ok()
+                .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                .and_then(|v| v.get("defaultModel")?.as_str().map(String::from))
+        }
+        _ => None,
+    };
+    let Some(raw) = raw else {
+        return FALLBACK.to_string();
+    };
+    // 去 provider 前缀 + `:effort` 后缀。
+    let bare = raw.split(':').next().unwrap_or(&raw);
+    bare.rsplit('/')
+        .next()
+        .unwrap_or(bare)
+        .to_string()
+}
+
 /// 别名函数体按方言包装(单行, 无换行 — 投递安全)。
 fn alias_defs(entry_port: u16, dialect: ArmingDialect) -> String {
     let cc_settings = cc_entry_settings_path().display().to_string();
@@ -132,10 +176,12 @@ fn alias_defs(entry_port: u16, dialect: ArmingDialect) -> String {
         r#"set -lx ANTHROPIC_CUSTOM_HEADERS "x-zap-instance: "(date +%s%N)-$fish_pid"#,
         r#"set -lx ZAP_INSTANCE_TAG (date +%s%N)-$fish_pid"#,
     );
-    let bodies = [
-        ("cc-zap", "command claude --settings", cc_settings),
-        ("omp-zap", "command omp --model zap/glm-5.2", String::new()),
-        ("pi-zap", "command pi --model zap/glm-5.2", String::new()),
+    let omp_model = resolve_default_model_id("omp");
+    let pi_model = resolve_default_model_id("pi");
+    let bodies: [(&str, String, String); 3] = [
+        ("cc-zap", format!("command claude --settings"), cc_settings),
+        ("omp-zap", format!("command omp --model zap/{omp_model}"), String::new()),
+        ("pi-zap", format!("command pi --model zap/{pi_model}"), String::new()),
     ];
     let _ = entry_port; // settings 文件内固化端口; 函数体不重复携带
     bodies
@@ -448,6 +494,72 @@ mod tests {
                     );
                 }
             }
+        })();
+        match orig_home {
+            Some(h) => std::env::set_var("HOME", h),
+            None => std::env::remove_var("HOME"),
+        }
+        result
+    }
+    /// T9: 别名武装动态跟随 CLI 独立默认模型 — omp/pi 各读独立配置
+    /// (config.yml modelRoles.default / settings.json defaultModel), 嵌入
+    /// `--model zap/<id>`。无配置兜底原铸死值 glm-5.2。
+    #[test]
+    fn t9_alias_model_follows_cli_default() {
+        let _env = T4_LOCK.lock();
+        let dir = tempfile::tempdir().unwrap();
+        let orig_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", dir.path());
+        let result = (|| {
+            // ── 装备 omp config.yml (modelRoles.default 含 :effort 后缀) ──
+            std::fs::create_dir_all(dir.path().join(".omp/agent")).unwrap();
+            std::fs::write(
+                dir.path().join(".omp/agent/config.yml"),
+                "modelRoles:\n  default: zhipu-coding-plan/glm-5-turbo\n",
+            )
+            .unwrap();
+            // ── 装备 pi settings.json (defaultModel 裸 id) ──
+            std::fs::create_dir_all(dir.path().join(".pi/agent")).unwrap();
+            std::fs::write(
+                dir.path().join(".pi/agent/settings.json"),
+                r#"{"defaultModel":"glm-5-turbo"}"#,
+            )
+            .unwrap();
+
+            let posix = alias_defs(8787, ArmingDialect::Posix);
+            // omp-zap: 动态读 config.yml → glm-5-turbo。
+            assert!(
+                posix.contains("--model zap/glm-5-turbo"),
+                "omp-zap 应跟随 omp config 默认模型: {posix}"
+            );
+            // pi-zap: 动态读 settings.json → glm-5-turbo。
+            assert!(
+                posix.contains("pi --model zap/glm-5-turbo"),
+                "pi-zap 应跟随 pi settings 默认模型: {posix}"
+            );
+            // fish 同口径。
+            let fish = alias_defs(8787, ArmingDialect::Fish);
+            assert!(
+                fish.contains("--model zap/glm-5-turbo"),
+                "fish omp-zap 应跟随: {fish}"
+            );
+            assert!(
+                fish.contains("pi --model zap/glm-5-turbo"),
+                "fish pi-zap 应跟随: {fish}"
+            );
+
+            // ── 无配置 → 兜底 glm-5.2 (原铸死值不变) ──
+            std::fs::remove_file(dir.path().join(".omp/agent/config.yml")).unwrap();
+            std::fs::remove_file(dir.path().join(".pi/agent/settings.json")).unwrap();
+            let posix_fb = alias_defs(8787, ArmingDialect::Posix);
+            assert!(
+                posix_fb.contains("omp --model zap/glm-5.2"),
+                "omp 配置缺失 → 兜底 glm-5.2: {posix_fb}"
+            );
+            assert!(
+                posix_fb.contains("pi --model zap/glm-5.2"),
+                "pi 配置缺失 → 兜底 glm-5.2: {posix_fb}"
+            );
         })();
         match orig_home {
             Some(h) => std::env::set_var("HOME", h),
