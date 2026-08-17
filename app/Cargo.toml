@@ -577,6 +577,14 @@ default = [
     "settings_file",
     "ssh_tmux_wrapper",
     "onekey_prompt",
+    # debug 构建「全 FeatureFlag 开启」配套:这三个 cargo feature 原先不在
+    # default,extra_flags 映射在默认构建里会漏掉对应运行时 flag
+    # (DragTabsToWindows / DirectoryTabColors / VerticalTabsSummaryMode),
+    # tab/标签相关 UI 因此默认不可见。补进 default 使 cargo feature 门控
+    # 与运行时全开保持一致(GUI 迭代/交互审计可见全部 tab 功能)。
+    "drag_tabs_to_windows",
+    "directory_tab_colors",
+    "vertical_tabs_summary_mode",
 ]
 
 # Enable the local orchestration plane (multi-agent workflow coordination).

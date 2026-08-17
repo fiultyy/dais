@@ -1016,6 +1016,13 @@ impl From<TriState> for Option<bool> {
     }
 }
 
+/// 迭代全部 [`FeatureFlag`] 变体(依赖枚举上 derive 的 `Sequence`)。
+/// 供本地 debug 构建「一键全开」运行时 flag 使用:见 app crate
+/// `enabled_features()` 中 debug_assertions 分支的机制说明。
+pub fn all_variants() -> impl Iterator<Item = FeatureFlag> {
+    enum_iterator::all::<FeatureFlag>()
+}
+
 #[cfg(test)]
 #[path = "features_test.rs"]
 mod tests;

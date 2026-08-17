@@ -2824,6 +2824,20 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         }
     }
 
+    // 本地 debug 构建(无论 channel)全 FeatureFlag 开启:GUI 迭代 / 交互
+    // 审计需要所有面板与功能可见。上面各路径(channel additional、
+    // RELEASE_FLAGS、cargo feature 门控的 extra_flags)的取舍在此被统一
+    // 覆盖 —— cargo feature 未开只会让 extra_flags 映射少插几个 flag,
+    // 这里按枚举全量补齐,不受映射处编译门控影响。
+    // 边界:
+    // - is_enabled() 内本地黑名单(ForceLogin / AvatarInTabBar /
+    //   AgentModeComputerUse / HOARemoteControl)恒 false,全开不影响;
+    // - release bundle(无 debug_assertions)不走此分支,行为不变;
+    // - integration_tests 构建同样带 debug_assertions,显式排除:测试的
+    //   flag 状态由 warp_features `test-util` 的 overrides 机制控制。
+    #[cfg(all(debug_assertions, not(feature = "integration_tests")))]
+    flags.extend(features::all_variants());
+
     flags
 }
 
