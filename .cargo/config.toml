@@ -1,4 +1,9 @@
 [env]
+# bindgen 系统 C 头修复(2026-08-17):本机 libclang-15(runtime so)生成 bindings
+# 时找不到自己的 builtin stddef.h —— 本机只装了 llvm-20 的完整 builtin 头。
+# 显式指过去(builtin 头跨 clang 小版本兼容)。CI/其他机器有自己完整
+# clang 时不依赖此参数。
+BINDGEN_EXTRA_CLANG_ARGS = "-I/usr/lib/llvm-20/lib/clang/20/include"
 # This is used to set the minimum deployment target for mac
 # https://cmake.org/cmake/help/latest/envvar/MACOSX_DEPLOYMENT_TARGET.html
 # If unset, it uses the system one, but we want to build for older versions
