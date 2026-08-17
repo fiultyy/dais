@@ -438,6 +438,9 @@ debug = "line-tables-only"
 split-debuginfo = "unpacked"
 
 [profile.dev.package]
+# 依赖 crate 不生成 debuginfo(我们不做依赖源码级调试);
+# 配合 rust-lld + line-tables-only,dev 二进制体积与编译/链接时长显著下降。
+"*".debug = false
 # Minimize the runtime overhead of CPU profiling at the cost of a small
 # increase in compile time for this crate.
 backtrace.opt-level = 3
