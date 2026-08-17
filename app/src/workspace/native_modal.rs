@@ -214,7 +214,12 @@ impl TypedActionView for NativeModal {
                 ctx.notify();
             }
             NativeModalAction::Close => {
-                let last_button_idx = self.modal_button_mouse_states.len() - 1;
+                // 空状态(modal 未弹出)按 escape:按钮列表为空,len()-1 会 usize 下溢
+                // panic,直接返回即可(本就无可触发的回调)。
+                let Some(last_button_idx) = self.modal_button_mouse_states.len().checked_sub(1)
+                else {
+                    return;
+                };
                 self.trigger_button_callback(last_button_idx, ctx);
             }
             NativeModalAction::Confirm => {

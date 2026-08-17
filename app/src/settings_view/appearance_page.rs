@@ -1997,10 +1997,8 @@ impl AppearanceSettingsPageView {
             if blurred {
                 let window_settings: &WindowSettings = WindowSettings::as_ref(ctx);
                 // Revert to the saved value
-                self.set_new_windows_num_columns(
-                    *window_settings.new_windows_num_columns.value(),
-                    ctx,
-                );
+                // (copy-paste 修正:这里回滚的是“行数”,此前误调 columns 的 setter)
+                self.set_new_windows_num_rows(*window_settings.new_windows_num_rows.value(), ctx);
             }
         }
         if blurred {

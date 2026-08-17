@@ -921,6 +921,13 @@ impl AISettingsPageView {
                             );
                         });
                 }
+                AISettingsChangedEvent::AgentProviders { .. } => {
+                    // provider 行(rows)只在 AgentProvidersWidget::new 时填充;
+                    // 热重载新增 provider 后集合大小变化,必须 rebuild 重建
+                    // widget 及其 ViewHandle(与页内 Add/Remove provider 路径同构,
+                    // rebuild_current_page 内部已保留滚动并 notify)。
+                    me.rebuild_current_page(ctx);
+                }
                 _ => (),
             }
             ctx.notify();

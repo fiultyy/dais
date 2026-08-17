@@ -138,6 +138,10 @@ pub struct CockpitPanelView {
     card_handles: RefCell<Vec<MouseStateHandle>>,
     /// 勾选框悬停句柄(渲染缓存,数量对齐卡片数)。
     checkbox_handles: RefCell<Vec<MouseStateHandle>>,
+    /// 卡片网格滚动句柄。必须是 view 字段:滚动偏移存在句柄内部,
+    /// 若在 render 里每次重建句柄,10s 对账 timer + agent 事件驱动的高频
+    /// 重渲染会把列表每次都滚回顶部(照抄 observatory 的同构做法)。
+    card_grid_scroll: ClippedScrollStateHandle,
 }
 
 impl CockpitPanelView {
@@ -280,6 +284,7 @@ impl CockpitPanelView {
             reconcile_timer_handle: None,
             card_handles: RefCell::new(Vec::new()),
             checkbox_handles: RefCell::new(Vec::new()),
+            card_grid_scroll: ClippedScrollStateHandle::default(),
         };
         // 控制按钮初始标签对齐 model 现存状态(pane 重开时 model 状态保留)。
         me.sync_control_labels(ctx);
@@ -687,9 +692,10 @@ impl CockpitPanelView {
             );
         }
 
-        let scroll_state = ClippedScrollStateHandle::new();
+        // 必须复用 self.card_grid_scroll 字段:滚动偏移存句柄内部,
+        // 每次 render 新建句柄会丢滚动位置(高频重渲染下列表滚回顶部)。
         ClippedScrollable::vertical(
-            scroll_state,
+            self.card_grid_scroll.clone(),
             Container::new(sections.finish())
                 .with_vertical_padding(SPACING)
                 .finish(),

@@ -1369,6 +1369,9 @@ impl TypedActionView for FeaturesPageView {
                             .set_value(new_value, ctx));
                     },
                 );
+                // Switch 组件自身无状态,必须显式 notify 触发重渲染,否则开关 UI 永不翻转
+                // (值已持久化但用户看不出变化)。订阅路径见 new() 中 NativePreferenceSettings。
+                ctx.notify();
             }
             ToggleNotifications => {
                 ctx.dispatch_typed_action(&WorkspaceAction::ToggleNotifications);
@@ -1986,6 +1989,12 @@ impl FeaturesPageView {
         ctx.subscribe_to_model(&AppEditorSettings::handle(ctx), |_, _, _, ctx| ctx.notify());
 
         ctx.subscribe_to_model(&SelectionSettings::handle(ctx), |_, _, _, ctx| ctx.notify());
+
+        // 「在桌面应用中打开链接」开关:其余 17 个 settings group 均有订阅,
+        // 唯独 NativePreferenceSettings 漏订,导致该组变更(含热重载)不触发重渲染。
+        ctx.subscribe_to_model(&NativePreferenceSettings::handle(ctx), |_, _, _, ctx| {
+            ctx.notify()
+        });
 
         // TODO(CORE-3029): Remove when we launch the new SSH Warpification.
         ctx.subscribe_to_model(&SshSettings::handle(ctx), |_, _, _, ctx| ctx.notify());
