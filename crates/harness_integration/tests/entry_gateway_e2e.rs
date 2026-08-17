@@ -223,13 +223,13 @@ async fn t4_full_chain_rewrite_transparent_auth_sessions_and_paired_blocks() {
     let cc_port = spawn_recording_upstream("cc").await;
     let omppi_port = spawn_recording_upstream("omppi").await;
 
-    // /omp、/pi 出口: ~/.config/zap/omp-upstream.json(两前缀共用同一出口)。
+    // /omp、/pi 出口: ~/.config/dais/omp-upstream.json(两前缀共用同一出口)。
     // api_key_env 指向已装载的 env — 用于证明"不注"(透明管道零注入)。
-    std::fs::create_dir_all(tmp.path().join(".config/zap")).unwrap();
+    std::fs::create_dir_all(tmp.path().join(".config/dais")).unwrap();
     let omp_cfg = format!(
         r#"{{"api_base":"http://127.0.0.1:{omppi_port}","api_key_env":"ZAP_OMP_KEY","response_format":"anthropic"}}"#
     );
-    std::fs::write(tmp.path().join(".config/zap/omp-upstream.json"), omp_cfg).unwrap();
+    std::fs::write(tmp.path().join(".config/dais/omp-upstream.json"), omp_cfg).unwrap();
     std::env::set_var("ZAP_UPSTREAM_BASE", format!("http://127.0.0.1:{cc_port}"));
     std::env::set_var("ZAP_OMP_KEY", "t4-side-loaded-key");
 

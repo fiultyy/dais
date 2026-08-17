@@ -8,9 +8,9 @@ fn test_data_dir_path() {
     // ChannelState, by default, is configured for Channel::Oss.
     cfg_if::cfg_if! {
         if #[cfg(target_os = "macos")] {
-            assert_eq!(data_dir(), home_dir.join(".zap"));
+            assert_eq!(data_dir(), home_dir.join(".dais"));
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
-            assert_eq!(data_dir(), home_dir.join(".local/share/zap"));
+            assert_eq!(data_dir(), home_dir.join(".local/share/dais"));
         } else if #[cfg(windows)] {
             assert_eq!(data_dir(), home_dir.join("AppData\\Roaming\\zap\\Zap\\data"));
         } else {
@@ -25,9 +25,9 @@ fn test_config_local_dir_path() {
     // ChannelState, by default, is configured for Channel::Oss.
     cfg_if::cfg_if! {
         if #[cfg(target_os = "macos")] {
-            assert_eq!(config_local_dir(), home_dir.join(".zap"));
+            assert_eq!(config_local_dir(), home_dir.join(".dais"));
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
-            assert_eq!(config_local_dir(), home_dir.join(".config/zap"));
+            assert_eq!(config_local_dir(), home_dir.join(".config/dais"));
         } else if #[cfg(windows)] {
             assert_eq!(config_local_dir(), home_dir.join("AppData\\Local\\zap\\Zap\\config"));
         } else {
@@ -40,8 +40,8 @@ fn test_config_local_dir_path() {
 fn test_warp_home_config_dir_path() {
     let home_dir = home_dir().expect("Should be able to compute home directory");
     let expected_dir_name = match ChannelState::data_profile() {
-        Some(data_profile) => format!(".zap-{data_profile}"),
-        None => ".zap".to_string(),
+        Some(data_profile) => format!(".dais-{data_profile}"),
+        None => ".dais".to_string(),
     };
 
     assert_eq!(
@@ -70,7 +70,7 @@ fn test_cache_dir_path() {
         if #[cfg(target_os = "macos")] {
             assert_eq!(cache_dir(), home_dir.join("Library/Application Support/dev.zap.Zap"));
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
-            assert_eq!(cache_dir(), home_dir.join(".cache/zap"));
+            assert_eq!(cache_dir(), home_dir.join(".cache/dais"));
         } else if #[cfg(windows)] {
             assert_eq!(cache_dir(), home_dir.join("AppData\\Local\\zap\\Zap\\cache"));
         } else {
@@ -87,7 +87,7 @@ fn test_state_dir_path() {
         if #[cfg(target_os = "macos")] {
             assert_eq!(state_dir(), home_dir.join("Library/Application Support/dev.zap.Zap"));
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
-            assert_eq!(state_dir(), home_dir.join(".local/state/zap"));
+            assert_eq!(state_dir(), home_dir.join(".local/state/dais"));
         } else if #[cfg(windows)] {
             assert_eq!(state_dir(), home_dir.join("AppData\\Local\\zap\\Zap\\data"));
         } else {
@@ -104,17 +104,17 @@ fn test_oss_secure_state_dir_is_disabled() {
 }
 
 #[test]
-fn test_project_path_for_zap_dev_app_id() {
+fn test_project_path_for_dais_dev_app_id() {
     // Covers the `starts_with("Zap")` branch in `project_dirs_for_app_id` on Linux,
     // which maps suffixed application names like `ZapDev` to a dashed lowercase
-    // directory matching the Linux package name (e.g. `zap-dev`).
+    // directory matching the Linux package name (e.g. `dais-dev`, D5 改名).
     let project_dirs = project_dirs_for_app_id(AppId::new("dev", "zap", "ZapDev"), None)
         .expect("should be able to compute project dirs");
     cfg_if::cfg_if! {
         if #[cfg(target_os = "macos")] {
             assert_eq!(project_dirs.project_path(), "dev.zap.ZapDev");
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
-            assert_eq!(project_dirs.project_path(), "zap-dev");
+            assert_eq!(project_dirs.project_path(), "dais-dev");
         } else if #[cfg(windows)] {
             assert_eq!(project_dirs.project_path(), "zap\\ZapDev");
         } else {
@@ -131,7 +131,7 @@ fn test_project_path_for_oss_app_id() {
         if #[cfg(target_os = "macos")] {
             assert_eq!(project_dirs.project_path(), "dev.zap.Zap");
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
-            assert_eq!(project_dirs.project_path(), "zap");
+            assert_eq!(project_dirs.project_path(), "dais");
         } else if #[cfg(windows)] {
             assert_eq!(project_dirs.project_path(), "zap\\Zap");
         } else {

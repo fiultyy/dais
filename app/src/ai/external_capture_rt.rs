@@ -11,7 +11,7 @@
 //! - **武装**: 本地 pane 首个 shell 的 bootstrap 脚本不可见区插入三个
 //!   同名 shell 函数(`cc-dais`/`omp-dais`/`pi-dais`, heredoc 感知插入零可见
 //!   污染)。`cc-dais` 走 `--settings` 深覆盖(静态文件
-//!   `~/.config/zap/cc-entry-settings.json`, env 块从用户 `~/.claude/
+//!   `~/.config/dais/cc-entry-settings.json`, env 块从用户 `~/.claude/
 //!   settings.json` 透传合并 + `ANTHROPIC_BASE_URL` 覆盖为入口 `/cc`);
 //!   `omp-dais`/`pi-dais` 传 `--model dais/<动态默认模型>`(启动时从各 CLI
 //!   独立配置读取默认模型 ID; `dais/` 前缀保证走入口 `/omp`、`/pi`,
@@ -211,12 +211,12 @@ fn alias_defs(entry_port: u16, dialect: ArmingDialect) -> String {
         .join(";")
 }
 
-/// `~/.config/zap/cc-entry-settings.json` 路径(zap 配置目录, 非 state)。
+/// `~/.config/dais/cc-entry-settings.json` 路径(dais 配置目录, 非 state)。
 fn cc_entry_settings_path() -> std::path::PathBuf {
     let home = std::env::var("HOME").unwrap_or_default();
     std::path::Path::new(&home)
         .join(".config")
-        .join("zap")
+        .join("dais")
         .join("cc-entry-settings.json")
 }
 
@@ -439,7 +439,7 @@ mod tests {
         let result = (|| {
             let settings = dir
                 .path()
-                .join(".config/zap/cc-entry-settings.json")
+                .join(".config/dais/cc-entry-settings.json")
                 .display()
                 .to_string();
 
@@ -614,7 +614,7 @@ mod tests {
             assert!(suffix.contains("pi-dais()"));
             let settings_path = dir
                 .path()
-                .join(".config/zap/cc-entry-settings.json");
+                .join(".config/dais/cc-entry-settings.json");
             let text = std::fs::read_to_string(&settings_path)
                 .expect("cc-entry-settings.json 必须随武装落盘");
             let v: serde_json::Value = serde_json::from_str(&text).unwrap();

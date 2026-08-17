@@ -1,4 +1,4 @@
-//! 本地 CA: 首次生成自签 CA + server cert, 持久化到 ~/.config/zap/proxy-ca/。
+//! 本地 CA: 首次生成自签 CA + server cert, 持久化到 ~/.config/dais/proxy-ca/。
 
 use std::path::PathBuf;
 
@@ -23,7 +23,7 @@ pub fn ensure_local_ca() -> Result<LocalCA> {
     let home = std::env::var("HOME")?;
     let dir = PathBuf::from(home)
         .join(".config")
-        .join("zap")
+        .join("dais")
         .join("proxy-ca");
     let ca = LocalCA {
         ca_cert_path: dir.join("ca-cert.pem"),

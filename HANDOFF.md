@@ -190,9 +190,9 @@ cargo test -p ai --features orchestration --lib orchestration
 
 **别名是唯一入口（用户拍板）**，bootstrap 静默武装出三个 shell 函数:
 ```
-> **D4 改名注记(2026-08-17)**: 别名族 `cc-zap/omp-zap/pi-zap` → `cc-dais/omp-dais/pi-dais`, 实例头 `x-zap-instance` → `x-dais-instance`, 标记 env `ZAP_INSTANCE_TAG` → `DAIS_INSTANCE_TAG`, 模型前缀 `zap/` → `dais/`(models.yml/models.json 双 provider 兼容期, 旧 `zap/` 前缀仍路由)。 `~/.config/zap` 配置目录与观测台数据目录**不动**(用户配置零迁移)。
+> **D4 改名注记(2026-08-17)**: 别名族 `cc-zap/omp-zap/pi-zap` → `cc-dais/omp-dais/pi-dais`, 实例头 `x-zap-instance` → `x-dais-instance`, 标记 env `ZAP_INSTANCE_TAG` → `DAIS_INSTANCE_TAG`, 模型前缀 `zap/` → `dais/`(models.yml/models.json 双 provider 兼容期, 旧 `zap/` 前缀仍路由)。 `~/.config/zap`→`~/.config/dais` 与数据根 `~/.local/state|share/zap*`→`dais*` 已随 **D5**(2026-08-17)全改, 现有 DB 已 mv 保观测台历史连续。
 
-cc-dais  = command claude --settings ~/.config/zap/cc-entry-settings.json
+cc-dais  = command claude --settings ~/.config/dais/cc-entry-settings.json
 omp-dais = command omp --model dais/glm-5.2
 pi-dais  = command pi   --model dais/glm-5.2
 ```
@@ -205,7 +205,7 @@ omp-dais → omp 读 ~/.omp/agent/models.yml 的 provider `zap`
          .env.ANTHROPIC_AUTH_TOKEN ~/.claude/settings.json")
       → zap 入口 :8787 (明文 HTTP, 仅 loopback), 前缀 /omp 即 harness 标识
       → strip 前缀(保留 query) → 每请求解析出口:
-        ~/.config/zap/omp-upstream.json (bigmodel /api/coding/paas/v4,
+        ~/.config/dais/omp-upstream.json (bigmodel /api/coding/paas/v4,
         response_format=openai)
       → auth 头(authorization/x-api-key)原样转发, 不剥不注 → 上游
 旁路:  每请求 RawEvent → 常驻观测 session external-omp
@@ -271,7 +271,7 @@ omp-dais → omp 读 ~/.omp/agent/models.yml 的 provider `zap`
   **压过进程 env** — 裸 `export ANTHROPIC_BASE_URL=...` 会被用户
   `~/.claude/settings.json` 静默覆盖（T3 三轮实证）。所以 cc-dais 必须
   走 `--settings` 文件深覆盖。T5 把 T3 的临时文件固化为静态文件
-  `~/.config/zap/cc-entry-settings.json`: 用户 settings **全量透传合并**
+  `~/.config/dais/cc-entry-settings.json`: 用户 settings **全量透传合并**
   （env/permissions/hooks/模型映射等所有顶层键）+ 仅覆盖
   `ANTHROPIC_BASE_URL` → `http://127.0.0.1:8787/cc`; 每次武装前重生成
   （端口/用户配置变化即生效），写失败仅记日志、旧文件降级可用。
@@ -311,10 +311,10 @@ zap 代码只读不写下列文件（唯一例外: cc-entry-settings.json 由 za
 
 | 文件 | 作用 | 本机实值（2026-08-16） |
 |---|---|---|
-| `~/.config/zap/omp-upstream.json` | `/omp` `/pi` 出口，每请求热读 | api_base `https://open.bigmodel.cn/api/coding/paas/v4`; api_key_env ANTHROPIC_API_KEY; response_format openai |
+| `~/.config/dais/omp-upstream.json` | `/omp` `/pi` 出口，每请求热读 | api_base `https://open.bigmodel.cn/api/coding/paas/v4`; api_key_env ANTHROPIC_API_KEY; response_format openai |
 | `~/.omp/agent/models.yml` | omp 的 provider `zap`（编排侧写） | baseUrl `http://127.0.0.1:8787/omp`; apiKey `!jq -r .env.ANTHROPIC_AUTH_TOKEN ~/.claude/settings.json`; 模型 glm-5.2 / glm-5-turbo; api openai-completions |
 | `~/.pi/agent/models.json` | pi（**独立项目**，自有配置体系）同上 | baseUrl `http://127.0.0.1:8787/pi`; 同形状 |
-| `~/.config/zap/cc-entry-settings.json` | cc-dais 的 `--settings` 深覆盖 | 用户 settings 全量透传（env/hooks/permissions）+ BASE_URL 覆盖为 `/cc` |
+| `~/.config/dais/cc-entry-settings.json` | cc-dais 的 `--settings` 深覆盖 | 用户 settings 全量透传（env/hooks/permissions）+ BASE_URL 覆盖为 `/cc` |
 | `~/.claude/settings.json` | `/cc` 出口解析源 + token 源 | env.ANTHROPIC_BASE_URL `https://open.bigmodel.cn/api/anthropic` |
 
 敏感注意: cc-entry-settings.json 是用户 settings 的全量合并（含
@@ -471,7 +471,7 @@ CC 必须走进程 env 赋值前缀: settings env 块优先级压过进程 env(T
 
 ## 实证（缺哪环）
 
-p0review 实例 DB（`~/.local/state/zap-p0review/harness_blocks.db`）
+p0review 实例 DB（`~/.local/state/dais-p0review/harness_blocks.db`）
 external-omp 块实测:
 - T6 解析产物在位: response 块 metadata 带
   `{"model":"glm-5.3","source":"openai_response","usage":{"input_tokens":22221,"output_tokens":7}}`;
@@ -521,7 +521,7 @@ external-omp 块实测:
 - 单测 7 新增全绿 + 观测台既有 27 全绿: 末次非零 usage 选取/响应侧
   model 优先、旧 0-usage 跳过+请求侧回落、omp yaml/pi json/catalog
   一致性（歧义 None）/未声明 None、harness 前缀+类型归类。
-- 真实例（zap-p0review, WARP_DATA_PROFILE=p0review）:
+- 真实例（dais-p0review, WARP_DATA_PROFILE=p0review 不变, 目录名 D5 改）:
   1. 重建 zap-oss 重启实例, entry gateway :8787 正常;
   2. 真链冒烟 `omp --model dais/glm-5.2 -p` → 实例 lane
      `external-omp-t10final-*` 落库, usage input=22505 output=55

@@ -103,11 +103,11 @@ async fn entry_gateway_instance_keyed_sessions_marker_stripped_fallback_intact()
     std::env::remove_var("ZAP_UPSTREAM_BASE");
 
     let upstream_port = spawn_fake_upstream().await;
-    std::fs::create_dir_all(tmp.path().join(".config/zap")).unwrap();
+    std::fs::create_dir_all(tmp.path().join(".config/dais")).unwrap();
     let omp_cfg = format!(
         r#"{{"api_base":"http://127.0.0.1:{upstream_port}","api_key_env":"ZAP_OMP_KEY","response_format":"openai"}}"#
     );
-    std::fs::write(tmp.path().join(".config/zap/omp-upstream.json"), omp_cfg).unwrap();
+    std::fs::write(tmp.path().join(".config/dais/omp-upstream.json"), omp_cfg).unwrap();
 
     let blocks_db = tmp.path().join("blocks.db");
     let raw_db = tmp.path().join("raw.db");

@@ -90,7 +90,7 @@ impl UpstreamConfig {
         }
     }
 
-    /// Omp: 读 ~/.config/zap/omp-upstream.json
+    /// Omp: 读 ~/.config/dais/omp-upstream.json
     /// { "api_base": "...", "api_key_env": "...", "response_format": "anthropic"|"openai"|"generic" }
     pub fn from_omp_config() -> Result<Self> {
         #[derive(serde::Deserialize)]
@@ -107,7 +107,7 @@ impl UpstreamConfig {
 
         let path = std::env::var("HOME").map(std::path::PathBuf::from).map(|h| {
             h.join(".config")
-                .join("zap")
+                .join("dais")
                 .join("omp-upstream.json")
         })?;
         let mut cfg = Self::anthropic("https://api.anthropic.com");

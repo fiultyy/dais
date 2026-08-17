@@ -75,12 +75,12 @@ async fn entry_gateway_prefix_routing_capture_and_transparent_auth() {
     let cc_port = spawn_fake_upstream("cc").await;
     let omp_port = spawn_fake_upstream("omp").await;
 
-    // /omp、/pi 出口: ~/.config/zap/omp-upstream.json(orchestration 侧写入口径)
-    std::fs::create_dir_all(tmp.path().join(".config/zap")).unwrap();
+    // /omp、/pi 出口: ~/.config/dais/omp-upstream.json(orchestration 侧写入口径)
+    std::fs::create_dir_all(tmp.path().join(".config/dais")).unwrap();
     let omp_cfg = format!(
         r#"{{"api_base":"http://127.0.0.1:{omp_port}","api_key_env":"ZAP_OMP_KEY","response_format":"anthropic"}}"#
     );
-    std::fs::write(tmp.path().join(".config/zap/omp-upstream.json"), omp_cfg).unwrap();
+    std::fs::write(tmp.path().join(".config/dais/omp-upstream.json"), omp_cfg).unwrap();
     // /cc 出口: 显式覆盖优先
     std::env::set_var("ZAP_UPSTREAM_BASE", format!("http://127.0.0.1:{cc_port}"));
 

@@ -115,7 +115,7 @@ fn mtime_nanos(p: &std::path::Path) -> i128 {
 async fn node_a() {
     // A1: 删 CA 目录 → ProxyManager::new()（内部 ensure_local_ca）→ 4 个 pem 生成
     let home = std::env::var("HOME").unwrap();
-    let ca_dir = std::path::Path::new(&home).join(".config/zap/proxy-ca");
+    let ca_dir = std::path::Path::new(&home).join(".config/dais/proxy-ca");
     if ca_dir.exists() {
         std::fs::remove_dir_all(&ca_dir).unwrap();
     }

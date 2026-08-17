@@ -34,7 +34,7 @@ zap 层已移除遥测 / 更新通道 / 云功能(尾部如有残留,随票清�
 |---|---|
 | 仓库名 zap | dais (github.com/fiultyy/dais) |
 | binary/crate 名 zap-oss | dais |
-| 配置路径 `~/.config/zap` | **保持不动**(用户数据兼容,不改) |
+| 配置/数据根 `~/.config/zap`、`~/.local/state\|share/zap*` | → `~/.config/dais`、`dais*`(D5 2026-08-17 全改, 无存量包袱, 现有 DB 已 mv) |
 
 注:crates.io 的 `dais` 名被一个无关小 crate 占用;本工程为 workspace binary,
 不经 crates.io 发布,不受影响;如未来需发布,cargo 包名加 `-app` 后缀即可。

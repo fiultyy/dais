@@ -6,7 +6,7 @@
 //! - `/cc/*`  → ClaudeCode 出口(显式覆盖 ZAP_UPSTREAM_BASE > 用户
 //!   `~/.claude/settings.json` 的 env.ANTHROPIC_BASE_URL > 官方默认)
 //! - `/omp/*`、`/pi/*` → `UpstreamConfig::from_omp_config()`
-//!   (`~/.config/zap/omp-upstream.json`, 编排侧写, 每请求热读)
+//!   (`~/.config/dais/omp-upstream.json`, 编排侧写, 每请求热读)
 //!
 //! 透明管道(T5 口径): auth 头(`authorization`/`x-api-key`)原样转发,
 //! 不剥不注 — 客户端凭据自带, dais 只改目的地 + 旁观捕获。每前缀独立
