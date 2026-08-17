@@ -265,6 +265,9 @@ pub enum WorkspaceAction {
     /// Toggles the Observatory panel (intercept sessions / orchestration viewer).
     #[cfg(not(target_family = "wasm"))]
     ToggleObservatory,
+    /// Toggles the Cockpit panel (multi-agent terminal dashboard).
+    #[cfg(not(target_family = "wasm"))]
+    ToggleCockpit,
     ToggleRightPanel,
     /// Opens the code review panel (right panel) without toggling. If already open,
     /// switches to the target pane's repo. Used by vertical tabs diff stats chip.
@@ -883,6 +886,8 @@ impl WorkspaceAction {
             // 子系统物理删。
             #[cfg(target_os = "linux")]
             DismissWaylandCrashRecoveryBannerAndOpenLink => false,
+            #[cfg(not(target_family = "wasm"))]
+            ToggleCockpit => false,
             #[cfg(not(target_family = "wasm"))]
             ToggleObservatory => false,
             #[cfg(target_family = "wasm")]

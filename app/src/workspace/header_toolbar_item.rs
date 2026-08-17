@@ -32,6 +32,9 @@ pub enum HeaderToolbarItemKind {
     CodeReview,
     /// 观测台面板（Observatory）— 拦截会话 + 编排状态。
     Observatory,
+    /// Cockpit 面板 — 多 agent 终端驾驶舱(hub-tui 原生移植)。
+    #[cfg(not(target_family = "wasm"))]
+    Cockpit,
     /// Notifications mailbox.
     NotificationsMailbox,
 }
@@ -44,6 +47,8 @@ impl HeaderToolbarItemKind {
             Self::AgentManagement => "Agent Management",
             Self::CodeReview => "Code Review",
             Self::Observatory => "Observatory",
+            #[cfg(not(target_family = "wasm"))]
+            Self::Cockpit => "Cockpit",
             Self::NotificationsMailbox => "Notifications",
         }
     }
@@ -55,6 +60,8 @@ impl HeaderToolbarItemKind {
             Self::AgentManagement => Icon::Grid,
             Self::CodeReview => Icon::Diff,
             Self::Observatory => Icon::Eye,
+            #[cfg(not(target_family = "wasm"))]
+            Self::Cockpit => Icon::Grid,
             Self::NotificationsMailbox => Icon::Inbox,
         }
     }
@@ -71,6 +78,8 @@ impl HeaderToolbarItemKind {
             Self::ToolsPanel => true,
             Self::AgentManagement => false,
             Self::Observatory => FeatureFlag::AgentHarness.is_enabled(),
+            #[cfg(not(target_family = "wasm"))]
+            Self::Cockpit => FeatureFlag::AgentHarness.is_enabled(),
             Self::CodeReview => cfg!(feature = "local_fs"),
             Self::NotificationsMailbox => FeatureFlag::HOANotifications.is_enabled(),
         }
@@ -118,6 +127,8 @@ impl HeaderToolbarItemKind {
             Self::AgentManagement,
             Self::CodeReview,
             Self::Observatory,
+            #[cfg(not(target_family = "wasm"))]
+            Self::Cockpit,
             Self::NotificationsMailbox,
         ]
     }

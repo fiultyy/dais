@@ -158,6 +158,9 @@ pub enum LeafContents {
     /// 观测台 pane（独立标签页）。业务态全在 ObservatoryModel 单例，pane 只是
     /// view 壳 —— **不持久化**（重启后从工具条重新打开）。
     Observatory,
+    /// 驾驶舱 pane(独立标签页)。业务态全在 CockpitModel 单例,pane 只是
+    /// view 壳 —— **不持久化**(重启后从工具条重新打开)。
+    Cockpit,
 }
 
 #[cfg(feature = "local_fs")]
@@ -181,6 +184,8 @@ impl LeafContents {
             LeafContents::Observatory => false,
             // SFTP 浏览器:远端文件系统依赖活跃 SSH 连接,pane 不可恢复。
             LeafContents::Sftp { .. } => false,
+            // 驾驶舱:业务态在 singleton model,pane 壳无需恢复。
+            LeafContents::Cockpit => false,
             // Image viewer panes are intentionally not persisted: they render in-session but
             // are not restored after restart.
             LeafContents::Image { .. } => false,

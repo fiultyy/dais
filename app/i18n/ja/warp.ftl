@@ -3594,3 +3594,9 @@ observatory-list-truncated = { $shown } 件表示 · 上限 { $cap }（続きあ
 observatory-blocks-sidebar-title = Blocks · { $session }
 observatory-session-context = { $model } · コンテキスト { $used } / { $window } tok · { $pct }
 observatory-session-context-unknown-window = { $model } · コンテキスト { $used } tok
+
+cockpit-title = コックピット
+cockpit-pane-title = コックピット
+cockpit-refresh = 更新
+cockpit-empty = ライブターミナルなし
+cockpit-terminal-count = { $count } ターミナル · { $windows } ウィンドウ
