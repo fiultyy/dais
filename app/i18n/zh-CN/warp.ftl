@@ -3676,3 +3676,9 @@ observatory-list-truncated = 已显示 { $shown } 条 · 上限 { $cap }（有�
 observatory-blocks-sidebar-title = Blocks · { $session }
 observatory-session-context = { $model } · 上下文 { $used } / { $window } tok · { $pct }
 observatory-session-context-unknown-window = { $model } · 上下文 { $used } tok
+
+cockpit-title = 驾驶舱
+cockpit-pane-title = 驾驶舱
+cockpit-refresh = 刷新
+cockpit-empty = 暂无存活终端
+cockpit-terminal-count = { $count} 个终端 · { $windows } 个窗口

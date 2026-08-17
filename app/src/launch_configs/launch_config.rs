@@ -162,6 +162,7 @@ impl TryFrom<PaneNodeSnapshot> for PaneTemplateType {
                 | LeafContents::SshServer { .. }
                 | LeafContents::Sftp { .. }
                 | LeafContents::Observatory
+                | LeafContents::Cockpit
                 | LeafContents::AmbientAgent(_) => {
                     // TODO: Handle AIDocument in launch config
                     Err(())

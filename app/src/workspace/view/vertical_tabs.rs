@@ -3266,6 +3266,7 @@ impl PaneGroup {
             | IPaneType::SshServer
             | IPaneType::Sftp
             | IPaneType::Observatory
+            | IPaneType::Cockpit
             | IPaneType::Welcome
             | IPaneType::DeferredPlaceholder => TypedPane::Other,
             #[cfg(test)]

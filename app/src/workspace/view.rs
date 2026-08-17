@@ -4000,6 +4000,49 @@ impl Workspace {
         None
     }
 
+    /// 打开驾驶舱为**独立标签页**(hub-tui 的 dais 原生等价物,挂载方式同
+    /// toggle_observatory)。已有驾驶舱 tab 时切换过去;没有则新建 tab。
+    #[cfg(not(target_family = "wasm"))]
+    fn toggle_cockpit(&mut self, ctx: &mut ViewContext<Self>) {
+        use crate::pane_group::pane::cockpit_pane::CockpitPane;
+
+        // 已有驾驶舱 pane → 聚焦切换
+        if let Some(locator) = self.find_cockpit_pane_locator(ctx) {
+            self.focus_pane(locator, ctx);
+            ctx.notify();
+            return;
+        }
+
+        // 新建驾驶舱 tab
+        let new_idx = self.tab_count();
+        let pane: Box<dyn crate::pane_group::AnyPaneContent> = {
+            let pane_group_view = self.active_tab_pane_group();
+            let mut pane = None;
+            pane_group_view.update(ctx, |_, ctx| {
+                pane = Some(Box::new(CockpitPane::new(ctx))
+                    as Box<dyn crate::pane_group::AnyPaneContent>);
+            });
+            pane.expect("cockpit pane should be created")
+        };
+        self.add_tab_from_existing_pane(pane, new_idx, ctx);
+        ctx.notify();
+    }
+
+    /// 查找已打开的驾驶舱 pane 的定位器(跨所有 tab)。
+    #[cfg(not(target_family = "wasm"))]
+    fn find_cockpit_pane_locator(&self, ctx: &AppContext) -> Option<PaneViewLocator> {
+        for tab in &self.tabs {
+            let pane_group = tab.pane_group.as_ref(ctx);
+            if let Some(pane_id) = pane_group.cockpit_pane_id() {
+                return Some(PaneViewLocator {
+                    pane_group_id: tab.pane_group.id(),
+                    pane_id,
+                });
+            }
+        }
+        None
+    }
+
     /// Sets focused to the index of either the selected object or the first item in WD
     fn reset_focused_index_in_warp_drive(
         &mut self,
@@ -16599,6 +16642,8 @@ impl Workspace {
             }
             HeaderToolbarItemKind::CodeReview => self.render_right_panel_button(appearance, ctx),
             HeaderToolbarItemKind::Observatory => self.render_observatory_button(appearance, ctx),
+            #[cfg(not(target_family = "wasm"))]
+            HeaderToolbarItemKind::Cockpit => self.render_cockpit_button(appearance, ctx),
             HeaderToolbarItemKind::NotificationsMailbox => {
                 self.render_notifications_mailbox_button(appearance, ctx)
             }
@@ -18192,6 +18237,8 @@ impl Workspace {
             HeaderToolbarItemKind::AgentManagement
             | HeaderToolbarItemKind::NotificationsMailbox => None,
             HeaderToolbarItemKind::Observatory => None,
+            #[cfg(not(target_family = "wasm"))]
+            HeaderToolbarItemKind::Cockpit => None,
         }
     }
 
@@ -18231,6 +18278,31 @@ impl Workspace {
         let hoverable = Hoverable::new(mouse_state, move |_state| content).on_click(
             move |ctx, _app, _position| {
                 ctx.dispatch_typed_action(WorkspaceAction::ToggleObservatory);
+            },
+        );
+        Container::new(hoverable.finish()).finish()
+    }
+
+    fn render_cockpit_button(
+        &self,
+        appearance: &Appearance,
+        app: &AppContext,
+    ) -> Box<dyn Element> {
+        let is_active = self.find_cockpit_pane_locator(app).is_some();
+        let theme = appearance.theme();
+        let icon_color = if is_active {
+            theme.main_text_color(theme.background())
+        } else {
+            theme.sub_text_color(theme.background())
+        };
+        let mouse_state = self.mouse_states.right_panel_icon.clone();
+        let content = ConstrainedBox::new(icons::Icon::Grid.to_warpui_icon(icon_color).finish())
+            .with_width(16.)
+            .with_height(16.)
+            .finish();
+        let hoverable = Hoverable::new(mouse_state, move |_state| content).on_click(
+            move |ctx, _app, _position| {
+                ctx.dispatch_typed_action(WorkspaceAction::ToggleCockpit);
             },
         );
         Container::new(hoverable.finish()).finish()
@@ -19355,6 +19427,10 @@ impl TypedActionView for Workspace {
             #[cfg(not(target_family = "wasm"))]
             ToggleObservatory => {
                 self.toggle_observatory(ctx);
+            }
+            #[cfg(not(target_family = "wasm"))]
+            ToggleCockpit => {
+                self.toggle_cockpit(ctx);
             }
             #[cfg(feature = "local_fs")]
             OpenCodeReviewPanel(locator) => {

@@ -3762,3 +3762,9 @@ observatory-list-truncated = { $shown } shown · more available (cap { $cap })
 observatory-blocks-sidebar-title = Blocks · { $session }
 observatory-session-context = { $model } · context { $used } / { $window } tok · { $pct }
 observatory-session-context-unknown-window = { $model } · context { $used } tok
+
+cockpit-title = Cockpit
+cockpit-pane-title = Cockpit
+cockpit-refresh = Refresh
+cockpit-empty = No live terminals yet
+cockpit-terminal-count = { $count } terminals · { $windows } window(s)

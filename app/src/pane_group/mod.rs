@@ -1733,6 +1733,9 @@ impl PaneGroup {
             LeafContents::Observatory => Err(anyhow::anyhow!(
                 "Observatory pane is not persisted and cannot be restored"
             )),
+            LeafContents::Cockpit => Err(anyhow::anyhow!(
+                "Cockpit pane is not persisted and cannot be restored"
+            )),
             LeafContents::AIFact(snapshot) => {
                 if !FeatureFlag::AIRules.is_enabled() {
                     return Err(anyhow::anyhow!("AI fact pane not enabled"));
@@ -3489,6 +3492,16 @@ impl PaneGroup {
         self.pane_contents
             .keys()
             .find(|pane_id| pane_id.pane_type() == pane::IPaneType::Observatory)
+            .copied()
+    }
+
+    /// 查找本 pane group 中的驾驶舱 pane id(无则 None)。
+    /// 用于「工具条点驾驶舱 → 已有 tab 时聚焦切换」。
+    #[cfg(not(target_family = "wasm"))]
+    pub fn cockpit_pane_id(&self) -> Option<PaneId> {
+        self.pane_contents
+            .keys()
+            .find(|pane_id| pane_id.pane_type() == pane::IPaneType::Cockpit)
             .copied()
     }
 

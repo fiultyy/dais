@@ -22,6 +22,8 @@ pub(super) mod get_started_view;
 pub(super) mod image_pane;
 #[cfg(not(target_family = "wasm"))]
 pub(super) mod local_harness_launch;
+#[cfg(not(target_family = "wasm"))]
+pub(crate) mod cockpit_pane;
 pub(super) mod notebook_pane;
 #[cfg(not(target_family = "wasm"))]
 pub(crate) mod observatory_pane;
@@ -153,10 +155,13 @@ pub(crate) enum IPaneType {
     AIFact,
     AIDocument,
     ExecutionProfileEditor,
-    GetStarted,
     SshServer,
     Sftp,
     Observatory,
+    GetStarted,
+    /// 多 agent 终端驾驶舱 pane(hub-tui 原生移植;cfg 门控同 Observatory:
+    /// 变体本身不 cfg,PaneId 构造/render 臂 cfg)。
+    Cockpit,
     Welcome,
     DeferredPlaceholder,
     /// A pane type only for tests.
@@ -185,6 +190,8 @@ impl Display for IPaneType {
             IPaneType::Sftp => write!(f, "SFTP"),
             IPaneType::Observatory => write!(f, "Observatory"),
             IPaneType::Welcome => write!(f, "Welcome"),
+            #[cfg(not(target_family = "wasm"))]
+            IPaneType::Cockpit => write!(f, "Cockpit"),
             IPaneType::DeferredPlaceholder => write!(f, "Placeholder"),
             #[cfg(test)]
             IPaneType::Dummy => write!(f, "Dummy"),
@@ -271,6 +278,22 @@ impl PaneId {
         pane_view: &ViewHandle<PaneView<crate::ai::observatory::view::ObservatoryPanelView>>,
     ) -> Self {
         Self::new(IPaneType::Observatory, pane_view)
+    }
+
+    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<CockpitPanelView>>`]
+    #[cfg(not(target_family = "wasm"))]
+    pub fn from_cockpit_pane_ctx(
+        ctx: &ViewContext<PaneView<crate::ai::cockpit::view::CockpitPanelView>>,
+    ) -> Self {
+        Self::new_from_ctx(IPaneType::Cockpit, ctx)
+    }
+
+    /// Creates a [`PaneId`] from a [`ViewHandle<PaneView<CockpitPanelView>>`]
+    #[cfg(not(target_family = "wasm"))]
+    pub fn from_cockpit_pane_view(
+        pane_view: &ViewHandle<PaneView<crate::ai::cockpit::view::CockpitPanelView>>,
+    ) -> Self {
+        Self::new(IPaneType::Cockpit, pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<AIFactView>>`]
@@ -536,6 +559,13 @@ impl PaneId {
             #[cfg(not(target_family = "wasm"))]
             IPaneType::Observatory => {
                 ChildView::<PaneView<crate::ai::observatory::view::ObservatoryPanelView>>::with_id(
+                    self.0.pane_view_id,
+                )
+                .finish()
+            }
+            #[cfg(not(target_family = "wasm"))]
+            IPaneType::Cockpit => {
+                ChildView::<PaneView<crate::ai::cockpit::view::CockpitPanelView>>::with_id(
                     self.0.pane_view_id,
                 )
                 .finish()

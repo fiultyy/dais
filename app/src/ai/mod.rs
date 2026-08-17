@@ -54,6 +54,9 @@ pub mod external_capture_rt;
 /// Observatory 面板 — 拦截会话观测 + 编排状态视图（右侧面板）。
 #[cfg(not(target_family = "wasm"))]
 pub mod observatory;
+/// Cockpit 面板 — 多 agent 终端驾驶舱(hub-tui 设计模式的原生移植)。
+#[cfg(not(target_family = "wasm"))]
+pub mod cockpit;
 // Zap Wave 6-8:`generate_block_title` 随 `BlockClient::generate_shared_block_title`
 // stub 一同移除 —— 唯一消费点是 BlockClient trait 签名,本地无其他代码路径。
 pub(crate) mod loading;
