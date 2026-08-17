@@ -29,13 +29,15 @@ rustflags = ["--cfg=web_sys_unstable_apis"]
 rustflags = ["-C", "symbol-mangling-version=v0", "-C", "target-feature=+crt-static"]
 
 # Linux 桌面构建提速(2026-08-17):
-# - rust-lld: 工具链自带并发链接器,链接大 debug 二进制从分钟级降到秒级,免系统安装。
+# - gold 链接器(gcc 驱动 -fuse-ld=gold): 链接大 debug 二进制比默认 bfd 快 3-5 倍;
+#   裸 rust-lld 不可行(build script 链接 host 程序时找不到 libc)。
+#   机器有 sudo 后可换 mold: linker 不变,改 rustflags "-C link-args=-fuse-ld=mold"。
 #   target-specific rustflags 整体覆盖 [build],故重新带上通用 symbol-mangling
 #   与 headerpad(非 mac 平台无害被忽略)。
 # - 配合根 Cargo.toml [profile.dev] debug="line-tables-only" 与依赖 debug=false。
 [target.x86_64-unknown-linux-gnu]
-linker = "rust-lld"
 rustflags = [
     "-C", "symbol-mangling-version=v0",
     "-C", "link-args=-Wl,-headerpad_max_install_names",
+    "-C", "link-args=-fuse-ld=gold",
 ]
