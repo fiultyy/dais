@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# build-checked — 构建门禁:cargo check 完全通过后才允许 cargo build。
+#
+# 背景:本仓 dev 全量构建代价高(数十分钟级);大量失败本可以在 check 段
+# (20-40s 量级)发现。本脚本把"先过验再构建"固化为项目政策:
+#   script/build-checked [--bin <name>] [额外 cargo build 参数...]
+#
+# 行为:
+#   1. cargo check --workspace --all-targets(类型/借用全量验证)
+#      — 失败即中止,不进入构建,退出码透传;
+#   2. check 全绿后执行 cargo build(默认 --bin dais,可用 --bin 覆盖);
+#   3. 环境变量 SKIP_CHECK=1 可跳过门禁(仅供链路调试,不要用于日常迭代)。
+#
+# 政策声明见 AGENTS.md「构建政策」一节;agents 迭代时统一走本脚本,
+# 不要直接 cargo build(慢路径裸奔)。
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+BIN_NAME="dais"
+BUILD_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --bin) BIN_NAME="$2"; shift 2 ;;
+    *) BUILD_ARGS+=("$1"); shift ;;
+  esac
+done
+
+if [[ "${SKIP_CHECK:-0}" != "1" ]]; then
+  echo "==> [门禁] cargo check --workspace --all-targets ..."
+  if ! cargo check --workspace --all-targets; then
+    echo >&2 "==> [门禁] check 未通过 —— 拒绝构建。修完错误再来(或 SKIP_CHECK=1 仅调试链路)。"
+    exit 1
+  fi
+  echo "==> [门禁] check 全绿,进入构建 ..."
+else
+  echo "==> [门禁] SKIP_CHECK=1,跳过 check(仅限链路调试)"
+fi
+
+exec cargo build --bin "$BIN_NAME" "${BUILD_ARGS[@]}"

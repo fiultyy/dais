@@ -265,6 +265,7 @@ app/  (主二进制:装配、入口、平台粘合、持久化迁移、UI 视图
 - **注释/回复一律使用简体中文**(用户规则)。
 - 在 git 索引内的搜索/grep 使用 `fff` 工具或 `rg -n "<关键词>" <路径>`;`read_file` 仅用于图片/二进制。
 - 提 PR / 推新 commit 之前,**只需**通过:`cargo check`。
+- **构建政策(门禁)**:任何 `cargo build` 之前,`cargo check` 必须完全通过。统一走 `script/build-checked`(先 `cargo check --workspace --all-targets`,全绿才放行 build;`SKIP_CHECK=1` 仅供链路调试)。直接裸 `cargo build` 是违规操作——本仓全量构建数十分钟,大量失败本可在 check 段(20-40s)发现。
 - 改动需精准:**每一行修改都能溯源到用户请求**,不要顺手"改进"无关代码、注释、格式。
 - 简洁优先:不要为单点使用引入抽象、配置、错误处理、多余特性。
 - 多解释方案、暴露不确定性,而不是默默替用户做选择。
@@ -319,6 +320,7 @@ app/  (主二进制:装配、入口、平台粘合、持久化迁移、UI 视图
 
 | 想做的事 | 起点 |
 |---------|------|
+| **构建二进制(过验门禁)** | `script/build-checked`(check 全绿才 build;禁止裸 `cargo build`) |
 | 改终端 grid / shell 集成 | `crates/warp_terminal/src/`,联动 `app/src/terminal/` |
 | 改 Agent UI / 对话 | `app/src/ai/` 内按 `agent_*` / `conversation_*` 分主题 grep |
 | 改命令补全 | `crates/warp_completer/`(注意 `--features v2`) |
