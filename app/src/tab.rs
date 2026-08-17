@@ -426,11 +426,14 @@ impl TabData {
                                     color,
                                     tab_index: index,
                                 });
-                            } else if let Some(color) = effective_color {
-                                ctx.dispatch_typed_action(WorkspaceAction::ToggleTabColor {
-                                    color,
-                                    tab_index: index,
-                                });
+                            } else {
+                                // None dot = 恢复目录自动色:显式 dispatch Unset,
+                                // 为 SelectedTabColor::Unset 补上唯一 UI 恢复通路
+                                // (此前 effective_color 为 None 时该分支被 else-if
+                                // 吞掉,离开 Unset 态后无入口回到自动色)。
+                                ctx.dispatch_typed_action(
+                                    WorkspaceAction::SetActiveTabColor(SelectedTabColor::Unset),
+                                );
                             }
                             ctx.dispatch_typed_action(MenuAction::Close(true));
                         });

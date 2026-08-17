@@ -4364,7 +4364,13 @@ impl SettingsWidget for ActiveAIWidget {
             column.add_child(self.render_natural_language_autosuggestions_section(view, app));
         }
 
-        if self.is_git_operations_autogen_toggleable(app) {
+        // 收口说明:「AI autogen」承诺的 git 操作 AI 草稿链路未实现
+        // (原 should_send_git_ops_ai_request 为零调用死开关,已删),
+        // 该开关目前仅被遥测消费,先从设置页隐藏避免虚假承诺。
+        // ftr 落地后把 GIT_OPERATIONS_AUTOGEN_IMPLEMENTED 置回 true 即恢复渲染;
+        // settings 定义保留,避免 settings 迁移问题。
+        const GIT_OPERATIONS_AUTOGEN_IMPLEMENTED: bool = false;
+        if GIT_OPERATIONS_AUTOGEN_IMPLEMENTED && self.is_git_operations_autogen_toggleable(app) {
             column.add_child(self.render_git_operations_autogen_section(view, app));
         }
 

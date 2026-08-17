@@ -223,6 +223,12 @@ impl TypedActionView for NativeModal {
                 self.trigger_button_callback(last_button_idx, ctx);
             }
             NativeModalAction::Confirm => {
+                // 防御:dialog 为 Some 但 button_data 为空时,trigger_button_callback
+                // 内部的 Vec::remove(0) 会 panic。与上方 Close 分支的 let-else 守卫
+                // 同风格:无按钮即无可确认的回调,直接返回。
+                if self.modal_button_mouse_states.is_empty() {
+                    return;
+                }
                 self.trigger_button_callback(0, ctx);
             }
         }

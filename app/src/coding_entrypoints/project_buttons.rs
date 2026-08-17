@@ -272,7 +272,10 @@ impl View for ProjectButtons {
                     self.glowing_button(
                         "Open repository",
                         Icon::Plus,
-                        ProjectButtonsAction::CreateProject,
+                        // 修复:flag-off 分支的标签/tooltip/快捷键均描述"打开本地仓库",
+                        // 却错误 dispatch CreateProject(切到 AI 建项页,该页无打开本地仓库入口)。
+                        // 改为与 flag-on 分支一致的 OpenRepository(触发文件选择器)。
+                        ProjectButtonsAction::OpenRepository,
                         TooltipData {
                             text: "Open an existing local folder or repository".to_string(),
                             keybinding: keybinding_name_to_display_string(
