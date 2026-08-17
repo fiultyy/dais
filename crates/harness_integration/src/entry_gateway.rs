@@ -7,8 +7,8 @@
 //! - `/omp` → session `external-omp[-<instance>]`(harness 串 `omp`)
 //! - `/pi` → session `external-pi[-<instance>]`(harness 串 `pi`)
 //!
-//! 实例身份 = 请求头 [`INSTANCE_HEADER`](`x-zap-instance`), 由 zap 别名
-//! (`cc-zap`/`omp-zap`/`pi-zap`)在调用时铸造(pid+随机+epoch, 每次调用一次
+//! 实例身份 = 请求头 [`INSTANCE_HEADER`](`x-dais-instance`), 由 dais 别名
+//! (`cc-dais`/`omp-dais`/`pi-dais`)在调用时铸造(pid+随机+epoch, 每次调用一次
 //! CLI 实例启动)。网络面转发前剥该头(透明管道字节不变); 无标记流量(裸
 //! 客户端/未升级的模型配置)回落**默认 session**(T5 行为, 零回归)。
 //!
@@ -54,9 +54,9 @@ const PREFIXES: [(&str, &str, &str); 3] = [
     ("/pi", "external-pi", "pi"),
 ];
 
-/// 实例标记头: zap 别名铸造, 网络面(`proxy_interceptor::handler`)转发前
+/// 实例标记头: dais 别名铸造, 网络面(`proxy_interceptor::handler`)转发前
 /// 剥除, 数据面在此读取做 session 键控。
-pub const INSTANCE_HEADER: &str = "x-zap-instance";
+pub const INSTANCE_HEADER: &str = "x-dais-instance";
 
 /// 单前缀 lane 上限(默认 lane 计入): 超限的新标记回落默认 session。
 const MAX_LANES_PER_PREFIX: usize = 64;

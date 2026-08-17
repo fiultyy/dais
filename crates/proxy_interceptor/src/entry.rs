@@ -1,15 +1,15 @@
 //! T5 单端口入口: loopback 明文 HTTP, 路径前缀分流到各自出口。
 //!
 //! 与 [`crate::server::ProxyServer`](TLS 反代, GUI 拦截路径用) 平行:
-//! 入口是常驻、单端口(默认 8787)、明文 — 别名 CLI(`cc-zap`/`omp-zap`/
-//! `pi-zap`)的 base URL 指到这里。前缀即 harness 标识:
+//! 入口是常驻、单端口(默认 8787)、明文 — 别名 CLI(`cc-dais`/`omp-dais`/
+//! `pi-dais`)的 base URL 指到这里。前缀即 harness 标识:
 //! - `/cc/*`  → ClaudeCode 出口(显式覆盖 ZAP_UPSTREAM_BASE > 用户
 //!   `~/.claude/settings.json` 的 env.ANTHROPIC_BASE_URL > 官方默认)
 //! - `/omp/*`、`/pi/*` → `UpstreamConfig::from_omp_config()`
 //!   (`~/.config/zap/omp-upstream.json`, 编排侧写, 每请求热读)
 //!
 //! 透明管道(T5 口径): auth 头(`authorization`/`x-api-key`)原样转发,
-//! 不剥不注 — 客户端凭据自带, zap 只改目的地 + 旁观捕获。每前缀独立
+//! 不剥不注 — 客户端凭据自带, dais 只改目的地 + 旁观捕获。每前缀独立
 //! raw channel, 上层(harness_integration 的 entry gateway)归并各前缀
 //! 流量到一个观测 session。
 

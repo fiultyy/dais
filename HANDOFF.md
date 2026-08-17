@@ -190,15 +190,17 @@ cargo test -p ai --features orchestration --lib orchestration
 
 **别名是唯一入口（用户拍板）**，bootstrap 静默武装出三个 shell 函数:
 ```
-cc-zap  = command claude --settings ~/.config/zap/cc-entry-settings.json
-omp-zap = command omp --model zap/glm-5.2
-pi-zap  = command pi   --model zap/glm-5.2
+> **D4 改名注记(2026-08-17)**: 别名族 `cc-zap/omp-zap/pi-zap` → `cc-dais/omp-dais/pi-dais`, 实例头 `x-zap-instance` → `x-dais-instance`, 标记 env `ZAP_INSTANCE_TAG` → `DAIS_INSTANCE_TAG`, 模型前缀 `zap/` → `dais/`(models.yml/models.json 双 provider 兼容期, 旧 `zap/` 前缀仍路由)。 `~/.config/zap` 配置目录与观测台数据目录**不动**(用户配置零迁移)。
+
+cc-dais  = command claude --settings ~/.config/zap/cc-entry-settings.json
+omp-dais = command omp --model dais/glm-5.2
+pi-dais  = command pi   --model dais/glm-5.2
 ```
 裸命令 `claude`/`omp`/`pi` 行为完全不变。
 
 数据流（omp 为例，括号为本机实证值）:
 ```
-omp-zap → omp 读 ~/.omp/agent/models.yml 的 provider `zap`
+omp-dais → omp 读 ~/.omp/agent/models.yml 的 provider `zap`
         (baseUrl http://127.0.0.1:8787/omp; apiKey "!jq -r
          .env.ANTHROPIC_AUTH_TOKEN ~/.claude/settings.json")
       → zap 入口 :8787 (明文 HTTP, 仅 loopback), 前缀 /omp 即 harness 标识
@@ -267,7 +269,7 @@ omp-zap → omp 读 ~/.omp/agent/models.yml 的 provider `zap`
   本不回显，尾部追加即可。
 - **CC `--settings` 深覆盖实证**: CC 的 settings.json `env` 块优先级
   **压过进程 env** — 裸 `export ANTHROPIC_BASE_URL=...` 会被用户
-  `~/.claude/settings.json` 静默覆盖（T3 三轮实证）。所以 cc-zap 必须
+  `~/.claude/settings.json` 静默覆盖（T3 三轮实证）。所以 cc-dais 必须
   走 `--settings` 文件深覆盖。T5 把 T3 的临时文件固化为静态文件
   `~/.config/zap/cc-entry-settings.json`: 用户 settings **全量透传合并**
   （env/permissions/hooks/模型映射等所有顶层键）+ 仅覆盖
@@ -277,7 +279,7 @@ omp-zap → omp 读 ~/.omp/agent/models.yml 的 provider `zap`
   进程级/env 覆盖入口** — env 注入路线对 omp 无效。T3 当时保留 env
   形状等上游支持，T5 直接改走 **models.yml + `--model` 别名路线**:
   编排侧在 omp 自己的 models.yml 里登记 provider `zap`（baseUrl 指向
-  入口 `/omp`），`omp-zap --model zap/glm-5.2` 命中该 provider。
+  入口 `/omp`），`omp-dais --model dais/glm-5.2` 命中该 provider。
 - codex 查证（T3）: 本机 config.toml 无 base_url 压制，
   `OPENAI_BASE_URL` env 前缀有效。T5 未给 codex 前缀。
 
@@ -312,7 +314,7 @@ zap 代码只读不写下列文件（唯一例外: cc-entry-settings.json 由 za
 | `~/.config/zap/omp-upstream.json` | `/omp` `/pi` 出口，每请求热读 | api_base `https://open.bigmodel.cn/api/coding/paas/v4`; api_key_env ANTHROPIC_API_KEY; response_format openai |
 | `~/.omp/agent/models.yml` | omp 的 provider `zap`（编排侧写） | baseUrl `http://127.0.0.1:8787/omp`; apiKey `!jq -r .env.ANTHROPIC_AUTH_TOKEN ~/.claude/settings.json`; 模型 glm-5.2 / glm-5-turbo; api openai-completions |
 | `~/.pi/agent/models.json` | pi（**独立项目**，自有配置体系）同上 | baseUrl `http://127.0.0.1:8787/pi`; 同形状 |
-| `~/.config/zap/cc-entry-settings.json` | cc-zap 的 `--settings` 深覆盖 | 用户 settings 全量透传（env/hooks/permissions）+ BASE_URL 覆盖为 `/cc` |
+| `~/.config/zap/cc-entry-settings.json` | cc-dais 的 `--settings` 深覆盖 | 用户 settings 全量透传（env/hooks/permissions）+ BASE_URL 覆盖为 `/cc` |
 | `~/.claude/settings.json` | `/cc` 出口解析源 + token 源 | env.ANTHROPIC_BASE_URL `https://open.bigmodel.cn/api/anthropic` |
 
 敏感注意: cc-entry-settings.json 是用户 settings 的全量合并（含
@@ -341,7 +343,7 @@ ANTHROPIC_AUTH_TOKEN 明文与 hooks/permissions），属本机敏感文件，
    需要分化时扩配置 schema（如 per-prefix 文件）。
 7. **cc 模型映射靠透传**: cc-entry-settings 只覆盖 BASE_URL，模型映射
    （ANTHROPIC_DEFAULT_*_MODEL）全靠用户 settings env 透传 — 用户没配
-   则 cc-zap 发官方模型名到中转出口，成败取决于出口兼容性。
+   则 cc-dais 发官方模型名到中转出口，成败取决于出口兼容性。
 8. **response_format 三态** anthropic/openai/generic 决定 raw 解析器
    分派; 本机 /omp /pi 出口为 openai（bigmodel coding 端点）。
 9. T1c/T2b/T3 旧路径已删干净（ExternalCaptureManager / tick_except /
@@ -368,7 +370,7 @@ cargo test -p proxy_interceptor                          # 入口单测
 cargo test -p warp --features orchestration --lib external_capture  # rt 别名/合并单测
 cargo check -p warp --features orchestration
 ```
-手动冒烟: 开关开 → 新开 pane 敲 `omp-zap` 跑一句 → 观测台 Sessions
+手动冒烟: 开关开 → 新开 pane 敲 `omp-dais` 跑一句 → 观测台 Sessions
 出现 external-omp 行且有请求块; `curl http://127.0.0.1:8787/nope` → 404。
 
 ---
@@ -390,18 +392,18 @@ cargo check -p warp --features orchestration
 连接层: CC(undici) 同连接复用多请求, omp(Bun) 每请求新连接 — **每连接
 分组会把单实例拆碎, 否决**。定案: **客户端标记** — zap 别名铸造一次性
 实例标记（pid-hex16-epoch）, 经 CLI 自带的身份信道到网关:
-- **CC**: `ANTHROPIC_CUSTOM_HEADERS='x-zap-instance: <tag>'`（进程 env,
+- **CC**: `ANTHROPIC_CUSTOM_HEADERS='x-dais-instance: <tag>'`（进程 env,
   `Name: Value` 冒号格式; JSON 格式报 Invalid header name）。
 - **omp**: models.yml provider `headers` 的 env 整串引用
-  （`x-zap-instance: ZAP_INSTANCE_TAG`, `resolveConfigValue` env 优先）。
+  （`x-dais-instance: DAIS_INSTANCE_TAG`, `resolveConfigValue` env 优先）。
 - **pi**: models.json provider `headers` 的模板引用
-  （`"x-zap-instance": "${ZAP_INSTANCE_TAG}"`, pi 用 `${VAR}` 语法）。
+  （`"x-dais-instance": "${DAIS_INSTANCE_TAG}"`, pi 用 `${VAR}` 语法）。
 
 别名函数体**调用时**铸标记(定义时铸死会让同一 shell 多次调用共享标记,
 违反一实例一 session):
 ```
-cc-zap(){ ANTHROPIC_CUSTOM_HEADERS="x-zap-instance: $(date +%s%N)-$$" command claude --settings ...; }
-omp-zap(){ ZAP_INSTANCE_TAG="$(date +%s%N)-$$" command omp --model zap/glm-5.2 "$@"; }
+cc-dais(){ ANTHROPIC_CUSTOM_HEADERS="x-dais-instance: $(date +%s%N)-$$" command claude --settings ...; }
+omp-dais(){ DAIS_INSTANCE_TAG="$(date +%s%N)-$$" command omp --model dais/glm-5.2 "$@"; }
 ```
 CC 必须走进程 env 赋值前缀: settings env 块优先级压过进程 env(T3 实证),
 而 `ANTHROPIC_CUSTOM_HEADERS` 只从进程 env 读。fish 方言用
@@ -410,7 +412,7 @@ CC 必须走进程 env 赋值前缀: settings env 块优先级压过进程 env(T
 ## 实现
 
 - `proxy_interceptor/src/handler.rs`: `SKIPPED_REQUEST_HEADERS` 3→4,
-  `x-zap-instance` 转发前剥（zap 内部信号不进上游; auth 头仍原样透传,
+  `x-dais-instance` 转发前剥（zap 内部信号不进上游; auth 头仍原样透传,
   透明管道其余字节不动）。
 - `harness_integration/src/entry_gateway.rs` 重写数据面: 每前缀
   `PrefixPlane`（默认 lane + 实例 lane 表 + 单任务串行 demux）。请求
@@ -421,15 +423,15 @@ CC 必须走进程 env 赋值前缀: settings env 块优先级压过进程 env(T
   `[A-Za-z0-9._-]{1,64}`, 非法/超限（lane 上限 64/前缀）回落默认。
   `stop()` 落所有活跃 lane 的 Exit。
 - `app/src/ai/external_capture_rt.rs`: `mint_instance_tag()` 铸标记,
-  `alias_defs` 三别名函数体携带 `ZAP_INSTANCE_TAG=<tag>` 前缀。
+  `alias_defs` 三别名函数体携带 `DAIS_INSTANCE_TAG=<tag>` 前缀。
 - 观测台快照行 `EntrySessionInfo` 形状不变, 只是行数 = 默认+活跃实例。
 
 ## 编排侧配置（本次已写入本机）
 
 - `~/.omp/agent/models.yml` zap provider 增 `headers:
-  {x-zap-instance: ZAP_INSTANCE_TAG}`。
+  {x-dais-instance: DAIS_INSTANCE_TAG}`。
 - `~/.pi/agent/models.json` zap provider 增 `"headers":
-  {"x-zap-instance": "${ZAP_INSTANCE_TAG}"}`。
+  {"x-dais-instance": "${DAIS_INSTANCE_TAG}"}`。
 - CC 侧零配置（别名 env 自带）。
 
 ## 验证
@@ -443,14 +445,14 @@ CC 必须走进程 env 赋值前缀: settings env 块优先级压过进程 env(T
 - 真链冒烟（临时 example+临时 provider, 已清理）:
   1. 两个真实 omp 实例 + 一个真实 pi 实例（不同 shell）→ 各自独立
      session 各恰一 Spawn, 上游真实回包（标记已剥）。
-  2. **同 shell 修正点验证**: 同一 bash（同 pid）连续两次 `omp-zap` +
-    一次 `cc-zap` → `external-omp-<ns>-<pid>` × 2、`external-cc-<ns>-<pid>`
+  2. **同 shell 修正点验证**: 同一 bash（同 pid）连续两次 `omp-dais` +
+    一次 `cc-dais` → `external-omp-<ns>-<pid>` × 2、`external-cc-<ns>-<pid>`
     × 1, 三 session 各恰一 Spawn（CC 侧上游 529 重试 11 次也全归并
     同一实例 session）— 证实标记是**调用时**生成, 非定义时铸死。
 
 ## 边界
 
-- 运行中的旧 zap（未含 T8）会把 `x-zap-instance` 原样转发上游（无害,
+- 运行中的旧 zap（未含 T8）会把 `x-dais-instance` 原样转发上游（无害,
   未知头忽略）; 重启 zap 后才生效剥离+键控。
 - 实例 lane 随网关常驻（无 idle reap, 同 T5 口径）; lane 上限 64/前缀
   超限回落默认 session 并告警。
@@ -473,7 +475,7 @@ p0review 实例 DB（`~/.local/state/zap-p0review/harness_blocks.db`）
 external-omp 块实测:
 - T6 解析产物在位: response 块 metadata 带
   `{"model":"glm-5.3","source":"openai_response","usage":{"input_tokens":22221,"output_tokens":7}}`;
-- 响应侧模型与请求侧不同（请求 `zap/glm-5.2`, 上游 bigmodel 上报
+- 响应侧模型与请求侧不同（请求 `dais/glm-5.2`, 上游 bigmodel 上报
   `glm-5.3`）;
 - 旧 anthropic 形残留块 usage 全 0（需跳过）;
 - 窗口映射: omp `~/.omp/agent/models.yml` 声明 glm-5.2
@@ -488,7 +490,7 @@ external-omp 块实测:
   - `derive_session_context(conn, session_id, catalog)`: 只读 SQL 扫
     最近 200 个相关块（新→旧）, 取第一个 usage 非零的 response 块的
     `input+output` 为占用; model 取响应侧上游上报, 空则回落请求侧声明
-    （zap/glm-5.2 裸名匹配 glm-5.2）。
+    （dais/glm-5.2 裸名匹配 glm-5.2）。
   - 窗口分层映射: ① harness 自身模型配置（omp models.yml / pi
     models.json 的 `contextWindow`, 即该 harness UI 自己用的分母,
     zap 只读不写）② models.dev catalog（同名模型所有 provider 窗口
@@ -521,7 +523,7 @@ external-omp 块实测:
   一致性（歧义 None）/未声明 None、harness 前缀+类型归类。
 - 真实例（zap-p0review, WARP_DATA_PROFILE=p0review）:
   1. 重建 zap-oss 重启实例, entry gateway :8787 正常;
-  2. 真链冒烟 `omp --model zap/glm-5.2 -p` → 实例 lane
+  2. 真链冒烟 `omp --model dais/glm-5.2 -p` → 实例 lane
      `external-omp-t10final-*` 落库, usage input=22505 output=55
      （T6/T8 链无回归）;
   3. 以真实 DB 复现派生（与 Rust 实现逐字段同逻辑）:
@@ -533,7 +535,7 @@ external-omp 块实测:
 
 ## 边界
 
-- 窗口未知（zap/* 别名无 catalog 一致条目且 harness 配置缺失）只显
+- 窗口未知（dais/* 别名无 catalog 一致条目且 harness 配置缺失）只显
   tokens 不显百分比 — 诚实降级, 不猜窗口。
 - catalog 依赖 models.dev 缓存（Providers 设置页打开时拉取）;
   未拉取时 omp/pi 走配置文件不受影响。

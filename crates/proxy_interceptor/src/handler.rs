@@ -18,13 +18,17 @@ const MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
 
 /// 转发时跳过的请求头: host 指向入口会错、content-length 由 reqwest 重算、
 /// connection 是 hop-by-hop。**auth 头(authorization/x-api-key)透明转发**
-/// (T5 透明管道: 客户端凭据原样到出口, zap 只改目的地+旁观捕获)。
-/// `x-zap-instance` 是 zap 别名铸造的实例标记(T8) — 网关数据面读取做
-/// session 键控后必须在转发前剥掉(zap 内部信号, 不进上游字节)。
-const SKIPPED_REQUEST_HEADERS: [&str; 4] = [
+/// (T5 透明管道: 客户端凭据原样到出口, dais 只改目的地+旁观捕获)。
+/// `x-dais-instance` 是 dais 别名铸造的实例标记(T8) — 网关数据面读取做
+/// session 键控后必须在转发前剥掉(dais 内部信号, 不进上游字节)。
+/// `x-zap-instance` 是改名前铸的同一标记(D4 兼容): 只剥不读 — 升级后
+/// 未重 bootstrap 的旧 shell 旧别名仍发旧头, 剥掉保证内部信号不进上游,
+/// 键控回落默认 session(T5 行为)。
+const SKIPPED_REQUEST_HEADERS: [&str; 5] = [
     "host",
     "content-length",
     "connection",
+    "x-dais-instance",
     "x-zap-instance",
 ];
 /// 透传响应时跳过的 hop-by-hop / 由 axum 重写的头。

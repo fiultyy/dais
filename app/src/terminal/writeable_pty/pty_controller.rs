@@ -428,7 +428,7 @@ impl<T: EventLoopSender> PtyController<T> {
     }
     /// 外部捕获 (T5) 武装入口: 本地 pane + 非子 shell + 方言支持 + 功能
     /// flag 与开关都开时, 向 bootstrap 脚本不可见区插入三别名函数
-    /// (`cc-zap`/`omp-zap`/`pi-zap`)。任一条件不满足或入口未跑 →
+    /// (`cc-dais`/`omp-dais`/`pi-dais`)。任一条件不满足或入口未跑 →
     /// 原样返回(pane 启动绝不因此阻塞, 裸命令零劫持)。远端 pane 不
     /// 绑定视图身份(`enable_external_capture_arming` 只在 local_tty 调)。
     #[cfg(not(target_family = "wasm"))]

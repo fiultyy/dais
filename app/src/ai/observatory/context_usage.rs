@@ -1,6 +1,6 @@
 //! 外部 session 上下文占用派生（T10）。
 //!
-//! 透明管道（T5-T8）不改协议字节，zap 侧只从旁路捕获产物**读**：
+//! 透明管道（T5-T8）不改协议字节，dais 侧只从旁路捕获产物**读**：
 //! - 占用量 = 最近一次带非零 usage 的响应块的
 //!   `usage.input_tokens + output_tokens`（T6 双向解析落进块 metadata）。
 //!   聊天形 API 每个请求都携带全部历史，故最后一次响应的 prompt+completion
@@ -8,8 +8,8 @@
 //!   `context_window_usage` 折算同语义。
 //! - 窗口 = 分层只读映射：① harness 自己的模型配置（omp `models.yml` /
 //!   pi `models.json` 的 `contextWindow`，即该 harness UI 自身使用的分母，
-//!   编排侧文件，zap 只读不写）② models.dev catalog（同名模型在多个
-//!   provider 下窗口一致才采信，歧义/未命中 = 未知）。zap/* 别名模型通常
+//!   编排侧文件，dais 只读不写）② models.dev catalog（同名模型在多个
+//!   provider 下窗口一致才采信，歧义/未命中 = 未知）。dais/* 别名模型通常(zap/* 兼容期同)
 //!   无注册表条目，未知时 UI 只显示 tokens 不显示百分比。
 
 use crate::ai::agent_providers::models_dev;
@@ -185,7 +185,7 @@ fn pi_config_path() -> Option<std::path::PathBuf> {
     Some(std::path::PathBuf::from(home).join(".pi/agent/models.json"))
 }
 
-/// `zap/glm-5.2` / `glm-5.2` → 匹配配置里的裸模型 id `glm-5.2`。
+/// `dais/glm-5.2` / `glm-5.2` → 匹配配置里的裸模型 id `glm-5.2`。
 fn model_id_matches(declared: &str, queried: &str) -> bool {
     let q = queried.rsplit('/').next().unwrap_or(queried);
     let d = declared.rsplit('/').next().unwrap_or(declared);
@@ -420,7 +420,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(window_from_omp_config(&cfg, "glm-5.2"), Some(131072));
-        assert_eq!(window_from_omp_config(&cfg, "zap/glm-5.2"), Some(131072));
+        assert_eq!(window_from_omp_config(&cfg, "dais/glm-5.2"), Some(131072));
         assert_eq!(window_from_omp_config(&cfg, "nope"), None);
         // 未声明 contextWindow 的条目 → None
         let cfg2 = tmp.path().join("models2.yml");
@@ -442,7 +442,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(window_from_pi_config(&cfg, "glm-5.2"), Some(1_000_000));
-        assert_eq!(window_from_pi_config(&cfg, "zap/glm-5.2"), Some(1_000_000));
+        assert_eq!(window_from_pi_config(&cfg, "dais/glm-5.2"), Some(1_000_000));
         assert_eq!(window_from_pi_config(&cfg, "nope"), None);
     }
 

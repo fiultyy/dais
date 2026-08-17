@@ -1,6 +1,6 @@
 //! T8 entry gateway 集成测试: session 粒度 = 每次实例启动。
 //!
-//! 实例身份 = `x-zap-instance` 请求头(zap 别名铸造)。断言:
+//! 实例身份 = `x-dais-instance` 请求头(dais 别名铸造)。断言:
 //! 1. **按实例分 session**: 同前缀不同标记 → `external-omp-<tag>` 各自
 //!    独立 session, 各恰一个 Spawn(懒发), 请求块互不串;
 //! 2. **无标记回落**: 未携带标记的流量归并默认 `external-omp`(T5 行为);
@@ -18,7 +18,7 @@ use futures_util::{stream, StreamExt};
 use harness_integration::{BlockStore, BlockType, EntryGateway};
 use parking_lot::Mutex as PlMutex;
 
-/// mock 上游记录: (tag, x-zap-instance 是否出现, x-api-key, body)。
+/// mock 上游记录: (tag, x-dais-instance 是否出现, x-api-key, body)。
 static SEEN: PlMutex<Vec<(String, bool, String, String)>> = PlMutex::new(Vec::new());
 
 /// HOME 是进程级全局 — 与其它改 HOME 的集成测试串行靠各自独占端口 +
@@ -26,7 +26,7 @@ static SEEN: PlMutex<Vec<(String, bool, String, String)>> = PlMutex::new(Vec::ne
 static ENV_LOCK: PlMutex<()> = PlMutex::new(());
 
 async fn mock_upstream(req: Request<Body>) -> Response {
-    let zap_instance = req.headers().contains_key("x-zap-instance");
+    let dais_instance = req.headers().contains_key("x-dais-instance");
     let key = req
         .headers()
         .get("x-api-key")
@@ -48,7 +48,7 @@ async fn mock_upstream(req: Request<Body>) -> Response {
     let rec_model = model.clone();
     SEEN.lock().push((
         rec_model,
-        zap_instance,
+        dais_instance,
         key,
         body_s,
     ));
@@ -124,7 +124,7 @@ async fn entry_gateway_instance_keyed_sessions_marker_stripped_fallback_intact()
         let resp = client
             .post(format!("http://127.0.0.1:{entry}/omp/v1/chat/completions"))
             .header("x-api-key", "sk-t8")
-            .header("x-zap-instance", "inst-a")
+            .header("x-dais-instance", "inst-a")
             .body(openai_body("m-a"))
             .send()
             .await
@@ -136,7 +136,7 @@ async fn entry_gateway_instance_keyed_sessions_marker_stripped_fallback_intact()
             let resp = client
                 .post(format!("http://127.0.0.1:{entry}/omp/v1/chat/completions"))
                 .header("x-api-key", "sk-t8")
-                .header("x-zap-instance", "inst-b")
+                .header("x-dais-instance", "inst-b")
                 .body(openai_body("m-b"))
                 .send()
                 .await
@@ -160,7 +160,7 @@ async fn entry_gateway_instance_keyed_sessions_marker_stripped_fallback_intact()
             assert_eq!(seen.len(), 4, "4 请求全达上游");
             assert!(
                 seen.iter().all(|(_, has_marker, _, _)| !has_marker),
-                "x-zap-instance 不得进上游(内部信号, 转发前剥): {seen:?}"
+                "x-dais-instance 不得进上游(内部信号, 转发前剥): {seen:?}"
             );
             assert!(seen.iter().all(|(_, _, key, _)| key == "sk-t8"));
             assert!(seen.iter().any(|(m, ..)| m == "m-a"));

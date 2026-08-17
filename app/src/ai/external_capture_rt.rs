@@ -1,20 +1,20 @@
-//! External capture runtime (T5) — 单端口入口 + 别名武装, zap 进程级。
+//! External capture runtime (T5) — 单端口入口 + 别名武装, dais 进程级。
 //!
 //! 锁定口径 (用户拍板): 别名是唯一入口。裸命令(`omp`/`claude`/`pi`)行为
-//! 完全不变; 只有 `cc-zap`/`omp-zap`/`pi-zap` 进通道:
+//! 完全不变; 只有 `cc-dais`/`omp-dais`/`pi-dais` 进通道:
 //! - **入口**: [`EntryGateway`](proxy_interceptor 单端口入口, 明文 HTTP,
 //!   默认 8787 持久化 intercept_config.json), 路径前缀分流 `/cc` `/omp`
-//!   `/pi` → 各自出口。auth 透明管道(客户端凭据原样转发, zap 不注不剥)。
+//!   `/pi` → 各自出口。auth 透明管道(客户端凭据原样转发, dais 不注不剥)。
 //! - **观测**: 每前缀按实例归并 session(T8: `external-cc/omp/pi[-<实例
 //!   标记>]`, 标记由别名铸造, 无标记回落默认 session), Spawn 懒发
 //!   (首个真实请求才落 block)。
 //! - **武装**: 本地 pane 首个 shell 的 bootstrap 脚本不可见区插入三个
-//!   同名 shell 函数(`cc-zap`/`omp-zap`/`pi-zap`, heredoc 感知插入零可见
-//!   污染)。`cc-zap` 走 `--settings` 深覆盖(静态文件
+//!   同名 shell 函数(`cc-dais`/`omp-dais`/`pi-dais`, heredoc 感知插入零可见
+//!   污染)。`cc-dais` 走 `--settings` 深覆盖(静态文件
 //!   `~/.config/zap/cc-entry-settings.json`, env 块从用户 `~/.claude/
 //!   settings.json` 透传合并 + `ANTHROPIC_BASE_URL` 覆盖为入口 `/cc`);
-//!   `omp-zap`/`pi-zap` 传 `--model zap/<动态默认模型>`(启动时从各 CLI
-//!   独立配置读取默认模型 ID; `zap/` 前缀保证走入口 `/omp`、`/pi`,
+//!   `omp-dais`/`pi-dais` 传 `--model dais/<动态默认模型>`(启动时从各 CLI
+//!   独立配置读取默认模型 ID; `dais/` 前缀保证走入口 `/omp`、`/pi`,
 //!   models.yml 由编排侧写)。
 //!
 //! 生命周期: 外部捕获开关开 → [`ensure_gateway`](Self) 起 8787; 关 →
@@ -111,12 +111,12 @@ pub enum ArmingDialect {
 /// `(date +%s%N)-$fish_pid`)。
 ///
 /// 标记的落地信道(三类 CLI 均已本机实证), 每别名只带自己 CLI 的信道:
-/// - cc-zap: `ANTHROPIC_CUSTOM_HEADERS="x-zap-instance: <tag>"` 进程 env
+/// - cc-dais: `ANTHROPIC_CUSTOM_HEADERS="x-dais-instance: <tag>"` 进程 env
 ///   赋值前缀(CC 只从进程 env 读; settings env 块优先级压过进程 env —
 ///   T3 实证, 不能写进 cc-entry-settings.json)。
-/// - omp/pi: `ZAP_INSTANCE_TAG` 进程 env(模型配置 provider `headers` 的
-///   env 引用: omp models.yml `ZAP_INSTANCE_TAG`, pi models.json
-///   `${ZAP_INSTANCE_TAG}`)。
+/// - omp/pi: `DAIS_INSTANCE_TAG` 进程 env(模型配置 provider `headers` 的
+///   env 引用: omp models.yml `DAIS_INSTANCE_TAG`, pi models.json
+///   `${DAIS_INSTANCE_TAG}`)。
 /// 网关按标记键控 session(`external-<p>-<tag>`), 转发前剥头(管道字节
 /// 不变)。
 ///
@@ -168,26 +168,26 @@ fn alias_defs(entry_port: u16, dialect: ArmingDialect) -> String {
     let cc_settings = cc_entry_settings_path().display().to_string();
     // Posix: 赋值前缀只对该 command 进程生效, 不污染 shell。
     let (cc_env, cli_env) = (
-        r#"ANTHROPIC_CUSTOM_HEADERS="x-zap-instance: $(date +%s%N)-$$""#,
-        r#"ZAP_INSTANCE_TAG="$(date +%s%N)-$$""#,
+        r#"ANTHROPIC_CUSTOM_HEADERS="x-dais-instance: $(date +%s%N)-$$""#,
+        r#"DAIS_INSTANCE_TAG="$(date +%s%N)-$$""#,
     );
     // fish: 引号外做命令拼接(set -lx 函数作用域导出, 不污染交互 shell)。
     let (cc_env_f, cli_env_f) = (
-        r#"set -lx ANTHROPIC_CUSTOM_HEADERS "x-zap-instance: "(date +%s%N)-$fish_pid"#,
-        r#"set -lx ZAP_INSTANCE_TAG (date +%s%N)-$fish_pid"#,
+        r#"set -lx ANTHROPIC_CUSTOM_HEADERS "x-dais-instance: "(date +%s%N)-$fish_pid"#,
+        r#"set -lx DAIS_INSTANCE_TAG (date +%s%N)-$fish_pid"#,
     );
     let omp_model = resolve_default_model_id("omp");
     let pi_model = resolve_default_model_id("pi");
     let bodies: [(&str, String, String); 3] = [
-        ("cc-zap", format!("command claude --settings"), cc_settings),
-        ("omp-zap", format!("command omp --model zap/{omp_model}"), String::new()),
-        ("pi-zap", format!("command pi --model zap/{pi_model}"), String::new()),
+        ("cc-dais", format!("command claude --settings"), cc_settings),
+        ("omp-dais", format!("command omp --model dais/{omp_model}"), String::new()),
+        ("pi-dais", format!("command pi --model dais/{pi_model}"), String::new()),
     ];
     let _ = entry_port; // settings 文件内固化端口; 函数体不重复携带
     bodies
         .iter()
         .map(|(name, body, extra)| {
-            let is_cc = *name == "cc-zap";
+            let is_cc = *name == "cc-dais";
             match dialect {
                 ArmingDialect::Posix => {
                     let env = if is_cc { cc_env } else { cli_env };
@@ -256,7 +256,7 @@ fn cc_entry_settings_content(port: u16) -> String {
 }
 
 /// (重)生成 cc-entry-settings.json(每次武装前刷新, 端口/用户配置变化即
-/// 生效)。写失败仅记日志 — cc-zap 用旧文件仍可用。
+/// 生效)。写失败仅记日志 — cc-dais 用旧文件仍可用。
 fn refresh_cc_entry_settings(port: u16) -> std::io::Result<()> {
     let path = cc_entry_settings_path();
     if let Some(parent) = path.parent() {
@@ -276,7 +276,7 @@ pub fn bootstrap_arming_suffix(dialect: ArmingDialect, enabled: bool) -> Option<
     if let Err(e) = refresh_cc_entry_settings(port) {
         log::warn!("external-capture: cc-entry-settings refresh failed: {e}");
     }
-    log::info!("external-capture: armed aliases cc-zap/omp-zap/pi-zap (entry :{port})");
+    log::info!("external-capture: armed aliases cc-dais/omp-dais/pi-dais (entry :{port})");
     Some(alias_defs(port, dialect))
 }
 
@@ -326,33 +326,33 @@ mod tests {
 
     #[test]
     fn alias_defs_shapes() {
-        let _env = T4_LOCK.lock(); // cc-zap 段含 HOME 派生路径, 与改 HOME 的测试串行
+        let _env = T4_LOCK.lock(); // cc-dais 段含 HOME 派生路径, 与改 HOME 的测试串行
         let posix = alias_defs(8787, ArmingDialect::Posix);
         // T8: 三别名各带调用时铸标记的 env 前缀(cc 走 ANTHROPIC_CUSTOM_
-        // HEADERS, omp/pi 走 ZAP_INSTANCE_TAG)。
+        // HEADERS, omp/pi 走 DAIS_INSTANCE_TAG)。
         assert!(posix.contains(
-            r#"cc-zap(){ ANTHROPIC_CUSTOM_HEADERS="x-zap-instance: $(date +%s%N)-$$" command claude --settings"#
+            r#"cc-dais(){ ANTHROPIC_CUSTOM_HEADERS="x-dais-instance: $(date +%s%N)-$$" command claude --settings"#
         ));
         assert!(posix.contains("/cc-entry-settings.json' \"$@\"; }"));
         assert!(posix.contains(
-            r#"omp-zap(){ ZAP_INSTANCE_TAG="$(date +%s%N)-$$" command omp --model zap/glm-5.2 "$@"; }"#
+            r#"omp-dais(){ DAIS_INSTANCE_TAG="$(date +%s%N)-$$" command omp --model dais/glm-5.2 "$@"; }"#
         ));
         assert!(posix.contains(
-            r#"pi-zap(){ ZAP_INSTANCE_TAG="$(date +%s%N)-$$" command pi --model zap/glm-5.2 "$@"; }"#
+            r#"pi-dais(){ DAIS_INSTANCE_TAG="$(date +%s%N)-$$" command pi --model dais/glm-5.2 "$@"; }"#
         ));
         assert!(!posix.contains('\n'), "单行投递安全");
 
         let fish = alias_defs(8787, ArmingDialect::Fish);
         assert!(fish.contains(
-            r#"set -lx ANTHROPIC_CUSTOM_HEADERS "x-zap-instance: "(date +%s%N)-$fish_pid"#
+            r#"set -lx ANTHROPIC_CUSTOM_HEADERS "x-dais-instance: "(date +%s%N)-$fish_pid"#
         ));
         assert!(fish.contains(
-            "set -lx ZAP_INSTANCE_TAG (date +%s%N)-$fish_pid; command omp --model zap/glm-5.2 $argv; end"
+            "set -lx DAIS_INSTANCE_TAG (date +%s%N)-$fish_pid; command omp --model dais/glm-5.2 $argv; end"
         ));
     }
 
     /// T8: 标记必须**调用时**铸(函数体内运行时表达式), 不是定义时铸死 —
-    /// 否则同一 shell 的多次 omp-zap 调用共享标记, 违反一实例一 session。
+    /// 否则同一 shell 的多次 omp-dais 调用共享标记, 违反一实例一 session。
     /// 断言: 每个别名体都含 ns 时间戳+pid 表达式; defs 是纯模板(两次
     /// 生成全等, 不携带任何铸造期状态)。
     #[test]
@@ -413,22 +413,22 @@ mod tests {
     fn arming_inserts_before_heredoc_end_marker() {
         let script =
             b" read -r -d '' V << 'EOM'; eval \"$V\"\nbody\nEOM\n";
-        let out = insert_arming_into_script(script, "cc-zap(){ x; }");
+        let out = insert_arming_into_script(script, "cc-dais(){ x; }");
         let s = String::from_utf8(out).unwrap();
         let eom = s.rfind("\nEOM\n").expect("EOM preserved");
-        let defs = s.find("cc-zap(){ x; }").expect("defs present");
+        let defs = s.find("cc-dais(){ x; }").expect("defs present");
         assert!(defs < eom, "defs must land BEFORE the EOM marker");
 
         // fish 形状(无 heredoc): 尾部追加。
         let script = b"warp_bootstrapped\nend\n";
-        let out = insert_arming_into_script(script, "function cc-zap; x; end");
-        assert!(String::from_utf8_lossy(&out).ends_with("function cc-zap; x; end"));
+        let out = insert_arming_into_script(script, "function cc-dais; x; end");
+        assert!(String::from_utf8_lossy(&out).ends_with("function cc-dais; x; end"));
     }
 
     // ── T4-E2E 回归钉 ──────────────────────────────────────────────────
 
-    /// 别名函数体: 三别名均携带一次性实例标记前缀(T8), cc-zap 另携
-    /// --settings 全路径(入 HOME), omp/pi 携 --model zap/glm-5.2; 裸命令
+    /// 别名函数体: 三别名均携带一次性实例标记前缀(T8), cc-dais 另携
+    /// --settings 全路径(入 HOME), omp/pi 携 --model dais/glm-5.2; 裸命令
     /// (claude/omp/pi)零函数定义 — bootstrap 注入不劫持裸调用。
     #[test]
     fn t4_alias_bodies_pin_settings_path_model_and_zero_bare_hijack() {
@@ -452,28 +452,28 @@ mod tests {
                 let e = rest.find(next).unwrap_or(rest.len());
                 rest[..e].trim_end_matches(';').to_string()
             };
-            // cc-zap: --settings 全路径; 不带 --model。T8: 全等钉完整函数体
+            // cc-dais: --settings 全路径; 不带 --model。T8: 全等钉完整函数体
             // (含 ANTHROPIC_CUSTOM_HEADERS 调用时铸标记前缀 — 引号值内含
             // 空格, 不能切割解析)。
-            let cc = seg(&posix, "cc-zap()", "omp-zap()");
+            let cc = seg(&posix, "cc-dais()", "omp-dais()");
             assert_eq!(
                 cc,
                 format!(
-                    r#"cc-zap(){{ ANTHROPIC_CUSTOM_HEADERS="x-zap-instance: $(date +%s%N)-$$" command claude --settings '{settings}' "$@"; }}"#
+                    r#"cc-dais(){{ ANTHROPIC_CUSTOM_HEADERS="x-dais-instance: $(date +%s%N)-$$" command claude --settings '{settings}' "$@"; }}"#
                 )
             );
-            assert!(!cc.contains("--model"), "cc-zap 不携带 --model");
-            // omp-zap / pi-zap: --model zap/glm-5.2; 不带 --settings;
-            // ZAP_INSTANCE_TAG 调用时铸。
+            assert!(!cc.contains("--model"), "cc-dais 不携带 --model");
+            // omp-dais / pi-dais: --model dais/glm-5.2; 不带 --settings;
+            // DAIS_INSTANCE_TAG 调用时铸。
             for (name, bin, next) in [
-                ("omp-zap", "omp", "pi-zap()"),
-                ("pi-zap", "pi", "\u{0}none"),
+                ("omp-dais", "omp", "pi-dais()"),
+                ("pi-dais", "pi", "\u{0}none"),
             ] {
                 let d = seg(&posix, &format!("{name}()"), next);
                 assert_eq!(
                     d,
                     format!(
-                        r#"{name}(){{ ZAP_INSTANCE_TAG="$(date +%s%N)-$$" command {bin} --model zap/glm-5.2 "$@"; }}"#
+                        r#"{name}(){{ DAIS_INSTANCE_TAG="$(date +%s%N)-$$" command {bin} --model dais/glm-5.2 "$@"; }}"#
                     )
                 );
                 assert!(!d.contains("--settings"), "{name} 不携带 --settings");
@@ -481,8 +481,8 @@ mod tests {
             // fish 方言: 三别名齐全(pi 也钉, 全等)。
             let fish = alias_defs(8787, ArmingDialect::Fish);
             assert_eq!(
-                seg(&fish, "function pi-zap", "\u{0}none"),
-                "function pi-zap; set -lx ZAP_INSTANCE_TAG (date +%s%N)-$fish_pid; command pi --model zap/glm-5.2 $argv; end"
+                seg(&fish, "function pi-dais", "\u{0}none"),
+                "function pi-dais; set -lx DAIS_INSTANCE_TAG (date +%s%N)-$fish_pid; command pi --model dais/glm-5.2 $argv; end"
             );
 
             // 裸命令零劫持: 不存在裸名(claude/omp/pi)函数定义。
@@ -503,7 +503,7 @@ mod tests {
     }
     /// T9: 别名武装动态跟随 CLI 独立默认模型 — omp/pi 各读独立配置
     /// (config.yml modelRoles.default / settings.json defaultModel), 嵌入
-    /// `--model zap/<id>`。无配置兜底原铸死值 glm-5.2。
+    /// `--model dais/<id>`。无配置兜底原铸死值 glm-5.2。
     #[test]
     fn t9_alias_model_follows_cli_default() {
         let _env = T4_LOCK.lock();
@@ -527,25 +527,25 @@ mod tests {
             .unwrap();
 
             let posix = alias_defs(8787, ArmingDialect::Posix);
-            // omp-zap: 动态读 config.yml → glm-5-turbo。
+            // omp-dais: 动态读 config.yml → glm-5-turbo。
             assert!(
-                posix.contains("--model zap/glm-5-turbo"),
-                "omp-zap 应跟随 omp config 默认模型: {posix}"
+                posix.contains("--model dais/glm-5-turbo"),
+                "omp-dais 应跟随 omp config 默认模型: {posix}"
             );
-            // pi-zap: 动态读 settings.json → glm-5-turbo。
+            // pi-dais: 动态读 settings.json → glm-5-turbo。
             assert!(
-                posix.contains("pi --model zap/glm-5-turbo"),
-                "pi-zap 应跟随 pi settings 默认模型: {posix}"
+                posix.contains("pi --model dais/glm-5-turbo"),
+                "pi-dais 应跟随 pi settings 默认模型: {posix}"
             );
             // fish 同口径。
             let fish = alias_defs(8787, ArmingDialect::Fish);
             assert!(
-                fish.contains("--model zap/glm-5-turbo"),
-                "fish omp-zap 应跟随: {fish}"
+                fish.contains("--model dais/glm-5-turbo"),
+                "fish omp-dais 应跟随: {fish}"
             );
             assert!(
-                fish.contains("pi --model zap/glm-5-turbo"),
-                "fish pi-zap 应跟随: {fish}"
+                fish.contains("pi --model dais/glm-5-turbo"),
+                "fish pi-dais 应跟随: {fish}"
             );
 
             // ── 无配置 → 兜底 glm-5.2 (原铸死值不变) ──
@@ -553,11 +553,11 @@ mod tests {
             std::fs::remove_file(dir.path().join(".pi/agent/settings.json")).unwrap();
             let posix_fb = alias_defs(8787, ArmingDialect::Posix);
             assert!(
-                posix_fb.contains("omp --model zap/glm-5.2"),
+                posix_fb.contains("omp --model dais/glm-5.2"),
                 "omp 配置缺失 → 兜底 glm-5.2: {posix_fb}"
             );
             assert!(
-                posix_fb.contains("pi --model zap/glm-5.2"),
+                posix_fb.contains("pi --model dais/glm-5.2"),
                 "pi 配置缺失 → 兜底 glm-5.2: {posix_fb}"
             );
         })();
@@ -609,9 +609,9 @@ mod tests {
 
             // 开关开 + 入口在跑 → bootstrap 武装: 三别名 + settings 刷新落盘。
             let suffix = bootstrap_arming_suffix(ArmingDialect::Posix, true).unwrap();
-            assert!(suffix.contains("cc-zap()"), "armed suffix: {suffix}");
-            assert!(suffix.contains("omp-zap()"));
-            assert!(suffix.contains("pi-zap()"));
+            assert!(suffix.contains("cc-dais()"), "armed suffix: {suffix}");
+            assert!(suffix.contains("omp-dais()"));
+            assert!(suffix.contains("pi-dais()"));
             let settings_path = dir
                 .path()
                 .join(".config/zap/cc-entry-settings.json");
