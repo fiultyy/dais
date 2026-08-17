@@ -370,3 +370,90 @@ cargo check -p warp --features orchestration
 ```
 手动冒烟: 开关开 → 新开 pane 敲 `omp-zap` 跑一句 → 观测台 Sessions
 出现 external-omp 行且有请求块; `curl http://127.0.0.1:8787/nope` → 404。
+
+---
+
+# T8 session 按实例分离小节（2026-08-17）
+
+> 现象: 相同 harness 不同 CLI 实例（两个独立 omp 进程）的流量在观测里
+> 归并为同一个 `external-omp` session。T5 口径"每前缀一常驻 session"的
+> 已知代价, 本节按 T8 修为**一实例一 session**。
+
+## 实证（身份源评估, 全部本机真 CLI 抓包）
+
+| CLI | UA | 原生实例头 | 结论 |
+|---|---|---|---|
+| claude 2.1.179 | `claude-cli/...` 无 pid | `x-claude-code-session-id`（会话粒度, `--resume` 跨进程同 id） | 不可用 |
+| omp 17.3.4 | `Bun/1.3.14` | 无 | 不可用 |
+| pi 0.84.1 | `OpenAI/JS` | 无 | 不可用 |
+
+连接层: CC(undici) 同连接复用多请求, omp(Bun) 每请求新连接 — **每连接
+分组会把单实例拆碎, 否决**。定案: **客户端标记** — zap 别名铸造一次性
+实例标记（pid-hex16-epoch）, 经 CLI 自带的身份信道到网关:
+- **CC**: `ANTHROPIC_CUSTOM_HEADERS='x-zap-instance: <tag>'`（进程 env,
+  `Name: Value` 冒号格式; JSON 格式报 Invalid header name）。
+- **omp**: models.yml provider `headers` 的 env 整串引用
+  （`x-zap-instance: ZAP_INSTANCE_TAG`, `resolveConfigValue` env 优先）。
+- **pi**: models.json provider `headers` 的模板引用
+  （`"x-zap-instance": "${ZAP_INSTANCE_TAG}"`, pi 用 `${VAR}` 语法）。
+
+别名函数体**调用时**铸标记(定义时铸死会让同一 shell 多次调用共享标记,
+违反一实例一 session):
+```
+cc-zap(){ ANTHROPIC_CUSTOM_HEADERS="x-zap-instance: $(date +%s%N)-$$" command claude --settings ...; }
+omp-zap(){ ZAP_INSTANCE_TAG="$(date +%s%N)-$$" command omp --model zap/glm-5.2 "$@"; }
+```
+CC 必须走进程 env 赋值前缀: settings env 块优先级压过进程 env(T3 实证),
+而 `ANTHROPIC_CUSTOM_HEADERS` 只从进程 env 读。fish 方言用
+`set -lx VAR (date +%s%N)-$fish_pid`(引号外命令拼接)。
+
+## 实现
+
+- `proxy_interceptor/src/handler.rs`: `SKIPPED_REQUEST_HEADERS` 3→4,
+  `x-zap-instance` 转发前剥（zap 内部信号不进上游; auth 头仍原样透传,
+  透明管道其余字节不动）。
+- `harness_integration/src/entry_gateway.rs` 重写数据面: 每前缀
+  `PrefixPlane`（默认 lane + 实例 lane 表 + 单任务串行 demux）。请求
+  事件读标记建/取 lane（`external-omp-<tag>`）, 登记请求 id→lane;
+  响应 chunk/done 经登记回路由。每 lane 独立 `SessionContext` + 专属
+  `run_raw_processor`（seq 各自单调, Spawn 懒发语义不变）。无标记流量
+  回落默认 `external-omp`（T5 行为, 零回归）; 标记校验
+  `[A-Za-z0-9._-]{1,64}`, 非法/超限（lane 上限 64/前缀）回落默认。
+  `stop()` 落所有活跃 lane 的 Exit。
+- `app/src/ai/external_capture_rt.rs`: `mint_instance_tag()` 铸标记,
+  `alias_defs` 三别名函数体携带 `ZAP_INSTANCE_TAG=<tag>` 前缀。
+- 观测台快照行 `EntrySessionInfo` 形状不变, 只是行数 = 默认+活跃实例。
+
+## 编排侧配置（本次已写入本机）
+
+- `~/.omp/agent/models.yml` zap provider 增 `headers:
+  {x-zap-instance: ZAP_INSTANCE_TAG}`。
+- `~/.pi/agent/models.json` zap provider 增 `"headers":
+  {"x-zap-instance": "${ZAP_INSTANCE_TAG}"}`。
+- CC 侧零配置（别名 env 自带）。
+
+## 验证
+
+- 单测: `entry_gateway::marker_validation`; `external_capture_rt` 8/8
+  （含 T8 标记铸造/共享/字母表钉, T4 别名钉更新为带标记前缀断言）。
+- 集成: 新 `tests/entry_gateway_instances.rs` — 同前缀两标记+无标记
+  → 三 session 各恰一 Spawn、请求互不串、**标记头不进上游**、快照三行
+  、stop 各落 Exit。T4 e2e 与 entry_gateway.rs 原断言零改动全过（语义
+  保持: 无标记 = 默认 session 恰一 Spawn; T4 体逐字节断言全保）。
+- 真链冒烟（临时 example+临时 provider, 已清理）:
+  1. 两个真实 omp 实例 + 一个真实 pi 实例（不同 shell）→ 各自独立
+     session 各恰一 Spawn, 上游真实回包（标记已剥）。
+  2. **同 shell 修正点验证**: 同一 bash（同 pid）连续两次 `omp-zap` +
+    一次 `cc-zap` → `external-omp-<ns>-<pid>` × 2、`external-cc-<ns>-<pid>`
+    × 1, 三 session 各恰一 Spawn（CC 侧上游 529 重试 11 次也全归并
+    同一实例 session）— 证实标记是**调用时**生成, 非定义时铸死。
+
+## 边界
+
+- 运行中的旧 zap（未含 T8）会把 `x-zap-instance` 原样转发上游（无害,
+  未知头忽略）; 重启 zap 后才生效剥离+键控。
+- 实例 lane 随网关常驻（无 idle reap, 同 T5 口径）; lane 上限 64/前缀
+  超限回落默认 session 并告警。
+- 标记唯一性依赖 `date +%s%N`（GNU date, Linux 验收环境）+ `$$`/
+  `$fish_pid`; 理论上同 ns 同 pid 碰撞需进程 pid 复用+纳秒重合,
+  实践可忽略。

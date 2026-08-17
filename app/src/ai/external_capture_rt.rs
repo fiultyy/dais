@@ -5,8 +5,9 @@
 //! - **入口**: [`EntryGateway`](proxy_interceptor 单端口入口, 明文 HTTP,
 //!   默认 8787 持久化 intercept_config.json), 路径前缀分流 `/cc` `/omp`
 //!   `/pi` → 各自出口。auth 透明管道(客户端凭据原样转发, zap 不注不剥)。
-//! - **观测**: 每前缀归并一个常驻 session(`external-cc/omp/pi`), Spawn
-//!   懒发(首个真实请求才落 block)。
+//! - **观测**: 每前缀按实例归并 session(T8: `external-cc/omp/pi[-<实例
+//!   标记>]`, 标记由别名铸造, 无标记回落默认 session), Spawn 懒发
+//!   (首个真实请求才落 block)。
 //! - **武装**: 本地 pane 首个 shell 的 bootstrap 脚本不可见区插入三个
 //!   同名 shell 函数(`cc-zap`/`omp-zap`/`pi-zap`, heredoc 感知插入零可见
 //!   污染)。`cc-zap` 走 `--settings` 深覆盖(静态文件
@@ -102,23 +103,63 @@ pub enum ArmingDialect {
     Fish,
 }
 
+/// T8 实例标记: **每次别名调用** = 一次 CLI 实例启动, 标记必须在调用时
+/// 生成(定义时铸死会让同一 shell 的多次调用共享标记 → 违反一实例一
+/// session), 故函数体内嵌运行时表达式 `$(date +%s%N)-$$`(ns 时间戳保证
+/// 同 shell 两次调用不同, pid 保证跨 shell 不同; fish 用
+/// `(date +%s%N)-$fish_pid`)。
+///
+/// 标记的落地信道(三类 CLI 均已本机实证), 每别名只带自己 CLI 的信道:
+/// - cc-zap: `ANTHROPIC_CUSTOM_HEADERS="x-zap-instance: <tag>"` 进程 env
+///   赋值前缀(CC 只从进程 env 读; settings env 块优先级压过进程 env —
+///   T3 实证, 不能写进 cc-entry-settings.json)。
+/// - omp/pi: `ZAP_INSTANCE_TAG` 进程 env(模型配置 provider `headers` 的
+///   env 引用: omp models.yml `ZAP_INSTANCE_TAG`, pi models.json
+///   `${ZAP_INSTANCE_TAG}`)。
+/// 网关按标记键控 session(`external-<p>-<tag>`), 转发前剥头(管道字节
+/// 不变)。
+///
 /// 别名函数体按方言包装(单行, 无换行 — 投递安全)。
 fn alias_defs(entry_port: u16, dialect: ArmingDialect) -> String {
     let cc_settings = cc_entry_settings_path().display().to_string();
+    // Posix: 赋值前缀只对该 command 进程生效, 不污染 shell。
+    let (cc_env, cli_env) = (
+        r#"ANTHROPIC_CUSTOM_HEADERS="x-zap-instance: $(date +%s%N)-$$""#,
+        r#"ZAP_INSTANCE_TAG="$(date +%s%N)-$$""#,
+    );
+    // fish: 引号外做命令拼接(set -lx 函数作用域导出, 不污染交互 shell)。
+    let (cc_env_f, cli_env_f) = (
+        r#"set -lx ANTHROPIC_CUSTOM_HEADERS "x-zap-instance: "(date +%s%N)-$fish_pid"#,
+        r#"set -lx ZAP_INSTANCE_TAG (date +%s%N)-$fish_pid"#,
+    );
     let bodies = [
-        (
-            "cc-zap",
-            format!("command claude --settings '{cc_settings}'"),
-        ),
-        ("omp-zap", "command omp --model zap/glm-5.2".to_string()),
-        ("pi-zap", "command pi --model zap/glm-5.2".to_string()),
+        ("cc-zap", "command claude --settings", cc_settings),
+        ("omp-zap", "command omp --model zap/glm-5.2", String::new()),
+        ("pi-zap", "command pi --model zap/glm-5.2", String::new()),
     ];
     let _ = entry_port; // settings 文件内固化端口; 函数体不重复携带
     bodies
         .iter()
-        .map(|(name, body)| match dialect {
-            ArmingDialect::Posix => format!(r#"{name}(){{ {body} "$@"; }}"#),
-            ArmingDialect::Fish => format!("function {name}; {body} $argv; end"),
+        .map(|(name, body, extra)| {
+            let is_cc = *name == "cc-zap";
+            match dialect {
+                ArmingDialect::Posix => {
+                    let env = if is_cc { cc_env } else { cli_env };
+                    if is_cc {
+                        format!(r#"{name}(){{ {env} {body} '{extra}' "$@"; }}"#)
+                    } else {
+                        format!(r#"{name}(){{ {env} {body} "$@"; }}"#)
+                    }
+                }
+                ArmingDialect::Fish => {
+                    let env = if is_cc { cc_env_f } else { cli_env_f };
+                    if is_cc {
+                        format!("function {name}; {env}; {body} '{extra}' $argv; end")
+                    } else {
+                        format!("function {name}; {env}; {body} $argv; end")
+                    }
+                }
+            }
         })
         .collect::<Vec<_>>()
         .join(";")
@@ -239,18 +280,46 @@ mod tests {
 
     #[test]
     fn alias_defs_shapes() {
+        let _env = T4_LOCK.lock(); // cc-zap 段含 HOME 派生路径, 与改 HOME 的测试串行
         let posix = alias_defs(8787, ArmingDialect::Posix);
+        // T8: 三别名各带调用时铸标记的 env 前缀(cc 走 ANTHROPIC_CUSTOM_
+        // HEADERS, omp/pi 走 ZAP_INSTANCE_TAG)。
         assert!(posix.contains(
-            "cc-zap(){ command claude --settings '"
+            r#"cc-zap(){ ANTHROPIC_CUSTOM_HEADERS="x-zap-instance: $(date +%s%N)-$$" command claude --settings"#
         ));
         assert!(posix.contains("/cc-entry-settings.json' \"$@\"; }"));
-        assert!(posix.contains("omp-zap(){ command omp --model zap/glm-5.2 \"$@\"; }"));
-        assert!(posix.contains("pi-zap(){ command pi --model zap/glm-5.2 \"$@\"; }"));
+        assert!(posix.contains(
+            r#"omp-zap(){ ZAP_INSTANCE_TAG="$(date +%s%N)-$$" command omp --model zap/glm-5.2 "$@"; }"#
+        ));
+        assert!(posix.contains(
+            r#"pi-zap(){ ZAP_INSTANCE_TAG="$(date +%s%N)-$$" command pi --model zap/glm-5.2 "$@"; }"#
+        ));
         assert!(!posix.contains('\n'), "单行投递安全");
 
         let fish = alias_defs(8787, ArmingDialect::Fish);
-        assert!(fish.contains("function cc-zap; command claude --settings '"));
-        assert!(fish.contains("function omp-zap; command omp --model zap/glm-5.2 $argv; end"));
+        assert!(fish.contains(
+            r#"set -lx ANTHROPIC_CUSTOM_HEADERS "x-zap-instance: "(date +%s%N)-$fish_pid"#
+        ));
+        assert!(fish.contains(
+            "set -lx ZAP_INSTANCE_TAG (date +%s%N)-$fish_pid; command omp --model zap/glm-5.2 $argv; end"
+        ));
+    }
+
+    /// T8: 标记必须**调用时**铸(函数体内运行时表达式), 不是定义时铸死 —
+    /// 否则同一 shell 的多次 omp-zap 调用共享标记, 违反一实例一 session。
+    /// 断言: 每个别名体都含 ns 时间戳+pid 表达式; defs 是纯模板(两次
+    /// 生成全等, 不携带任何铸造期状态)。
+    #[test]
+    fn instance_tags_minted_at_call_time_not_def_time() {
+        let _env = T4_LOCK.lock(); // 同上: a/b 全等断言跨 HOME 派生路径
+        let a = alias_defs(8787, ArmingDialect::Posix);
+        let b = alias_defs(8787, ArmingDialect::Posix);
+        assert_eq!(a, b, "defs 是纯模板, 不携带调用期铸造状态");
+        // 每个别名各含一次调用时铸造表达式。
+        assert_eq!(a.matches("$(date +%s%N)-$$").count(), 3, "三别名各铸: {a}");
+        // fish 同口径。
+        let f = alias_defs(8787, ArmingDialect::Fish);
+        assert_eq!(f.matches("(date +%s%N)-$fish_pid").count(), 3, "{f}");
     }
 
     #[test]
@@ -312,9 +381,9 @@ mod tests {
 
     // ── T4-E2E 回归钉 ──────────────────────────────────────────────────
 
-    /// 别名函数体: cc-zap 携 --settings 全路径(入 HOME), omp/pi 携
-    /// --model zap/glm-5.2; 裸命令(claude/omp/pi)零函数定义 — bootstrap
-    /// 注入不劫持裸调用。
+    /// 别名函数体: 三别名均携带一次性实例标记前缀(T8), cc-zap 另携
+    /// --settings 全路径(入 HOME), omp/pi 携 --model zap/glm-5.2; 裸命令
+    /// (claude/omp/pi)零函数定义 — bootstrap 注入不劫持裸调用。
     #[test]
     fn t4_alias_bodies_pin_settings_path_model_and_zero_bare_hijack() {
         let _env = T4_LOCK.lock();
@@ -337,14 +406,19 @@ mod tests {
                 let e = rest.find(next).unwrap_or(rest.len());
                 rest[..e].trim_end_matches(';').to_string()
             };
-            // cc-zap: --settings 全路径; 不带 --model。
+            // cc-zap: --settings 全路径; 不带 --model。T8: 全等钉完整函数体
+            // (含 ANTHROPIC_CUSTOM_HEADERS 调用时铸标记前缀 — 引号值内含
+            // 空格, 不能切割解析)。
             let cc = seg(&posix, "cc-zap()", "omp-zap()");
             assert_eq!(
                 cc,
-                format!(r#"cc-zap(){{ command claude --settings '{settings}' "$@"; }}"#)
+                format!(
+                    r#"cc-zap(){{ ANTHROPIC_CUSTOM_HEADERS="x-zap-instance: $(date +%s%N)-$$" command claude --settings '{settings}' "$@"; }}"#
+                )
             );
             assert!(!cc.contains("--model"), "cc-zap 不携带 --model");
-            // omp-zap / pi-zap: --model zap/glm-5.2; 不带 --settings。
+            // omp-zap / pi-zap: --model zap/glm-5.2; 不带 --settings;
+            // ZAP_INSTANCE_TAG 调用时铸。
             for (name, bin, next) in [
                 ("omp-zap", "omp", "pi-zap()"),
                 ("pi-zap", "pi", "\u{0}none"),
@@ -352,15 +426,17 @@ mod tests {
                 let d = seg(&posix, &format!("{name}()"), next);
                 assert_eq!(
                     d,
-                    format!(r#"{name}(){{ command {bin} --model zap/glm-5.2 "$@"; }}"#)
+                    format!(
+                        r#"{name}(){{ ZAP_INSTANCE_TAG="$(date +%s%N)-$$" command {bin} --model zap/glm-5.2 "$@"; }}"#
+                    )
                 );
                 assert!(!d.contains("--settings"), "{name} 不携带 --settings");
             }
-            // fish 方言: 三别名齐全(pi 也钉)。
+            // fish 方言: 三别名齐全(pi 也钉, 全等)。
             let fish = alias_defs(8787, ArmingDialect::Fish);
             assert_eq!(
                 seg(&fish, "function pi-zap", "\u{0}none"),
-                "function pi-zap; command pi --model zap/glm-5.2 $argv; end"
+                "function pi-zap; set -lx ZAP_INSTANCE_TAG (date +%s%N)-$fish_pid; command pi --model zap/glm-5.2 $argv; end"
             );
 
             // 裸命令零劫持: 不存在裸名(claude/omp/pi)函数定义。
