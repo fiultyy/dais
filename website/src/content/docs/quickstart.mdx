@@ -80,9 +80,9 @@ import TabsCard from '../../components/docs/TabsCard.astro';
 
 ## 3. Build & run
 
-<p data-lang="en">Zap ships two binaries: <code>zap-oss</code> (no cloud-bound features compiled in — the right target for community builds) and <code>warp</code> (Warp Inc.'s internal channel, requires their private channel config). Use <code>zap-oss</code>.</p>
-<p data-lang="zh">Zap 提供两个二进制文件:<code>zap-oss</code>(已移除全部云端能力,社区构建请使用此版本)与 <code>warp</code>(Warp Inc. 内部 channel,依赖其私有 channel 配置)。请使用 <code>zap-oss</code>。</p>
-<p data-lang="ja">Zap には 2 つのバイナリがあります。<code>zap-oss</code> はクラウド依存機能を含まないコミュニティビルド向けのターゲットで、<code>warp</code> は Warp Inc. の内部チャンネル用で非公開のチャンネル設定が必要です。<code>zap-oss</code> を使ってください。</p>
+<p data-lang="en">Zap ships two binaries: <code>dais</code> (no cloud-bound features compiled in — the right target for community builds) and <code>warp</code> (Warp Inc.'s internal channel, requires their private channel config). Use <code>dais</code>.</p>
+<p data-lang="zh">Zap 提供两个二进制文件:<code>dais</code>(已移除全部云端能力,社区构建请使用此版本)与 <code>warp</code>(Warp Inc. 内部 channel,依赖其私有 channel 配置)。请使用 <code>dais</code>。</p>
+<p data-lang="ja">Zap には 2 つのバイナリがあります。<code>dais</code> はクラウド依存機能を含まないコミュニティビルド向けのターゲットで、<code>warp</code> は Warp Inc. の内部チャンネル用で非公開のチャンネル設定が必要です。<code>dais</code> を使ってください。</p>
 
 <TabsCard tabs={[
   {
@@ -98,10 +98,10 @@ import TabsCard from '../../components/docs/TabsCard.astro';
     key: 'cargo',
     label: 'cargo',
     html: `<span class="com"># Direct cargo invocation — useful for IDE integration / debugging</span>
-cargo run --release <span class="acc">--bin zap-oss</span> --features gui
+cargo run --release <span class="acc">--bin dais</span> --features gui
 
 <span class="com"># Dev profile (faster compile, slower runtime)</span>
-cargo run <span class="acc">--bin zap-oss</span> --features gui`
+cargo run <span class="acc">--bin dais</span> --features gui`
   },
   {
     key: 'bundle',

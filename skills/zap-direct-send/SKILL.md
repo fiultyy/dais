@@ -15,7 +15,7 @@ description: >-
 # Zap Direct Send (cross-harness turn driving)
 
 Send a message into another harness's terminal and get its agent to act on
-it in a new turn — via zap's orchestration plane (`zap-oss orchestration ...`).
+it in a new turn — via zap's orchestration plane (`dais orchestration ...`).
 The target can be any zap terminal pane (its session mailbox) or a dispatched
 worker.
 
@@ -42,7 +42,7 @@ worker.
 
 ## Commands
 
-Every command runs as `zap-oss orchestration <sub>`. Messages persist in
+Every command runs as `dais orchestration <sub>`. Messages persist in
 SQLite; nothing is lost if the target is busy.
 
 ### Send a message into the target's turn
@@ -50,13 +50,13 @@ SQLite; nothing is lost if the target is busy.
   # RULE: body is what the target agent reads. For lifecycle messages
   # (worker_done/heartbeat) body MUST be a JSON object matching zap's
   # reconcile schema — invalid JSON leaves it undeliverable.
-  zap-oss orchestration send-message <run_id> <from_handle> <to_handle> \
+  dais orchestration send-message <run_id> <from_handle> <to_handle> \
     --message-type status --subject "<short>" --body "<content>"
   # → enqueued seq=N
 
 ### Pull a mailbox (authoritative consumer)
 
-  zap-oss orchestration check-messages <handle>
+  dais orchestration check-messages <handle>
   # RULE: pulling marks messages read. One-shot scripts pull once; agents
   # embedded in a terminal should poll or use --wait.
 
@@ -65,7 +65,7 @@ SQLite; nothing is lost if the target is busy.
   # RULE: --wait registers a claim in SQLite; the push plane then skips
   # this mailbox's claimed types (no double consumption). Timeout is not
   # an error — a same-filter re-read always follows. Default 2 min.
-  zap-oss orchestration check-messages <handle> --wait --timeout-ms 120000 \
+  dais orchestration check-messages <handle> --wait --timeout-ms 120000 \
     --type worker_done
   # → message text, or "timed_out" + final re-read
 
@@ -74,18 +74,18 @@ SQLite; nothing is lost if the target is busy.
   # RULE: only reaches a terminal whose OSC title reads idle (or --force).
   # Bytes are bracketed-paste framed + sanitized; a lone CR submits after
   # 500 ms so the target TUI treats it as one pasted prompt.
-  zap-oss orchestration inject-prompt <dispatch_id> "<full task text>" [--force]
+  dais orchestration inject-prompt <dispatch_id> "<full task text>" [--force]
 
 ### Assign a dispatch to the active pane
 
-  zap-oss orchestration assign <dispatch_id>
+  dais orchestration assign <dispatch_id>
   # → binds PTY write + tail read + shell-event routing to that pane
 
 ## Semantics a caller must know
 
 - **Push on idle**: the router polls every 500 ms; when the target's title
   reads idle and unclaimed mail exists, it writes one pointer line
-  (`You have N orchestration message(s). Run 'zap-oss orchestration
+  (`You have N orchestration message(s). Run 'dais orchestration
   check-messages <handle>'`) + Enter. Bodies are never pushed — pull only.
 - **One pointer per new watermark**: re-announcing is suppressed until a
   newer sequence arrives; `delivered_at` advances only after a successful

@@ -1,7 +1,7 @@
 //! L1 runtime RPC — metadata file + Unix-domain socket server for
 //! headless orchestration.
 //!
-//! When the GUI (or `zap-oss serve`) starts, it writes a small JSON metadata
+//! When the GUI (or `dais serve`) starts, it writes a small JSON metadata
 //! file (`zap-runtime.json`) into the state directory.  A background thread
 //! listens on a Unix-domain socket; CLI invocations that detect a live GUI can
 //! forward `check-status` / `check-messages` / `send-message` through the

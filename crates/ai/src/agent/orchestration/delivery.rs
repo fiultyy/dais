@@ -44,7 +44,7 @@ pub const POINTER_SUBMIT_DELAY_MS: u64 = 500;
 /// a pure pointer — the body is pulled by the check command, never pushed.
 pub fn format_message_pointer(n: usize, handle: &str) -> String {
     format!(
-        "\nYou have {n} orchestration message(s). Run `zap-oss orchestration check-messages {handle}`.\n"
+        "\nYou have {n} orchestration message(s). Run `dais orchestration check-messages {handle}`.\n"
     )
 }
 

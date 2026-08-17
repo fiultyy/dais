@@ -313,7 +313,7 @@ pub struct PreambleParams<'a> {
     pub task_spec: &'a str,
     pub coordinator_handle: &'a str,
     pub worker_handle: &'a str,
-    /// CLI binary the worker should invoke (`zap-oss` in zap).
+    /// CLI binary the worker should invoke (`dais` in zap).
     pub cli_command: &'a str,
     /// Prompt-returning agents idle after worker_done; bare shells exit.
     pub worker_kind: WorkerKind,
@@ -500,7 +500,7 @@ mod tests {
             task_spec: "Fix the flux capacitor.",
             coordinator_handle: "term_coord",
             worker_handle: "term_worker",
-            cli_command: "zap-oss",
+            cli_command: "dais",
             worker_kind: WorkerKind::PromptReturningAgent,
         });
         assert!(p.contains("=== CLI COMMANDS ==="));

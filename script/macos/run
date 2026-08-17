@@ -7,7 +7,7 @@
 # This script is invoked by `./script/run`, which handles cross-platform
 # setup (install_channel_config, binary name detection, feature-to-env-var
 # mapping). The following env vars are expected to be set by the caller:
-#   WARP_BIN_NAME  — "warp" (internal local build) or "zap-oss"
+#   WARP_BIN_NAME  — "warp" (internal local build) or "dais"
 #   WARP_CHANNEL   — "local" or "oss"
 #   FEATURES       — comma-separated cargo features (already normalized)
 # Must be called from the root directory of the warp repo.

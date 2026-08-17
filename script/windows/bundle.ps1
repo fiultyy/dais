@@ -110,8 +110,8 @@ if ("$CHANNEL" -eq 'local') {
     # TODO(vorporeal): Remove this once we get tests passing with this default enabled.
     $FEATURES = "$FEATURES,nld_improvements"
 } elseif ("$CHANNEL" -eq 'oss') {
-    $WARP_BIN = 'zap-oss'
-    $BINARY_NAME = 'zap-oss.exe'
+    $WARP_BIN = 'dais'
+    $BINARY_NAME = 'dais.exe'
     $APP_NAME = 'Zap'
     # OSS channel 使用本地 crash reporting,不启用 release 默认特性集合。
     # autoupdate 走 GitHub Release(zerx-lab/warp),仅下载到 Downloads,不调 Inno Setup。
@@ -212,11 +212,11 @@ if (-Not $?) {
 }
 
 Write-Output 'Building Zap installer'
-# Inno Setup `AppId` 决定注册表 Uninstall 条目与升级跟踪键。OSS 下固定为 `zap-oss`,
+# Inno Setup `AppId` 决定注册表 Uninstall 条目与升级跟踪键。OSS 下固定为 `dais`,
 # 避免留在默认的 `warp-terminal-oss` 上。其他 channel 走 .iss 里的默认
 # `warp-terminal-{ReleaseChannel}`。
 if ("$CHANNEL" -eq 'oss') {
-    $INNO_APP_ID = 'zap-oss'
+    $INNO_APP_ID = 'dais'
 } else {
     $INNO_APP_ID = "warp-terminal-$CHANNEL"
 }

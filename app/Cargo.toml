@@ -1,6 +1,6 @@
 [package]
 authors = ["Zap Team"]
-default-run = "zap-oss"
+default-run = "dais"
 description = "The local-first agentic terminal"
 edition = "2021"
 autobins = false
@@ -13,12 +13,12 @@ license.workspace = true
 name = "warp"
 path = "src/lib.rs"
 
-# Zap 只保留两个 bin:打包用的 zap-oss,以及构建期工具 generate_settings_schema。
+# Zap 只保留两个 bin:打包用的 dais,以及构建期工具 generate_settings_schema。
 # 原 warp 多渠道发布的 dev/stable/preview/local bin 已删除。
 
 [[bin]]
-name = "zap-oss"
-path = "src/bin/zap_oss.rs"
+name = "dais"
+path = "src/bin/dais.rs"
 test = false
 
 [[bin]]
@@ -841,7 +841,7 @@ hoa_remote_control = []
 codex_notifications = []
 configurable_context_window = []
 
-[package.metadata.bundle.bin.zap-oss]
+[package.metadata.bundle.bin.dais]
 category = "public.app-category.developer-tools"
 copyright = "© 2025-2026, Zap"
 identifier = "dev.zap.Zap"

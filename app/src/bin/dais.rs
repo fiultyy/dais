@@ -24,7 +24,7 @@ pub static AmdPowerXpressRequestHighPerformance: u32 = 1;
 // Zap OSS 构建的入口,简单包一层 warp::run()。
 fn main() -> Result<()> {
     // ── "serve" 快路径 ──
-    // `zap-oss serve` 启动一个轻量级无头 RPC 服务器，处理
+    // `dais serve` 启动一个轻量级无头 RPC 服务器，处理
     // send-message / check-messages / status 通过 Unix 域套接字。
     // 无需 GPUI 应用基础设施。metadata 文件由服务器写入；
     // 在退出时（通过 ctrlc 或信号），会进行清理。
@@ -109,13 +109,13 @@ fn run_serve() -> Result<()> {
         mode: "serve".into(),
     };
     runtime_rpc::write_metadata(&meta);
-    eprintln!("zap-oss serve: RPC server listening on {}", meta.socket_path);
-    eprintln!("zap-oss serve: metadata at {}", runtime_rpc::runtime_metadata_path().display());
+    eprintln!("dais serve: RPC server listening on {}", meta.socket_path);
+    eprintln!("dais serve: metadata at {}", runtime_rpc::runtime_metadata_path().display());
 
     // Block until the process is killed (Ctrl-C / SIGTERM).
     // The default Rust runtime installs SIGINT/SIGTERM handlers that
     // terminate the process; we just need to keep main alive.
-    eprintln!("zap-oss serve: running. Press Ctrl-C to stop.");
+    eprintln!("dais serve: running. Press Ctrl-C to stop.");
     loop {
         std::thread::sleep(std::time::Duration::from_secs(3600));
     }
@@ -134,9 +134,9 @@ fn run_serve() -> Result<()> {
 fn run_serve() -> Result<()> {
     let msg = {
         #[cfg(not(unix))]
-        { "zap-oss serve is only supported on Unix platforms" }
+        { "dais serve is only supported on Unix platforms" }
         #[cfg(all(unix, not(feature = "orchestration")))]
-        { "zap-oss serve requires the 'orchestration' feature" }
+        { "dais serve requires the 'orchestration' feature" }
     };
     anyhow::bail!("{msg}")
 }
@@ -153,7 +153,7 @@ embed_plist::embed_info_plist_bytes!(r#"
     <key>CFBundleDisplayName</key>
     <string>Zap</string>
     <key>CFBundleExecutable</key>
-    <string>zap-oss</string>
+    <string>dais</string>
     <key>CFBundleIdentifier</key>
     <string>dev.zap.Zap</string>
     <key>CFBundleInfoDictionaryVersion</key>

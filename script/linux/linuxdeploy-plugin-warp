@@ -13,7 +13,7 @@
 # as installing a .deb or .rpm package.
 #
 # Required environment variables:
-#   WARP_BINARY_NAME:           Name of the binary (e.g. "zap-oss").
+#   WARP_BINARY_NAME:           Name of the binary (e.g. "dais").
 #   WARP_OPT_DIR:               Absolute /opt-rooted directory for the
 #                               install layout inside the AppDir (e.g.
 #                               "/opt/zap" for the Zap OSS channel, or

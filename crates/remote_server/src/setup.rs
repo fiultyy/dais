@@ -359,13 +359,13 @@ pub fn install_script(staging_tarball_path: Option<&str>) -> String {
         .replace("{staging_tarball_path}", staging_tarball_path.unwrap_or(""))
 }
 
-/// 构造 Zap CLI release 资产下载基址。
+/// 构造 dais CLI release 资产下载基址。
 fn download_url() -> String {
     let release_path = match ChannelState::app_version() {
         Some(tag) => format!("download/{tag}"),
         None => "latest/download".to_string(),
     };
-    format!("https://github.com/zerx-lab/warp/releases/{release_path}")
+    format!("https://github.com/fiultyy/dais/releases/{release_path}")
 }
 
 fn version_suffix() -> String {

@@ -894,7 +894,7 @@ fn dmg_name(channel: Channel) -> String {
         .is_ok_and(|output| output.stdout.starts_with(b"arm64"));
 
     // openWarp GitHub Release 资产名固定使用 `Zap-arm64.dmg` / `Zap-intel.dmg`
-    // (来自 .github/workflows 的命名约定),与 `app_name_prefix("zap-oss")` 不一致。
+    // (来自 .github/workflows 的命名约定),与 `app_name_prefix("dais")` 不一致。
     // 这里只对 OSS 写死,不会影响官方 channel 的 universal 命名。
     if matches!(channel, Channel::Oss) {
         return if is_arm64 {
@@ -919,7 +919,7 @@ fn app_name_prefix(channel: Channel) -> &'static str {
         Channel::Local => "warp",
         Channel::Integration => "integration",
         Channel::Dev => "WarpDev",
-        Channel::Oss => "zap-oss",
+        Channel::Oss => "dais",
     }
 }
 
@@ -930,7 +930,7 @@ fn executable_name(channel: Channel) -> &'static str {
         Channel::Local => "warp",
         Channel::Integration => "integration",
         Channel::Dev => "dev",
-        Channel::Oss => "zap-oss",
+        Channel::Oss => "dais",
     }
 }
 

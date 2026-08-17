@@ -2418,7 +2418,7 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
     #[cfg(all(debug_assertions, not(windows)))]
     flags.insert(FeatureFlag::ServerFileBrowser);
 
-    // Issue #72: HTTP 代理设置页面。不走 channel 判断,所有 channel 含 zap-oss
+    // Issue #72: HTTP 代理设置页面。不走 channel 判断,所有 channel 含 dais
     // 默认启用,作为企业 VPN / 公司代理场景的基本能力。
     flags.insert(FeatureFlag::HttpProxySettings);
 

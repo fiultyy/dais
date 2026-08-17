@@ -202,7 +202,7 @@ fn oss_remote_server_dir_uses_zap_namespace() {
 
 #[test]
 fn oss_binary_name_matches_zap_cli() {
-    assert_eq!(binary_name(), "warp-oss");
+    assert_eq!(binary_name(), "dais");
 }
 
 #[test]
@@ -216,7 +216,7 @@ fn oss_download_tarball_url_uses_github_release_asset() {
 
     assert_eq!(
         url,
-        "https://github.com/zerx-lab/warp/releases/latest/download/zap-linux-x86_64.tar.gz"
+        "https://github.com/fiultyy/dais/releases/latest/download/zap-linux-x86_64.tar.gz"
     );
     assert!(!url.contains("app.warp.dev"));
     assert!(!url.contains("/download/cli"));
