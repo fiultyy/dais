@@ -794,16 +794,16 @@ impl NotificationsTrigger {
     pub fn discovery_banner_copy(&self) -> &'static str {
         match self {
             NotificationsTrigger::LongRunningCommand(..) => {
-                "Zap can notify you when long-running commands finish."
+                "Dais can notify you when long-running commands finish."
             }
             NotificationsTrigger::AgentTaskCompleted(..) => {
-                "Zap can notify you when an agent finishes responding."
+                "Dais can notify you when an agent finishes responding."
             }
             NotificationsTrigger::NeedsAttention => {
-                "Zap can notify you when a command or agent needs your attention."
+                "Dais can notify you when a command or agent needs your attention."
             }
             NotificationsTrigger::PasswordPrompt => {
-                "Zap can notify you when you're prompted to enter a password."
+                "Dais can notify you when you're prompted to enter a password."
             }
         }
     }
@@ -8419,11 +8419,11 @@ impl TerminalView {
 
         let a11y_message = match &warpify_keybinding {
             Some(keystroke) => format!(
-                "You can press {} to Warpify this {} for more Zap features.",
+                "You can press {} to Warpify this {} for more Dais features.",
                 keystroke.displayed(),
                 lowercase_title
             ),
-            None => format!("You can Warpify this {lowercase_title} for more Zap features."),
+            None => format!("You can Warpify this {lowercase_title} for more Dais features."),
         };
 
         model
@@ -8586,7 +8586,7 @@ impl TerminalView {
 
         let a11y_content = AccessibilityContent::new(
             banner_title,
-            "Make sure you have enabled access for Zap notifications in System Preferences.",
+            "Make sure you have enabled access for Dais notifications in System Preferences.",
             WarpA11yRole::TextRole,
         );
         ctx.emit_a11y_content(a11y_content);

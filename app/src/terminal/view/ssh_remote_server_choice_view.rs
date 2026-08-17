@@ -8,7 +8,7 @@
 //!
 //! The view owns:
 //! - a child [`KeyboardNavigableButtons`] handle for the two selectable
-//!   cards ("Install Zap's SSH extension" / "Continue without installing"),
+//!   cards ("Install Dais's SSH extension" / "Continue without installing"),
 //! - the [`SessionId`] this prompt is scoped to (used for event forwarding),
 //! - the current "Don't ask me this again" checked state (purely local to
 //!   this prompt instance; persisted to `ssh_extension_install_mode` only

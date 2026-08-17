@@ -5073,7 +5073,7 @@ impl Input {
             }
             (InputType::AI, _) => {
                 // Follow the `agent_indicator` pattern (see `app/src/tab.rs`):
-                //  * `None` (no conversation, empty, passive, or untitled) => new conversation => "Zap anything"
+                //  * `None` (no conversation, empty, passive, or untitled) => new conversation => "Dais anything"
                 //  * `InProgress`                                           => agent running    => "Steer"
                 //  * Any other status                                       => finished         => "Ask a follow up"
                 match self

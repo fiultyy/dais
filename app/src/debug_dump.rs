@@ -9,7 +9,7 @@ use warp_core::channel::ChannelState;
 use warpui::windowing;
 
 pub(crate) fn run() -> anyhow::Result<()> {
-    println!("Zap version: {:?}", ChannelState::app_version());
+    println!("Dais version: {:?}", ChannelState::app_version());
 
     #[cfg(not(windows))]
     {

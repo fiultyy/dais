@@ -337,7 +337,7 @@ assistant: In `connectToServer` in src/services/process.ts:712.
 
     /// 样本 B：OpenAI/GPT 风格 —— 多级 ATX 标题，无 XML 标签。
     const OPENAI_SAMPLE: &str = "\
-You are Zap, the best coding agent on the planet.
+You are Dais, the best coding agent on the planet.
 
 ## Editing Approach
 - Take an iterative approach

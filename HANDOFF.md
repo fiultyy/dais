@@ -1,4 +1,4 @@
-# Session Handoff — Zap Fork dev/localize
+# Session Handoff — Dais Fork dev/localize
 # Date: 2026-08-13 03:30 UTC
 # Branch: dev/localize @ e778aa21
 

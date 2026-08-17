@@ -61,7 +61,7 @@ pub(crate) async fn proxy_handler(
         Ok(resp) => resp,
         Err(e) => {
             tracing::warn!("proxy error: {e}");
-            (StatusCode::BAD_GATEWAY, format!("zap proxy error: {e}")).into_response()
+            (StatusCode::BAD_GATEWAY, format!("dais proxy error: {e}")).into_response()
         }
     }
 }

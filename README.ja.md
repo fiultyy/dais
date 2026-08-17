@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="assets/zap-logo.svg" alt="Zap" width="128" />
+<img src="assets/zap-logo.svg" alt="Dais" width="128" />
 
-# Zap
+# Dais
 
 [English](./README.md) · [简体中文](./README.zh-CN.md)
 
@@ -10,9 +10,9 @@
 
 </div>
 
-Zap はオープンでローカルファーストなターミナルで、AI と Agent をファーストクラスでサポートします。任意の AI プロバイダーを接続し、任意の CLI Agent を取り込み、ターミナル内で SSH ホストを管理 —— API キー・履歴・Agent の状態はデフォルトで自分のマシンに留まります。
+Dais はオープンでローカルファーストなターミナルで、AI と Agent をファーストクラスでサポートします。任意の AI プロバイダーを接続し、任意の CLI Agent を取り込み、ターミナル内で SSH ホストを管理 —— API キー・履歴・Agent の状態はデフォルトで自分のマシンに留まります。
 
-## 公式 Warp に対して Zap が追加する機能
+## 公式 Warp に対して Dais が追加する機能
 
 - **クラウド必須なし** —— アカウント、ログイン、Drive 同期、クラウド Agent 履歴のいずれも不要。
 - **BYOP な AI プロバイダー** —— 任意の OpenAI 互換エンドポイントに加え、OpenAI / Anthropic / Gemini / DeepSeek / Ollama のネイティブプロトコル。API キーはローカルに保持。
@@ -25,7 +25,7 @@ Zap はオープンでローカルファーストなターミナルで、AI と 
 
 ## OpenWarp / Warp からの移行
 
-プロジェクトが Zap に改名される前から使っていた方(当時の名称は **OpenWarp**)、
+プロジェクトが Dais に改名される前から使っていた方(当時の名称は **OpenWarp**)、
 または上流 **Warp** から乗り換える方は、
 [docs/migrate-from-warp.ja.md](docs/migrate-from-warp.ja.md) を参照して設定を
 引き継いでください。
@@ -36,5 +36,5 @@ Zap はオープンでローカルファーストなターミナルで、AI と 
 
 ## 謝辞
 
-- [Warp](https://github.com/warpdotdev/warp) —— Zap がベースとしている上流のターミナル。
+- [Warp](https://github.com/warpdotdev/warp) —— Dais がベースとしている上流のターミナル。
 - [DeepSeek-TUI](https://github.com/Hmbown/DeepSeek-TUI) —— 深く統合された CLI Agent パートナー。

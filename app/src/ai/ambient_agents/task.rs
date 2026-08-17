@@ -179,7 +179,7 @@ impl AgentSource {
             AgentSource::Slack => "Slack",
             AgentSource::Cli => "CLI",
             AgentSource::ScheduledAgent => "Scheduled",
-            AgentSource::Interactive => "Zap (local agent)",
+            AgentSource::Interactive => "Dais (local agent)",
             AgentSource::WebApp => "Oz",
             AgentSource::GitHubAction => "GitHub Action",
         }

@@ -509,8 +509,8 @@ const TAB_BAR_ICON_PADDING: f32 = 4.;
 
 const TAB_BAR_PILL_WIDTH: f32 = 100.;
 const PILL_FONT_SIZE: f32 = 12.;
-// We use the word "Zap" in the Update Ready button to make it obvious that the terminal is Zap.
-// This can lead to free advertising when users screen-share Zap when an update is available.
+// We use the word "Dais" in the Update Ready button to make it obvious that the terminal is Dais.
+// This can lead to free advertising when users screen-share Dais when an update is available.
 const TAB_BAR_OVERFLOW_MENU_WIDTH: f32 = 300.;
 
 #[cfg(not(target_family = "wasm"))]
@@ -3739,7 +3739,7 @@ impl Workspace {
     fn show_local_conversation_not_found_toast(&mut self, ctx: &mut ViewContext<Self>) {
         self.toast_stack.update(ctx, |view, ctx| {
             let new_toast = DismissibleToast::error(
-                "Conversation is not available in local Zap history.".to_string(),
+                "Conversation is not available in local Dais history.".to_string(),
             );
             view.add_ephemeral_toast(new_toast, ctx);
         });
@@ -5862,7 +5862,7 @@ impl Workspace {
                 .unwrap_or_else(|| "<unknown>".to_string());
 
             format!(
-                "Zap 日志导出\n\
+                "Dais 日志导出\n\
                  生成时间: {now}\n\
                  版本: {version}\n\
                  channel: {channel}\n\
@@ -6490,7 +6490,7 @@ impl Workspace {
     }
 
     /// The tab bar overflow menu is the context menu that appears when
-    /// a user clicks "Update Zap" in the top right of the tab bar.
+    /// a user clicks "Update Dais" in the top right of the tab bar.
     pub fn toggle_tab_bar_overflow_menu(&mut self, ctx: &mut ViewContext<Self>) {
         if self.show_tab_bar_overflow_menu {
             self.close_tab_bar_overflow_menu(ctx);
@@ -15232,7 +15232,7 @@ impl Workspace {
                 let command = code.trim().to_string();
                 let args_state =
                     ArgumentsState::for_command_workflow(&Default::default(), command.clone());
-                let workflow = Workflow::new("Command from Zap AI", command)
+                let workflow = Workflow::new("Command from Dais AI", command)
                     .with_arguments(args_state.arguments);
                 self.run_workflow_in_active_input(
                     &WorkflowType::AIGenerated {
@@ -15747,7 +15747,7 @@ impl Workspace {
         let body = appearance
             .ui_builder()
             .wrappable_text(
-                "Ask Zap AI to explain errors, suggest commands or write scripts.".to_owned(),
+                "Ask Dais AI to explain errors, suggest commands or write scripts.".to_owned(),
                 true,
             )
             .with_style(UiComponentStyles {
@@ -16321,7 +16321,7 @@ impl Workspace {
             .finish();
             tab_bar.add_child(warp_logo);
 
-            // Right: Info button + run history button (for agent sessions) + "Open in Zap" button
+            // Right: Info button + run history button (for agent sessions) + "Open in Dais" button
             let mut right_row = Flex::row()
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                 .with_main_axis_size(MainAxisSize::Min);
@@ -16345,7 +16345,7 @@ impl Workspace {
                 );
             }
 
-            // Hide "Open in Zap" button on mobile devices
+            // Hide "Open in Dais" button on mobile devices
             if !warpui::platform::wasm::is_mobile_device() {
                 right_row.add_child(ChildView::new(&self.open_in_warp_button).finish());
             }
@@ -18809,7 +18809,7 @@ impl Workspace {
             // Many users' browser settings will block Local Network Access so this will end up redirecting to download page,
             // even if they have the app installed.
             let toast_message = format!(
-                "Have Zap installed but redirecting to download page?\nEnable Local Network Access for the Zap web launcher in your browser."
+                "Have Dais installed but redirecting to download page?\nEnable Local Network Access for the Dais web launcher in your browser."
             );
             self.toast_stack.update(ctx, |toast_stack, ctx| {
                 toast_stack.add_persistent_toast(DismissibleToast::default(toast_message), ctx)

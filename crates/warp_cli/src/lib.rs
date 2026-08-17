@@ -84,7 +84,7 @@ pub struct GlobalOptions {
 #[command(
     name = "oz",
     display_name = "Oz",
-    about = r#"Zap local agent CLI
+    about = r#"Dais local agent CLI
 
 The Oz CLI is a tool for running and managing local coding agents.
 Use the CLI to:

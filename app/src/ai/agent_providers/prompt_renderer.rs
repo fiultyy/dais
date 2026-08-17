@@ -440,7 +440,7 @@ fn fallback_init_project_command(arguments: &str) -> String {
 /// 渲染兜底 system(只在模板加载/渲染失败时用,不应在正常路径触发)。
 fn fallback_system(model_id: &str) -> String {
     format!(
-        "You are the AI coding agent inside Zap, an AI Development Environment (ADE). \
+        "You are the AI coding agent inside Dais, an AI Development Environment (ADE). \
          Model: {model_id}. \
          Use the registered tools (run_shell_command / read_files / apply_file_diffs / grep / file_glob / ...) \
          to take actions on the user's behalf. Be concise."
@@ -600,8 +600,8 @@ mod tests {
                 &[],
             );
             assert!(
-                out.contains("Zap"),
-                "id={id} should mention Zap, got: {out}"
+                out.contains("Dais"),
+                "id={id} should mention Dais, got: {out}"
             );
         }
     }

@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="assets/zap-logo.svg" alt="Zap" width="128" />
+<img src="assets/zap-logo.svg" alt="Dais" width="128" />
 
-# Zap
+# Dais
 
 [English](./README.md) · [日本語](./README.ja.md)
 
@@ -10,7 +10,7 @@
 
 </div>
 
-Zap 是一个开放、本地优先的终端,带一等公民的 AI 与 Agent 体验。接入任意 AI 提供商、接入任意 CLI Agent、在终端内管理 SSH 主机 —— 密钥、历史与 Agent 状态默认留在本地。
+Dais 是一个开放、本地优先的终端,带一等公民的 AI 与 Agent 体验。接入任意 AI 提供商、接入任意 CLI Agent、在终端内管理 SSH 主机 —— 密钥、历史与 Agent 状态默认留在本地。
 
 ## 相比官方 Warp 多出的功能
 
@@ -25,7 +25,7 @@ Zap 是一个开放、本地优先的终端,带一等公民的 AI 与 Agent 体�
 
 ## 从 OpenWarp 或 Warp 迁移过来
 
-如果你在项目改名 Zap 之前就一直在用(那时还叫 **OpenWarp**),
+如果你在项目改名 Dais 之前就一直在用(那时还叫 **OpenWarp**),
 或者你是从上游 **Warp** 切过来的,参见
 [docs/migrate-from-warp.zh-CN.md](docs/migrate-from-warp.zh-CN.md) 把设置带过来。
 
@@ -35,5 +35,5 @@ Zap 是一个开放、本地优先的终端,带一等公民的 AI 与 Agent 体�
 
 ## 鸣谢
 
-- [Warp](https://github.com/warpdotdev/warp) —— Zap 所基于的上游终端。
+- [Warp](https://github.com/warpdotdev/warp) —— Dais 所基于的上游终端。
 - [DeepSeek-TUI](https://github.com/Hmbown/DeepSeek-TUI) —— 深度适配的 CLI Agent 合作伙伴。

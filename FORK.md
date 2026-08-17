@@ -16,6 +16,13 @@ warpdotdev/warp          原始上游,活跃(本地镜像 ~/tools/warp-dev,remot
 - **不跟 Warp 产品方向**:cloud / AI 订阅 / 账号体系 / 遥测 / 更新通道一律不吸收;
 - zerx-lab/zap 已死,不再作为 merge 目标,历史仅作考古。
 
+## 血源镜像
+
+外部 git 依赖的血源记录(随 Cargo.toml pin):
+
+- `warp_multi_agent_api` → `fiultyy/warp-proto-apis` @ `14ab9a71ea3e9521b2ffab2f97a64e7c21050669`
+  (zerx-lab 原仓停更后由本仓镜像续命;37d74ce0 完成主依赖与 `[patch]` 双处切换)
+
 ## 已砍面
 
 zap 层已移除遥测 / 更新通道 / 云功能(尾部如有残留,随票清点)。`remote_server` 的

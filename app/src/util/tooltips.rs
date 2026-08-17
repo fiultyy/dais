@@ -236,7 +236,7 @@ where
         .finish()
 }
 
-/// Returns whether "Open in Zap" should be offered for the given file path.
+/// Returns whether "Open in Dais" should be offered for the given file path.
 ///
 /// This checks:
 /// - Whether Zap is already the default editor (skip if so)

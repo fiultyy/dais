@@ -682,9 +682,9 @@ impl Display for RenderableAIError {
         match self {
             Self::QuotaLimit => write!(f, "Quota limit reached."),
             Self::ServerOverloaded => {
-                write!(f, "Zap is currently overloaded. Please try again later.")
+                write!(f, "Dais is currently overloaded. Please try again later.")
             }
-            Self::InternalWarpError => write!(f, "Internal Zap error."),
+            Self::InternalWarpError => write!(f, "Internal Dais error."),
             Self::ContextWindowExceeded(message) => {
                 write!(f, "Context window exceeded: {message}")
             }

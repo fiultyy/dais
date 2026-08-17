@@ -99,7 +99,7 @@ impl TerminalView {
         }
     }
 
-    /// Whether or not the "Open in Zap" banner is open.
+    /// Whether or not the "Open in Dais" banner is open.
     #[cfg(feature = "integration_tests")]
     pub fn is_open_in_warp_banner_open(&self) -> bool {
         self.inline_banners_state.open_in_warp_banner.is_some()
@@ -237,7 +237,7 @@ impl TerminalView {
                 match &self.inline_banners_state.open_in_warp_banner {
                     Some(banner_state) => {
                         ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
-                            format!("Open {} in Zap", banner_state.target.path.display()),
+                            format!("Open {} in Dais", banner_state.target.path.display()),
                             WarpA11yRole::UserAction,
                         ))
                     }
@@ -246,14 +246,14 @@ impl TerminalView {
             }
             OpenInWarpBannerAction::Close => {
                 ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
-                    "Close View in Zap banner",
+                    "Close View in Dais banner",
                     WarpA11yRole::UserAction,
                 ))
             }
             OpenInWarpBannerAction::LearnMore => {
                 ActionAccessibilityContent::Custom(AccessibilityContent::new(
                     crate::t!("common-learn-more"),
-                    "Learn more about opening Markdown files in Zap",
+                    "Learn more about opening Markdown files in Dais",
                     WarpA11yRole::UserAction,
                 ))
             }

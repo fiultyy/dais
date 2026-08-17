@@ -282,13 +282,13 @@ pub enum AgentDriverError {
     MCPMissingVariables,
     #[error("Agent profile \"{0}\" not found")]
     ProfileError(String),
-    #[error("Local user state is unavailable. Restart Zap and try again.")]
+    #[error("Local user state is unavailable. Restart Dais and try again.")]
     NotLoggedIn,
     #[error("Saved prompt not found for id {0}")]
     AIWorkflowNotFound(String),
     #[error("Terminal bootstrap failed")]
     BootstrapFailed,
-    #[error("Error syncing Zap Drive")]
+    #[error("Error syncing Dais Drive")]
     WarpDriveSyncFailed,
     #[error("Requested environment not found: {0}")]
     EnvironmentNotFound(String),

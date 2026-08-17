@@ -296,14 +296,14 @@ pub async fn make_authenticated_client(
         }
         return Err(AuthError::AuthorizationFailed(
             "MCP server requires OAuth authentication. Please authenticate this server in the \
-             Zap desktop app first, then try again."
+             Dais desktop app first, then try again."
                 .to_string(),
         ));
     }
 
     // Start the authorization process with our custom redirect URI
     oauth_state
-        .start_authorization(&[], &redirect_uri, Some("Zap"))
+        .start_authorization(&[], &redirect_uri, Some("Dais"))
         .await?;
 
     let OAuthState::Session(AuthorizationSession {
@@ -321,7 +321,7 @@ pub async fn make_authenticated_client(
     // For apps for which we have static client IDs (e.g. GitHub), we manually override scopes.
     let mut scopes: &[&str] = &[];
 
-    let config = match auth_manager.register_client("Zap", &redirect_uri).await {
+    let config = match auth_manager.register_client("Dais", &redirect_uri).await {
         Ok(config) => config,
         Err(err @ AuthError::RegistrationFailed(_)) => {
             // If we failed dynamic registration, check to see if this is an auth

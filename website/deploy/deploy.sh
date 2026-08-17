@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Zap 官网部署脚本(在服务器上执行)
+# Dais 官网部署脚本(在服务器上执行)
 #
 # 场景:站点由 1Panel 托管,nginx root 固定指向站点目录(例如
 #   /opt/1panel/www/sites/zap.zerx.dev/index),无法改 root 用 symlink 方案。

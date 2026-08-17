@@ -168,7 +168,7 @@ impl EditorModal {
 
         let warp_prompt_separator = match SessionSettings::as_ref(ctx).saved_prompt.value() {
             PromptSelection::CustomChipSelection(config) => config.separator(),
-            // If the "default Zap prompt" i.e. no context chips, is selected, then default to no Zap prompt separator.
+            // If the "default Dais prompt" i.e. no context chips, is selected, then default to no Dais prompt separator.
             _ => WarpPromptSeparator::None,
         };
         let warp_prompt_separator_label = warp_prompt_separator.dropdown_item_label().to_owned();

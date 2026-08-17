@@ -652,7 +652,7 @@ async fn byop_required_response_stream(
     log::debug!("No BYOP provider selected for Zap agent request");
     let error_stream = futures::stream::once(async {
         Err(Arc::new(AIApiError::Other(anyhow!(
-            "Zap requires a configured BYOP provider in Settings"
+            "Dais requires a configured BYOP provider in Settings"
         ))))
     })
     .take_until(cancellation_rx);

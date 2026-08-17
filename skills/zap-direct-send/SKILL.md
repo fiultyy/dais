@@ -12,7 +12,7 @@ description: >-
   (create-run/create-task/start-worker) for supervised work tracking.
 ---
 
-# Zap Direct Send (cross-harness turn driving)
+# Dais Direct Send (cross-harness turn driving)
 
 Send a message into another harness's terminal and get its agent to act on
 it in a new turn — via zap's orchestration plane (`dais orchestration ...`).

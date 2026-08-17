@@ -2457,7 +2457,7 @@ impl PaneGroup {
             Banner::<PaneGroupAction>::new_permanently_dismissible(
                 BannerTextContent::formatted_text(vec![
                     FormattedTextFragment::plain_text(
-                        "Zap doesn't currently support your default shell, falling back to zsh.  ",
+                        "Dais doesn't currently support your default shell, falling back to zsh.  ",
                     ),
                     FormattedTextFragment::hyperlink(
                         crate::t!("common-learn-more"),

@@ -8,7 +8,7 @@ pub enum TranscribeError {
     #[error("Request failed due to lack of Voice quota.")]
     QuotaLimit,
 
-    #[error("Zap is currently overloaded. Please try again later.")]
+    #[error("Dais is currently overloaded. Please try again later.")]
     ServerOverloaded,
 
     #[error("Internal error occurred at transport layer.")]
@@ -18,7 +18,7 @@ pub enum TranscribeError {
     Deserialization,
 
     /// Zap 已禁用语音转写(BYOP genai 协议无法承载音频)。
-    #[error("Voice transcription is unavailable in Zap.")]
+    #[error("Voice transcription is unavailable in Dais.")]
     Disabled,
 
     #[error(transparent)]

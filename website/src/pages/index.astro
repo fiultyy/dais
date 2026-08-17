@@ -1,7 +1,7 @@
 ---
 import LandingLayout from '../layouts/LandingLayout.astro';
 
-const repo = 'https://github.com/zerx-lab/zap';
+const repo = 'https://github.com/fiultyy/dais';
 
 // 文案集中管理,避免三语 data-lang 标签散落各处
 const t = {
@@ -10,11 +10,11 @@ const t = {
     h1a:    { en: 'The terminal,',         zh: '把终端,',              ja: 'ターミナルを、' },
     h1b:    { en: 'rebuilt around you.',   zh: '重新交还给你。',         ja: 'あなたの手元に戻す。' },
     lede:   {
-      en: 'Zap is a derivative product built on Warp — a fully open, local-first take on the agentic terminal. Every credential, conversation and key stays on your machine. Bring your own provider, your own keys, your own rules.',
-      zh: 'Zap 是基于 Warp 的衍生产品 — 完全开放、本地优先的 agentic 终端。凭证、会话与密钥全部保存在本地。自带服务商、自带密钥、自带规则。',
-      ja: 'Zap は Warp を基にした派生プロダクト — 完全オープンでローカルファーストな agentic ターミナル。認証情報、会話、鍵はすべて手元のマシンに残ります。プロバイダーも鍵もルールも自分のもの。',
+      en: 'Dais is a derivative product built on Warp — a fully open, local-first take on the agentic terminal. Every credential, conversation and key stays on your machine. Bring your own provider, your own keys, your own rules.',
+      zh: 'Dais 是基于 Warp 的衍生产品 — 完全开放、本地优先的 agentic 终端。凭证、会话与密钥全部保存在本地。自带服务商、自带密钥、自带规则。',
+      ja: 'Dais は Warp を基にした派生プロダクト — 完全オープンでローカルファーストな agentic ターミナル。認証情報、会話、鍵はすべて手元のマシンに残ります。プロバイダーも鍵もルールも自分のもの。',
     },
-    primary:   { en: 'Install Zap',     zh: '安装 Zap',     ja: 'Zap をインストール' },
+    primary:   { en: 'Install Dais',     zh: '安装 Dais',     ja: 'Dais をインストール' },
     secondary: { en: 'View on GitHub',  zh: '在 GitHub 查看', ja: 'GitHub で見る' },
   },
   logos: {
@@ -56,9 +56,9 @@ const t = {
   },
   quote: {
     text: {
-      en: 'The terminal was always a local tool. Zap keeps it that way — even when the AI joins.',
-      zh: '终端从来都是本地工具。即便引入 AI,Zap 也让它继续如此。',
-      ja: 'ターミナルはずっとローカルなツールでした。AI が入っても、Zap はそのままにします。',
+      en: 'The terminal was always a local tool. Dais keeps it that way — even when the AI joins.',
+      zh: '终端从来都是本地工具。即便引入 AI,Dais 也让它继续如此。',
+      ja: 'ターミナルはずっとローカルなツールでした。AI が入っても、Dais はそのままにします。',
     },
     cite: { en: 'Project ethos', zh: '项目理念', ja: 'プロジェクトの理念' },
   },
@@ -66,9 +66,9 @@ const t = {
     eyebrow: { en: 'INSTALL',    zh: '安装',           ja: 'インストール' },
     h:       { en: 'Build it yourself in two commands.', zh: '两条命令,自行构建。',          ja: '2 つのコマンドで自分でビルド。' },
     p:       {
-      en: 'No installer in preview — Zap is source-available and ships only as a build script. Clone, bootstrap, run.',
-      zh: 'preview 阶段不提供安装包 — Zap 完全源码公开,只通过构建脚本发布。Clone、bootstrap、run。',
-      ja: 'preview 段階ではインストーラーはありません。Zap はソース公開で、ビルドスクリプトのみが配布物です。Clone、bootstrap、run。',
+      en: 'No installer in preview — Dais is source-available and ships only as a build script. Clone, bootstrap, run.',
+      zh: 'preview 阶段不提供安装包 — Dais 完全源码公开,只通过构建脚本发布。Clone、bootstrap、run。',
+      ja: 'preview 段階ではインストーラーはありません。Dais はソース公開で、ビルドスクリプトのみが配布物です。Clone、bootstrap、run。',
     },
     tabMac: 'macOS', tabLinux: 'Linux', tabWin: 'Windows',
   },
@@ -319,7 +319,7 @@ const eqRight = makeEqBars(16, 2);
                 <div class="ss-group">
                   <span>Agents</span><span class="chev">▾</span>
                 </div>
-                <a class="ss-item" data-lang="en">Zap agent</a><a class="ss-item" data-lang="zh">Zap 智能体</a><a class="ss-item" data-lang="ja">Zap エージェント</a>
+                <a class="ss-item" data-lang="en">Dais agent</a><a class="ss-item" data-lang="zh">Dais 智能体</a><a class="ss-item" data-lang="ja">Dais エージェント</a>
                 <a class="ss-item" data-lang="en">Config</a><a class="ss-item" data-lang="zh">配置</a><a class="ss-item" data-lang="ja">設定</a>
                 <a class="ss-item active" data-lang="en">Providers</a><a class="ss-item active" data-lang="zh">提供商</a><a class="ss-item active" data-lang="ja">プロバイダー</a>
                 <a class="ss-item" data-lang="en">MCP servers</a><a class="ss-item" data-lang="zh">MCP 服务器</a><a class="ss-item" data-lang="ja">MCP サーバー</a>
@@ -421,9 +421,9 @@ const eqRight = makeEqBars(16, 2);
                 <div class="lb-row">
                   <div class="lb-text">
                     <div class="t" data-lang="en">Language</div><div class="t" data-lang="zh">语言</div><div class="t" data-lang="ja">言語</div>
-                    <div class="d" data-lang="en">Restart Zap to fully apply this change.</div>
-                    <div class="d" data-lang="zh">重启 Zap 以让此更改完全生效。</div>
-                    <div class="d" data-lang="ja">Zap を再起動すると完全に反映されます。</div>
+                    <div class="d" data-lang="en">Restart Dais to fully apply this change.</div>
+                    <div class="d" data-lang="zh">重启 Dais 以让此更改完全生效。</div>
+                    <div class="d" data-lang="ja">Dais を再起動すると完全に反映されます。</div>
                   </div>
                   <div class="lb-select" id="hero-lang-select">
                     <span class="lb-current" data-locale-current="en">System default</span>
@@ -493,7 +493,7 @@ const eqRight = makeEqBars(16, 2);
 
         <div class="pre-wrap" data-pane="macos">
           <pre class="code"><span class="com"># 1. Bootstrap dependencies (Xcode CLT + cargo helpers)</span>
-git clone https://github.com/zerx-lab/zap.git zap
+git clone https://github.com/fiultyy/dais.git zap
 <span class="key">cd</span> zap
 ./script/bootstrap
 
@@ -504,7 +504,7 @@ git clone https://github.com/zerx-lab/zap.git zap
 
         <div class="pre-wrap" data-pane="linux" hidden>
           <pre class="code"><span class="com"># Debian / Ubuntu (apt + cargo)</span>
-git clone https://github.com/zerx-lab/zap.git zap
+git clone https://github.com/fiultyy/dais.git zap
 <span class="key">cd</span> zap
 ./script/bootstrap
 
@@ -515,7 +515,7 @@ git clone https://github.com/zerx-lab/zap.git zap
 
         <div class="pre-wrap" data-pane="windows" hidden>
           <pre class="code"><span class="com"># Run from PowerShell (winget + rustup)</span>
-git clone https://github.com/zerx-lab/zap.git zap
+git clone https://github.com/fiultyy/dais.git zap
 <span class="key">cd</span> zap
 ./script/bootstrap
 
@@ -749,7 +749,7 @@ git clone https://github.com/zerx-lab/zap.git zap
         `<span class="k">[agent]</span> <span class="dim">routing to</span> anthropic/claude-4-7`,
         `<span class="k">[agent]</span> <span class="dim">prompt</span>: ${escape(cleaned)}`,
         `<span class="dim">thinking...</span>`,
-        `<span class="s">→</span> This is a simulated response. In real Zap this would call your configured provider locally.`,
+        `<span class="s">→</span> This is a simulated response. In real Dais this would call your configured provider locally.`,
         `<span class="dim">Credentials, conversation and context all stay on your machine.</span>`,
       ];
     }

@@ -8,7 +8,7 @@ use warpui::ViewContext;
 use super::view::Workspace;
 use crate::pane_group::{AnyPaneContent, FilePane};
 
-const WARP_HOME_TITLE: &str = "Welcome to Zap";
+const WARP_HOME_TITLE: &str = "Welcome to Dais";
 const WARP_HOME_CONTENT: &str = r#"
 Welcome to Zap.
 

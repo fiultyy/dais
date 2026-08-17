@@ -1159,7 +1159,7 @@ impl BackingView for AIDocumentView {
     ) -> Vec<MenuItem<Self::PaneHeaderOverflowMenuAction>> {
         let mut menu_items = vec![];
 
-        // openWarp 本地化:云菜单项 "Copy Link" / "Show in Zap Drive"
+        // openWarp 本地化:云菜单项 "Copy Link" / "Show in Dais Drive"
         // 原本仅在云同步成功后才显示,本地路径完全不可达,直接删除。
 
         #[cfg(feature = "local_fs")]

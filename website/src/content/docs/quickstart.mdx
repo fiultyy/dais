@@ -2,9 +2,9 @@
 title: Quick Start
 title_zh: 快速开始
 title_ja: クイックスタート
-lede: Zap is in preview — there are no prebuilt installers yet. This page walks through installing build dependencies and producing your own binary on macOS, Linux, and Windows.
-lede_zh: Zap 目前处于 preview 阶段,尚未提供预编译安装包。本文档介绍如何在 macOS、Linux 与 Windows 上安装构建依赖并自行编译。
-lede_ja: Zap は preview 段階で、まだビルド済みインストーラーはありません。このページでは macOS、Linux、Windows でビルド依存関係を入れ、自分でバイナリを作る手順を説明します。
+lede: Dais is in preview — there are no prebuilt installers yet. This page walks through installing build dependencies and producing your own binary on macOS, Linux, and Windows.
+lede_zh: Dais 目前处于 preview 阶段,尚未提供预编译安装包。本文档介绍如何在 macOS、Linux 与 Windows 上安装构建依赖并自行编译。
+lede_ja: Dais は preview 段階で、まだビルド済みインストーラーはありません。このページでは macOS、Linux、Windows でビルド依存関係を入れ、自分でバイナリを作る手順を説明します。
 order: 1
 section: Get Started
 section_zh: 快速开始
@@ -24,7 +24,7 @@ import TabsCard from '../../components/docs/TabsCard.astro';
 <CodeCard
   file="terminal"
   lang="bash"
-  html={`git clone https://github.com/zerx-lab/zap.git zap
+  html={`git clone https://github.com/fiultyy/dais.git zap
 <span class="key">cd</span> zap`}
 />
 
@@ -72,17 +72,17 @@ import TabsCard from '../../components/docs/TabsCard.astro';
 <div class="callout info">
   <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="6"/><path d="M8 7v4M8 5h.01"/></svg>
   <div>
-    <span data-lang="en">The original Warp bootstrap also runs <code>gcloud auth login</code> for upstream's internal SSH integration tests. Zap's OSS build doesn't need it — you can ignore that prompt or skip the <code>gcloud</code> sections.</span>
-    <span data-lang="zh">上游 Warp 的 bootstrap 脚本还会执行 <code>gcloud auth login</code>,用于其内部的 SSH 集成测试。Zap 的 OSS 构建不依赖此步骤,可忽略相关提示或直接跳过 <code>gcloud</code> 相关流程。</span>
-    <span data-lang="ja">元の Warp bootstrap は、上流の内部 SSH 統合テスト向けに <code>gcloud auth login</code> も実行します。Zap の OSS ビルドでは不要なので、そのプロンプトは無視するか <code>gcloud</code> 関連部分を飛ばして構いません。</span>
+    <span data-lang="en">The original Warp bootstrap also runs <code>gcloud auth login</code> for upstream's internal SSH integration tests. Dais's OSS build doesn't need it — you can ignore that prompt or skip the <code>gcloud</code> sections.</span>
+    <span data-lang="zh">上游 Warp 的 bootstrap 脚本还会执行 <code>gcloud auth login</code>,用于其内部的 SSH 集成测试。Dais 的 OSS 构建不依赖此步骤,可忽略相关提示或直接跳过 <code>gcloud</code> 相关流程。</span>
+    <span data-lang="ja">元の Warp bootstrap は、上流の内部 SSH 統合テスト向けに <code>gcloud auth login</code> も実行します。Dais の OSS ビルドでは不要なので、そのプロンプトは無視するか <code>gcloud</code> 関連部分を飛ばして構いません。</span>
   </div>
 </div>
 
 ## 3. Build & run
 
-<p data-lang="en">Zap ships two binaries: <code>dais</code> (no cloud-bound features compiled in — the right target for community builds) and <code>warp</code> (Warp Inc.'s internal channel, requires their private channel config). Use <code>dais</code>.</p>
-<p data-lang="zh">Zap 提供两个二进制文件:<code>dais</code>(已移除全部云端能力,社区构建请使用此版本)与 <code>warp</code>(Warp Inc. 内部 channel,依赖其私有 channel 配置)。请使用 <code>dais</code>。</p>
-<p data-lang="ja">Zap には 2 つのバイナリがあります。<code>dais</code> はクラウド依存機能を含まないコミュニティビルド向けのターゲットで、<code>warp</code> は Warp Inc. の内部チャンネル用で非公開のチャンネル設定が必要です。<code>dais</code> を使ってください。</p>
+<p data-lang="en">Dais ships two binaries: <code>dais</code> (no cloud-bound features compiled in — the right target for community builds) and <code>warp</code> (Warp Inc.'s internal channel, requires their private channel config). Use <code>dais</code>.</p>
+<p data-lang="zh">Dais 提供两个二进制文件:<code>dais</code>(已移除全部云端能力,社区构建请使用此版本)与 <code>warp</code>(Warp Inc. 内部 channel,依赖其私有 channel 配置)。请使用 <code>dais</code>。</p>
+<p data-lang="ja">Dais には 2 つのバイナリがあります。<code>dais</code> はクラウド依存機能を含まないコミュニティビルド向けのターゲットで、<code>warp</code> は Warp Inc. の内部チャンネル用で非公開のチャンネル設定が必要です。<code>dais</code> を使ってください。</p>
 
 <TabsCard tabs={[
   {

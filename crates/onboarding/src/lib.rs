@@ -30,7 +30,7 @@ pub use localization::set_localizer;
 /// Shared by the intention slide's agent card checklist and the login slide's
 /// skip-login confirmation dialog so the two always stay in sync.
 pub const AI_FEATURES: &[&str] = &[
-    "Zap agents",
+    "Dais agents",
     "Oz local agents platform",
     "Next command predictions",
     "Prompt suggestions",
@@ -42,7 +42,7 @@ pub const AI_FEATURES: &[&str] = &[
 /// intention is selected with Zap Drive turned on. Shared by the login slide's
 /// skip-login confirmation dialog so the list stays in sync with any future
 /// surfaces that need it.
-pub const WARP_DRIVE_FEATURES: &[&str] = &["Zap Drive", "Session Sharing"];
+pub const WARP_DRIVE_FEATURES: &[&str] = &["Dais Drive", "Session Sharing"];
 
 pub mod components;
 mod visuals;

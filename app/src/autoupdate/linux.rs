@@ -45,7 +45,7 @@ pub(super) fn apply_update() -> Result<ReadyForRelaunch> {
         UpdateMethod::Unknown => bail!("Cannot apply update for unknown update method!"),
         UpdateMethod::AppImage(_) => Ok(ReadyForRelaunch::Yes),
         UpdateMethod::PackageManager(package_manager) => bail!(
-            "Zap does not support package-manager autoupdate for {package_manager}; install the new release manually"
+            "Dais does not support package-manager autoupdate for {package_manager}; install the new release manually"
         ),
     }
 }
