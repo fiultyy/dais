@@ -61,7 +61,9 @@ impl HeaderToolbarItemKind {
             Self::CodeReview => Icon::Diff,
             Self::Observatory => Icon::Eye,
             #[cfg(not(target_family = "wasm"))]
-            Self::Cockpit => Icon::Grid,
+            // D7: Grid 与 AgentManagement(Grid) 撞图标; Rocket 全 app 零占用,
+            // 贴驾驶舱语义。
+            Self::Cockpit => Icon::Rocket,
             Self::NotificationsMailbox => Icon::Inbox,
         }
     }

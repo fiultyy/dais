@@ -2981,6 +2981,8 @@ impl Workspace {
 
         ws.configure_new_workspace(workspace_setting, ctx);
         ws.sync_panel_positions_from_config(ctx);
+        #[cfg(not(target_family = "wasm"))]
+        Self::ensure_cockpit_in_config(ctx);
         ws.sync_window_button_visibility(ctx);
         ws.update_titlebar_height(ctx);
         // Seed the settings pane with the initial settings-file error (if
@@ -5090,6 +5092,45 @@ impl Workspace {
 
         let mut new_left = left;
         new_left.insert(0, HeaderToolbarItemKind::TabsPanel);
+        let selection = HeaderToolbarChipSelection::Custom {
+            left: new_left,
+            right,
+        };
+        TabSettings::handle(ctx).update(ctx, |settings, ctx| {
+            report_if_error!(settings
+                .header_toolbar_chip_selection
+                .set_value(selection, ctx));
+        });
+    }
+
+    /// D7: 既有用户的 `Custom` 工具栏选择不会自动获得新入口(P1 只改
+    /// `default_left`, 老的持久化选择继续缺 Cockpit)。镜像 TabsPanel 的
+    /// ensure 先例, 在 workspace 创建时补插 — 仅当该入口 `is_supported`
+    /// 且左右两侧都没有时, 插在 Observatory 之后(无 Observatory 则尾部),
+    /// 用户手动移除后因 already_present 不再回插。
+    #[cfg(not(target_family = "wasm"))]
+    fn ensure_cockpit_in_config(ctx: &mut ViewContext<Self>) {
+        if !HeaderToolbarItemKind::Cockpit.is_supported(ctx) {
+            return;
+        }
+        let config = TabSettings::as_ref(ctx)
+            .header_toolbar_chip_selection
+            .clone();
+        let left = config.left_items();
+        let right = config.right_items();
+        if left.contains(&HeaderToolbarItemKind::Cockpit)
+            || right.contains(&HeaderToolbarItemKind::Cockpit)
+        {
+            return;
+        }
+
+        let mut new_left = left;
+        let pos = new_left
+            .iter()
+            .position(|kind| *kind == HeaderToolbarItemKind::Observatory)
+            .map(|i| i + 1)
+            .unwrap_or(new_left.len());
+        new_left.insert(pos, HeaderToolbarItemKind::Cockpit);
         let selection = HeaderToolbarChipSelection::Custom {
             left: new_left,
             right,
@@ -18296,10 +18337,11 @@ impl Workspace {
             theme.sub_text_color(theme.background())
         };
         let mouse_state = self.mouse_states.right_panel_icon.clone();
-        let content = ConstrainedBox::new(icons::Icon::Grid.to_warpui_icon(icon_color).finish())
-            .with_width(16.)
-            .with_height(16.)
-            .finish();
+        let content =
+            ConstrainedBox::new(icons::Icon::Rocket.to_warpui_icon(icon_color).finish())
+                .with_width(16.)
+                .with_height(16.)
+                .finish();
         let hoverable = Hoverable::new(mouse_state, move |_state| content).on_click(
             move |ctx, _app, _position| {
                 ctx.dispatch_typed_action(WorkspaceAction::ToggleCockpit);
