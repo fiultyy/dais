@@ -1,13 +1,13 @@
 ---
 name: zap-direct-send
 description: >-
-  Drive another agent harness's turn from zap's orchestration plane: send
+  Drive another agent harness's turn from dais's orchestration plane: send
   messages into a target terminal's session mailbox, get an idle-pointer
   pushed into its PTY, block on replies with check-messages --wait, inject
   full prompts with bracketed paste, and assign dispatches to panes. Use
   when the user says "direct send", "inject prompt", "poke terminal",
   "message another agent", "drive the other harness", "cross-harness",
-  "session mailbox", or "zap orchestration". Use plain terminal send for
+  "session mailbox", or "dais orchestration". Use plain terminal send for
   one-off shell input with no mailbox semantics; use full task dispatch
   (create-run/create-task/start-worker) for supervised work tracking.
 ---
@@ -15,8 +15,8 @@ description: >-
 # Dais Direct Send (cross-harness turn driving)
 
 Send a message into another harness's terminal and get its agent to act on
-it in a new turn — via zap's orchestration plane (`dais orchestration ...`).
-The target can be any zap terminal pane (its session mailbox) or a dispatched
+it in a new turn — via dais's orchestration plane (`dais orchestration ...`).
+The target can be any dais terminal pane (its session mailbox) or a dispatched
 worker.
 
 ## When to use / not use
@@ -32,7 +32,7 @@ worker.
 
 ## Prerequisites
 
-- zap GUI app running (the router thread + PTY bridge live in the GUI
+- dais GUI app running (the router thread + PTY bridge live in the GUI
   process; CLI subcommands share its SQLite).
 - Target terminal pane has a bootstrapped shell → it auto-registers a
   session mailbox `session_<sid>`. Find `<sid>` in the GUI log line
@@ -48,7 +48,7 @@ SQLite; nothing is lost if the target is busy.
 ### Send a message into the target's turn
 
   # RULE: body is what the target agent reads. For lifecycle messages
-  # (worker_done/heartbeat) body MUST be a JSON object matching zap's
+  # (worker_done/heartbeat) body MUST be a JSON object matching dais's
   # reconcile schema — invalid JSON leaves it undeliverable.
   dais orchestration send-message <run_id> <from_handle> <to_handle> \
     --message-type status --subject "<short>" --body "<content>"
