@@ -40,6 +40,11 @@ pub(super) struct WorkspaceMouseStates {
     pub(super) avatar_icon: MouseStateHandle,
     pub(super) header_dimming: MouseStateHandle,
     pub(super) right_panel_icon: MouseStateHandle,
+    // Observatory 与 Cockpit 曾与 CodeReview 共享 right_panel_icon:Hoverable
+    // 的点击判定(click_count 在边界检查前 take)会被共享句柄的其他按钮
+    // 干扰,导致点击静默失效;各自独立句柄隔离。
+    pub(super) observatory_icon: MouseStateHandle,
+    pub(super) cockpit_icon: MouseStateHandle,
     pub(super) notifications_mailbox: MouseStateHandle,
     pub(super) session_config_tab_config_chip_close: MouseStateHandle,
     pub(super) tools_panel_icon: MouseStateHandle,

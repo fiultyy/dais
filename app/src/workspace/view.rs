@@ -18302,7 +18302,7 @@ impl Workspace {
         } else {
             theme.sub_text_color(theme.background())
         };
-        let mouse_state = self.mouse_states.right_panel_icon.clone();
+        let mouse_state = self.mouse_states.observatory_icon.clone();
         let content = ConstrainedBox::new(icons::Icon::Eye.to_warpui_icon(icon_color).finish())
             .with_width(16.)
             .with_height(16.)
@@ -18327,7 +18327,7 @@ impl Workspace {
         } else {
             theme.sub_text_color(theme.background())
         };
-        let mouse_state = self.mouse_states.right_panel_icon.clone();
+        let mouse_state = self.mouse_states.cockpit_icon.clone();
         let content =
             ConstrainedBox::new(icons::Icon::Rocket.to_warpui_icon(icon_color).finish())
                 .with_width(16.)
