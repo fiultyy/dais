@@ -86,3 +86,6 @@ review.json
 
 # codebase-memory MCP local index (51MB graph db)
 .codebase-memory/
+
+# GUI 结构索引快照(本地核对用, 随代码演进过期)
+dais-gui-structure.html
