@@ -200,6 +200,50 @@ impl UndoCloseStack {
         }
     }
 
+    /// 某 workspace 无 undo 移除一个 tab(跨窗口拖出/交接等)后,维护栈内
+    /// **同 workspace** 的 `ClosedItem::Tab` 条目回插位置:
+    /// - `tab_index` 大于被删位置:其后的元素已整体左移一位,同步减一;
+    /// - `tab_index` 等于被删位置:该条目原定的插入锚点已随被拖走的 tab
+    ///   失效,回插位置失去依据,保守丢弃(与过期同路径:中止计时并 discard);
+    /// - 小于被删位置:不受影响。
+    /// 不做维护时,栈内陈旧 index 会在 `restore_closed_tab` 的
+    /// `Vec::insert` 处越界 panic(关 tab → 拖空其余 → ReopenClosedSession)。
+    pub fn handle_tab_removed_without_undo(
+        &mut self,
+        workspace_id: EntityId,
+        removed_index: usize,
+        ctx: &mut ModelContext<Self>,
+    ) {
+        let mut i = 0;
+        while i < self.stack.len() {
+            let (same_workspace, tab_index) = match &self.stack[i].closed_item {
+                ClosedItem::Tab {
+                    workspace,
+                    tab_index,
+                    ..
+                } => (workspace.id() == workspace_id, *tab_index),
+                ClosedItem::Window { .. } | ClosedItem::Pane { .. } => (false, 0),
+            };
+            if !same_workspace {
+                i += 1;
+                continue;
+            }
+            if tab_index > removed_index {
+                if let ClosedItem::Tab { tab_index, .. } = &mut self.stack[i].closed_item {
+                    *tab_index -= 1;
+                }
+                i += 1;
+            } else if tab_index == removed_index {
+                // 与 discard_pane_group_parent 同款:移出栈、中止过期计时、清理。
+                let removed_item = self.stack.remove(i);
+                removed_item.expiry_data.task_handle.abort();
+                removed_item.closed_item.discard(ctx);
+            } else {
+                i += 1;
+            }
+        }
+    }
+
     /// Handles a window being closed, adding the necessary data to the undo
     /// stack.
     pub fn handle_window_closed(&mut self, data: ClosedWindowData, ctx: &mut ModelContext<Self>) {

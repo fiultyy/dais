@@ -928,6 +928,16 @@ impl AISettingsPageView {
                     // rebuild_current_page 内部已保留滚动并 notify)。
                     me.rebuild_current_page(ctx);
                 }
+                // AWS Bedrock 三个字段的值同样只在 AwsBedrockWidget::new 时固化进
+                // editor buffer;热重载外部变更(settings.toml)若不 rebuild,页面
+                // 停留期间 editor 仍是旧值,用户一 blur 还会把旧 buffer 原样写回
+                // settings(覆盖外部修改)。与 AgentProviders 同构走 rebuild
+                // (保留滚动),重建后 buffer 取到新值,回写风险与显示陈旧一并消除。
+                AISettingsChangedEvent::AwsBedrockAutoLogin { .. }
+                | AISettingsChangedEvent::AwsBedrockProfile { .. }
+                | AISettingsChangedEvent::AwsBedrockAuthRefreshCommand { .. } => {
+                    me.rebuild_current_page(ctx);
+                }
                 _ => (),
             }
             ctx.notify();

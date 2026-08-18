@@ -4294,25 +4294,23 @@ impl Workspace {
         }
         // Starts from a left panel: Zap Drive
         else if self.is_warp_drive_view_focused(ctx) {
-            if self.current_workspace_state.is_right_panel_open() {
+            // 环绕到右侧:has_right_region 涵盖 V2 右面板(pane_group.
+            // right_panel_open)与 legacy(resource center / AI 助手),
+            // focus_right_region_entry 内含 V2 优先——与 focus_right_panel
+            // 已修复的对称方向(右面板出发环绕到左)写法对齐,避免 V2
+            // 右面板开着时误跳回终端。
+            if self.has_right_region(ctx) {
                 self.set_selected_object(None, ctx);
-                if self.current_workspace_state.is_ai_assistant_panel_open {
-                    ctx.focus(&self.ai_assistant_panel);
-                } else if self.current_workspace_state.is_resource_center_open {
-                    ctx.focus(&self.resource_center_view);
-                }
+                self.focus_right_region_entry(ctx);
             } else {
                 self.focus_active_tab(ctx);
             }
         }
         // Starts from a left panel: theme chooser
         else if self.theme_chooser_view.is_self_or_child_focused(ctx) {
-            if self.current_workspace_state.is_right_panel_open() {
-                if self.current_workspace_state.is_ai_assistant_panel_open {
-                    ctx.focus(&self.ai_assistant_panel);
-                } else if self.current_workspace_state.is_resource_center_open {
-                    ctx.focus(&self.resource_center_view);
-                }
+            // 同上:环绕检查与目标都走 V2+legacy 统一入口。
+            if self.has_right_region(ctx) {
+                self.focus_right_region_entry(ctx);
             } else {
                 self.focus_active_tab(ctx);
             }
@@ -10374,6 +10372,10 @@ impl Workspace {
             pane_group.reattach_panes(ctx);
         });
 
+        // 防 panic:栈内记录的回插位置基于关闭时刻的 tabs 布局,其后可能
+        // 已有无 undo 的移除(跨窗口拖出等)把列表缩短(栈侧维护见
+        // UndoCloseStack::handle_tab_removed_without_undo,此处兜底防越界)。
+        let tab_index = tab_index.min(self.tabs.len());
         self.tabs.insert(tab_index, tab_data);
         self.activate_tab(tab_index, ctx);
 
@@ -21999,7 +22001,17 @@ impl Workspace {
     }
 
     pub fn remove_tab_without_undo(&mut self, index: usize, ctx: &mut ViewContext<Self>) {
+        let len_before = self.tabs.len();
         self.remove_tab_and_sync_agent_conversations(index, false, false, ctx);
+        // 无 undo 的移除(跨窗口拖出/交接)会左移后续 tab,undo 栈内同
+        // workspace 的 ClosedItem::Tab 条目若不随之维护,记录的回插位置
+        // 会陈旧越界(见 restore_closed_tab 的 clamp 兜底)。
+        if self.tabs.len() < len_before {
+            let workspace_id = ctx.view_id();
+            UndoCloseStack::handle(ctx).update(ctx, |stack, ctx| {
+                stack.handle_tab_removed_without_undo(workspace_id, index, ctx);
+            });
+        }
     }
 
     /// Replaces the placeholder pane group (created by
