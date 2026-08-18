@@ -83,3 +83,6 @@ local:
 logs/
 .pr*-task.md
 review.json
+
+# codebase-memory MCP local index (51MB graph db)
+.codebase-memory/
