@@ -68,7 +68,7 @@ fn test_cache_dir_path() {
     // ChannelState, by default, is configured for Channel::Oss.
     cfg_if::cfg_if! {
         if #[cfg(target_os = "macos")] {
-            assert_eq!(cache_dir(), home_dir.join("Library/Application Support/dev.zap.Zap"));
+            assert_eq!(cache_dir(), home_dir.join("Library/Application Support/dev.dais.Dais"));
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
             assert_eq!(cache_dir(), home_dir.join(".cache/dais"));
         } else if #[cfg(windows)] {
@@ -85,7 +85,7 @@ fn test_state_dir_path() {
     cfg_if::cfg_if! {
         // ChannelState, by default, is configured for Channel::Oss.
         if #[cfg(target_os = "macos")] {
-            assert_eq!(state_dir(), home_dir.join("Library/Application Support/dev.zap.Zap"));
+            assert_eq!(state_dir(), home_dir.join("Library/Application Support/dev.dais.Dais"));
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
             assert_eq!(state_dir(), home_dir.join(".local/state/dais"));
         } else if #[cfg(windows)] {
@@ -134,6 +134,25 @@ fn test_project_path_for_oss_app_id() {
             assert_eq!(project_dirs.project_path(), "dais");
         } else if #[cfg(windows)] {
             assert_eq!(project_dirs.project_path(), "zap\\Zap");
+        } else {
+            unimplemented!("Need to update tests for current platform!");
+        }
+    }
+}
+
+#[test]
+fn test_project_path_for_dais_default_app_id() {
+    // D5 改名后的 OSS 默认 app_id (`dev.dais.Dais`): Linux 数据根仍归一为
+    // `dais`,与旧 `dev.zap.Zap` 落在同一目录,无数据迁移。
+    let project_dirs = project_dirs_for_app_id(AppId::new("dev", "dais", "Dais"), None)
+        .expect("should be able to compute project dirs");
+    cfg_if::cfg_if! {
+        if #[cfg(target_os = "macos")] {
+            assert_eq!(project_dirs.project_path(), "dev.dais.Dais");
+        } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
+            assert_eq!(project_dirs.project_path(), "dais");
+        } else if #[cfg(windows)] {
+            assert_eq!(project_dirs.project_path(), "dais\\Dais");
         } else {
             unimplemented!("Need to update tests for current platform!");
         }

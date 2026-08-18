@@ -36,8 +36,10 @@ fn main() -> Result<()> {
     let mut state = ChannelState::new(
         Channel::Oss,
         ChannelConfig {
-            app_id: AppId::new("dev", "zap", "Zap"),
-            logfile_name: "zap.log".into(),
+            // D5 改名身份收口: app_id 决定 Wayland app_id / X11 WM_CLASS /
+            // D-Bus well-known name。Linux 数据目录在 paths.rs 里映射为 `dais`。
+            app_id: AppId::new("dev", "dais", "Dais"),
+            logfile_name: "dais.log".into(),
             autoupdate_config: None,
             mcp_static_config: None,
         },
@@ -87,8 +89,9 @@ fn run_serve() -> Result<()> {
     let mut state = ChannelState::new(
         Channel::Oss,
         ChannelConfig {
-            app_id: AppId::new("dev", "zap", "Zap"),
-            logfile_name: "zap.log".into(),
+            // 与 GUI 入口保持一致(D5 改名: dev.zap.Zap → dev.dais.Dais)。
+            app_id: AppId::new("dev", "dais", "Dais"),
+            logfile_name: "dais.log".into(),
             autoupdate_config: None,
             mcp_static_config: None,
         },

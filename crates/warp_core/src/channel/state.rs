@@ -37,7 +37,9 @@ pub struct ChannelState {
 impl ChannelState {
     pub fn init() -> Self {
         let channel = Channel::Oss;
-        let app_id = AppId::new("dev", "zap", "Zap");
+        // D5 改名身份收口: 原 dev.zap.Zap。窗口 app_id / WM_CLASS / D-Bus 名都出自此处;
+        // Linux 数据目录仍落在 ~/.local/share/dais(paths.rs 显式映射)。
+        let app_id = AppId::new("dev", "dais", "Dais");
         Self {
             channel,
             additional_features: Default::default(),

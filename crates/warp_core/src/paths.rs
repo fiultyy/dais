@@ -240,10 +240,12 @@ fn project_dirs_for_app_id(
         if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
             // Adjust the base application name so that we end up with
             // a directory like "dais" matching our Linux package name
-            // (D5 改名: 数据根 zap→dais, 无存量包袱直接改).
+            // (D5 改名: 数据根 zap→dais, 无存量包袱直接改;
+            //  Dais/Dais* 走同一归一, 旧 Zap bundle/profile 名也折叠回 dais)。
             let base_app_name = match app_id.application_name() {
-                "Zap" => "dais".to_owned(),
+                "Zap" | "Dais" => "dais".to_owned(),
                 other if other.starts_with("Zap") => other.replace("Zap", "dais-"),
+                other if other.starts_with("Dais") => other.replace("Dais", "dais-"),
                 _ => app_id.application_name().to_owned(),
             };
         } else {

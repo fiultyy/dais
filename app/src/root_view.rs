@@ -102,10 +102,10 @@ use crate::auth::{WebHandoffEvent, WebHandoffView};
 
 /// 返回当前 channel 的产品名,作为窗口标题初始值与 quake/transferred 窗口标题。
 ///
-/// 取 `ChannelState::app_id().application_name()` 是为了让 OSS 构建显示 `Zap`、
+/// 取 `ChannelState::app_id().application_name()` 是为了让 OSS 构建显示 `Dais`、
 /// 而 Stable/Preview/Dev 等上游 channel 仍显示各自的 `Zap` / `WarpPreview` / `WarpDev`,
 /// 避免在 fork 中跨多处硬编码字符串(Windows 任务管理器按窗口标题做进程分组,
-/// 硬编码 `"Zap"` 会让 Zap 在任务管理器里显示成 `Zap(N)`)。
+/// 硬编码应用名会让 Dais 在任务管理器里显示成 `Dais(N)`)。
 ///
 /// 注意:窗口创建后,`Workspace::update_window_title()` 会在每次 tab 切换/重命名时
 /// 用 tab 标题覆盖此值,所以此函数仅决定窗口刚打开、还未挂上 tab 时的初始标题。

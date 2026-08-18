@@ -149,17 +149,17 @@ impl ApplicationService {
     }
 }
 
-// A D-Bus client for connecting to an already-running instance of Zap and
+// A D-Bus client for connecting to an already-running instance of dais and
 // invoking org.freedesktop.Application IPC methods.
 //
 // `default_service` / `default_path` 在调用处 (`pass_startup_args_to_existing_instance`) 通过
 // `.destination(well_known_name())` / `.path(application_service_path())` 在 builder 上覆盖,
 // 所以这里的常量不会被实际使用;但为避免误导未来通过 `Proxy::new` 直接使用 default 的调用方,
-// 这里仍指向 OSS 默认的 `dev.zap.Zap`。
+// 这里指向 OSS 默认的 `dev.dais.Dais`(D5 改名,与 ChannelState 默认 app_id 一致)。
 #[proxy(
     interface = "org.freedesktop.Application",
-    default_service = "dev.zap.Zap",
-    default_path = "/dev/zap/Zap",
+    default_service = "dev.dais.Dais",
+    default_path = "/dev/dais/Dais",
     gen_blocking = false
 )]
 trait ExistingApplication {

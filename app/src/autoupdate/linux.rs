@@ -419,7 +419,7 @@ impl PackageManager {
         Ok(Some(pm))
     }
 
-    /// 把"用户应该跑的升级命令"写到日志里。OSS 用户翻 ~/.local/share/dev.zap.Zap/
+    /// 把"用户应该跑的升级命令"写到日志里。OSS 用户翻 ~/.local/share/dais/
     /// 下面的日志能找到精确指令;UI 仍然走"前往 GitHub 下载"兜底,不区分到包管理器。
     fn log_upgrade_hint(&self) {
         let hint = match self {
