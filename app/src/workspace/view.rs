@@ -40,7 +40,7 @@ use crate::ai::conversation_utils;
 use crate::ai::document::ai_document_model::{AIDocumentId, AIDocumentModel};
 use crate::ai::llms::LLMPreferences;
 use crate::ai::{
-    agent::{api::ServerConversationToken, conversation::AIConversationId, EntrypointType},
+    agent::{api::ServerConversationToken, conversation::AIConversationId},
     blocklist::{
         inline_action::code_diff_view::CodeDiffView,
         suggested_agent_mode_workflow_modal::{
@@ -142,7 +142,6 @@ use crate::pane_group::{
 };
 use crate::quit_warning::UnsavedStateSummary;
 use crate::search::command_palette::view::NavigationMode;
-use crate::search::slash_command_menu::static_commands::commands;
 // Zap Wave 3-1:`AuthClient` trait 随 server_api/auth.rs 一同物理删。
 use crate::settings::{
     AISettings, AISettingsChangedEvent, CodeSettings, CodeSettingsChangedEvent, CtrlTabBehavior,
@@ -632,8 +631,6 @@ pub enum WorkspaceBanner {
     /// to display the AutoupdateStage::UnableToLaunchNewVersion
     UnableToLaunchNewVersion,
     // 去中心化分支:`Reauth` banner 已删除。
-    // to display an anonymous user has X days left to sign in
-    AnonymousUserAuth,
     /// to display when recovering from a crash that may have been due to use
     /// of Wayland
     #[cfg(target_os = "linux")]
@@ -651,7 +648,6 @@ impl WorkspaceBanner {
             Self::UnableToUpdateToNewVersion => true,
             Self::UnableToLaunchNewVersion => true,
             Self::VersionDeprecated => false,
-            Self::AnonymousUserAuth => false,
             // 去中心化分支:`Reauth` 已删除。
             #[cfg(target_os = "linux")]
             Self::WaylandCrashRecovery => true,
@@ -6297,14 +6293,6 @@ impl Workspace {
         ctx.notify();
     }
 
-    pub fn open_new_session_dropdown_menu(
-        &mut self,
-        position: Vector2F,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        self.open_tab_configs_menu(position, false, TabConfigsMenuOpenSource::Pointer, ctx);
-    }
-
     fn toggle_tab_configs_menu(&mut self, ctx: &mut ViewContext<Self>) {
         let use_vertical_tabs =
             FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(ctx).use_vertical_tabs;
@@ -7584,20 +7572,6 @@ impl Workspace {
     ) -> Option<ViewHandle<TerminalView>> {
         self.active_tab_pane_group()
             .read(ctx, |pane_group, ctx| pane_group.active_session_view(ctx))
-    }
-
-    pub fn toggle_welcome_tips_visiblity(&mut self, ctx: &mut ViewContext<Self>) {
-        self.welcome_tips_view_state.toggle_popup();
-        if self.welcome_tips_view_state.is_popup_open() {
-            let input_id = self.active_input_id(ctx);
-            self.welcome_tips_view.update(ctx, |tips_view, ctx| {
-                tips_view.set_action_target(ctx.window_id(), input_id, ctx)
-            });
-
-            send_telemetry_from_ctx!(TelemetryEvent::OpenWelcomeTips, ctx);
-        }
-        ctx.focus(&self.welcome_tips_view);
-        ctx.notify();
     }
 
     pub fn close_tab_bar_overflow_menu(&mut self, ctx: &mut ViewContext<Self>) {
@@ -9652,25 +9626,6 @@ impl Workspace {
                 .snackbar_enabled
                 .toggle_and_save_value(ctx));
         });
-    }
-
-    pub fn toggle_error_underlining(&mut self, ctx: &mut ViewContext<Self>) {
-        InputSettings::handle(ctx).update(ctx, |input_settings, ctx| {
-            report_if_error!(input_settings.error_underlining.toggle_and_save_value(ctx));
-        });
-    }
-
-    pub fn toggle_syntax_highlighting(&mut self, ctx: &mut ViewContext<Self>) {
-        InputSettings::handle(ctx).update(ctx, |input_settings, ctx| {
-            report_if_error!(input_settings
-                .syntax_highlighting
-                .toggle_and_save_value(ctx));
-        });
-    }
-
-    pub fn change_cursor(&mut self, cursor_shape: Cursor, ctx: &mut ViewContext<Self>) {
-        ctx.set_cursor_shape(cursor_shape);
-        ctx.notify();
     }
 
     pub fn set_a11y_verbosity(
@@ -15296,24 +15251,6 @@ impl Workspace {
         });
     }
 
-    fn toggle_scroll_reporting(&mut self, ctx: &mut ViewContext<Self>) {
-        AltScreenReporting::handle(ctx).update(ctx, |reporting, ctx| {
-            reporting
-                .scroll_reporting_enabled
-                .toggle_and_save_value(ctx)
-                .expect("ScrollReportingEnabled failed to serialize");
-        });
-    }
-
-    fn toggle_focus_reporting(&mut self, ctx: &mut ViewContext<Self>) {
-        AltScreenReporting::handle(ctx).update(ctx, |reporting, ctx| {
-            reporting
-                .focus_reporting_enabled
-                .toggle_and_save_value(ctx)
-                .expect("FocusReportingEnabled failed to serialize");
-        });
-    }
-
     /// This listens for changes to keybindings and keeps the cached versions up-to-date in our
     /// tooltips.
     fn handle_keybinding_changed(
@@ -18058,7 +17995,6 @@ impl Workspace {
                 self.autoupdate_unable_to_launch_new_version = true;
             }
             WorkspaceBanner::VersionDeprecated => {}
-            WorkspaceBanner::AnonymousUserAuth => {}
             #[cfg(all(enable_crash_recovery, target_os = "linux"))]
             WorkspaceBanner::WaylandCrashRecovery => {
                 crash_recovery::dismiss_workspace_banner(ctx);
@@ -19025,7 +18961,6 @@ impl TypedActionView for Workspace {
             } => self.toggle_vertical_tabs_pane_context_menu(*tab_index, *target, *position, ctx),
             ToggleTabBarOverflowMenu => self.toggle_tab_bar_overflow_menu(ctx),
             ToggleBlockSnackbar => self.toggle_block_snackbar(ctx),
-            ToggleWelcomeTips => self.toggle_welcome_tips_visiblity(ctx),
             CloseTab(index) => self.close_tab(*index, false, true, ctx),
             CloseActiveTab => self.close_tab(self.active_tab_index, false, true, ctx),
             CloseOtherTabs(index) => self.close_other_tabs(*index, false, ctx),
@@ -19094,10 +19029,6 @@ impl TypedActionView for Workspace {
             AddAgentTab => self.add_terminal_tab_with_new_agent_view(ctx),
             AddSpecificAgentTab(agent) => self.add_tab_with_specific_agent(*agent, ctx),
             AddDockerSandboxTab => self.add_docker_sandbox_tab(ctx),
-            StartAgentOnboardingTutorial(tutorial) => {
-                self.start_agent_onboarding_tutorial(tutorial.clone(), ctx)
-            }
-            OpenNewSessionMenu { position } => self.open_new_session_dropdown_menu(*position, ctx),
             ToggleTabConfigsMenu => self.toggle_tab_configs_menu(ctx),
             ShowSessionConfigModal => self.show_session_config_modal(ctx),
             DismissSessionConfigTabConfigChip => {
@@ -19278,9 +19209,6 @@ impl TypedActionView for Workspace {
                     }
                 });
             }
-            OpenWorktreeInRepo { repo_path } => {
-                self.open_worktree_in_repo(repo_path.clone(), ctx);
-            }
             AutoupdateFailureLink => self.open_autoupdate_failure_link(ctx),
             ApplyUpdate => self.apply_update(ctx),
             // 去中心化分支:`LogOut` 已删除。
@@ -19325,9 +19253,6 @@ impl TypedActionView for Workspace {
             ViewLogs => self.view_logs(ctx),
             #[cfg(not(target_family = "wasm"))]
             ExportLogsToPath => self.export_logs_to_path(ctx),
-            ChangeCursor(cursor) => self.change_cursor(*cursor, ctx),
-            ToggleErrorUnderlining => self.toggle_error_underlining(ctx),
-            ToggleSyntaxHighlighting => self.toggle_syntax_highlighting(ctx),
             CheckForUpdate => self.manual_check_for_update(ctx),
             SetA11yVerbosityLevel(verbosity) => self.set_a11y_verbosity(*verbosity, ctx),
             ToggleNotifications => self.toggle_notifications(ctx),
@@ -19425,8 +19350,6 @@ impl TypedActionView for Workspace {
                 ctx.notify();
             }
             ToggleMouseReporting => self.toggle_mouse_reporting(ctx),
-            ToggleScrollReporting => self.toggle_scroll_reporting(ctx),
-            ToggleFocusReporting => self.toggle_focus_reporting(ctx),
             StartTabDrag => {
                 // If we are renaming a tab, finish the rename before dragging.
                 self.finish_tab_rename(ctx);
@@ -19710,19 +19633,6 @@ impl TypedActionView for Workspace {
             OpenFilePath { path } => {
                 ctx.open_file_path(path);
             }
-            NewTabInAgentMode {
-                entrypoint,
-                zero_state_prompt_suggestion_type,
-            } => {
-                send_telemetry_from_ctx!(
-                    TelemetryEvent::AgentModeClickedEntrypoint {
-                        entrypoint: entrypoint.clone(),
-                    },
-                    ctx
-                );
-
-                self.add_terminal_tab_in_ai_mode(*zero_state_prompt_suggestion_type, ctx);
-            }
             NewPaneInAgentMode {
                 entrypoint,
                 zero_state_prompt_suggestion_type,
@@ -19757,10 +19667,6 @@ impl TypedActionView for Workspace {
                         );
                     }
                 }
-            }
-            ShowAIAssistantWarmWelcome => {
-                self.should_show_ai_assistant_warm_welcome = true;
-                ctx.notify();
             }
             ClickedAIAssistantWarmWelcome => {
                 self.toggle_ai_assistant_panel(ctx);
@@ -19935,12 +19841,6 @@ impl TypedActionView for Workspace {
             OpenPromptEditor { open_source } => {
                 self.open_prompt_editor(*open_source, ctx);
             }
-            OpenAgentToolbarEditor => {
-                self.open_agent_toolbar_editor(AgentToolbarEditorMode::AgentView, ctx);
-            }
-            OpenCLIAgentToolbarEditor => {
-                self.open_agent_toolbar_editor(AgentToolbarEditorMode::CLIAgent, ctx);
-            }
             OpenHeaderToolbarEditor => {
                 self.open_header_toolbar_editor(ctx);
             }
@@ -20022,27 +19922,6 @@ impl TypedActionView for Workspace {
                 self.dismiss_workspace_banner(ctx, &WorkspaceBanner::WaylandCrashRecovery);
                 ctx.open_url("");
             }
-            FixInAgentMode { query } => {
-                self.active_tab_pane_group().update(ctx, |pane_group, ctx| {
-                    pane_group.add_terminal_pane_in_agent_mode(None, None, ctx);
-                    if let Some(terminal_view) = pane_group.focused_session_view(ctx) {
-                        terminal_view.update(ctx, |terminal_view, terminal_view_ctx| {
-                            terminal_view.ai_controller().update(
-                                terminal_view_ctx,
-                                |controller, ctx| {
-                                    controller.send_user_query_in_new_conversation(
-                                        query.to_owned(),
-                                        None,
-                                        EntrypointType::UserInitiated,
-                                        None,
-                                        ctx,
-                                    );
-                                },
-                            );
-                        });
-                    }
-                });
-            }
             OpenAIFactCollection => {
                 self.open_ai_fact_collection_pane(None, None, ctx);
                 send_telemetry_from_ctx!(
@@ -20064,29 +19943,6 @@ impl TypedActionView for Workspace {
             }
             // Zap Wave 7-3:`OpenEnvironmentManagementPane` WorkspaceAction handler 随
             // ambient-agent UI 子系统物理删。
-            ToggleAIDocumentPane {
-                document_id,
-                document_version,
-            } => {
-                let conversation_id =
-                    AIDocumentModel::as_ref(ctx).get_conversation_id_for_document_id(document_id);
-
-                if let Some(conversation_id) = conversation_id {
-                    self.active_tab_pane_group().update(ctx, |pane_group, ctx| {
-                        pane_group.toggle_ai_document_pane(
-                            conversation_id,
-                            *document_id,
-                            *document_version,
-                            ctx,
-                        );
-                    });
-                }
-            }
-            HideAIDocumentPanes => {
-                self.active_tab_pane_group().update(ctx, |pane_group, ctx| {
-                    pane_group.close_all_ai_document_panes(ctx);
-                });
-            }
             OpenAIDocumentPane {
                 document_id,
                 document_version,
@@ -20182,12 +20038,6 @@ impl TypedActionView for Workspace {
                     settings.scroll_to_settings_widget(*page, widget_id, ctx);
                 });
                 ctx.notify();
-            }
-            OpenFileInNewTab {
-                full_path,
-                line_and_column,
-            } => {
-                self.add_tab_for_code_file(full_path.clone(), *line_and_column, ctx);
             }
             OpenRepository { path } => {
                 self.open_repository(path.as_deref(), ctx);
@@ -20324,21 +20174,6 @@ impl TypedActionView for Workspace {
                     );
                 });
             }
-            InsertForkSlashCommand => {
-                self.active_tab_pane_group().update(ctx, |pane_group, ctx| {
-                    if let Some(terminal_view) = pane_group.active_session_view(ctx) {
-                        terminal_view.update(ctx, |terminal, ctx| {
-                            terminal.input().update(ctx, |input, ctx| {
-                                input.replace_buffer_content(
-                                    &format!("{} ", commands::FORK.name),
-                                    ctx,
-                                );
-                                ctx.focus_self();
-                            });
-                        });
-                    }
-                });
-            }
             CreatePersonalAIPrompt => {
                 if let Some(personal_drive) = UserWorkspaces::as_ref(ctx).personal_drive(ctx) {
                     let source = WorkflowOpenSource::New {
@@ -20355,10 +20190,6 @@ impl TypedActionView for Workspace {
                         ctx,
                     );
                 }
-            }
-            #[cfg(feature = "local_fs")]
-            FileRenamed { old_path, new_path } => {
-                self.rename_tabs_with_file_path(old_path, new_path, ctx);
             }
             #[cfg(feature = "local_fs")]
             FileDeleted { path } => {
@@ -20698,14 +20529,6 @@ impl TypedActionView for Workspace {
                     self.lightbox_view = Some(handle);
                 }
                 ctx.notify();
-            }
-            UpdateLightboxImage { index, image } => {
-                if let Some(handle) = &self.lightbox_view {
-                    handle.update(ctx, |view, ctx| {
-                        view.update_image_at(*index, image.clone(), ctx);
-                    });
-                    ctx.notify();
-                }
             }
             SyncTrafficLights => {
                 self.sync_window_button_visibility(ctx);

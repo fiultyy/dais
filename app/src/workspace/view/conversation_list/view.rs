@@ -100,10 +100,6 @@ struct OverflowMenuState {
 
 #[derive(Clone, Debug)]
 pub enum ConversationListViewAction {
-    DeleteConversation {
-        conversation_id: AIConversationId,
-        terminal_view_id: Option<EntityId>,
-    },
     ToggleOverflowMenu {
         conversation_id: ConversationOrTaskId,
         /// When `Some`, the menu was opened via right-click and should be
@@ -766,40 +762,6 @@ impl TypedActionView for ConversationListView {
 
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
         match action {
-            ConversationListViewAction::DeleteConversation {
-                conversation_id,
-                terminal_view_id,
-            } => {
-                let window_id = ctx.window_id();
-                let conversation_is_done = BlocklistAIHistoryModel::as_ref(ctx)
-                    .conversation(conversation_id)
-                    .is_none_or(|c| c.status().is_done());
-                if !conversation_is_done {
-                    ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-                        toast_stack.add_ephemeral_toast(
-                            DismissibleToast::error(crate::t!(
-                                "workspace-conversation-list-delete-in-progress-error"
-                            )),
-                            window_id,
-                            ctx,
-                        );
-                    });
-                    return;
-                }
-
-                let id = ConversationOrTaskId::ConversationId(*conversation_id);
-                let conversation_title = self
-                    .view_model
-                    .as_ref(ctx)
-                    .get_item_by_id(&id, ctx)
-                    .map(|c| c.title(ctx).to_string())
-                    .unwrap_or_else(|| crate::t!("workspace-conversation-list-fallback-title"));
-                ctx.emit(Event::ShowDeleteConfirmationDialog {
-                    conversation_id: *conversation_id,
-                    conversation_title,
-                    terminal_view_id: *terminal_view_id,
-                });
-            }
             ConversationListViewAction::ToggleOverflowMenu {
                 conversation_id,
                 position,

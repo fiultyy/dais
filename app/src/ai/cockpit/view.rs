@@ -8,8 +8,7 @@
 //!   (`WorkspaceAction::FocusTerminalViewInWorkspace`,PaneViewLocator 复用);
 //! - 勾选框 → `ToggleCardSelection`(multi-select)+ 底部注入条 → `BeginInjection`
 //!   → 确认对话框(列目标清单)→ `ConfirmInjection`;
-//! - 筛选/排序/分组:`SetFilter` / `SetStatusFilter` / `SetSortMode` / `SetGroupBy`
-//!   (循环按钮经 `Cycle*` 便捷 action 落到同一批 setter)。
+//! - 筛选/排序/分组:`SetFilter` + `Cycle*` 便捷 action(落到同一批 setter)。
 
 use std::cell::RefCell;
 use std::collections::hash_map::DefaultHasher;
@@ -80,8 +79,6 @@ const CONFIRM_DIALOG_WIDTH: f32 = 420.;
 #[derive(Clone, Debug, PartialEq)]
 pub enum CockpitPanelAction {
     Refresh,
-    /// 选中/取消选中卡片(None = 清空选中)。
-    SelectCard(Option<EntityId>),
     /// 点击卡片主体:跨 tab/窗口聚焦对应 terminal pane。
     FocusCard(EntityId),
     /// 勾选框切换 multi-select(批量注入目标)。
@@ -90,12 +87,6 @@ pub enum CockpitPanelAction {
     ClearSelection,
     /// 文本筛选(标题/cwd/agent/recap/tool)。
     SetFilter(String),
-    /// 状态筛选(None = 全部)。
-    SetStatusFilter(Option<CockpitStatusFilter>),
-    /// 排序模式。
-    SetSortMode(CockpitSort),
-    /// 分组模式。
-    SetGroupBy(CockpitGroupBy),
     /// 循环按钮便捷 action:从当前状态切到下一模式(落到 Set* setter)。
     CycleStatusFilter,
     CycleSortMode,
@@ -826,15 +817,6 @@ impl TypedActionView for CockpitPanelView {
                     model.refresh(ctx);
                 });
             }
-            CockpitPanelAction::SelectCard(id) => {
-                let id = match id {
-                    Some(id) if self.model.as_ref(ctx).selected() == Some(*id) => None,
-                    other => *other,
-                };
-                self.model.update(ctx, |model, ctx| {
-                    model.select_card(id, ctx);
-                });
-            }
             CockpitPanelAction::FocusCard(id) => {
                 // 单选高亮同步 + 跨 tab/窗口聚焦(workspace 侧定位 pane:
                 // 本 tab → activate_tab + focus_pane;他窗口 → show_window)。
@@ -860,12 +842,6 @@ impl TypedActionView for CockpitPanelView {
                     model.set_filter(filter.clone(), ctx);
                 });
             }
-            CockpitPanelAction::SetStatusFilter(kind) => {
-                self.model.update(ctx, |model, ctx| {
-                    model.set_status_filter(*kind, ctx);
-                });
-                self.sync_control_labels(ctx);
-            }
             CockpitPanelAction::CycleStatusFilter => {
                 let next = CockpitStatusFilter::cycle(self.model.as_ref(ctx).status_filter());
                 self.model.update(ctx, |model, ctx| {
@@ -873,22 +849,10 @@ impl TypedActionView for CockpitPanelView {
                 });
                 self.sync_control_labels(ctx);
             }
-            CockpitPanelAction::SetSortMode(sort) => {
-                self.model.update(ctx, |model, ctx| {
-                    model.set_sort(*sort, ctx);
-                });
-                self.sync_control_labels(ctx);
-            }
             CockpitPanelAction::CycleSortMode => {
                 let next = self.model.as_ref(ctx).sort().cycle();
                 self.model.update(ctx, |model, ctx| {
                     model.set_sort(next, ctx);
-                });
-                self.sync_control_labels(ctx);
-            }
-            CockpitPanelAction::SetGroupBy(group_by) => {
-                self.model.update(ctx, |model, ctx| {
-                    model.set_group_by(*group_by, ctx);
                 });
                 self.sync_control_labels(ctx);
             }

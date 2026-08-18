@@ -358,7 +358,6 @@ pub enum CodeReviewAction {
     },
     ToggleFileExpanded(PathBuf),
     OpenHeaderMenu,
-    SetDiffMode(DiffMode),
     ToggleFileSidebar,
     FileSelected(usize),
     ToggleMaximize,
@@ -368,8 +367,6 @@ pub enum CodeReviewAction {
     },
     RefreshGitState,
     UndoRevert,
-    Close,
-    EmitPaneEvent(PaneEvent),
     ShowDiscardConfirmDialog(Option<PathBuf>),
     ConfirmDiscardFile,
     CancelDiscardFile,
@@ -1501,8 +1498,7 @@ impl CodeReviewView {
         }
     }
 
-    /// Shared body for `CodeReviewAction::SetDiffMode` and
-    /// `DiffSelectorEvent::SelectMode`: sends a telemetry event for the
+    /// Shared body for `DiffSelectorEvent::SelectMode`: sends a telemetry event for the
     /// mode change and updates the diff state model.
     fn apply_diff_mode(&mut self, mode: DiffMode, ctx: &mut ViewContext<Self>) {
         if self
@@ -7165,9 +7161,6 @@ impl TypedActionView for CodeReviewView {
 
                 ctx.notify();
             }
-            CodeReviewAction::SetDiffMode(mode) => {
-                self.apply_diff_mode(mode.clone(), ctx);
-            }
             CodeReviewAction::ToggleFileSidebar => {
                 if self.file_sidebar_expanded {
                     self.file_sidebar_expanded = false;
@@ -7250,9 +7243,6 @@ impl TypedActionView for CodeReviewView {
             CodeReviewAction::UndoRevert => {
                 self.maybe_undo_revert(ctx);
             }
-            CodeReviewAction::Close => {
-                ctx.emit(CodeReviewViewEvent::Pane(PaneEvent::Close));
-            }
             CodeReviewAction::OpenHeaderMenu => {
                 // Header dropdown: build items and toggle the menu open/closed.
                 let items = self.header_menu_items(ctx);
@@ -7281,9 +7271,6 @@ impl TypedActionView for CodeReviewView {
                 // Show the review comment composer overlay if it's not already open.
                 let existing_comment = self.get_existing_diffset_comment(ctx);
                 self.open_review_comment_composer(existing_comment, ctx);
-            }
-            CodeReviewAction::EmitPaneEvent(event) => {
-                ctx.emit(CodeReviewViewEvent::Pane(event.clone()));
             }
             CodeReviewAction::ShowDiscardConfirmDialog(file_path) => {
                 self.discard_dialog_state.show_discard_confirm_dialog = true;

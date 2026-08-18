@@ -247,11 +247,6 @@ pub enum DriveIndexAction {
     ClearDropTarget,
     ToggleSectionCollapsed(DriveIndexSection),
     RunObject(ObjectTypeAndId),
-    OpenWorkflowModalWithNew {
-        space: Space,
-        initial_folder_id: Option<SyncId>,
-    },
-    OpenWorkflowModalWithWorkflowObject(SyncId),
     ToggleFolderOpen(SyncId),
     CollapseAllInLocation(StoredObjectLocation),
     InvokeEnvVarCollectionInSubshell(ObjectTypeAndId),
@@ -263,9 +258,6 @@ pub enum DriveIndexAction {
     },
     DeleteObject {
         object_type_and_id: ObjectTypeAndId,
-    },
-    EmptyTrash {
-        space: Space,
     },
     OpenEmptyTrashConfirmationDialog {
         space: Space,
@@ -4777,18 +4769,6 @@ impl TypedActionView for DriveIndex {
                     ctx.emit(DriveIndexEvent::RunObject(*id));
                 }
             }
-            DriveIndexAction::OpenWorkflowModalWithNew {
-                space,
-                initial_folder_id,
-            } => ctx.emit(DriveIndexEvent::OpenWorkflowModalWithNew {
-                space: *space,
-                initial_folder_id: *initial_folder_id,
-            }),
-            DriveIndexAction::OpenWorkflowModalWithWorkflowObject(workflow_id) => {
-                ctx.emit(DriveIndexEvent::OpenWorkflowModalWithWorkflowObject(
-                    *workflow_id,
-                ));
-            }
             DriveIndexAction::ToggleFolderOpen(id) => {
                 // If WD is focused, then clicking a folder will set that folder to be focused
                 if self.focused_index.is_some() {
@@ -4815,9 +4795,6 @@ impl TypedActionView for DriveIndex {
             }
             DriveIndexAction::DeleteObject { object_type_and_id } => {
                 self.delete_object(object_type_and_id, ctx);
-            }
-            DriveIndexAction::EmptyTrash { space } => {
-                self.empty_trash(space, ctx);
             }
             DriveIndexAction::OpenEmptyTrashConfirmationDialog { space } => {
                 ctx.focus(&self.empty_trash_confirmation_dialog);

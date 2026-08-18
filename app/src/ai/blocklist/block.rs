@@ -5289,14 +5289,6 @@ pub enum AIBlockAction {
         action_id: AIAgentActionId,
         server_output_id: Option<ServerOutputId>,
     },
-    /// Clear the selections of all other views **except** for the source view that dispatched the event.
-    /// The `source_view_id` will be `None` if the event is dispatched by the [`warpui::elements::SelectableArea`]
-    /// instead of a nested view (i.e. code block, requested command, etc.), which means all nested views
-    /// should have their selections cleared.
-    ClearOtherSelections {
-        source_view_id: Option<EntityId>,
-        source_window_id: WindowId,
-    },
     /// Copy both query and AI output (see below)
     Copy,
     /// Copy the content from the previous user query.
@@ -5336,12 +5328,6 @@ pub enum AIBlockAction {
     },
     /// Run the configured AWS auth refresh command to fix expired Bedrock credentials
     RunAwsLoginCommand,
-    /// Open settings to configure the AWS auth refresh command
-    ConfigureAwsLoginCommand,
-    /// Open the screenshot lightbox for a UseComputer action.
-    ViewScreenshot {
-        action_id: AIAgentActionId,
-    },
     ToggleImportedCommentCollapsed {
         action_id: AIAgentActionId,
         comment_index: usize,
@@ -5661,12 +5647,6 @@ impl TypedActionView for AIBlock {
                     action_model.execute_action(action_id, self.client_ids.conversation_id, ctx);
                 });
             }
-            AIBlockAction::ClearOtherSelections {
-                source_view_id,
-                source_window_id,
-            } => {
-                self.clear_other_selections(*source_view_id, *source_window_id, ctx);
-            }
             AIBlockAction::CopyQuery => {
                 // Copy the prompt from the preceding user query (where overflow menu would appear)
                 let prompt_text = self.get_preceding_user_query(ctx);
@@ -5815,12 +5795,6 @@ impl TypedActionView for AIBlock {
                     report_if_error!(settings.aws_bedrock_auto_login.set_value(new_value, ctx));
                 });
             }
-            AIBlockAction::ConfigureAwsLoginCommand => {
-                ctx.dispatch_typed_action(&WorkspaceAction::ShowSettingsPageWithSearch {
-                    search_query: "aws bedrock".to_string(),
-                    section: Some(SettingsSection::WarpAgent),
-                });
-            }
             AIBlockAction::ToggleImportedCommentCollapsed {
                 action_id,
                 comment_index,
@@ -5865,9 +5839,6 @@ impl TypedActionView for AIBlock {
             }
             AIBlockAction::OpenCommentInGitHub { url } => {
                 ctx.open_url(url);
-            }
-            AIBlockAction::ViewScreenshot { action_id: _ } => {
-                // Computer Use 已被移除,screenshot lightbox 不再可用。
             }
         }
         ctx.notify();

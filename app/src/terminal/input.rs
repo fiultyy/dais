@@ -461,12 +461,6 @@ pub const SET_INPUT_MODE_AGENT_ACTION_NAME: &str = "input:set_mode_agent";
 /// Action name for setting input mode to terminal mode
 pub const SET_INPUT_MODE_TERMINAL_ACTION_NAME: &str = "input:set_mode_terminal";
 
-/// Action name for setting input mode to unlocked agent mode (with natural language detection)
-pub const SET_INPUT_MODE_UNLOCKED_AGENT_ACTION_NAME: &str = "input:set_mode_unlocked_agent";
-
-/// Action name for setting input mode to unlocked terminal mode (with natural language detection)
-pub const SET_INPUT_MODE_UNLOCKED_TERMINAL_ACTION_NAME: &str = "input:set_mode_unlocked_terminal";
-
 const START_NEW_CONVERSATION_KEYBINDING_NAME: &str = "input:start_new_agent_conversation";
 
 /// The position ID used to identify the start of the replacement span for completions.

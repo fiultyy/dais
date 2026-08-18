@@ -2018,7 +2018,6 @@ pub enum AgentInputFooterAction {
     ToggleVoiceInput,
     SelectFile,
     InsertFilePath(String),
-    ToggleCodeReview,
     ToggleFileExplorer,
     ToggleRichInput,
     ToggleAutodetectionSetting,
@@ -2077,11 +2076,6 @@ impl TypedActionView for AgentInputFooter {
                     ));
                 } else {
                     ctx.emit(AgentInputFooterEvent::WriteToPty(path_with_space));
-                }
-            }
-            AgentInputFooterAction::ToggleCodeReview => {
-                if let Some(agent) = self.cli_agent(ctx) {
-                    ctx.emit(AgentInputFooterEvent::ToggleCodeReviewPane(agent));
                 }
             }
             AgentInputFooterAction::ToggleFileExplorer => {

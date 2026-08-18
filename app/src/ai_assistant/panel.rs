@@ -9,7 +9,7 @@ use warpui::clipboard::ClipboardContent;
 use warpui::elements::{
     resizable_state_handle, Align, Border, ChildAnchor, ConstrainedBox, Container, CornerRadius,
     CrossAxisAlignment, DispatchEventResult, DragBarSide, Empty, EventHandler, Fill, Flex,
-    HyperlinkUrl, Icon, MainAxisAlignment, MainAxisSize, OffsetPositioning, ParentAnchor,
+    Icon, MainAxisAlignment, MainAxisSize, OffsetPositioning, ParentAnchor,
     PositionedElementAnchor, PositionedElementOffsetBounds, Radius, SavePosition, Shrinkable,
     Stack, Text,
 };
@@ -134,8 +134,6 @@ pub enum AIAssistantAction {
     ResetContext,
     CopyTranscript,
     PreparedPrompt(&'static str),
-    ClickedUrl(HyperlinkUrl),
-    CopyAnswerToClipboard(Arc<String>),
     FocusTerminalInput,
     FocusEditor,
 }
@@ -1040,19 +1038,6 @@ impl TypedActionView for AIAssistantPanelView {
             PreparedPrompt(prompt) => {
                 self.issue_request(prompt.to_string(), ctx);
                 send_telemetry_from_ctx!(TelemetryEvent::UsedWarpAIPreparedPrompt { prompt }, ctx);
-            }
-            ClickedUrl(url) => {
-                ctx.open_url(&url.url);
-            }
-            CopyAnswerToClipboard(content) => {
-                ctx.clipboard()
-                    .write(ClipboardContent::plain_text(content.to_string()));
-                send_telemetry_from_ctx!(
-                    TelemetryEvent::WarpAIAction {
-                        action_type: WarpAIActionType::CopyAnswer
-                    },
-                    ctx
-                );
             }
             FocusTerminalInput => ctx.emit(AIAssistantPanelEvent::FocusTerminalInput),
             FocusEditor => {

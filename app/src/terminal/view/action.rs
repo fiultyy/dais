@@ -4,18 +4,16 @@ use std::ops::Range;
 use std::path::PathBuf;
 
 use ai::skills::SkillReference;
-use command_corrections::Correction;
 use pathfinder_geometry::vector::Vector2F;
 use warp_util::user_input::UserInput;
 use warpui::EntityId;
-use warpui::elements::HyperlinkUrl;
 use warpui::event::ModifiersState;
 use warpui::units::Lines;
 
 use crate::ai::agent::AIAgentExchangeId;
 use crate::ai::agent::conversation::AIConversationId;
 use crate::code_review::telemetry_event::CodeReviewPaneEntrypoint;
-use crate::server::telemetry::{AgentModeRewindEntrypoint, PaletteSource, ToggleBlockFilterSource};
+use crate::server::telemetry::{AgentModeRewindEntrypoint, ToggleBlockFilterSource};
 use crate::terminal::available_shells::AvailableShell;
 use crate::terminal::model::completions::ShellCompletion;
 use crate::terminal::shared_session::SharedSessionActionSource;
@@ -157,9 +155,6 @@ pub enum TerminalAction {
     AltSelect(SelectAction<Point>),
     MaybeClearAltSelect,
     AltMouseAction(MouseState),
-    InsertCommandCorrection {
-        correction: Correction,
-    },
     BlockListContextMenu(BlockListMenuSource),
     CloseContextMenu,
     OneKeyFillSecret {
@@ -330,8 +325,6 @@ pub enum TerminalAction {
     #[cfg(feature = "voice_input")]
     ToggleCLIAgentVoiceInput(voice_input::VoiceInputToggledFrom),
 
-    HyperlinkClick(HyperlinkUrl),
-    AttemptLoginGatedFeature,
     StartFileDropTarget,
     StopFileDropTarget,
     SetMarkedText {
@@ -359,7 +352,6 @@ pub enum TerminalAction {
     ToggleCodeReviewPane {
         entrypoint: CodeReviewPaneEntrypoint,
     },
-    SummarizeConversation,
     AddProjectAtCurrentDirectory,
     OpenProjectRulesPane,
     OpenViewMCPPane,
@@ -372,9 +364,6 @@ pub enum TerminalAction {
     OpenAddPromptPane,
     OpenConversationsPalette,
     PickRepoToOpen,
-    OpenFilesPalette {
-        source: PaletteSource,
-    },
     DismissCodeToolbeltTooltip,
     ToggleLongRunningCommandControl,
     ToggleHideCliResponses,
@@ -387,8 +376,6 @@ pub enum TerminalAction {
     ResolvePromptSuggestion(PromptSuggestionResolution),
     AwsBedrockLoginBanner(AwsBedrockLoginBannerAction),
     AwsCliNotInstalledBanner(AwsCliNotInstalledBannerAction),
-    /// Toggle the usage footer on the last AI block in the active conversation.
-    ToggleUsageFooter,
     /// Reveal a hidden child agent pane from the orchestrator status card.
     RevealChildAgent {
         conversation_id: AIConversationId,
@@ -525,9 +512,6 @@ impl fmt::Debug for TerminalAction {
             NotificationsErrorBanner(action) => write!(f, "NotificationsErrorBanner({action:?})"),
             LegacySSHBanner(action) => write!(f, "SSHBanner({action:?})"),
             JumpToBookmark(index) => write!(f, "JumpToBookmark({index:?})"),
-            InsertCommandCorrection { .. } => {
-                write!(f, "InsertCommandCorrection",)
-            }
             OpenGridLink(_) => f.write_str("OpenGridLink"),
             OpenRichContentLink(_) => f.write_str("OpenRichContentLink"),
             ToggleGridSecret { show_secret, .. } => write!(f, "ToggleGridSecret {show_secret:?}"),
@@ -587,8 +571,6 @@ impl fmt::Debug for TerminalAction {
             SetInputModeTerminal => write!(f, "SetInputModeTerminal"),
             #[cfg(feature = "voice_input")]
             ToggleCLIAgentVoiceInput(source) => write!(f, "ToggleCLIAgentVoiceInput({source:?})"),
-            HyperlinkClick(hyperlink_url) => write!(f, "HyperlinkClick({hyperlink_url:?})"),
-            AttemptLoginGatedFeature => write!(f, "AttemptLoginGatedFeature"),
             StartFileDropTarget => write!(f, "StartFileDropTarget"),
             StopFileDropTarget => write!(f, "StopFileDropTarget"),
             RunNativeShellCompletions { buffer_text, .. } => {
@@ -627,9 +609,7 @@ impl fmt::Debug for TerminalAction {
             OpenAddPromptPane => write!(f, "OpenAddPromptPane"),
             OpenConversationsPalette => write!(f, "OpenConversationsPalette"),
             PickRepoToOpen => write!(f, "PickRepoToOpen"),
-            OpenFilesPalette { .. } => write!(f, "OpenFilesPalette"),
             DismissCodeToolbeltTooltip => write!(f, "DismissCodeToolbeltTooltip"),
-            SummarizeConversation => write!(f, "SummarizeConversation"),
             ToggleLongRunningCommandControl => {
                 write!(f, "TakeOverLongRunningCommandControlForUser")
             }
@@ -642,7 +622,6 @@ impl fmt::Debug for TerminalAction {
             ResolvePromptSuggestion(..) => write!(f, "ResolvePromptSuggestion"),
             AwsBedrockLoginBanner(action) => write!(f, "AwsBedrockLoginBanner({action:?})"),
             AwsCliNotInstalledBanner(action) => write!(f, "AwsCliNotInstalledBanner({action:?})"),
-            ToggleUsageFooter => write!(f, "ToggleUsageFooter"),
             RevealChildAgent { .. } => write!(f, "RevealChildAgent"),
             ToggleSessionRecording => write!(f, "ToggleSessionRecording"),
             OpenCLIAgentRichInput => write!(f, "OpenCLIAgentRichInput"),

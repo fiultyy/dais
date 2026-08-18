@@ -2199,7 +2199,6 @@ pub enum PerAgentDimension {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AISettingsPageAction {
-    OpenUrl(String),
     SetVoiceInputToggleKey(VoiceInputToggleKey),
     ToggleActiveAI,
     ToggleIntelligentAutosuggestions,
@@ -2222,8 +2221,6 @@ pub enum AISettingsPageAction {
     ToggleShowAgentZeroStateHints,
     SetThinkingDisplayMode(ThinkingDisplayMode),
     RemoveCLIAgentToolbarEnabledCommand(String),
-    RemoveFromCommandExecutionAllowlist(AgentModeCommandExecutionPredicate),
-    RemoveFromCommandExecutionDenylist(AgentModeCommandExecutionPredicate),
     OpenAIFactCollection,
     OpenMCPServerCollection,
     OpenExecutionProfileEditor(ClientProfileId),
@@ -2237,7 +2234,6 @@ pub enum AISettingsPageAction {
     SetAutonomyReadonlyCommandsSetting,
     SetAutonomySupervisedSetting,
     SetCodingPermission(AgentModeCodingPermissionsType),
-    RemoveDirectoryFromCodeReadAllowlist(PathBuf),
     ToggleRules,
     ToggleRuleSuggestions,
     ToggleWarpDriveContext,
@@ -2421,9 +2417,6 @@ impl TypedActionView for AISettingsPageView {
 
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
         match action {
-            AISettingsPageAction::OpenUrl(url) => {
-                ctx.open_url(url.as_str());
-            }
             AISettingsPageAction::SetVoiceInputToggleKey(key) => {
                 AISettings::handle(ctx).update(ctx, |settings, ctx| {
                     report_if_error!(settings.voice_input_toggle_key.set_value(*key, ctx));
@@ -2769,16 +2762,6 @@ impl TypedActionView for AISettingsPageView {
                     settings.set_cli_agent_for_command(pattern, *agent, ctx);
                 });
             }
-            AISettingsPageAction::RemoveFromCommandExecutionAllowlist(cmd) => {
-                BlocklistAIPermissions::handle(ctx).update(ctx, |model, ctx| {
-                    report_if_error!(model.remove_command_from_autoexecution_allowlist(cmd, ctx));
-                })
-            }
-            AISettingsPageAction::RemoveFromCommandExecutionDenylist(cmd) => {
-                BlocklistAIPermissions::handle(ctx).update(ctx, |model, ctx| {
-                    report_if_error!(model.remove_command_from_denylist(cmd, ctx));
-                })
-            }
             AISettingsPageAction::OpenAIFactCollection => {
                 ctx.emit(AISettingsPageEvent::OpenAIFactCollection)
             }
@@ -2904,13 +2887,6 @@ impl TypedActionView for AISettingsPageView {
                     model.set_mcp_permissions(*profile.id(), permission, ctx);
                 });
                 ctx.notify();
-            }
-            AISettingsPageAction::RemoveDirectoryFromCodeReadAllowlist(dir) => {
-                BlocklistAIPermissions::handle(ctx).update(ctx, |model, ctx| {
-                    report_if_error!(
-                        model.remove_filepath_from_code_read_allowlist(dir.to_owned(), ctx)
-                    );
-                });
             }
             AISettingsPageAction::ToggleRules => {
                 AISettings::handle(ctx).update(ctx, |settings, ctx| {

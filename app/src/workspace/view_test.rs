@@ -251,7 +251,7 @@ fn transferred_tab_workspace(
 #[cfg(feature = "local_fs")]
 fn open_worktree_sidecar(workspace: &ViewHandle<Workspace>, app: &mut App) {
     workspace.update(app, |workspace, ctx| {
-        workspace.open_new_session_dropdown_menu(Vector2F::zero(), ctx);
+        workspace.toggle_new_session_dropdown_menu(Vector2F::zero(), false, ctx);
 
         let worktree_index = workspace
             .new_session_dropdown_menu

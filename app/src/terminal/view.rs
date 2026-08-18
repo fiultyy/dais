@@ -84,7 +84,7 @@ use crate::ai::blocklist::block::status_bar::BlocklistAIStatusBarEvent;
 use crate::ai::blocklist::usage::conversation_usage_view::{
     ConversationUsageInfo, ConversationUsageView, DisplayMode, TimingInfo,
 };
-use crate::ai::blocklist::{block_context_from_terminal_model, SlashCommandRequest};
+use crate::ai::blocklist::block_context_from_terminal_model;
 use crate::ai::document::ai_document_model::{AIDocumentId, AIDocumentModel, AIDocumentVersion};
 use crate::ai::loading::shimmering_warp_loading_text;
 #[cfg(feature = "local_fs")]
@@ -208,10 +208,8 @@ use crate::ai::{
     },
     execution_profiles::profiles::{AIExecutionProfilesModel, ClientProfileId},
 };
-use crate::auth::AuthManager;
 use crate::auth::AuthState;
 use crate::auth::AuthStateProvider;
-use crate::auth::AuthViewVariant;
 use crate::autoupdate::{self, get_update_state, AutoupdateStage};
 use crate::cloud_object::model::actions::ObjectActionType;
 use crate::cloud_object::model::persistence::ObjectStoreModel;
@@ -1366,10 +1364,6 @@ pub enum ContextMenuAction {
     /// the AI assistant panel otherwise.
     AskAI(AskAISource),
     OpenWorkflowModal,
-    /// Opens the sharing dialog for a conversation from the AI block context menu
-    OpenConversationShareDialog {
-        conversation_id: AIConversationId,
-    },
     StopSharing,
     /// Copy the AI block prompt text
     CopyAIBlockQuery {
@@ -1475,7 +1469,6 @@ impl fmt::Debug for ContextMenuAction {
             CopyAIBlockConversation { .. } => f.write_str("CopyAIBlockConversation"),
             CopyAgentCommand { .. } => f.write_str("CopyAgentCommand"),
             CopyAgentGitBranch { .. } => f.write_str("CopyAgentGitBranch"),
-            OpenConversationShareDialog { .. } => f.write_str("OpenConversationShareDialog"),
             ForkAIConversationFromBlock { .. } => f.write_str("ForkAIConversationFromBlock"),
             ForkAIConversationFromExactExchange { .. } => {
                 f.write_str("ForkAIConversationFromExactExchange")
@@ -5651,34 +5644,6 @@ impl TerminalView {
         ctx.notify();
     }
 
-    fn toggle_usage_footer(&mut self, ctx: &mut ViewContext<Self>) {
-        let conversation_id = self
-            .agent_view_controller
-            .as_ref(ctx)
-            .agent_view_state()
-            .active_conversation_id();
-
-        let Some(conversation_id) = conversation_id else {
-            return;
-        };
-
-        let last_ai_block_handle = self
-            .rich_content_views
-            .iter()
-            .rev()
-            .find_map(|rich_content| {
-                let ai_metadata = rich_content.ai_block_metadata()?;
-                (ai_metadata.conversation_id == conversation_id)
-                    .then(|| ai_metadata.ai_block_handle.clone())
-            });
-
-        if let Some(ai_block_handle) = last_ai_block_handle {
-            ai_block_handle.update(ctx, |block, ctx| {
-                block.handle_action(&AIBlockAction::ToggleIsUsageFooterExpanded, ctx);
-            });
-        }
-    }
-
     /// Returns true if the window is wide enough to auto-open side panels.
     pub fn can_auto_open_panel(&self) -> bool {
         self.size_info.pane_width_px().as_f32() > MINIMUM_WIDTH_TO_AUTO_OPEN_PANE
@@ -8594,23 +8559,6 @@ impl TerminalView {
         send_telemetry_from_ctx!(TelemetryEvent::ShowNotificationsErrorBanner, ctx);
 
         ctx.notify();
-    }
-
-    fn insert_command_correction(&mut self, correction: &Correction, ctx: &mut ViewContext<Self>) {
-        self.input.update(ctx, |input, ctx| {
-            input.replace_buffer_content(correction.command.as_str(), ctx);
-            ctx.notify()
-        });
-
-        send_telemetry_from_ctx!(
-            TelemetryEvent::CommandCorrection {
-                event: CommandCorrectionEvent::Accepted {
-                    via: CommandCorrectionAcceptedType::Banner,
-                    rule: correction.rule_applied.to_str(),
-                }
-            },
-            ctx
-        );
     }
 
     /// Returns the view type for prompt suggestion telemetry based on whether agent view is active.
@@ -11936,18 +11884,6 @@ impl TerminalView {
     pub fn agent_clone_repository(&mut self, url: String, ctx: &mut ViewContext<Self>) {
         self.input.update(ctx, |input, ctx| {
             input.initiate_clone_repository(url, ctx);
-        });
-    }
-
-    fn summarize_conversation(&mut self, ctx: &mut ViewContext<Self>) {
-        self.ai_controller.update(ctx, |controller, ctx| {
-            controller.send_slash_command_request(
-                SlashCommandRequest::Summarize {
-                    prompt: None,
-                    overflow: false,
-                },
-                ctx,
-            );
         });
     }
 
@@ -22161,9 +22097,6 @@ impl TerminalView {
                     }
                 }
             }
-            OpenConversationShareDialog { conversation_id: _ } => {
-                // AI conversation sharing was removed alongside remote conversation sharing.
-            }
             CopyAgentCommand { ai_block_view_id } => {
                 for rich_content in self.rich_content_views.iter() {
                     if let Some(ai_metadata) = rich_content.ai_block_metadata() {
@@ -23503,12 +23436,7 @@ impl TypedActionView for TerminalView {
                 "Opened Warpify Settings",
                 WarpA11yRole::ButtonRole,
             )),
-            OpenFilesPalette { .. } => Custom(AccessibilityContent::new_without_help(
-                "Opened file search palette",
-                WarpA11yRole::ButtonRole,
-            )),
-            InsertCommandCorrection { .. }
-            | BlockListContextMenu(_)
+            BlockListContextMenu(_)
             | CloseContextMenu
             | OneKeyFillSecret { .. }
             | SuRootFillOneKeyPassword { .. }
@@ -23625,8 +23553,6 @@ impl TypedActionView for TerminalView {
             | ToggleSnackbarInActivePane
             | SetInputModeAgent
             | SetInputModeTerminal
-            | HyperlinkClick { .. }
-            | AttemptLoginGatedFeature
             | StartFileDropTarget
             | StopFileDropTarget
             | RunNativeShellCompletions { .. }
@@ -23648,7 +23574,6 @@ impl TypedActionView for TerminalView {
             | AddProjectAtCurrentDirectory
             | AgentModeSetupSpeedbumpBanner(_)
             | DismissCodeToolbeltTooltip
-            | SummarizeConversation
             | ToggleLongRunningCommandControl
             | ToggleHideCliResponses
             | OpenConversationsPalette
@@ -23661,7 +23586,6 @@ impl TypedActionView for TerminalView {
             | AwsBedrockLoginBanner(_)
             | AwsCliNotInstalledBanner(_)
             | ExecuteRewindFromInlineMenu { .. }
-            | ToggleUsageFooter
             | RevealChildAgent { .. }
             | OpenCLIAgentRichInput
             | ToggleSessionRecording => Empty,
@@ -23940,9 +23864,6 @@ impl TypedActionView for TerminalView {
             }
             LegacySSHBanner(action) => self.ssh_banner_action(*action, ctx),
             JumpToBookmark(index) => self.jump_to_bookmark(*index, ctx),
-            InsertCommandCorrection { correction } => {
-                self.insert_command_correction(correction, ctx);
-            }
             ToggleGridSecret {
                 handle,
                 show_secret,
@@ -24234,19 +24155,6 @@ impl TypedActionView for TerminalView {
                     });
                 }
             }
-            HyperlinkClick(hyperlink) => {
-                ctx.notify();
-                ctx.open_url(&hyperlink.url);
-            }
-            AttemptLoginGatedFeature => {
-                AuthManager::handle(ctx).update(ctx, |auth_manager, ctx| {
-                    auth_manager.attempt_login_gated_feature(
-                        "Upgrade AI Usage",
-                        AuthViewVariant::RequireLoginCloseable,
-                        ctx,
-                    )
-                });
-            }
             StartFileDropTarget => {
                 let Some(session) = self
                     .active_block_session_id()
@@ -24429,7 +24337,6 @@ impl TypedActionView for TerminalView {
                     cli_agent: None,
                 }));
             }
-            SummarizeConversation => self.summarize_conversation(ctx),
             AddProjectAtCurrentDirectory => {
                 // Get the current working directory and add it as a project
                 if let Some(current_dir) = self.pwd() {
@@ -24523,9 +24430,9 @@ impl TypedActionView for TerminalView {
                 initial_content: None,
             }),
             PickRepoToOpen => {
+                // Open the repository picker palette in the current pane.
                 ctx.dispatch_typed_action(&WorkspaceAction::OpenRepository { path: None });
             }
-            OpenFilesPalette { source } => ctx.emit(Event::OpenFilesPalette { source: *source }),
             DismissCodeToolbeltTooltip => {
                 CodeSettings::handle(ctx).update(ctx, |settings, ctx| {
                     if let Err(e) = settings
@@ -24599,9 +24506,6 @@ impl TypedActionView for TerminalView {
                     model.cancel_task(ctx);
                 });
                 ctx.notify();
-            }
-            ToggleUsageFooter => {
-                self.toggle_usage_footer(ctx);
             }
             RevealChildAgent { conversation_id } => {
                 ctx.emit(Event::RevealChildAgent {

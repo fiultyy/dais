@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use warp_util::path::LineAndColumnArg;
-
 use crate::ai::agent::api::ServerConversationToken;
 use crate::ai::agent::conversation::AIConversationId;
 use crate::ai::agent::AIAgentExchangeId;
@@ -32,7 +30,6 @@ use ui_components::lightbox;
 use warpui::accessibility::AccessibilityVerbosity;
 use warpui::geometry::rect::RectF;
 use warpui::geometry::vector::Vector2F;
-use warpui::platform::Cursor;
 use warpui::{EntityId, WindowId};
 
 use super::global_actions::{ForkFromExchange, ForkedConversationDestination};
@@ -40,7 +37,7 @@ use super::tab_settings::{
     VerticalTabsCompactSubtitle, VerticalTabsDisplayGranularity, VerticalTabsPrimaryInfo,
     VerticalTabsTabItemMode, VerticalTabsViewMode,
 };
-use super::view::{OnboardingTutorial, WorkspaceBanner};
+use super::view::WorkspaceBanner;
 
 /// This enum determines how the search query is initialized when opening command search.
 #[derive(Clone, Default, Debug)]
@@ -130,7 +127,6 @@ pub enum WorkspaceAction {
     },
     TabHoverWidthEnd,
     ToggleTabBarOverflowMenu,
-    ToggleWelcomeTips,
     CloseTab(usize),
     CloseActiveTab,
     CloseOtherTabs(usize),
@@ -162,9 +158,6 @@ pub enum WorkspaceAction {
     AddSpecificAgentTab(CLIAgent),
     /// Add a new tab running a local Docker sandbox via `sbx`.
     AddDockerSandboxTab,
-    OpenNewSessionMenu {
-        position: Vector2F,
-    },
     ToggleTabConfigsMenu,
     ToggleNewSessionMenu {
         position: Vector2F,
@@ -217,10 +210,7 @@ pub enum WorkspaceAction {
     /// the chosen path. Used by the "Export logs" link on the About page.
     #[cfg(not(target_family = "wasm"))]
     ExportLogsToPath,
-    ChangeCursor(Cursor),
     ToggleBlockSnackbar,
-    ToggleErrorUnderlining,
-    ToggleSyntaxHighlighting,
     CheckForUpdate,
     ExportAllWarpDriveObjects,
     SetA11yVerbosityLevel(AccessibilityVerbosity),
@@ -245,8 +235,6 @@ pub enum WorkspaceAction {
     CreatePersonalEnvVarCollection,
     CreatePersonalAIPrompt,
     ToggleMouseReporting,
-    ToggleScrollReporting,
-    ToggleFocusReporting,
     StartTabDrag,
     DragTab {
         tab_index: usize,
@@ -299,7 +287,6 @@ pub enum WorkspaceAction {
     /// Stops the heap profiler (if one is running) and writes the profiling
     /// data to disk.
     DumpHeapProfile,
-    ShowAIAssistantWarmWelcome,
     ClickedAIAssistantWarmWelcome,
     /// An action to open a new window with a view hierarchy debugger.
     OpenViewTreeDebugWindow,
@@ -317,8 +304,6 @@ pub enum WorkspaceAction {
     OpenPromptEditor {
         open_source: PromptEditorOpenSource,
     },
-    OpenAgentToolbarEditor,
-    OpenCLIAgentToolbarEditor,
     OpenHeaderToolbarEditor,
     ShowHeaderToolbarContextMenu {
         position: Vector2F,
@@ -366,13 +351,6 @@ pub enum WorkspaceAction {
         /// Whether to ensure agent mode is enabled when inserting content
         ensure_agent_mode: bool,
     },
-    /// Open a new tab with its input in AI mode.
-    NewTabInAgentMode {
-        /// The entrypoint that triggered this action.
-        entrypoint: AgentModeEntrypoint,
-        /// The type of zero state prompt suggestion to start with (optional).
-        zero_state_prompt_suggestion_type: Option<ZeroStatePromptSuggestionType>,
-    },
     /// Open a new pane with its input in AI mode.
     NewPaneInAgentMode {
         /// The entrypoint that triggered this action.
@@ -385,21 +363,10 @@ pub enum WorkspaceAction {
     /// information.
     #[cfg(target_os = "linux")]
     DismissWaylandCrashRecoveryBannerAndOpenLink,
-    /// Open a new pane with its input in AI mode
-    /// with query "Fix this" with error name and details from AI summary.
-    FixInAgentMode {
-        query: String,
-    },
     OpenAIFactCollection,
     OpenMCPServerCollection,
     // Zap Wave 7-3:`OpenEnvironmentManagementPane` WorkspaceAction 随 ambient-agent UI
     // 子系统物理删。
-    ToggleAIDocumentPane {
-        document_id: AIDocumentId,
-        document_version: AIDocumentVersion,
-    },
-    /// Closes all visible AI document panes in the active pane group.
-    HideAIDocumentPanes,
     /// Closes any other ai document panes in the active pane group, and opens the specified document_id.
     OpenAIDocumentPane {
         document_id: AIDocumentId,
@@ -417,11 +384,6 @@ pub enum WorkspaceAction {
     },
     /// Jump to the terminal pane of the most recent agent toast
     JumpToLatestToast,
-    /// Open a file in a new tab with a code pane
-    OpenFileInNewTab {
-        full_path: PathBuf,
-        line_and_column: Option<LineAndColumnArg>,
-    },
     OpenNotebook {
         id: SyncId,
     },
@@ -469,8 +431,6 @@ pub enum WorkspaceAction {
     ContinueConversationLocally {
         conversation_id: AIConversationId,
     },
-    /// Insert the /fork slash command into the active terminal's input.
-    InsertForkSlashCommand,
     /// Summarize the active AI conversation in the focused pane.
     SummarizeAIConversation {
         prompt: Option<String>,
@@ -490,12 +450,6 @@ pub enum WorkspaceAction {
     UndoRevertInCodeReviewPane {
         window_id: WindowId,
         view_id: EntityId,
-    },
-    /// Handle a file being renamed in the file tree
-    #[cfg(feature = "local_fs")]
-    FileRenamed {
-        old_path: PathBuf,
-        new_path: PathBuf,
     },
     /// Handle a file being deleted in the file tree
     #[cfg(feature = "local_fs")]
@@ -581,12 +535,6 @@ pub enum WorkspaceAction {
         /// The index of the image to display initially.
         initial_index: usize,
     },
-    /// Update a single image in the currently open lightbox.
-    UpdateLightboxImage {
-        index: usize,
-        image: lightbox::LightboxImage,
-    },
-    StartAgentOnboardingTutorial(OnboardingTutorial),
     ShowSessionConfigModal,
     DismissSessionConfigTabConfigChip,
     /// Start the HOA onboarding flow (for debugging)
@@ -596,11 +544,6 @@ pub enum WorkspaceAction {
     OpenNewWorktreeModal,
     /// Open the native folder picker for the repo field in the new-worktree modal.
     OpenNewWorktreeRepoPicker,
-    /// Create a new worktree in the given repo using the default worktree tab config.
-    /// The branch name is auto-generated.
-    OpenWorktreeInRepo {
-        repo_path: String,
-    },
     SaveCurrentTabAsNewConfig(usize),
     SyncTrafficLights,
     /// Opens a tab config file in the editor and dismisses the associated error toast.
@@ -691,12 +634,9 @@ impl WorkspaceAction {
             | AddWindowWithShell { .. }
             | CloseWindow
             | ScrollToSettingsWidget { .. }
-            | NewTabInAgentMode { .. }
             | NewPaneInAgentMode { .. }
-            | FixInAgentMode { .. }
             | OpenNotebook { .. }
             | RunWorkflow { .. }
-            | OpenFileInNewTab { .. }
             | RestoreOrNavigateToConversation { .. }
             | NewCodeFile
             | ForkAIConversation { .. }
@@ -730,14 +670,10 @@ impl WorkspaceAction {
             | ViewLatestChangelog
             | ViewPrivacyPolicy
             | SendFeedback
-            | ChangeCursor(_)
             | ToggleBlockSnackbar
-            | ToggleErrorUnderlining
-            | ToggleSyntaxHighlighting
             | OpenLaunchConfigSaveModal
             | ToggleTabRightClickMenu { .. }
             | ToggleVerticalTabsPaneContextMenu { .. }
-            | OpenNewSessionMenu { .. }
             | ToggleTabConfigsMenu
             | ToggleNewSessionMenu { .. }
             | SelectNewSessionMenuItem(_)
@@ -753,8 +689,6 @@ impl WorkspaceAction {
             | ToggleKeybindingsPage
             | ShowCommandSearch(_)
             | ToggleMouseReporting
-            | ToggleScrollReporting
-            | ToggleFocusReporting
             | ImportToPersonalDrive
             | CreatePersonalNotebook
             | CreatePersonalWorkflow
@@ -779,18 +713,15 @@ impl WorkspaceAction {
             | ToggleVerticalTabsShowPrLink
             | ToggleVerticalTabsShowDiffStats
             | ToggleVerticalTabsShowDetailsOnHover
-            | ToggleWelcomeTips
             | CopyTextToClipboard(_)
             | CopyAccessTokenToClipboard
             | OpenTabConfigRepoPicker { .. }
             | OpenNewWorktreeModal
             | OpenNewWorktreeRepoPicker
-            | OpenWorktreeInRepo { .. }
             | Crash
             | Panic
             | DumpHeapProfile
             | OpenViewTreeDebugWindow
-            | ShowAIAssistantWarmWelcome
             | ClickedAIAssistantWarmWelcome
             | DismissAIAssistantWarmWelcome
             | DismissWorkspaceBanner(..)
@@ -800,8 +731,6 @@ impl WorkspaceAction {
             | HandleConflictingWorkflow(_)
             | HandleConflictingEnvVarCollection(_)
             | OpenPromptEditor { .. }
-            | OpenAgentToolbarEditor
-            | OpenCLIAgentToolbarEditor
             | OpenHeaderToolbarEditor
             | ShowHeaderToolbarContextMenu { .. }
             | OpenLink(_)
@@ -817,7 +746,6 @@ impl WorkspaceAction {
             | RunAISuggestedCommand { .. }
             | RunCommand { .. }
             | InsertInInput { .. }
-            | InsertForkSlashCommand
             | QueuePromptForConversation { .. }
             | UndoTrash(_)
             | OpenFilePath { .. }
@@ -839,8 +767,6 @@ impl WorkspaceAction {
             | OpenGlobalSearch
             | ToggleConversationListView
             | ToggleNotificationMailbox { .. }
-            | ToggleAIDocumentPane { .. }
-            | HideAIDocumentPanes
             | OpenAIDocumentPane { .. }
             | ShowRewindConfirmationDialog { .. }
             | ExecuteRewindAIConversation { .. }
@@ -848,8 +774,6 @@ impl WorkspaceAction {
             | OpenAmbientAgentSession { .. }
             | OpenConversationTranscriptViewer { .. }
             | OpenLightbox { .. }
-            | UpdateLightboxImage { .. }
-            | StartAgentOnboardingTutorial(_)
             | ShowSessionConfigModal
             | DismissSessionConfigTabConfigChip
             | SaveCurrentTabAsNewConfig(_)
@@ -878,8 +802,6 @@ impl WorkspaceAction {
             SampleProcess => false,
             #[cfg(target_os = "macos")]
             InstallCLI | UninstallCLI => false,
-            #[cfg(feature = "local_fs")]
-            FileRenamed { .. } => false, // File rename doesn't change workspace state
             #[cfg(feature = "local_fs")]
             FileDeleted { .. } => false, // File deletion doesn't change workspace state
             // Zap Wave 7-3:`OpenEnvironmentManagementPane` WorkspaceAction 随 ambient-agent UI

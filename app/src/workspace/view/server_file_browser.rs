@@ -72,10 +72,8 @@ const UPLOAD_STAGING_DIR_NAME: &str = ".zap-upload-staging";
 #[derive(Clone, Debug)]
 pub enum ServerFileBrowserAction {
     Refresh,
-    JumpToPath,
     ClickEntry(usize),
     OpenEntry(usize),
-    ToggleDirectory(String),
     SelectPreviousItem,
     SelectNextItem,
     ExpandSelectedItem,
@@ -96,8 +94,6 @@ pub enum ServerFileBrowserAction {
     CreateFolder(String),
     RenameEntry(usize),
     DeleteEntry(usize),
-    CommitRename,
-    CancelRename,
     DismissRenameEditor,
     ToggleUploadProgressPanel,
     DismissUploadProgressPanel,
@@ -3255,7 +3251,6 @@ impl TypedActionView for ServerFileBrowserView {
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
         match action {
             ServerFileBrowserAction::Refresh => self.refresh_directory_tree(ctx),
-            ServerFileBrowserAction::JumpToPath => self.jump_to_editor_path(ctx),
             ServerFileBrowserAction::ClickEntry(index) => {
                 ctx.focus_self();
                 self.click_entry(*index, ctx);
@@ -3264,7 +3259,6 @@ impl TypedActionView for ServerFileBrowserView {
                 ctx.focus_self();
                 self.open_index(*index, ctx);
             }
-            ServerFileBrowserAction::ToggleDirectory(path) => self.toggle_directory(path.clone(), ctx),
             ServerFileBrowserAction::SelectPreviousItem => self.select_previous_item(ctx),
             ServerFileBrowserAction::SelectNextItem => self.select_next_item(ctx),
             ServerFileBrowserAction::ExpandSelectedItem => self.expand_selected_item(ctx),
@@ -3302,8 +3296,6 @@ impl TypedActionView for ServerFileBrowserView {
             }
             ServerFileBrowserAction::RenameEntry(index) => self.start_rename(*index, ctx),
             ServerFileBrowserAction::DeleteEntry(index) => self.confirm_delete(*index, ctx),
-            ServerFileBrowserAction::CommitRename => self.commit_rename(ctx),
-            ServerFileBrowserAction::CancelRename => self.cancel_rename(ctx),
             ServerFileBrowserAction::DismissRenameEditor => self.commit_rename(ctx),
             ServerFileBrowserAction::ToggleUploadProgressPanel => {
                 self.toggle_upload_progress_panel(ctx)
