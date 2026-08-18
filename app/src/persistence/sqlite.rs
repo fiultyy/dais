@@ -1111,6 +1111,7 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
                 .iter()
                 .map(|tab| NewTab {
                     window_id,
+                    project_path: tab.project_path.clone(),
                     custom_title: tab.custom_title.clone(),
                     // We only persist and restore the selected color here
                     // (the default color based on the pwd is separately persisted and then applied on-restore)
@@ -2774,6 +2775,7 @@ fn read_sqlite_data(
                     Some(TabSnapshot {
                         root,
                         custom_title: tab.custom_title,
+                        project_path: tab.project_path,
                         default_directory_color: None,
                         selected_color: tab
                             .color

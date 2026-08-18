@@ -400,6 +400,7 @@ diesel::table! {
         window_id -> Integer,
         custom_title -> Nullable<Text>,
         color -> Nullable<Text>,
+        project_path -> Nullable<Text>,
     }
 }
 

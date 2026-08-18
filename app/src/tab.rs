@@ -10,6 +10,7 @@ use crate::menu::{MenuAction, MenuItem, MenuItemFields};
 use crate::pane_group::PaneGroup;
 use crate::terminal::model::terminal_model::ConversationTranscriptViewerStatus;
 use settings::Setting as _;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -147,6 +148,8 @@ pub struct TabData {
     pub intercept_hover_state: MouseStateHandle,
     // Used by a later drag-tab branch to distinguish tabs that have moved into detached windows.
     pub detached: bool,
+    /// Owning project path for the project rail. `None` = no project (always visible).
+    pub project_path: Option<PathBuf>,
 }
 
 const TAB_COLOR_ICON_PATH: &str = "bundled/svg/ellipse.svg";
@@ -165,6 +168,7 @@ impl TabData {
             indicator_hover_state: Default::default(),
             intercept_hover_state: Default::default(),
             detached: false,
+            project_path: None,
         }
     }
 

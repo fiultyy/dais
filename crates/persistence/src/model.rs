@@ -314,6 +314,7 @@ pub struct Tab {
     pub window_id: i32,
     pub custom_title: Option<String>,
     pub color: Option<String>,
+    pub project_path: Option<String>,
 }
 
 #[derive(Insertable)]
@@ -322,6 +323,7 @@ pub struct NewTab {
     pub window_id: i32,
     pub custom_title: Option<String>,
     pub color: Option<String>,
+    pub project_path: Option<String>,
 }
 
 /// The panes data model includes pane_nodes, pane_leaves and pane_branches.

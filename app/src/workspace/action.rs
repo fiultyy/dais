@@ -137,6 +137,10 @@ pub enum WorkspaceAction {
     AddTerminalTab {
         hide_homepage: bool,
     },
+    /// 项目栏: 切换选中项目(None = 显示全部 tab)。tab 只过滤不卸载。
+    SwitchProject {
+        project: Option<std::path::PathBuf>,
+    },
     /// 在当前 tab 中央开新 terminal pane,执行 `ssh user@host`(openWarp 独有)。
     /// 由 SshServerView 的 Connect 按钮 / SshManagerPanel 右键"连接" 触发。
     OpenSshTerminal {
@@ -622,6 +626,7 @@ impl WorkspaceAction {
             | ToggleTabColor { .. }
             | AddDefaultTab
             | AddTerminalTab { .. }
+            | SwitchProject { .. }
             | OpenSshTerminal { .. }
             | ToggleSshManager
             | ToggleSkillManager

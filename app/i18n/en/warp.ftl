@@ -3792,3 +3792,4 @@ cockpit-inject-confirm = Inject
 cockpit-branch-prefix = branch:
 cockpit-badge-shared = shared
 cockpit-badge-readonly = read-only
+project-rail-all-projects = All

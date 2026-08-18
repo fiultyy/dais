@@ -849,6 +849,9 @@ pub struct Workspace {
     window_id: WindowId,
     pub(crate) tabs: Vec<TabData>,
     active_tab_index: usize,
+    /// Selected project in the project rail. `None` = show all tabs.
+    /// Tabs keep running regardless of selection (filter-only, no unload).
+    pub(crate) active_project: Option<PathBuf>,
     pub(crate) hovered_tab_index: Option<TabBarHoverIndex>,
     tab_bar_hover_state: MouseStateHandle,
     tab_fixed_width: Option<f32>,
@@ -2853,6 +2856,7 @@ impl Workspace {
         let mut ws = Self {
             tabs: Vec::new(),
             active_tab_index: 0,
+            active_project: None,
             hovered_tab_index: None,
             tab_bar_hover_state: Default::default(),
             traffic_light_mouse_states: Default::default(),
@@ -3325,6 +3329,10 @@ impl Workspace {
                         self.tabs[tab_index].default_directory_color =
                             saved_tab.default_directory_color;
                         self.tabs[tab_index].selected_color = saved_tab.selected_color;
+                        self.tabs[tab_index].project_path = saved_tab
+                            .project_path
+                            .as_ref()
+                            .map(|p| PathBuf::from(p.as_str()));
 
                         let pane_group = self.tabs[tab_index].pane_group.clone();
 
@@ -4408,6 +4416,60 @@ impl Workspace {
         self.tabs.iter().map(|s| &s.pane_group)
     }
 
+    /// Tabs visible under the current project filter: all tabs when no project
+    /// is selected; otherwise the project's tabs plus project-less tabs (they
+    /// are never hidden, so a tab can't silently disappear).
+    pub fn visible_tab_indices(&self) -> Vec<usize> {
+        match &self.active_project {
+            None => (0..self.tabs.len()).collect(),
+            Some(project) => self
+                .tabs
+                .iter()
+                .enumerate()
+                .filter(|(_, tab)| match &tab.project_path {
+                    None => true,
+                    Some(path) => path == project,
+                })
+                .map(|(index, _)| index)
+                .collect(),
+        }
+    }
+
+    /// Whether the tab at `index` (flat index) is visible under the current
+    /// project filter.
+    pub fn is_tab_visible(&self, index: usize) -> bool {
+        self.visible_tab_indices().contains(&index)
+    }
+
+    /// Switch the project rail selection. Keeps tabs alive (filter-only);
+    /// activates the first visible tab if the current one is filtered out.
+    pub fn switch_project(&mut self, project: Option<PathBuf>, ctx: &mut ViewContext<Self>) {
+        if self.active_project == project {
+            return;
+        }
+        self.active_project = project;
+        let visible = self.visible_tab_indices();
+        if !visible.contains(&self.active_tab_index) {
+            if let Some(&first) = visible.first() {
+                self.activate_tab_internal(first, ctx);
+            }
+        }
+        ctx.notify();
+    }
+
+    /// Match a directory to a known project: walk up to the enclosing git
+    /// root (falls back to the directory itself) and compare against the
+    /// persisted project list.
+    fn project_for_directory(dir: &Path, ctx: &AppContext) -> Option<PathBuf> {
+        let git_root = git_root_for(dir).unwrap_or_else(|| dir.to_path_buf());
+        ProjectManagementModel::handle(ctx).read(ctx, |projects, _| {
+            projects
+                .all_projects()
+                .map(|project| PathBuf::from(&project.path))
+                .find(|path| path == &git_root)
+        })
+    }
+
     /// Get the tab color for a given tab index.
     pub fn get_tab_color(&self, index: usize) -> Option<AnsiColorIdentifier> {
         self.tabs.get(index).and_then(|tab| tab.color())
@@ -4432,7 +4494,6 @@ impl Workspace {
             has_task.then_some(index)
         })
     }
-
     /// Gets all sessions in the current workspace.
     pub fn workspace_sessions<'a>(
         &'a self,
@@ -9716,6 +9777,11 @@ impl Workspace {
                         .get(tab_index)
                         .map(|tab| tab.selected_color)
                         .unwrap_or_default(),
+                    project_path: self
+                        .tabs
+                        .get(tab_index)
+                        .and_then(|tab| tab.project_path.as_ref())
+                        .map(|p| p.to_string_lossy().into_owned()),
                     left_panel,
                     right_panel,
                 }
@@ -10624,6 +10690,16 @@ impl Workspace {
 
         let is_new_terminal = matches!(panes_layout, PanesLayout::SingleTerminal(_));
         let is_restoration = matches!(panes_layout, PanesLayout::Snapshot(_));
+        // Project-rail ownership: derive from the new terminal's startup dir
+        // (walk up to the git root, match against known projects). Snapshot
+        // restores set project_path explicitly after this call instead.
+        let new_tab_project_path = (!is_restoration)
+            .then(|| {
+                panes_layout.initial_directory().and_then(|dir| {
+                    Self::project_for_directory(&dir, ctx)
+                })
+            })
+            .flatten();
         let new_pane_group = ctx.add_typed_action_view(|ctx| {
             let mut pane_group = PaneGroup::new_with_panes_layout(
                 self.tips_completed.clone(),
@@ -10646,19 +10722,21 @@ impl Workspace {
 
         let new_tab_placement_setting = TabSettings::as_ref(ctx).new_tab_placement;
 
+        let mut new_tab_data = TabData::new(new_pane_group);
+        new_tab_data.project_path = new_tab_project_path;
+
         match new_tab_placement_setting {
             NewTabPlacement::AfterAllTabs => {
-                self.tabs.push(TabData::new(new_pane_group));
+                self.tabs.push(new_tab_data);
                 self.activate_tab_internal(self.tab_count() - 1, ctx);
             }
             // Add tab after current tab
             _ => {
                 if self.tab_count() == 0 {
-                    self.tabs.push(TabData::new(new_pane_group));
+                    self.tabs.push(new_tab_data);
                     self.activate_tab_internal(self.tab_count() - 1, ctx);
                 } else {
-                    self.tabs
-                        .insert(self.active_tab_index + 1, TabData::new(new_pane_group));
+                    self.tabs.insert(self.active_tab_index + 1, new_tab_data);
                     self.activate_tab_internal(self.active_tab_index + 1, ctx);
                 }
             }
@@ -16563,6 +16641,10 @@ impl Workspace {
             let ghost = drag_model.ghost_state_for_window(self.window_id);
 
             for i in 0..self.tabs.len() {
+                // Project filter: skip tabs owned by other projects.
+                if self.active_project.is_some() && !self.is_tab_visible(i) {
+                    continue;
+                }
                 // Insert ghost slot before tab `i` if the drag would land here.
                 if ghost.as_ref().is_some_and(|g| g.insertion_index == i) {
                     tab_bar.add_child(self.render_ghost_tab_slot(appearance, ctx));
@@ -18935,6 +19017,7 @@ impl TypedActionView for Workspace {
 
         match action {
             ActivateTab(index) => self.activate_tab(*index, ctx),
+            SwitchProject { project } => self.switch_project(project.clone(), ctx),
             ActivateTabByNumber(num) => self.activate_tab(num.saturating_sub(1), ctx),
             ActivatePrevTab => self.activate_prev_tab(ctx),
             OpenLaunchConfigSaveModal => self.open_launch_config_save_modal(ctx),
@@ -22540,6 +22623,19 @@ impl Workspace {
 
         current_index
     }
+}
+
+/// Walk up from `dir` to the enclosing git worktree root, if any.
+#[cfg(feature = "local_fs")]
+fn git_root_for(dir: &Path) -> Option<PathBuf> {
+    git2::Repository::discover(dir)
+        .ok()
+        .and_then(|repo| repo.workdir().map(Path::to_path_buf))
+}
+
+#[cfg(not(feature = "local_fs"))]
+fn git_root_for(_dir: &Path) -> Option<PathBuf> {
+    None
 }
 
 /// Returns every tab-bar-equivalent rect laid out in `window_id` (horizontal

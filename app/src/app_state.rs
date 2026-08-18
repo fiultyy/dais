@@ -70,6 +70,8 @@ pub struct TabSnapshot {
     pub selected_color: SelectedTabColor,
     pub left_panel: Option<LeftPanelSnapshot>,
     pub right_panel: Option<RightPanelSnapshot>,
+    /// Owning project path for the project rail. `None` = no project (always visible).
+    pub project_path: Option<String>,
 }
 
 impl TabSnapshot {

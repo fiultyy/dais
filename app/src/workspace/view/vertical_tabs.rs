@@ -35,6 +35,7 @@ use crate::terminal::session_settings::SessionSettings;
 use crate::terminal::TerminalView;
 use crate::themes::theme::Fill as ThemeFill;
 use crate::ui_components::buttons::combo_inner_button;
+use warpui::ui_components::button::{Button, ButtonVariant};
 use crate::ui_components::icons::Icon as UiIcon;
 use crate::util::bindings::keybinding_name_to_display_string;
 use crate::util::color::Opacity;
@@ -45,6 +46,7 @@ use crate::workspace::tab_settings::{
     TabSettings, VerticalTabsCompactSubtitle, VerticalTabsDisplayGranularity,
     VerticalTabsPrimaryInfo, VerticalTabsTabItemMode, VerticalTabsViewMode,
 };
+use crate::projects::ProjectManagementModel;
 use crate::workspace::{
     PaneViewLocator, TabBarLocation, TabContextMenuAnchor, VerticalTabsPaneContextMenuTarget,
     VerticalTabsPaneDropTargetData, Workspace,
@@ -595,6 +597,8 @@ pub(super) struct VerticalTabsPanelState {
     show_diff_stats_mouse_state: MouseStateHandle,
     show_details_on_hover_mouse_state: MouseStateHandle,
     panel_interactivity_mouse_state: MouseStateHandle,
+    /// Project rail: per-path click states for project cards.
+    project_card_mouse_states: RefCell<HashMap<PathBuf, MouseStateHandle>>,
     pub(super) show_settings_popup: bool,
 }
 
@@ -631,6 +635,7 @@ impl Default for VerticalTabsPanelState {
             show_pr_link_info_tooltip_mouse_state: Default::default(),
             show_diff_stats_mouse_state: Default::default(),
             show_details_on_hover_mouse_state: Default::default(),
+            project_card_mouse_states: RefCell::default(),
             show_settings_popup: false,
         }
     }
@@ -1447,6 +1452,121 @@ fn render_new_tab_button(
     .finish()
 }
 
+/// Project rail: one card per known project at the top of the vertical tabs
+/// panel. Clicking a card switches the tab filter to that project; the
+/// always-present "All" card clears it. Tabs are never unloaded.
+fn render_project_section(
+    state: &VerticalTabsPanelState,
+    workspace: &Workspace,
+    app: &AppContext,
+) -> Box<dyn Element> {
+    let appearance = Appearance::as_ref(app);
+    let theme = appearance.theme();
+    let sub_text = theme.sub_text_color(theme.background());
+    let main_text = theme.main_text_color(theme.background());
+
+    let mut projects: Vec<PathBuf> =
+        ProjectManagementModel::handle(app).read(app, |projects: &ProjectManagementModel, _| {
+            projects
+                .all_projects()
+                .map(|project| PathBuf::from(&project.path))
+                .collect()
+        });
+    // Stable display order (most-recently-opened ordering arrives with the
+    // extended fields batch; the model already sorts by last_opened_ts).
+    projects.sort();
+
+    let mut cards = Flex::column()
+        .with_main_axis_size(MainAxisSize::Min)
+        .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+        .with_spacing(GROUP_ITEM_SPACING);
+
+    // "All" card: clears the project filter.
+    cards.add_child(render_project_card(
+        &crate::t!("project-rail-all-projects"),
+        workspace.active_project.is_none(),
+        None,
+        state,
+        theme,
+        sub_text,
+        main_text,
+        appearance,
+    ));
+
+    for project in &projects {
+        let name = project
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| project.to_string_lossy().into_owned());
+        cards.add_child(render_project_card(
+            &name,
+            workspace.active_project.as_ref() == Some(project),
+            Some(project.clone()),
+            state,
+            theme,
+            sub_text,
+            main_text,
+            appearance,
+        ));
+    }
+
+    Container::new(cards.finish())
+        .with_padding(
+            Padding::uniform(GROUP_ITEM_SPACING)
+                .with_left(GROUP_HORIZONTAL_PADDING)
+                .with_right(GROUP_HORIZONTAL_PADDING),
+        )
+        .finish()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_project_card(
+    name: &str,
+    is_selected: bool,
+    project: Option<PathBuf>,
+    state: &VerticalTabsPanelState,
+    theme: &warp_core::ui::theme::WarpTheme,
+    sub_text: ThemeFill,
+    main_text: ThemeFill,
+    appearance: &Appearance,
+) -> Box<dyn Element> {
+    let mouse_state = project
+        .as_ref()
+        .and_then(|path| state.project_card_mouse_states.borrow().get(path).cloned())
+        .unwrap_or_default();
+
+    let background = if is_selected {
+        internal_colors::fg_overlay_3(theme).into()
+    } else {
+        ElementFill::None
+    };
+    let text_color = if is_selected { main_text } else { sub_text };
+
+    // ui_builder().button() injects font family/size — required by text labels
+    // (WrappableText::build unwraps font_family_id; bare UiComponentStyles panics).
+    let mut button = appearance
+        .ui_builder()
+        .button(ButtonVariant::Text, mouse_state)
+        .with_text_label(name.to_string())
+        .with_style(
+            UiComponentStyles::default()
+                .set_border_radius(CornerRadius::with_all(CONTROL_BAR_BUTTON_RADIUS))
+                .set_font_color(text_color.into())
+                .set_background(background),
+        );
+    if is_selected {
+        button = button.active();
+    }
+    button
+        .build()
+        .on_click(move |ctx, _, _| {
+            ctx.dispatch_typed_action(WorkspaceAction::SwitchProject {
+                project: project.clone(),
+            });
+        })
+        .finish()
+}
+
 fn render_vertical_tabs_panel(
     state: &VerticalTabsPanelState,
     workspace: &Workspace,
@@ -1476,6 +1596,7 @@ fn render_vertical_tabs_panel(
             &workspace.vertical_tabs_search_input,
             app,
         ))
+        .with_child(render_project_section(state, workspace, app))
         .with_child(Shrinkable::new(1., scrollable_groups).finish())
         .finish();
 
@@ -1551,20 +1672,20 @@ fn render_groups(
     };
     let uses_outer_group_container = uses_outer_group_container(display_granularity);
     let query = state.search_query.as_str();
+    // Project filter: only tabs owned by the selected project (plus
+    // project-less tabs) participate in the rail when a project is active.
+    let project_visible_indices = workspace.visible_tab_indices();
     let visible_tabs: Vec<(usize, Option<Vec<PaneId>>)> = if query.is_empty() {
-        workspace
-            .tabs
-            .iter()
-            .enumerate()
-            .map(|(tab_index, _)| (tab_index, None))
+        project_visible_indices
+            .into_iter()
+            .map(|tab_index| (tab_index, None))
             .collect()
     } else {
         let query_lower = query.to_lowercase();
-        workspace
-            .tabs
-            .iter()
-            .enumerate()
-            .filter_map(|(tab_index, tab)| {
+        project_visible_indices
+            .into_iter()
+            .filter_map(|tab_index| {
+                let tab = &workspace.tabs[tab_index];
                 let pane_group = tab.pane_group.as_ref(app);
                 let visible_pane_ids = pane_group.visible_pane_ids();
                 match resolved_mode {

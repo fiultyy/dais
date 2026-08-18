@@ -764,6 +764,16 @@ pub enum PanesLayout {
     AmbientAgent,
 }
 
+impl PanesLayout {
+    /// The initial working directory this layout starts in, if any.
+    pub fn initial_directory(&self) -> Option<&PathBuf> {
+        match self {
+            Self::SingleTerminal(options) => options.initial_directory.as_ref(),
+            _ => None,
+        }
+    }
+}
+
 impl Default for PanesLayout {
     fn default() -> Self {
         Self::SingleTerminal(Box::default())
