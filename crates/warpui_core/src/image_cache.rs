@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use bytes::Bytes;
 use core::fmt;
 use itertools::Itertools;
 use std::{
@@ -11,7 +12,9 @@ use std::{
 use strum_macros::EnumIter;
 
 use crate::{
-    assets::asset_cache::{Asset, AssetCache, AssetSource, AssetState},
+    assets::asset_cache::{
+        AsyncAssetId, AsyncAssetType, Asset, AssetCache, AssetSource, AssetState,
+    },
     util::parse_u32,
     Entity, SingletonEntity,
 };
@@ -26,6 +29,112 @@ use resvg::{
     tiny_skia::{self, IntSize},
     usvg,
 };
+
+// --- Async resize infrastructure ---
+
+/// Pixel-count threshold above which image resizing is offloaded to a background
+/// thread via the asset cache.  Below this threshold the resize runs
+/// synchronously on the paint thread (fast enough even in debug builds).
+const ASYNC_RESIZE_PIXEL_THRESHOLD: u64 = 65_536;
+
+struct RenderedImageNamespace;
+impl AsyncAssetType for RenderedImageNamespace {}
+
+/// Thin wrapper so the resized image can round-trip through the
+/// [`Asset`] byte-pipeline (background fetch → `try_from_bytes` on fg).
+pub(crate) struct RenderedImageAsset(pub(crate) Image);
+
+impl Asset for RenderedImageAsset {
+    fn try_from_bytes(data: &[u8]) -> anyhow::Result<Self> {
+        if data.len() < 8 {
+            return Err(anyhow!("rendered image payload too short"));
+        }
+        let w = u32::from_le_bytes(data[0..4].try_into()?);
+        let h = u32::from_le_bytes(data[4..8].try_into()?);
+        let img = image::RgbaImage::from_raw(w, h, data[8..].to_vec())
+            .ok_or_else(|| anyhow!("rendered image size mismatch {w}x{h}"))?
+            .into();
+        Ok(Self(Image::Static(Arc::new(StaticImage { img }))))
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        match &self.0 {
+            Image::Static(s) => s.rgba_bytes().len(),
+            Image::Animated(a) => a
+                .frames
+                .iter()
+                .map(|f| f.image.rgba_bytes().len())
+                .sum(),
+        }
+    }
+}
+
+/// Packs a static RGBA image into the wire format consumed by
+/// [`RenderedImageAsset::try_from_bytes`].
+fn pack_static_image(img: &image::RgbaImage) -> Bytes {
+    let mut buf = Vec::with_capacity(8 + img.as_raw().len());
+    buf.extend_from_slice(&img.width().to_le_bytes());
+    buf.extend_from_slice(&img.height().to_le_bytes());
+    buf.extend_from_slice(img.as_raw());
+    buf.into()
+}
+
+/// Build a synthetic [`AssetSource::Async`] whose background fetch performs
+/// the image resize, returning `None` for cases that must remain sync
+/// (SVG, full-animation resize).
+fn rendered_asset_source(
+    data: &Rc<ImageType>,
+    cache_key: u64,
+    bounds: Vector2I,
+    fit_type: FitType,
+    animated_behavior: AnimatedImageBehavior,
+) -> Option<AssetSource> {
+    // Extract a Send+Sync snapshot of the source data.
+    let source_img = match (data.as_ref(), animated_behavior) {
+        (ImageType::StaticBitmap { image }, _) => Arc::clone(image),
+        (
+            ImageType::AnimatedBitmap { image },
+            AnimatedImageBehavior::FirstFramePreview,
+        ) => {
+            let first = image
+                .frames
+                .first()
+                .ok_or_else(|| anyhow!("animated image has no frames"))
+                .ok()?;
+            Arc::clone(&first.image)
+        }
+        _ => return None, // SVG / FullAnimation — stay synchronous.
+    };
+
+    // Only offload for large source images; small ones are fast even in debug.
+    let source_pixels = source_img.width() as u64 * source_img.height() as u64;
+    if cfg!(test) || source_pixels <= ASYNC_RESIZE_PIXEL_THRESHOLD {
+        return None;
+    }
+
+    let id = format!(
+        "{cache_key:x}:{w}x{h}:{fit_type:?}:{animated_behavior:?}",
+        w = bounds.x(),
+        h = bounds.y(),
+    );
+
+    Some(AssetSource::Async {
+        id: AsyncAssetId::new::<RenderedImageNamespace>(id),
+        fetch: Arc::new(move || {
+            let (img, b, f) = (source_img.clone(), bounds, fit_type);
+            Box::pin(async move {
+                let source = image::RgbaImage::from_raw(
+                    img.width(),
+                    img.height(),
+                    img.rgba_bytes().to_vec(),
+                )
+                .ok_or_else(|| anyhow!("source image clone failed"))?;
+                let resized = resize_image(&source, b, f);
+                Ok(pack_static_image(&resized))
+            })
+        }),
+    })
+}
 
 const MIN_REFRESH_DELAY_MS: u32 = 50;
 
@@ -931,22 +1040,57 @@ impl ImageCache {
                     }
                 }
 
-                // Otherwise, create the correctly-sized image struct and
-                // insert it into the cache (if necessary).
-                let image =
-                    match data.to_image(bounds, fit_type, needs_resize, animated_image_behavior) {
+                // Check the ImageCache before attempting any resize.
+                if !needs_resize {
+                    let image = match data.to_image(bounds, fit_type, false, animated_image_behavior) {
                         Ok(image) => Rc::new(image),
                         Err(err) => return AssetState::FailedToLoad(Rc::new(err)),
                     };
-                if needs_resize {
+                    return AssetState::Loaded { data: image };
+                }
+
+                // For large raster images, offload the resize to a background
+                // thread via a synthetic async asset so the paint thread
+                // stays responsive.
+                if let Some(rendered_source) = rendered_asset_source(
+                    &data,
+                    cache_key,
+                    bounds,
+                    fit_type,
+                    animated_image_behavior,
+                ) {
+                    match asset_cache.load_asset::<RenderedImageAsset>(rendered_source.clone()) {
+                        AssetState::Loaded { data: rendered } => {
+                            let image = Rc::new(rendered.0.clone());
+                            // Transfer ownership to ImageCache.images and drop the
+                            // AssetCache copy so GPU-texture eviction (Weak) works.
+                            let mut images_cache =
+                                RwLockUpgradableReadGuard::upgrade(cache);
+                            images_cache
+                                .entry(cache_key)
+                                .or_default()
+                                .insert(rendered_image_cache_key, image.clone());
+                            asset_cache.forget::<RenderedImageAsset>(&rendered_source);
+                            AssetState::Loaded { data: image }
+                        }
+                        AssetState::Loading { handle } => AssetState::Loading { handle },
+                        AssetState::Evicted => AssetState::Evicted,
+                        AssetState::FailedToLoad(err) => AssetState::FailedToLoad(err),
+                    }
+                } else {
+                    // Synchronous fallback: SVG, full-animation, or small images.
+                    let image =
+                        match data.to_image(bounds, fit_type, true, animated_image_behavior) {
+                            Ok(image) => Rc::new(image),
+                            Err(err) => return AssetState::FailedToLoad(Rc::new(err)),
+                        };
                     let mut images_cache = RwLockUpgradableReadGuard::upgrade(cache);
                     images_cache
                         .entry(cache_key)
                         .or_default()
                         .insert(rendered_image_cache_key, image.clone());
+                    AssetState::Loaded { data: image }
                 }
-
-                AssetState::Loaded { data: image }
             }
         }
     }

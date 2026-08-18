@@ -281,6 +281,17 @@ impl AssetCache {
     ///
     /// Note: this is an idempotent operation. It can be called as many times as needed on a given
     /// asset and won't duplicate work.
+    /// Removes an asset entry from the cache, if present.
+    /// Used by consumers that maintain their own parallel cache (e.g. `ImageCache`)
+    /// to avoid holding duplicate ownership that would prevent GPU-texture eviction.
+    pub fn forget<T: Asset>(&self, source: &AssetSource) {
+        self.inner
+            .borrow_mut()
+            .remove(&AssetHandle {
+                source: source.clone(),
+                asset_type: TypeId::of::<T>(),
+            });
+    }
     pub fn load_asset<T: Asset>(&self, source: AssetSource) -> AssetState<T> {
         let mut assets = self.inner.borrow_mut();
 

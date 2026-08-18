@@ -1045,6 +1045,9 @@ impl EventLoop {
                     renderer::Error::SurfaceConfigureError { .. }
                     // If the device was lost, or...
                     | renderer::Error::SurfaceError(renderer::GetSurfaceTextureError::Lost)
+                    // If a device loss caused a swap chain reconfiguration to fail, the
+                    // resulting `ConfigurationError` also requires a renderer rebuild.
+                    | renderer::Error::SurfaceError(renderer::GetSurfaceTextureError::ConfigurationError(_))
                     | renderer::Error::DeviceLost
                     // If we ran into any other wgpu error -
                     | renderer::Error::Unknown(_)=> {
