@@ -1236,7 +1236,7 @@ fn render_control_bar(
     let settings_button = render_settings_button(state, appearance);
     let new_tab_button = render_new_tab_button(state, workspace, appearance, app);
 
-    Container::new(
+    let bar = Container::new(
         Flex::row()
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
@@ -1250,8 +1250,14 @@ fn render_control_bar(
         Padding::uniform(CONTROL_BAR_VERTICAL_PADDING)
             .with_left(GROUP_HORIZONTAL_PADDING)
             .with_right(GROUP_HORIZONTAL_PADDING),
-    )
-    .finish()
+    );
+    // Explicit height: the unconstrained TextInput inside reports a taller
+    // layout than it renders, which pushed every sibling below (project
+    // cards, tab rows) into hit rects that no longer matched their visuals —
+    // clicks landed on the wrong card. Pin the bar to its visual height.
+    ConstrainedBox::new(bar.finish())
+        .with_height(SEARCH_BAR_HEIGHT + CONTROL_BAR_VERTICAL_PADDING * 2.)
+        .finish()
 }
 
 fn render_detail_kind_badge_icon(
@@ -1742,6 +1748,9 @@ fn render_project_card(
 
     // ui_builder().button() injects font family/size — required by text labels
     // (WrappableText::build unwraps font_family_id; bare UiComponentStyles panics).
+    // Explicit height: without it the button's hit rect expands to the loose
+    // cross-axis constraint and swallows the cards below — clicks then land on
+    // the wrong card (the hit≠visual trap from the showcase investigation).
     let click_project = project.clone();
     let mut button = appearance
         .ui_builder()
@@ -1751,7 +1760,8 @@ fn render_project_card(
             UiComponentStyles::default()
                 .set_border_radius(CornerRadius::with_all(CONTROL_BAR_BUTTON_RADIUS))
                 .set_font_color(text_color.into())
-                .set_background(background),
+                .set_background(background)
+                .set_height(SPLIT_BUTTON_HEIGHT),
         );
     if is_selected {
         button = button.active();
@@ -1891,13 +1901,7 @@ fn render_vertical_tabs_panel(
     let panel_content = Flex::column()
         .with_main_axis_size(MainAxisSize::Max)
         .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
-        .with_child(render_control_bar(
-            state,
-            workspace,
-            &workspace.vertical_tabs_search_input,
-            app,
-        ))
-        .with_child(render_project_section(state, workspace, app))
+        .with_child(render_project_section(state, workspace, app)) // BISECT-control-bar: control bar temporarily removed
         .with_child(Shrinkable::new(1., scrollable_groups).finish())
         .finish();
 

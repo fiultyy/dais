@@ -853,6 +853,11 @@ pub struct Workspace {
     /// Selected project in the project rail. `None` = show all tabs.
     /// Tabs keep running regardless of selection (filter-only, no unload).
     pub(crate) active_project: Option<PathBuf>,
+    /// Orca `activeTabIdByWorktree` equivalent: each project remembers which
+    /// of its tabs was last focused, so switching back to a project restores
+    /// that tab instead of guessing first/last. Tab identity = pane_group
+    /// entity id (stable across reorders, unlike the index).
+    last_active_tab_by_project: HashMap<PathBuf, EntityId>,
     /// Project rail: scroll state for the vertical-mode top-bar tab list.
     vertical_tabs_top_bar_scroll_state: ClippedScrollStateHandle,
     pub(crate) hovered_tab_index: Option<TabBarHoverIndex>,
@@ -2882,6 +2887,7 @@ impl Workspace {
             tabs: Vec::new(),
             active_tab_index: 0,
             active_project: None,
+            last_active_tab_by_project: HashMap::new(),
             vertical_tabs_top_bar_scroll_state: ClippedScrollStateHandle::default(),
             hovered_tab_index: None,
             tab_bar_hover_state: Default::default(),
@@ -3403,7 +3409,21 @@ impl Workspace {
                     self.left_panel_open = restored_left_panel_open;
                 }
 
-                self.activate_tab_internal(active_tab_index, ctx);
+                // Orca hydration equivalent: the restored active index is
+                // absolute across all tabs; when a project is selected it
+                // must resolve to that project's own tab, else the rail and
+                // the top bar disagree about what is active.
+                let effective_active_tab = if self.active_project.is_some() {
+                    let visible = self.visible_tab_indices();
+                    if visible.contains(&active_tab_index) {
+                        active_tab_index
+                    } else {
+                        visible.first().copied().unwrap_or(active_tab_index)
+                    }
+                } else {
+                    active_tab_index
+                };
+                self.activate_tab_internal(effective_active_tab, ctx);
                 self.check_and_trigger_onboarding(ctx);
                 self.maybe_auto_open_conversation_list(ctx);
             }
@@ -4477,20 +4497,43 @@ impl Workspace {
     }
 
     /// Switch the project rail selection. Keeps tabs alive (filter-only);
-    /// activates the project's most recently opened tab (the last one in
-    /// workspace order) if the current one is filtered out.
+    /// activates the project's remembered tab (Orca `activeTabIdByWorktree`
+    /// restore), falling back to its first visible tab.
     pub fn switch_project(&mut self, project: Option<PathBuf>, ctx: &mut ViewContext<Self>) {
         if self.active_project == project {
             return;
         }
+        let restored_from = project.clone();
         self.active_project = project;
         let visible = self.visible_tab_indices();
         if !visible.contains(&self.active_tab_index) {
-            if let Some(&last) = visible.last() {
-                self.activate_tab_internal(last, ctx);
+            let restored = restored_from
+                .as_ref()
+                .and_then(|p| self.last_active_tab_by_project.get(p).copied())
+                .and_then(|pane_group_id| {
+                    visible.iter().copied().find(|&i| {
+                        self.tabs.get(i).is_some_and(|tab| tab.pane_group.id() == pane_group_id)
+                    })
+                })
+                .or_else(|| visible.first().copied());
+            if let Some(index) = restored {
+                self.activate_tab_internal(index, ctx);
             }
         }
         ctx.notify();
+    }
+
+    /// Record that `tab_index` was focused, for per-project restore (Orca
+    /// `markWorktreeVisited` equivalent: switching back to a project returns
+    /// to the tab you left, not a positional guess).
+    pub(crate) fn record_tab_focus_for_project(&mut self, tab_index: usize) {
+        let Some(tab) = self.tabs.get(tab_index) else {
+            return;
+        };
+        if let Some(project) = tab.project_path.clone() {
+            self.last_active_tab_by_project
+                .insert(project, tab.pane_group.id());
+        }
     }
 
     /// Orca `ensureWorktreeHasInitialTerminal` equivalent: selecting a project
@@ -4700,6 +4743,7 @@ impl Workspace {
         };
 
         self.active_tab_index = index;
+        self.record_tab_focus_for_project(index);
 
         if self.vertical_tabs_panel_open
             && FeatureFlag::VerticalTabs.is_enabled()
