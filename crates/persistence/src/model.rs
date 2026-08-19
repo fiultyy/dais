@@ -43,6 +43,7 @@ pub struct Window {
     pub left_panel_open: Option<bool>,
     pub vertical_tabs_panel_open: Option<bool>,
     pub theme_override: Option<String>,
+    pub active_project: Option<String>,
 }
 
 #[derive(Identifiable, Insertable, Queryable)]
@@ -305,6 +306,7 @@ pub struct NewWindow {
     pub left_panel_open: Option<bool>,
     pub vertical_tabs_panel_open: Option<bool>,
     pub theme_override: Option<String>,
+    pub active_project: Option<String>,
 }
 
 #[derive(Identifiable, Queryable, Associations)]

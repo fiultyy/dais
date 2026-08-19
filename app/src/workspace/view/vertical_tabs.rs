@@ -35,7 +35,7 @@ use crate::terminal::session_settings::SessionSettings;
 use crate::terminal::TerminalView;
 use crate::themes::theme::Fill as ThemeFill;
 use crate::ui_components::buttons::combo_inner_button;
-use warpui::ui_components::button::{Button, ButtonVariant};
+use warpui::ui_components::button::ButtonVariant;
 use crate::ui_components::icons::Icon as UiIcon;
 use crate::util::bindings::keybinding_name_to_display_string;
 use crate::util::color::Opacity;
@@ -73,7 +73,7 @@ use warpui::elements::{
     OffsetPositioning, Padding, ParentAnchor, ParentElement, ParentOffsetBounds,
     PositionedElementAnchor, PositionedElementOffsetBounds, Radius, Resizable,
     ResizableStateHandle, SavePosition, ScrollTarget, ScrollToPositionMode, ScrollbarWidth,
-    Shrinkable, Stack, Text,
+    Shrinkable, Stack, Text, Rect,
 };
 use warpui::fonts::{Properties, Weight};
 use warpui::platform::Cursor;
@@ -599,6 +599,12 @@ pub(super) struct VerticalTabsPanelState {
     panel_interactivity_mouse_state: MouseStateHandle,
     /// Project rail: per-path click states for project cards.
     project_card_mouse_states: RefCell<HashMap<PathBuf, MouseStateHandle>>,
+    /// Project rail: collapsed project cards (tabs subtree hidden).
+    project_collapsed: RefCell<std::collections::HashSet<PathBuf>>,
+    /// Project rail: per-path hover states for card close (x) buttons.
+    project_card_close_mouse_states: RefCell<HashMap<PathBuf, MouseStateHandle>>,
+    /// Project rail: "+" add-project button click state.
+    project_add_button_mouse_state: MouseStateHandle,
     pub(super) show_settings_popup: bool,
 }
 
@@ -636,6 +642,9 @@ impl Default for VerticalTabsPanelState {
             show_diff_stats_mouse_state: Default::default(),
             show_details_on_hover_mouse_state: Default::default(),
             project_card_mouse_states: RefCell::default(),
+            project_collapsed: RefCell::default(),
+            project_card_close_mouse_states: RefCell::default(),
+            project_add_button_mouse_state: Default::default(),
             show_settings_popup: false,
         }
     }
@@ -1452,9 +1461,10 @@ fn render_new_tab_button(
     .finish()
 }
 
-/// Project rail: one card per known project at the top of the vertical tabs
-/// panel. Clicking a card switches the tab filter to that project; the
-/// always-present "All" card clears it. Tabs are never unloaded.
+/// Project rail: section header (title + "+") per known project card, and a
+/// separator above the tab area. Clicking a card switches the tab filter to
+/// that project; "All" clears it. Tabs are never unloaded — other projects'
+/// tabs stay alive in the workspace and reappear when their card is selected.
 fn render_project_section(
     state: &VerticalTabsPanelState,
     workspace: &Workspace,
@@ -1472,25 +1482,70 @@ fn render_project_section(
                 .map(|project| PathBuf::from(&project.path))
                 .collect()
         });
-    // Stable display order (most-recently-opened ordering arrives with the
-    // extended fields batch; the model already sorts by last_opened_ts).
     projects.sort();
 
-    let mut cards = Flex::column()
+    let mut section = Flex::column()
         .with_main_axis_size(MainAxisSize::Min)
         .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
         .with_spacing(GROUP_ITEM_SPACING);
 
+    // Header row: small-caps title + "+" (file picker) button.
+    let title = Text::new_inline(
+        crate::t!("project-rail-section-title").to_uppercase(),
+        appearance.ui_font_family(),
+        10.5,
+    )
+    .with_color(sub_text.into())
+    .finish();
+    let add_button = combo_inner_button(
+        appearance,
+        UiIcon::Plus,
+        false,
+        state.project_add_button_mouse_state.clone(),
+    )
+    .with_style(
+        UiComponentStyles::default()
+            .set_border_radius(CornerRadius::with_all(CONTROL_BAR_BUTTON_RADIUS))
+            .set_font_color(sub_text.into()),
+    )
+    .build()
+    .on_click(|ctx, _, _| {
+        ctx.dispatch_typed_action(WorkspaceAction::OpenAddProjectPicker);
+    })
+    .finish();
+    section.add_child(
+        Container::new(
+            Flex::row()
+                .with_main_axis_size(MainAxisSize::Max)
+                .with_cross_axis_alignment(CrossAxisAlignment::Center)
+                .with_child(Shrinkable::new(1., title).finish())
+                .with_child(add_button)
+                .finish(),
+        )
+        .with_padding(
+            Padding::uniform(GROUP_ITEM_SPACING)
+                .with_left(GROUP_HORIZONTAL_PADDING)
+                .with_right(GROUP_HORIZONTAL_PADDING)
+                .with_top(0.),
+        )
+        .finish(),
+    );
+
     // "All" card: clears the project filter.
-    cards.add_child(render_project_card(
+    let all_tab_count = workspace.tabs.len();
+    section.add_child(render_project_card(
         &crate::t!("project-rail-all-projects"),
         workspace.active_project.is_none(),
         None,
+        Some(all_tab_count),
+        false,
         state,
+        workspace,
         theme,
         sub_text,
         main_text,
         appearance,
+        app,
     ));
 
     for project in &projects {
@@ -1498,25 +1553,55 @@ fn render_project_section(
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| project.to_string_lossy().into_owned());
-        cards.add_child(render_project_card(
+        let tab_count = workspace
+            .tabs
+            .iter()
+            .filter(|tab| tab.project_path.as_ref() == Some(project))
+            .count();
+        let is_selected = workspace.active_project.as_ref() == Some(project);
+        let is_collapsed = state.project_collapsed.borrow().contains(project);
+        section.add_child(render_project_card(
             &name,
-            workspace.active_project.as_ref() == Some(project),
+            is_selected,
             Some(project.clone()),
+            Some(tab_count),
+            is_collapsed,
             state,
+            workspace,
             theme,
             sub_text,
             main_text,
             appearance,
+            app,
         ));
     }
 
-    Container::new(cards.finish())
-        .with_padding(
-            Padding::uniform(GROUP_ITEM_SPACING)
-                .with_left(GROUP_HORIZONTAL_PADDING)
-                .with_right(GROUP_HORIZONTAL_PADDING),
-        )
-        .finish()
+    // Separator between project rail and tab area.
+    let separator = ConstrainedBox::new(
+        Rect::new()
+            .with_background(theme.foreground_button_color().with_opacity(20))
+            .finish(),
+    )
+    .with_height(1.)
+    .with_width(0.) // 0 = unconstrained; stretch via parent
+    .finish();
+
+    Container::new(
+        Flex::column()
+            .with_child(section.finish())
+            .with_child(
+                Container::new(Shrinkable::new(1., separator).finish())
+                    .with_padding(
+                        Padding::uniform(0.)
+                            .with_left(GROUP_HORIZONTAL_PADDING)
+                            .with_right(GROUP_HORIZONTAL_PADDING)
+                            .with_top(GROUP_ITEM_SPACING),
+                    )
+                    .finish(),
+            )
+            .finish(),
+    )
+    .finish()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1524,16 +1609,34 @@ fn render_project_card(
     name: &str,
     is_selected: bool,
     project: Option<PathBuf>,
+    tab_count: Option<usize>,
+    is_collapsed: bool,
     state: &VerticalTabsPanelState,
+    workspace: &Workspace,
     theme: &warp_core::ui::theme::WarpTheme,
     sub_text: ThemeFill,
     main_text: ThemeFill,
     appearance: &Appearance,
+    app: &AppContext,
 ) -> Box<dyn Element> {
-    let mouse_state = project
-        .as_ref()
-        .and_then(|path| state.project_card_mouse_states.borrow().get(path).cloned())
-        .unwrap_or_default();
+    let (mouse_state, close_mouse_state) = match project.as_ref() {
+        Some(path) => {
+            let card = state
+                .project_card_mouse_states
+                .borrow_mut()
+                .entry(path.clone())
+                .or_default()
+                .clone();
+            let close = state
+                .project_card_close_mouse_states
+                .borrow_mut()
+                .entry(path.clone())
+                .or_default()
+                .clone();
+            (card, close)
+        }
+        None => Default::default(),
+    };
 
     let background = if is_selected {
         internal_colors::fg_overlay_3(theme).into()
@@ -1542,12 +1645,18 @@ fn render_project_card(
     };
     let text_color = if is_selected { main_text } else { sub_text };
 
+    let label = match tab_count {
+        Some(count) => format!("{name}  ×{count}"),
+        None => name.to_string(),
+    };
+
     // ui_builder().button() injects font family/size — required by text labels
     // (WrappableText::build unwraps font_family_id; bare UiComponentStyles panics).
+    let click_project = project.clone();
     let mut button = appearance
         .ui_builder()
         .button(ButtonVariant::Text, mouse_state)
-        .with_text_label(name.to_string())
+        .with_text_label(label)
         .with_style(
             UiComponentStyles::default()
                 .set_border_radius(CornerRadius::with_all(CONTROL_BAR_BUTTON_RADIUS))
@@ -1557,14 +1666,78 @@ fn render_project_card(
     if is_selected {
         button = button.active();
     }
-    button
+    let card = button
         .build()
         .on_click(move |ctx, _, _| {
             ctx.dispatch_typed_action(WorkspaceAction::SwitchProject {
+                project: click_project.clone(),
+            });
+        })
+        .finish();
+
+    // Row: [card (expand)] [× close for real projects]
+    let mut row = Flex::row()
+        .with_main_axis_size(MainAxisSize::Max)
+        .with_cross_axis_alignment(CrossAxisAlignment::Center)
+        .with_child(Shrinkable::new(1., card).finish());
+
+    if let Some(project) = project.clone() {
+        let close_button = combo_inner_button(
+            appearance,
+            UiIcon::X,
+            false,
+            close_mouse_state,
+        )
+        .with_style(
+            UiComponentStyles::default()
+                .set_border_radius(CornerRadius::with_all(CONTROL_BAR_BUTTON_RADIUS))
+                .set_font_color(sub_text.into()),
+        )
+        .build()
+        .on_click(move |ctx, _, _| {
+            ctx.dispatch_typed_action(WorkspaceAction::RemoveProject {
                 project: project.clone(),
             });
         })
-        .finish()
+        .finish();
+        row = row.with_child(close_button);
+    }
+    let row_el = row.finish();
+
+    // Selected project card: embed its tab groups below (collapsible).
+    let mut column = Flex::column()
+        .with_main_axis_size(MainAxisSize::Min)
+        .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+        .with_child(row_el);
+
+    if let Some(project) = project.as_ref() {
+        if is_selected && !is_collapsed {
+            let project_tabs: Vec<usize> = workspace
+                .tabs
+                .iter()
+                .enumerate()
+                .filter(|(_, tab)| tab.project_path.as_ref() == Some(project))
+                .map(|(index, _)| index)
+                .collect();
+            for tab_index in project_tabs {
+                column.add_child(render_tab_group(
+                    state,
+                    workspace,
+                    tab_index,
+                    &workspace.tabs[tab_index],
+                    None,
+                    TabGroupDragState {
+                        is_any_pane_dragging: false,
+                        insert_before_index: 0,
+                        insert_after_index: None,
+                    },
+                    app,
+                ));
+            }
+        }
+    }
+
+    column.finish()
 }
 
 fn render_vertical_tabs_panel(

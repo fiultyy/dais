@@ -60,6 +60,8 @@ pub struct WindowSnapshot {
     /// The per-window theme override for this window, if the user set one via the
     /// theme chooser's "This window" scope. Re-applied on restore.
     pub theme_override: Option<ThemeKind>,
+    /// Project rail: the selected project path for this window. `None` = "All".
+    pub active_project: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]

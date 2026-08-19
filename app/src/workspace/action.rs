@@ -141,6 +141,12 @@ pub enum WorkspaceAction {
     SwitchProject {
         project: Option<std::path::PathBuf>,
     },
+    /// 项目栏: 从栏中移除项目(不关闭其 tab, tab 归属重置为"无项目")。
+    RemoveProject {
+        project: std::path::PathBuf,
+    },
+    /// 项目栏: "+"按钮 — 文件浏览选择文件夹添加项目并选中。
+    OpenAddProjectPicker,
     /// 在当前 tab 中央开新 terminal pane,执行 `ssh user@host`(openWarp 独有)。
     /// 由 SshServerView 的 Connect 按钮 / SshManagerPanel 右键"连接" 触发。
     OpenSshTerminal {
@@ -627,6 +633,8 @@ impl WorkspaceAction {
             | AddDefaultTab
             | AddTerminalTab { .. }
             | SwitchProject { .. }
+            | RemoveProject { .. }
+            | OpenAddProjectPicker
             | OpenSshTerminal { .. }
             | ToggleSshManager
             | ToggleSkillManager

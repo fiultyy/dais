@@ -3625,3 +3625,4 @@ cockpit-branch-prefix = ブランチ:
 cockpit-badge-shared = 共有
 cockpit-badge-readonly = 読み取り専用
 project-rail-all-projects = すべて
+project-rail-section-title = プロジェクト

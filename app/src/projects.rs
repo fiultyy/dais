@@ -8,13 +8,8 @@ use crate::persistence::{model::Project, ModelEvent};
 
 #[derive(Debug)]
 pub enum ProjectEvent {
-    Added {
-        #[expect(unused, reason = "TODO(jparker): #pod-code-mode wip")]
-        path: PathBuf,
-    },
-    #[expect(unused, reason = "TODO(jparker): #pod-code-mode wip")]
+    Added { path: PathBuf },
     Removed { path: PathBuf },
-    #[expect(unused, reason = "TODO(jparker): #pod-code-mode wip")]
     Updated { path: PathBuf },
 }
 
@@ -73,6 +68,24 @@ impl ProjectManagementModel {
 
     pub fn all_projects(&self) -> impl Iterator<Item = &Project> {
         self.projects.values()
+    }
+
+    /// Remove a project from the list and the database. Tabs owned by the
+    /// project are NOT closed — the workspace resets their ownership to
+    /// "no project" (they stay visible under "All").
+    pub fn remove_project(&mut self, path: PathBuf, ctx: &mut ModelContext<Self>) {
+        if self.projects.remove(&path).is_none() {
+            return;
+        }
+        if let Some(sender) = &self.model_event_sender {
+            let event = ModelEvent::DeleteProject {
+                path: path.to_string_lossy().into_owned(),
+            };
+            if let Err(err) = sender.send(event) {
+                log::error!("Failed to delete project from database: {err}");
+            }
+        }
+        ctx.emit(ProjectEvent::Removed { path });
     }
 
     /// Save a project to the database

@@ -3707,3 +3707,4 @@ cockpit-branch-prefix = 分支:
 cockpit-badge-shared = 共享
 cockpit-badge-readonly = 只读
 project-rail-all-projects = 全部
+project-rail-section-title = 项目

@@ -70,7 +70,7 @@ use crate::notifications::{
     NotificationMailboxViewEvent,
 };
 use crate::pane_group::pane::ActionOrigin;
-use crate::projects::ProjectManagementModel;
+use crate::projects::{ProjectEvent, ProjectManagementModel};
 use crate::settings_view::mcp_servers_page::MCPServersSettingsPage;
 use crate::terminal::model::terminal_model::ConversationTranscriptViewerStatus;
 use crate::terminal::session_settings::SessionSettings;
@@ -360,8 +360,8 @@ use warpui::clipboard::ClipboardContent;
 #[cfg(target_family = "wasm")]
 use warpui::elements::Percentage;
 use warpui::elements::{
-    CacheOption, DispatchEventResult, DraggableState, DropTarget, EventHandler, Image,
-    MouseInBehavior, Rect,
+    CacheOption, ClippedScrollStateHandle, ClippedScrollable, DispatchEventResult, DraggableState,
+    DropTarget, EventHandler, Image, MouseInBehavior, Rect, ScrollbarWidth,
 };
 use warpui::ui_components::button::Button;
 use warpui::windowing::{StateEvent, WindowManager};
@@ -852,6 +852,8 @@ pub struct Workspace {
     /// Selected project in the project rail. `None` = show all tabs.
     /// Tabs keep running regardless of selection (filter-only, no unload).
     pub(crate) active_project: Option<PathBuf>,
+    /// Project rail: scroll state for the vertical-mode top-bar tab list.
+    vertical_tabs_top_bar_scroll_state: ClippedScrollStateHandle,
     pub(crate) hovered_tab_index: Option<TabBarHoverIndex>,
     tab_bar_hover_state: MouseStateHandle,
     tab_fixed_width: Option<f32>,
@@ -2310,6 +2312,28 @@ impl Workspace {
         toast_stack: ViewHandle<DismissibleToastStack<WorkspaceAction>>,
         ctx: &mut ViewContext<Self>,
     ) {
+        ctx.subscribe_to_model(&ProjectManagementModel::handle(ctx), |me, _, event, ctx| {
+            match event {
+                ProjectEvent::Added { path } | ProjectEvent::Removed { path } => {
+                    // Project rail: re-render the card list. If the removed
+                    // project was selected, fall back to "All".
+                    if matches!(event, ProjectEvent::Removed { .. }) {
+                        if me.active_project.as_ref() == Some(path) {
+                            me.active_project = None;
+                        }
+                        let removed = path.clone();
+                        for tab in me.tabs.iter_mut() {
+                            if tab.project_path.as_ref() == Some(&removed) {
+                                tab.project_path = None;
+                            }
+                        }
+                    }
+                    ctx.notify();
+                }
+                ProjectEvent::Updated { .. } => ctx.notify(),
+            }
+        });
+
         ctx.subscribe_to_model(&WarpConfig::handle(ctx), move |_me, _, event, ctx| {
             match event {
                 WarpConfigUpdateEvent::TabConfigs => {
@@ -2857,6 +2881,7 @@ impl Workspace {
             tabs: Vec::new(),
             active_tab_index: 0,
             active_project: None,
+            vertical_tabs_top_bar_scroll_state: ClippedScrollStateHandle::default(),
             hovered_tab_index: None,
             tab_bar_hover_state: Default::default(),
             traffic_light_mouse_states: Default::default(),
@@ -3307,6 +3332,10 @@ impl Workspace {
                 // Re-apply this window's per-window theme override, if it had one,
                 // and record it so subsequent snapshots keep it.
                 self.theme_override = window_snapshot.theme_override.clone();
+                self.active_project = window_snapshot
+                    .active_project
+                    .as_ref()
+                    .map(|p| PathBuf::from(p.as_str()));
                 if let Some(theme_kind) = window_snapshot.theme_override.clone() {
                     let window_id = ctx.window_id();
                     AppearanceManager::handle(ctx).update(ctx, |appearance_manager, ctx| {
@@ -4452,6 +4481,65 @@ impl Workspace {
         if !visible.contains(&self.active_tab_index) {
             if let Some(&first) = visible.first() {
                 self.activate_tab_internal(first, ctx);
+            }
+        }
+        ctx.notify();
+    }
+
+    /// Project rail "+": pick a folder, persist it as a project, select it,
+    /// and open one terminal in it (no split) if the project has no tabs yet.
+    fn open_add_project_picker(&mut self, ctx: &mut ViewContext<Self>) {
+        ctx.open_file_picker(
+            move |result, ctx: &mut ViewContext<Self>| {
+                let Ok(paths) = result else {
+                    return;
+                };
+                let Some(path) = paths.into_iter().next().map(PathBuf::from) else {
+                    return;
+                };
+                ProjectManagementModel::handle(ctx).update(ctx, |projects, ctx| {
+                    projects.upsert_project(path.clone(), ctx);
+                });
+                if let Some(handle) = ctx.handle().upgrade(ctx) {
+                    handle.update(ctx, move |me, ctx| {
+                        let needs_tab = !me
+                            .tabs
+                            .iter()
+                            .any(|tab| tab.project_path.as_ref() == Some(&path));
+                        me.switch_project(Some(path.clone()), ctx);
+                        if needs_tab {
+                            me.add_tab_with_pane_layout(
+                                PanesLayout::SingleTerminal(Box::new(
+                                    NewTerminalOptions::default()
+                                        .with_initial_directory_opt(Some(path.clone())),
+                                )),
+                                Arc::new(HashMap::new()),
+                                None,
+                                ctx,
+                            );
+                        }
+                    });
+                }
+            },
+            FilePickerConfiguration::new().folders_only(),
+        );
+    }
+
+    /// Remove a project from the rail. Tabs survive with ownership reset
+    /// to "no project"; if the removed project was selected, fall back to
+    /// "All". (Tab ownership reset and fallback also happen via the
+    /// ProjectEvent subscription; doing it here keeps state consistent even
+    /// if the event is coalesced.)
+    pub fn remove_project_from_rail(&mut self, project: PathBuf, ctx: &mut ViewContext<Self>) {
+        ProjectManagementModel::handle(ctx).update(ctx, |projects, ctx| {
+            projects.remove_project(project.clone(), ctx);
+        });
+        if self.active_project.as_ref() == Some(&project) {
+            self.active_project = None;
+        }
+        for tab in self.tabs.iter_mut() {
+            if tab.project_path.as_ref() == Some(&project) {
+                tab.project_path = None;
             }
         }
         ctx.notify();
@@ -9863,6 +9951,10 @@ impl Workspace {
             right_panel_width,
             agent_management_filters: None,
             theme_override: self.theme_override.clone(),
+            active_project: self
+                .active_project
+                .as_ref()
+                .map(|p| p.to_string_lossy().into_owned()),
         }
     }
 
@@ -16545,6 +16637,37 @@ impl Workspace {
         }
 
         if vertical_tabs_active {
+            // Project rail: even in vertical mode, render the visible (project-
+            // filtered) tab list in the top bar so the selected project's
+            // terminals are switchable from the top, mirroring horizontal mode.
+            // The list is clipped and NOT flexible: the surrounding flex rows
+            // have Min main-axis size here, and a Shrinkable tab under an
+            // infinite constraint trips the flex invariant check.
+            let vertical_tab_bar_state = TabBarState {
+                tab_count: self.tabs.len(),
+                active_tab_index: Some(self.active_tab_index),
+                is_any_tab_renaming: self.current_workspace_state.is_tab_being_renamed(),
+                is_any_tab_dragging: self.current_workspace_state.is_tab_being_dragged
+                    || CrossWindowTabDrag::as_ref(ctx).is_active(),
+                hover_fixed_width: None,
+            };
+            let mut vertical_tabs_row = Flex::row()
+                .with_main_axis_size(MainAxisSize::Max)
+                .with_cross_axis_alignment(CrossAxisAlignment::Center);
+            for i in 0..self.tabs.len() {
+                if self.active_project.is_some() && !self.is_tab_visible(i) {
+                    continue;
+                }
+                vertical_tabs_row.add_child(
+                    self.render_tab_in_tab_bar(i, vertical_tab_bar_state.clone(), ctx),
+                );
+            }
+            // Tabs are Shrinkable; flexible descendants must only sit under
+            // flexible ancestors, otherwise the fixed child's unbounded
+            // main-axis constraint trips the flex invariant. Shrinkable all
+            // the way down: tab_bar (flex 1) → tab list (flex 1) → tabs.
+            tab_bar.add_child(Shrinkable::new(1., vertical_tabs_row.finish()).finish());
+
             let mut right_controls = Flex::row()
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                 .with_main_axis_size(MainAxisSize::Min);
@@ -16568,7 +16691,10 @@ impl Workspace {
             let mut tab_bar_row = Flex::row()
                 .with_main_axis_size(MainAxisSize::Max)
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
-                .with_child(tab_bar.finish());
+                // Shrinkable so the (Max-sized) tab_bar receives a finite
+                // width — a fixed child of a flex gets an unbounded main-axis
+                // constraint, which trips the Shrinkable-tab invariant.
+                .with_child(Shrinkable::new(1., tab_bar.finish()).finish());
             if show_title_bar_search_bar {
                 tab_bar_row.add_child(
                     Shrinkable::new(
@@ -19018,6 +19144,8 @@ impl TypedActionView for Workspace {
         match action {
             ActivateTab(index) => self.activate_tab(*index, ctx),
             SwitchProject { project } => self.switch_project(project.clone(), ctx),
+            RemoveProject { project } => self.remove_project_from_rail(project.clone(), ctx),
+            OpenAddProjectPicker => self.open_add_project_picker(ctx),
             ActivateTabByNumber(num) => self.activate_tab(num.saturating_sub(1), ctx),
             ActivatePrevTab => self.activate_prev_tab(ctx),
             OpenLaunchConfigSaveModal => self.open_launch_config_save_modal(ctx),
