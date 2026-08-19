@@ -254,7 +254,13 @@ pub enum WorkspaceAction {
         tab_index: usize,
         tab_position: RectF,
     },
-    DropTab,
+    /// Ends a tab drag. Carries the dragged tab and its ghost rect at the
+    /// mouse-up position (the authoritative final cursor location) so the
+    /// split zone can be resolved from it.
+    DropTab {
+        tab_index: usize,
+        tab_position: RectF,
+    },
     /// Toggles the left panel. In Code Mode V1 this toggles Zap Drive.
     /// In Code Mode V2 this toggles the left panel which contains both the project explorer and
     /// Zap Drive. This happens as explicit action from the user.
@@ -619,7 +625,7 @@ impl WorkspaceAction {
             | MoveActiveTabRight
             | MoveTabLeft(_)
             | MoveTabRight(_)
-            | DropTab
+            | DropTab { .. }
             | RenameTab(_)
             | ResetTabName(_)
             | RenamePane(_)

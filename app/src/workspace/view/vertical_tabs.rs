@@ -68,7 +68,7 @@ use warp_core::ui::Icon as WarpIcon;
 use warpui::elements::DispatchEventResult;
 use warpui::elements::{
     resizable_state_handle, Border, ChildAnchor, Clipped, ClippedScrollStateHandle,
-    ClippedScrollable, ConstrainedBox, Container, CornerRadius, CrossAxisAlignment, DragAxis,
+    ClippedScrollable, ConstrainedBox, Container, CornerRadius, CrossAxisAlignment,
     DragBarSide, Draggable, DropShadow, DropTarget, Element, Empty, EventHandler, Expanded,
     Fill as ElementFill, Flex, Hoverable, MainAxisAlignment, MainAxisSize, MouseStateHandle,
     OffsetPositioning, Padding, ParentAnchor, ParentElement, ParentOffsetBounds,
@@ -2624,17 +2624,18 @@ fn render_tab_group_internal(
                 tab_position: rect,
             });
         })
-        .on_drop(|ctx, _, _, _| {
-            ctx.dispatch_typed_action(WorkspaceAction::DropTab);
+        .on_drop(move |ctx, _, rect, _| {
+            ctx.dispatch_typed_action(WorkspaceAction::DropTab {
+                tab_index,
+                tab_position: rect,
+            });
         });
-    // Only lock the drag to the vertical axis when cross-window tab drag is
-    // disabled. When it is enabled, the user needs to be able to drag
-    // horizontally out of the panel to detach the tab into a new window.
-    let draggable = if FeatureFlag::DragTabsToWindows.is_enabled() {
-        draggable
-    } else {
-        draggable.with_drag_axis(DragAxis::VerticalOnly)
-    };
+    // The drag stays free on both axes: in-window tab→content splits need
+    // the ghost to leave the rail horizontally, and (with cross-window
+    // drags enabled) detaching requires leaving the window. Reordering
+    // resolves its index from the vertical position only, so horizontal
+    // freedom has no effect on it. The old vertical-only lock guarded the
+    // removed detach-on-leaving-the-tab-bar behavior.
     let draggable = draggable.finish();
 
     let draggable: Box<dyn Element> = if is_this_tab_dragging {

@@ -29,6 +29,10 @@ const DEFAULT_DRAG_THRESHOLD: f32 = 5.;
 pub struct DraggableState {
     inner: Arc<Mutex<DragState>>,
     suppress_overlay_paint: Arc<AtomicBool>,
+    /// The grab offset of the most recent drag, kept after the drag ends so
+    /// drop callbacks (which run after the state is cleared) can still
+    /// resolve the cursor position from the ghost rect.
+    last_mouse_offset: Arc<Mutex<Option<Vector2F>>>,
 }
 
 impl DraggableState {
@@ -54,15 +58,24 @@ impl DraggableState {
         *self.inner.lock()
     }
 
-    /// Returns the cursor offset within the draggable element, if drag state is available.
     pub fn cursor_offset_within_element(&self) -> Option<Vector2F> {
         match self.read() {
-            DragState::None => None,
+            DragState::None => self
+                .last_mouse_offset
+                .lock()
+                .map(|offset| -offset),
             DragState::WaitingToDrag {
                 mouse_down_offset, ..
             } => Some(-mouse_down_offset),
             DragState::Dragging { mouse_offset, .. } => Some(-mouse_offset),
         }
+    }
+
+    /// Records the grab offset of the current/last drag. Called before the
+    /// drag state is cleared on mouse-up so `on_drop` callbacks can still
+    /// derive the cursor position via `cursor_offset_within_element`.
+    pub(crate) fn remember_mouse_offset(&self, offset: Vector2F) {
+        *self.last_mouse_offset.lock() = Some(offset);
     }
 
     pub fn adjust_mouse_position(&self, delta: Vector2F) {
@@ -73,6 +86,7 @@ impl DraggableState {
     }
 
     pub fn set_dragging(&self, new_mouse_position: Vector2F, new_mouse_offset: Vector2F) {
+        self.remember_mouse_offset(new_mouse_offset);
         self.store(DragState::Dragging {
             mouse_position: new_mouse_position,
             mouse_offset: new_mouse_offset,
@@ -81,6 +95,7 @@ impl DraggableState {
     }
 
     pub fn cancel_drag(&self) {
+        *self.last_mouse_offset.lock() = None;
         self.store(DragState::None);
     }
 
@@ -614,21 +629,26 @@ impl Element for Draggable {
                 }
                 handled
             }
-            Event::LeftMouseUp { .. } => match current_state {
+            Event::LeftMouseUp { position, .. } => match current_state {
                 DragState::None => handled,
                 DragState::WaitingToDrag { .. } => {
                     self.state.store(DragState::None);
                     ctx.reset_cursor();
                     true
                 }
-                DragState::Dragging {
-                    mouse_offset,
-                    mouse_position,
-                    ..
-                } => {
-                    let origin = self.drag_origin(mouse_position, mouse_offset);
+                DragState::Dragging { mouse_offset, .. } => {
+                    // The mouse-up position is the authoritative final
+                    // cursor location: the last `LeftMouseDragged` event can
+                    // lag it when motion events are coalesced during fast
+                    // drags, so resolve the drop rect from the up event.
+                    let origin = self.drag_origin(*position, mouse_offset);
                     let rect = RectF::new(origin, size);
 
+
+                    // Keep the grab offset reachable after the state is
+                    // cleared: drop callbacks resolve the cursor position
+                    // from the ghost rect via `cursor_offset_within_element`.
+                    self.state.remember_mouse_offset(mouse_offset);
                     self.state.store(DragState::None);
 
                     let draggable_data = if let Some(accepted_fn) =

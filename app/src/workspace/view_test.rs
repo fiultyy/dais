@@ -301,6 +301,48 @@ fn test_worktree_sidecar_search_editor_enter_executes_selection() {
     unimplemented!("PersistedWorkspace 已下线,worktree sidecar 仓库列表测试暂停");
 }
 
+/// `tab_split_zone_for_point` is the Orca edge-zone resolver: points
+/// outside the content area must resolve to no zone (a drag that never
+/// left the tab rail is a reorder, not a split), and inside it the 20%
+/// edge bands win over the body, left/right before top/bottom.
+#[test]
+fn test_tab_split_zone_requires_point_inside_content_bounds() {
+    let bounds = RectF::new(vec2f(248., 36.), vec2f(618., 523.));
+    // Inside the body (dead center) — no zone.
+    assert!(tab_split_zone_for_point(bounds, vec2f(500., 300.)).is_none());
+    // Left of the content area (over the tab rail) — no zone, even though
+    // the naive local_x math would classify it as the Left band.
+    assert!(tab_split_zone_for_point(bounds, vec2f(100., 300.)).is_none());
+    // Above / below / right of the content area — no zone.
+    assert!(tab_split_zone_for_point(bounds, vec2f(500., 10.)).is_none());
+    assert!(tab_split_zone_for_point(bounds, vec2f(500., 600.)).is_none());
+    assert!(tab_split_zone_for_point(bounds, vec2f(900., 300.)).is_none());
+}
+
+#[test]
+fn test_tab_split_zone_edge_bands_win_left_right_first() {
+    let bounds = RectF::new(vec2f(248., 36.), vec2f(618., 523.));
+    // Corners of the top-left band resolve Left, not Up: left/right bands
+    // are checked first (Orca `resolvePaneColumnEdgeZone` order).
+    assert!(matches!(
+        tab_split_zone_for_point(bounds, vec2f(260., 50.)),
+        Some(Direction::Left)
+    ));
+    assert!(matches!(
+        tab_split_zone_for_point(bounds, vec2f(850., 50.)),
+        Some(Direction::Right)
+    ));
+    // Top band between the side bands resolves Up.
+    assert!(matches!(
+        tab_split_zone_for_point(bounds, vec2f(550., 60.)),
+        Some(Direction::Up)
+    ));
+    assert!(matches!(
+        tab_split_zone_for_point(bounds, vec2f(550., 500.)),
+        Some(Direction::Down)
+    ));
+}
+
 /// RAII guard that removes tab config TOML files whose name starts with
 /// `prefix` from `~/.warp/tab_configs/` on drop. Because `Drop` runs even
 /// when a test panics, this prevents stale worktree configs from leaking

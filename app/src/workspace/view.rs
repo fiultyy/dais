@@ -147,8 +147,6 @@ use crate::settings::{
     AISettings, AISettingsChangedEvent, CodeSettings, CodeSettingsChangedEvent, CtrlTabBehavior,
     DefaultSessionMode,
 };
-// Zap Wave 7-3:`environments_page::EnvironmentsPage` import 随 ambient-agent UI
-// 子系统物理删。
 use crate::settings_view::pane_manager::SettingsPaneManager;
 use crate::settings_view::{SettingsSection, SettingsView, SettingsViewEvent};
 #[cfg(all(target_os = "windows", feature = "local_tty"))]
@@ -1044,11 +1042,17 @@ impl PartialEq for PendingTabSplit {
 
 /// Resolves the Orca edge-zone for a point inside the content area:
 /// left/right 20% bands win; above the tab-strip only the vertical bands
-/// apply (matching Orca's `resolvePaneColumnEdgeZone`).
+/// apply (matching Orca's `resolvePaneColumnEdgeZone`). Points outside the
+/// content area (e.g. a drag that never left the tab rail) resolve to no
+/// zone — Orca only shows the drop zone while the pointer is over the pane
+/// column being split.
 pub(crate) fn tab_split_zone_for_point(
     content_bounds: RectF,
     point: Vector2F,
 ) -> Option<Direction> {
+    if !content_bounds.contains_point(point) {
+        return None;
+    }
     let local_x = point.x() - content_bounds.min_x();
     let horizontal_edge = content_bounds.width() * 0.2;
     if local_x < horizontal_edge {
@@ -20129,7 +20133,20 @@ impl TypedActionView for Workspace {
                 tab_index,
                 tab_position,
             } => self.on_tab_drag(*tab_index, *tab_position, ctx),
-            DropTab => {
+            DropTab {
+                tab_index,
+                tab_position,
+            } => {
+                // Re-resolve the split zone from the mouse-up position
+                // before executing: the last `LeftMouseDragged` event can
+                // lag the final cursor location when motion events are
+                // coalesced during fast drags (Orca resolves the drop zone
+                // on pointerup for the same reason). Skipped once the drag
+                // has been handed off to another window.
+                if !CrossWindowTabDrag::as_ref(ctx).is_active() && self.tabs.len() > 1 {
+                    let pointer = self.drag_pointer_position(*tab_index, *tab_position);
+                    self.update_pending_tab_split(*tab_index, pointer, ctx);
+                }
                 // In-window tab→split drop wins when a zone is pending —
                 // the drag never left this window, so skip the cross-window
                 // cleanup entirely (Orca resolves the split before any
@@ -22723,16 +22740,36 @@ impl Workspace {
     /// one of three modes: forward to an in-progress cross-window drag,
     /// initiate a new cross-window drag when the drag leaves the tab bar
     /// (or from a single-tab window), or reorder within the current window.
+    /// The actual cursor position for a tab drag, derived from the ghost
+    /// rect plus the recorded grab offset inside it (Orca resolves drop
+    /// zones from the pointer, not the ghost). Falls back to the ghost
+    /// center when no drag state is available (e.g. after a cross-window
+    /// handoff cleared it).
+    fn drag_pointer_position(&self, tab_index: usize, ghost_rect: RectF) -> Vector2F {
+        self.tabs
+            .get(tab_index)
+            .and_then(|tab| tab.draggable_state.cursor_offset_within_element())
+            .map(|offset| {
+                vec2f(
+                    ghost_rect.min_x() + offset.x(),
+                    ghost_rect.min_y() + offset.y(),
+                )
+            })
+            .unwrap_or_else(|| ghost_rect.center())
+    }
+
     pub(crate) fn on_tab_drag(
         &mut self,
         current_index: usize,
         position: RectF,
         ctx: &mut ViewContext<Self>,
     ) {
-        // (Detach-on-leaving-tab-bar was replaced by detach-on-leaving-
-        // window below; in-window drags now resolve to edge-zone splits,
-        // matching Orca's drop model.)
-        let drag_center = position.center();
+        // Orca resolves drop zones and window-leave from the pointer
+        // position, not the ghost rect: the drag ghost can be much wider
+        // than the tab row, so its center can sit in a different zone than
+        // the cursor (grabbing a tab near its left edge shifts the center
+        // right by half the ghost width, flipping Up→Right).
+        let drag_pointer = self.drag_pointer_position(current_index, position);
 
         if CrossWindowTabDrag::as_ref(ctx).is_active() {
             let window_id = ctx.window_id();
@@ -22758,7 +22795,7 @@ impl Workspace {
         // every drag event; `DropTab` consumes it.
         let source_is_single_tab = self.tabs.len() == 1;
         if !source_is_single_tab {
-            self.update_pending_tab_split(current_index, drag_center, ctx);
+            self.update_pending_tab_split(current_index, drag_pointer, ctx);
         } else {
             self.pending_tab_split = None;
         }
@@ -22768,20 +22805,20 @@ impl Workspace {
         // anywhere inside this window, an edge-zone split may still claim
         // the drop — this is what makes dragging within the content area
         // never spawn a duplicate full-size window.
-        // `window_bounds` is in screen coordinates; `drag_center` is in
+        // `window_bounds` is in screen coordinates; `drag_pointer` is in
         // window-local coordinates. Convert before comparing (the original
         // detach path did the same via `drag_origin_on_screen`).
-        let drag_center_on_screen = ctx
+        let drag_pointer_on_screen = ctx
             .window_bounds(&ctx.window_id())
-            .map(|bounds| drag_center + bounds.origin())
-            .unwrap_or(drag_center);
+            .map(|bounds| drag_pointer + bounds.origin())
+            .unwrap_or(drag_pointer);
         let is_drag_outside_window = ctx
             .window_bounds(&ctx.window_id())
             .is_none_or(|bounds| {
-                drag_center_on_screen.x() < bounds.min_x()
-                    || drag_center_on_screen.x() > bounds.max_x()
-                    || drag_center_on_screen.y() < bounds.min_y()
-                    || drag_center_on_screen.y() > bounds.max_y()
+                drag_pointer_on_screen.x() < bounds.min_x()
+                    || drag_pointer_on_screen.x() > bounds.max_x()
+                    || drag_pointer_on_screen.y() < bounds.min_y()
+                    || drag_pointer_on_screen.y() > bounds.max_y()
             });
 
         if (is_drag_outside_window || source_is_single_tab)

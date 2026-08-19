@@ -40,7 +40,7 @@ use warp_core::ui::theme::color::internal_colors;
 use warp_core::ui::theme::AnsiColors;
 use warpui::elements::{
     Align, Border, ChildAnchor, Clipped, ConstrainedBox, Container, CornerRadius,
-    CrossAxisAlignment, DragAxis, Draggable, DraggableState, DropTarget, Element, Empty, Fill,
+    CrossAxisAlignment, Draggable, DraggableState, DropTarget, Element, Empty, Fill,
     Flex, Hoverable, MainAxisAlignment, MainAxisSize, MouseStateHandle, OffsetPositioning, Padding,
     ParentAnchor, ParentElement, ParentOffsetBounds, PositionedElementAnchor,
     PositionedElementOffsetBounds, Radius, Rect, SavePosition, Shrinkable, SizeConstraintCondition,
@@ -1745,12 +1745,17 @@ impl UiComponent for TabComponent<'_> {
                         tab_position: rect,
                     });
                 })
-                .on_drop(|ctx, _, _, _| ctx.dispatch_typed_action(WorkspaceAction::DropTab));
-            let draggable = if FeatureFlag::DragTabsToWindows.is_enabled() {
-                draggable
-            } else {
-                draggable.with_drag_axis(DragAxis::HorizontalOnly)
-            };
+                .on_drop(move |ctx, _, rect, _| {
+                    ctx.dispatch_typed_action(WorkspaceAction::DropTab {
+                        tab_index,
+                        tab_position: rect,
+                    });
+                });
+            // The drag stays free on both axes: in-window tab→content
+            // splits need the ghost to leave the tab bar vertically, and
+            // (with cross-window drags enabled) detaching requires leaving
+            // the window. The old horizontal-only lock guarded the removed
+            // detach-on-leaving-the-tab-bar behavior.
             let tab_with_drag: Box<dyn Element> = draggable.finish();
             SavePosition::new(tab_with_drag, &tab_position_id(tab_index)).finish()
         };
