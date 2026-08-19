@@ -2265,9 +2265,11 @@ impl PaneGroup {
                 .get(&self.focused_pane_id(ctx))
                 .and_then(|content| content.as_any().downcast_ref::<CodePane>())
                 .map(|pane| {
+                    // `try_as_ref` — see `most_recent_pane_state` for the
+                    // cross-window detach rationale.
                     pane.file_view(ctx)
-                        .as_ref(ctx)
-                        .active_tab_has_unsaved_changes(ctx)
+                        .try_as_ref(ctx)
+                        .is_some_and(|view| view.active_tab_has_unsaved_changes(ctx))
                 })
                 .unwrap_or(false)
     }
@@ -2368,7 +2370,15 @@ impl PaneGroup {
                 pane_content.as_any().downcast_ref::<TerminalPane>()
             })
             .filter_map(|session_data| {
-                let state_change = session_data.terminal_view(ctx).as_ref(ctx).current_state();
+                // `try_as_ref`: during a cross-window tab detach this pane
+                // group is momentarily owned by the preview window's update;
+                // reading through `as_ref` from the source window's render
+                // path panics with a circular view reference. A transiently
+                // unreadable pane contributes no state.
+                let Some(view) = session_data.terminal_view(ctx).try_as_ref(ctx) else {
+                    return None;
+                };
+                let state_change = view.current_state();
                 (!matches!(state_change.state, TerminalViewState::Normal)).then_some(state_change)
             })
             .fold(
@@ -4617,10 +4627,12 @@ impl PaneGroup {
             .get(&self.focused_pane_id(ctx))
             .and_then(|pane| pane.as_any().downcast_ref::<TerminalPane>())
             .and_then(|terminal_pane| {
+                // `try_as_ref` — see `most_recent_pane_state` for the
+                // cross-window detach rationale.
                 terminal_pane
                     .terminal_view(ctx)
-                    .as_ref(ctx)
-                    .shell_indicator_type()
+                    .try_as_ref(ctx)
+                    .and_then(|view| view.shell_indicator_type())
             })
     }
 
@@ -4673,15 +4685,14 @@ impl PaneGroup {
             if *GeneralSettings::as_ref(ctx).link_tooltip
                 && session
                     .terminal_view(ctx)
-                    .as_ref(ctx)
-                    .has_highlighted_link()
+                    .try_as_ref(ctx)
+                    .is_some_and(|view| view.has_highlighted_link())
             {
                 return;
             }
         }
-
-        self.focus_pane_by_id(id, ctx);
     }
+
 
     pub fn focus_pane_by_id(&mut self, id: PaneId, ctx: &mut ViewContext<Self>) {
         // If user clicks on a pane quickly after dragging the border, a race condition

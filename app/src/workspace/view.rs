@@ -1024,8 +1024,12 @@ pub struct Workspace {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PendingTabSplit {
     /// The tab being dragged (its pane group will be merged into the
-    /// active tab's pane group on drop).
+    /// target tab's pane group on drop).
     pub(crate) source_tab_index: usize,
+    /// The tab whose pane group receives the split panes. When the source
+    /// is the active tab, this is a neighbor (the drop splits them apart);
+    /// otherwise it is the active tab.
+    pub(crate) target_tab_index: usize,
     /// Edge zone the cursor hovers, as a split direction.
     pub(crate) direction: Direction,
 }
@@ -1033,6 +1037,7 @@ pub(crate) struct PendingTabSplit {
 impl PartialEq for PendingTabSplit {
     fn eq(&self, other: &Self) -> bool {
         self.source_tab_index == other.source_tab_index
+            && self.target_tab_index == other.target_tab_index
             && std::mem::discriminant(&self.direction) == std::mem::discriminant(&other.direction)
     }
 }
@@ -22724,30 +22729,10 @@ impl Workspace {
         position: RectF,
         ctx: &mut ViewContext<Self>,
     ) {
-        const DETACH_SENSITIVITY: f32 = 10.0;
-        // Only detach when the drag leaves every tab-bar presentation on its
-        // perpendicular axis. Windows with vertical tabs still render the
-        // horizontal bar, so checking only the horizontal rect would make
-        // vertical reorders (which move along Y) spuriously trip the detach.
+        // (Detach-on-leaving-tab-bar was replaced by detach-on-leaving-
+        // window below; in-window drags now resolve to edge-zone splits,
+        // matching Orca's drop model.)
         let drag_center = position.center();
-        let rects = tab_bar_rects_for_window(ctx.window_id(), ctx);
-        let is_drag_outside_tab_bar = if rects.is_empty() {
-            // No rect laid out yet (first frame); fall back to the horizontal
-            // bar's hardcoded height.
-            let drag_y = position.min_y();
-            !(-DETACH_SENSITIVITY..=TAB_BAR_HEIGHT + DETACH_SENSITIVITY).contains(&drag_y)
-        } else {
-            rects.into_iter().all(|rect| {
-                let is_vertical = rect.height() > rect.width();
-                if is_vertical {
-                    drag_center.x() < rect.min_x() - DETACH_SENSITIVITY
-                        || drag_center.x() > rect.max_x() + DETACH_SENSITIVITY
-                } else {
-                    drag_center.y() < rect.min_y() - DETACH_SENSITIVITY
-                        || drag_center.y() > rect.max_y() + DETACH_SENSITIVITY
-                }
-            })
-        };
 
         if CrossWindowTabDrag::as_ref(ctx).is_active() {
             let window_id = ctx.window_id();
@@ -22778,8 +22763,28 @@ impl Workspace {
             self.pending_tab_split = None;
         }
 
+        // Detach only when the drag leaves the *window* (Orca detaches on
+        // leaving the app window, not the tab bar). While the cursor is
+        // anywhere inside this window, an edge-zone split may still claim
+        // the drop — this is what makes dragging within the content area
+        // never spawn a duplicate full-size window.
+        // `window_bounds` is in screen coordinates; `drag_center` is in
+        // window-local coordinates. Convert before comparing (the original
+        // detach path did the same via `drag_origin_on_screen`).
+        let drag_center_on_screen = ctx
+            .window_bounds(&ctx.window_id())
+            .map(|bounds| drag_center + bounds.origin())
+            .unwrap_or(drag_center);
+        let is_drag_outside_window = ctx
+            .window_bounds(&ctx.window_id())
+            .is_none_or(|bounds| {
+                drag_center_on_screen.x() < bounds.min_x()
+                    || drag_center_on_screen.x() > bounds.max_x()
+                    || drag_center_on_screen.y() < bounds.min_y()
+                    || drag_center_on_screen.y() > bounds.max_y()
+            });
 
-        if (is_drag_outside_tab_bar || source_is_single_tab)
+        if (is_drag_outside_window || source_is_single_tab)
             && FeatureFlag::DragTabsToWindows.is_enabled()
             && self.pending_tab_split.is_none()
         {
@@ -22791,7 +22796,6 @@ impl Workspace {
                 current_index,
                 position,
                 source_is_single_tab,
-                is_drag_outside_tab_bar,
                 ctx,
             );
             return;
@@ -22830,11 +22834,11 @@ impl Workspace {
         ctx: &mut ViewContext<Self>,
     ) {
         // Orca `isPaneColumnSplitDropNoOp`: splitting a tab into its own
-        // pane group is meaningless — require a different target.
-        if current_index == self.active_tab_index {
-            self.pending_tab_split = None;
-            return;
-        }
+        // pane group is meaningless. When the source IS the active tab,
+        // the drop target is a neighbor instead (dragging the active tab
+        // to an edge splits it alongside a neighbor, matching how Orca
+        // resolves the target group under the pointer).
+        let target_index = self.split_target_index_for(current_index);
         let Some(content_bounds) = ctx
             .element_position_by_id(TAB_CONTENT_POSITION_ID)
             .or(self.tab_content_bounds)
@@ -22842,14 +22846,15 @@ impl Workspace {
             self.pending_tab_split = None;
             return;
         };
-        self.tab_content_bounds = Some(content_bounds);
-        let zone = tab_split_zone_for_point(content_bounds, drag_center);
-        let new = zone.map(|direction| PendingTabSplit {
-            source_tab_index: current_index,
-            direction,
+        let zone = target_index.and_then(|target| {
+            tab_split_zone_for_point(content_bounds, drag_center).map(|direction| PendingTabSplit {
+                source_tab_index: current_index,
+                target_tab_index: target,
+                direction,
+            })
         });
-        if new != self.pending_tab_split {
-            self.pending_tab_split = new;
+        if zone != self.pending_tab_split {
+            self.pending_tab_split = zone;
             ctx.notify();
         }
     }
@@ -22863,16 +22868,25 @@ impl Workspace {
             return;
         };
         let source_index = pending.source_tab_index;
+        let target_index = pending.target_tab_index;
         let Some(source_tab) = self.tabs.get(source_index) else {
             return;
         };
+        let Some(target_tab) = self.tabs.get(target_index) else {
+            return;
+        };
         let source_pane_group = source_tab.pane_group.clone();
-        let target_pane_group = self.active_tab_pane_group().clone();
+        let target_pane_group = target_tab.pane_group.clone();
 
         // Orca no-op guard: dropping onto the tab's own group does nothing.
         if source_pane_group.id() == target_pane_group.id() {
             self.tab_content_bounds = None;
             return;
+        }
+
+        // The target tab becomes the active tab so the split is visible.
+        if self.active_tab_index != target_index {
+            self.set_active_tab_index(target_index, ctx);
         }
 
         // The target's focused pane anchors the split (Orca splits relative
@@ -22910,6 +22924,19 @@ impl Workspace {
         ctx.notify();
     }
 
+    /// The tab whose pane group receives a split drop from `source_index`:
+    /// the active tab when dragging a background tab, or (when dragging the
+    /// active tab itself) the first other visible tab — splitting a tab
+    /// into its own group is a no-op (Orca `isPaneColumnSplitDropNoOp`).
+    fn split_target_index_for(&self, source_index: usize) -> Option<usize> {
+        if source_index != self.active_tab_index {
+            return Some(self.active_tab_index);
+        }
+        self.visible_tab_indices()
+            .into_iter()
+            .find(|&index| index != source_index)
+    }
+
     /// Folds the (previously inline) cross-window detach sequence out of
     /// `on_tab_drag`. Only reached when no in-window split zone is pending.
     #[allow(clippy::too_many_arguments)]
@@ -22918,7 +22945,6 @@ impl Workspace {
         current_index: usize,
         position: RectF,
         source_is_single_tab: bool,
-        _is_drag_outside_tab_bar: bool,
         ctx: &mut ViewContext<Self>,
     ) {
         let source_was_single_tab = source_is_single_tab;
