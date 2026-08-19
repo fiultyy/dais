@@ -860,6 +860,14 @@ pub struct Workspace {
     last_active_tab_by_project: HashMap<PathBuf, EntityId>,
     /// Project rail: scroll state for the vertical-mode top-bar tab list.
     vertical_tabs_top_bar_scroll_state: ClippedScrollStateHandle,
+    /// In-window tab→split drag (Orca `dropUnifiedTab` with
+    /// `splitDirection` equivalent): while a tab drag hovers the content
+    /// area's edge zone, holds the source tab and the resolved split
+    /// direction for `DropTab` to execute as a pane merge.
+    pub(crate) pending_tab_split: Option<PendingTabSplit>,
+    /// Content-area rect used to resolve split zones while
+    /// `pending_tab_split` is live (cache of the tab content bounds).
+    tab_content_bounds: Option<RectF>,
     pub(crate) hovered_tab_index: Option<TabBarHoverIndex>,
     tab_bar_hover_state: MouseStateHandle,
     tab_fixed_width: Option<f32>,
@@ -1010,6 +1018,49 @@ pub struct Workspace {
     tab_config_action_sidecar_item: Option<SidecarItemKind>,
     tab_config_action_sidecar_mouse_states: crate::tab_configs::action_sidecar::SidecarMouseStates,
     remove_tab_config_confirmation_dialog: ViewHandle<RemoveTabConfigConfirmationDialog>,
+}
+
+/// An in-window tab→split drop in progress (Orca pane-column split target).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PendingTabSplit {
+    /// The tab being dragged (its pane group will be merged into the
+    /// active tab's pane group on drop).
+    pub(crate) source_tab_index: usize,
+    /// Edge zone the cursor hovers, as a split direction.
+    pub(crate) direction: Direction,
+}
+
+impl PartialEq for PendingTabSplit {
+    fn eq(&self, other: &Self) -> bool {
+        self.source_tab_index == other.source_tab_index
+            && std::mem::discriminant(&self.direction) == std::mem::discriminant(&other.direction)
+    }
+}
+
+/// Resolves the Orca edge-zone for a point inside the content area:
+/// left/right 20% bands win; above the tab-strip only the vertical bands
+/// apply (matching Orca's `resolvePaneColumnEdgeZone`).
+pub(crate) fn tab_split_zone_for_point(
+    content_bounds: RectF,
+    point: Vector2F,
+) -> Option<Direction> {
+    let local_x = point.x() - content_bounds.min_x();
+    let horizontal_edge = content_bounds.width() * 0.2;
+    if local_x < horizontal_edge {
+        return Some(Direction::Left);
+    }
+    if local_x > content_bounds.width() - horizontal_edge {
+        return Some(Direction::Right);
+    }
+    let local_y = point.y() - content_bounds.min_y();
+    let vertical_edge = content_bounds.height() * 0.2;
+    if local_y < vertical_edge {
+        return Some(Direction::Up);
+    }
+    if local_y > content_bounds.height() - vertical_edge {
+        return Some(Direction::Down);
+    }
+    None
 }
 
 impl Workspace {
@@ -2889,6 +2940,8 @@ impl Workspace {
             active_project: None,
             last_active_tab_by_project: HashMap::new(),
             vertical_tabs_top_bar_scroll_state: ClippedScrollStateHandle::default(),
+            pending_tab_split: None,
+            tab_content_bounds: None,
             hovered_tab_index: None,
             tab_bar_hover_state: Default::default(),
             traffic_light_mouse_states: Default::default(),
@@ -20072,6 +20125,14 @@ impl TypedActionView for Workspace {
                 tab_position,
             } => self.on_tab_drag(*tab_index, *tab_position, ctx),
             DropTab => {
+                // In-window tab→split drop wins when a zone is pending —
+                // the drag never left this window, so skip the cross-window
+                // cleanup entirely (Orca resolves the split before any
+                // other drop handling too).
+                if self.pending_tab_split.is_some() {
+                    self.current_workspace_state.is_tab_being_dragged = false;
+                    self.execute_pending_tab_split(ctx);
+                } else {
                 let is_cross_window = CrossWindowTabDrag::as_ref(ctx).is_active();
                 let handed_off_tab_index =
                     CrossWindowTabDrag::as_ref(ctx)
@@ -20101,6 +20162,7 @@ impl TypedActionView for Workspace {
                     // from `Workspace::on_window_closed` once the source /
                     // preview window actually closes. See the field doc on
                     // `CrossWindowTabDrag::pending_source_window_closes`.
+                }
                 }
             }
             CopyAccessTokenToClipboard => {
@@ -21158,6 +21220,60 @@ impl View for Workspace {
                 .finish()
         };
         let mut stack = Stack::new();
+
+        // In-window tab→split drop overlay (Orca TabGroupDropOverlay): a
+        // translucent highlight over the hovered edge zone so the user sees
+        // where the tab will land before releasing the drag.
+        if let (Some(pending), Some(content_bounds)) =
+            (self.pending_tab_split, self.tab_content_bounds)
+        {
+            let appearance = Appearance::as_ref(app);
+            let theme = appearance.theme();
+            let (zone_origin, zone_size) = match pending.direction {
+                Direction::Left => (
+                    content_bounds.origin(),
+                    vec2f(content_bounds.width() * 0.5, content_bounds.height()),
+                ),
+                Direction::Right => (
+                    vec2f(
+                        content_bounds.min_x() + content_bounds.width() * 0.5,
+                        content_bounds.min_y(),
+                    ),
+                    vec2f(content_bounds.width() * 0.5, content_bounds.height()),
+                ),
+                Direction::Up => (
+                    content_bounds.origin(),
+                    vec2f(content_bounds.width(), content_bounds.height() * 0.5),
+                ),
+                Direction::Down => (
+                    vec2f(
+                        content_bounds.min_x(),
+                        content_bounds.min_y() + content_bounds.height() * 0.5,
+                    ),
+                    vec2f(content_bounds.width(), content_bounds.height() * 0.5),
+                ),
+            };
+            let zone = Rect::new()
+                .with_background(theme.accent().with_opacity(40))
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+                .finish();
+            let zone = ConstrainedBox::new(zone)
+                .with_width(zone_size.x())
+                .with_height(zone_size.y())
+                .finish();
+            stack.add_positioned_overlay_child(
+                zone,
+                OffsetPositioning::offset_from_save_position_element(
+                    TAB_CONTENT_POSITION_ID,
+                    zone_origin - content_bounds.origin(),
+                    PositionedElementOffsetBounds::WindowBySize,
+                    PositionedElementAnchor::TopLeft,
+                    ChildAnchor::TopLeft,
+                ),
+            );
+        }
+
+
 
         #[cfg(target_family = "wasm")]
         {
@@ -22651,117 +22767,37 @@ impl Workspace {
             return;
         }
 
-        if let Some(tab_data) = self.tabs.get(current_index) {
-            if tab_data.detached {
-                return;
-            }
+        // In-window tab→split (Orca pane-column split target): a drag that
+        // left the tab bar but still hovers the content area's edge zone
+        // resolves to a split instead of a cross-window detach. Updated on
+        // every drag event; `DropTab` consumes it.
+        let source_is_single_tab = self.tabs.len() == 1;
+        if !source_is_single_tab {
+            self.update_pending_tab_split(current_index, drag_center, ctx);
+        } else {
+            self.pending_tab_split = None;
         }
 
-        let source_is_single_tab = self.tabs.len() == 1;
+
         if (is_drag_outside_tab_bar || source_is_single_tab)
             && FeatureFlag::DragTabsToWindows.is_enabled()
+            && self.pending_tab_split.is_none()
         {
-            let source_was_single_tab = source_is_single_tab;
-            if !source_was_single_tab {
-                if let Some(tab_data) = self.tabs.get_mut(current_index) {
-                    tab_data.detached = true;
-                }
+            if let Some(tab_data) = self.tabs.get_mut(current_index) {
+                tab_data.detached = true;
             }
 
-            let window_bounds = match ctx.window_bounds(&ctx.window_id()) {
-                Some(bounds) => bounds,
-                None => return,
-            };
-            let source_window_origin = window_bounds.origin();
-            let drag_origin_in_window = vec2f(position.min_x(), position.min_y());
-            let drag_origin_on_screen = vec2f(
-                source_window_origin.x() + drag_origin_in_window.x(),
-                source_window_origin.y() + drag_origin_in_window.y(),
+            self.begin_cross_window_tab_drag(
+                current_index,
+                position,
+                source_is_single_tab,
+                is_drag_outside_tab_bar,
+                ctx,
             );
-            let last_known_target_tab_origin_in_window = ctx
-                .element_position_by_id(tab_position_id(0))
-                .map(|rect| vec2f(rect.min_x(), rect.min_y()))
-                .unwrap_or_else(|| vec2f(0.0, 0.0));
-            let window_position = drag_origin_on_screen - last_known_target_tab_origin_in_window;
-            let window_size = window_bounds.size();
-            let initial_drag_center_offset =
-                position.center() - vec2f(position.min_x(), position.min_y());
-            let source_window_id = ctx.window_id();
-
-            // Capture the source layout (vertical tabs panel vs horizontal
-            // tab bar) and the rendered tab's element size at drag-start.
-            // Both are frozen for the duration of the drag so the floating
-            // ghost chip mirrors what was on screen when the drag began,
-            // even if the user toggles their layout mid-drag.
-            let was_vertical_layout = uses_vertical_tabs(ctx);
-            let source_element_size = ctx
-                .element_position_by_id(tab_position_id(current_index))
-                .map(|rect| rect.size())
-                .unwrap_or_else(|| vec2f(120., 34.));
-
-            if source_was_single_tab {
-                let new_bounds = RectF::new(window_position, window_size);
-                ctx.set_and_cache_window_bounds(source_window_id, new_bounds);
-                ctx.windows().cancel_synthetic_drag(source_window_id);
-                if let Some(tab) = self.tabs.get(current_index) {
-                    tab.draggable_state.set_suppress_overlay_paint(true);
-                    tab.draggable_state
-                        .adjust_mouse_position(source_window_origin - window_position);
-                }
-
-                CrossWindowTabDrag::handle(ctx).update(ctx, |drag, _ctx| {
-                    drag.begin_single_tab_drag(
-                        source_window_id,
-                        initial_drag_center_offset,
-                        window_size,
-                        last_known_target_tab_origin_in_window,
-                        was_vertical_layout,
-                        source_element_size,
-                    );
-                });
-            } else {
-                let Some(transferred_tab) =
-                    self.get_tab_transfer_info_for_attach(current_index, ctx)
-                else {
-                    return;
-                };
-
-                let preview_window_id = crate::root_view::create_transferred_window(
-                    transferred_tab,
-                    source_window_id,
-                    window_size,
-                    window_position,
-                    true,
-                    ctx,
-                );
-                ctx.set_suppress_focus_for_window(Some(preview_window_id));
-
-                CrossWindowTabDrag::handle(ctx).update(ctx, |drag, _ctx| {
-                    drag.begin_multi_tab_drag(
-                        source_window_id,
-                        current_index,
-                        initial_drag_center_offset,
-                        window_size,
-                        last_known_target_tab_origin_in_window,
-                        preview_window_id,
-                        was_vertical_layout,
-                        source_element_size,
-                    );
-                });
-            }
-
-            if !source_was_single_tab && current_index == self.active_tab_index {
-                let adjacent = if current_index + 1 < self.tabs.len() {
-                    current_index + 1
-                } else {
-                    current_index.saturating_sub(1)
-                };
-                self.set_active_tab_index(adjacent, ctx);
-            }
-
-            ctx.notify();
             return;
         }
+
+
 
         let new_index = if FeatureFlag::VerticalTabs.is_enabled()
             && *TabSettings::as_ref(ctx).use_vertical_tabs
@@ -22782,6 +22818,207 @@ impl Workspace {
 
             ctx.notify();
         }
+    }
+
+    /// Resolves the Orca edge-zone for the current drag position and stores
+    /// it as the pending in-window split, or clears it when the cursor is
+    /// outside every zone / over the source tab itself (no-op split).
+    fn update_pending_tab_split(
+        &mut self,
+        current_index: usize,
+        drag_center: Vector2F,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        // Orca `isPaneColumnSplitDropNoOp`: splitting a tab into its own
+        // pane group is meaningless — require a different target.
+        if current_index == self.active_tab_index {
+            self.pending_tab_split = None;
+            return;
+        }
+        let Some(content_bounds) = ctx
+            .element_position_by_id(TAB_CONTENT_POSITION_ID)
+            .or(self.tab_content_bounds)
+        else {
+            self.pending_tab_split = None;
+            return;
+        };
+        self.tab_content_bounds = Some(content_bounds);
+        let zone = tab_split_zone_for_point(content_bounds, drag_center);
+        let new = zone.map(|direction| PendingTabSplit {
+            source_tab_index: current_index,
+            direction,
+        });
+        if new != self.pending_tab_split {
+            self.pending_tab_split = new;
+            ctx.notify();
+        }
+    }
+
+    /// Executes a pending in-window tab→split drop (Orca
+    /// `dropUnifiedTab(tabId, {groupId, splitDirection})` equivalent):
+    /// moves every pane of the source tab into the active tab's pane group
+    /// at the hovered edge, then closes the (now empty) source tab.
+    fn execute_pending_tab_split(&mut self, ctx: &mut ViewContext<Self>) {
+        let Some(pending) = self.pending_tab_split.take() else {
+            return;
+        };
+        let source_index = pending.source_tab_index;
+        let Some(source_tab) = self.tabs.get(source_index) else {
+            return;
+        };
+        let source_pane_group = source_tab.pane_group.clone();
+        let target_pane_group = self.active_tab_pane_group().clone();
+
+        // Orca no-op guard: dropping onto the tab's own group does nothing.
+        if source_pane_group.id() == target_pane_group.id() {
+            self.tab_content_bounds = None;
+            return;
+        }
+
+        // The target's focused pane anchors the split (Orca splits relative
+        // to the panel root; anchoring on the focused pane matches how
+        // in-group pane moves resolve in this codebase).
+        let target_focused_pane_id = target_pane_group
+            .as_ref(ctx)
+            .focused_pane_id(ctx);
+        let pane_ids: Vec<PaneId> = source_pane_group
+            .as_ref(ctx)
+            .visible_pane_ids();
+
+        for pane_id in pane_ids {
+            let pane = source_pane_group.update(ctx, |pg, ctx| {
+                pg.remove_pane_for_move(&pane_id, ctx)
+            });
+            let Some(pane) = pane else { continue };
+            target_pane_group.update(ctx, |pg, ctx| {
+                pg.add_pane_sibling(
+                    target_focused_pane_id,
+                    pending.direction,
+                    pane,
+                    /* focus_new_pane */ false,
+                    ctx,
+                );
+            });
+        }
+
+        // The source tab is now empty — remove it without undo (the panes
+        // live on in the target group; undoing a "close" there would be
+        // misleading).
+        self.remove_tab_without_undo(source_index, ctx);
+        self.tab_content_bounds = None;
+        self.focus_active_tab(ctx);
+        ctx.notify();
+    }
+
+    /// Folds the (previously inline) cross-window detach sequence out of
+    /// `on_tab_drag`. Only reached when no in-window split zone is pending.
+    #[allow(clippy::too_many_arguments)]
+    fn begin_cross_window_tab_drag(
+        &mut self,
+        current_index: usize,
+        position: RectF,
+        source_is_single_tab: bool,
+        _is_drag_outside_tab_bar: bool,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        let source_was_single_tab = source_is_single_tab;
+        if !source_was_single_tab {
+            if let Some(tab_data) = self.tabs.get_mut(current_index) {
+                tab_data.detached = true;
+            }
+        }
+
+        let Some(window_bounds) = ctx.window_bounds(&ctx.window_id()) else {
+            return;
+        };
+        let source_window_origin = window_bounds.origin();
+        let drag_origin_in_window = vec2f(position.min_x(), position.min_y());
+        let drag_origin_on_screen = vec2f(
+            source_window_origin.x() + drag_origin_in_window.x(),
+            source_window_origin.y() + drag_origin_in_window.y(),
+        );
+        let last_known_target_tab_origin_in_window = ctx
+            .element_position_by_id(tab_position_id(0))
+            .map(|rect| vec2f(rect.min_x(), rect.min_y()))
+            .unwrap_or_else(|| vec2f(0.0, 0.0));
+        let window_position = drag_origin_on_screen - last_known_target_tab_origin_in_window;
+        let window_size = window_bounds.size();
+        let initial_drag_center_offset =
+            position.center() - vec2f(position.min_x(), position.min_y());
+        let source_window_id = ctx.window_id();
+
+        // Capture the source layout (vertical tabs panel vs horizontal
+        // tab bar) and the rendered tab's element size at drag-start.
+        // Both are frozen for the duration of the drag so the floating
+        // ghost chip mirrors what was on screen when the drag began,
+        // even if the user toggles their layout mid-drag.
+        let was_vertical_layout = uses_vertical_tabs(ctx);
+        let source_element_size = ctx
+            .element_position_by_id(tab_position_id(current_index))
+            .map(|rect| rect.size())
+            .unwrap_or_else(|| vec2f(120., 34.));
+
+        if source_was_single_tab {
+            let new_bounds = RectF::new(window_position, window_size);
+            ctx.set_and_cache_window_bounds(source_window_id, new_bounds);
+            ctx.windows().cancel_synthetic_drag(source_window_id);
+            if let Some(tab) = self.tabs.get(current_index) {
+                tab.draggable_state.set_suppress_overlay_paint(true);
+                tab.draggable_state
+                    .adjust_mouse_position(source_window_origin - window_position);
+            }
+
+            CrossWindowTabDrag::handle(ctx).update(ctx, |drag, _ctx| {
+                drag.begin_single_tab_drag(
+                    source_window_id,
+                    initial_drag_center_offset,
+                    window_size,
+                    last_known_target_tab_origin_in_window,
+                    was_vertical_layout,
+                    source_element_size,
+                );
+            });
+        } else {
+            let Some(transferred_tab) =
+                self.get_tab_transfer_info_for_attach(current_index, ctx)
+            else {
+                return;
+            };
+
+            let preview_window_id = crate::root_view::create_transferred_window(
+                transferred_tab,
+                source_window_id,
+                window_size,
+                window_position,
+                true,
+                ctx,
+            );
+            ctx.set_suppress_focus_for_window(Some(preview_window_id));
+
+            CrossWindowTabDrag::handle(ctx).update(ctx, |drag, _ctx| {
+                drag.begin_multi_tab_drag(
+                    source_window_id,
+                    current_index,
+                    initial_drag_center_offset,
+                    window_size,
+                    last_known_target_tab_origin_in_window,
+                    preview_window_id,
+                    was_vertical_layout,
+                    source_element_size,
+                );
+            });
+        }
+
+        if !source_was_single_tab && current_index == self.active_tab_index {
+            let adjacent = if current_index + 1 < self.tabs.len() {
+                current_index + 1
+            } else {
+                current_index.saturating_sub(1)
+            };
+            self.set_active_tab_index(adjacent, ctx);
+        }
+
+        ctx.notify();
     }
 
     /// Performs the source-workspace cleanup indicated by `DropResult`.

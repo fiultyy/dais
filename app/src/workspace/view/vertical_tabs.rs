@@ -1568,6 +1568,7 @@ fn render_project_section(
     state: &VerticalTabsPanelState,
     workspace: &Workspace,
     app: &AppContext,
+    show_separator: bool,
 ) -> Box<dyn Element> {
     let appearance = Appearance::as_ref(app);
     let theme = appearance.theme();
@@ -1685,22 +1686,36 @@ fn render_project_section(
     .with_width(0.) // 0 = unconstrained; stretch via parent
     .finish();
 
-    Container::new(
-        Flex::column()
-            .with_child(section.finish())
-            .with_child(
-                Container::new(Shrinkable::new(1., separator).finish())
-                    .with_padding(
-                        Padding::uniform(0.)
-                            .with_left(GROUP_HORIZONTAL_PADDING)
-                            .with_right(GROUP_HORIZONTAL_PADDING)
-                            .with_top(GROUP_ITEM_SPACING),
-                    )
-                    .finish(),
-            )
-            .finish(),
-    )
-    .finish()
+    if show_separator {
+        // Separator between project rail and tab area.
+        let separator = ConstrainedBox::new(
+            Rect::new()
+                .with_background(theme.foreground_button_color().with_opacity(20))
+                .finish(),
+        )
+        .with_height(1.)
+        .with_width(0.) // 0 = unconstrained; stretch via parent
+        .finish();
+
+        Container::new(
+            Flex::column()
+                .with_child(section.finish())
+                .with_child(
+                    Container::new(Shrinkable::new(1., separator).finish())
+                        .with_padding(
+                            Padding::uniform(0.)
+                                .with_left(GROUP_HORIZONTAL_PADDING)
+                                .with_right(GROUP_HORIZONTAL_PADDING)
+                                .with_top(GROUP_ITEM_SPACING),
+                        )
+                        .finish(),
+                )
+                .finish(),
+        )
+        .finish()
+    } else {
+        section.finish()
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1927,23 +1942,46 @@ fn render_vertical_tabs_panel(
     let appearance = Appearance::as_ref(app);
     let theme = appearance.theme();
 
-    let scrollable_groups = ClippedScrollable::vertical(
-        state.scroll_state.clone(),
-        render_groups(state, workspace, app),
-        ScrollbarWidth::Custom(4.),
-        theme.nonactive_ui_detail().into(),
-        theme.active_ui_detail().into(),
-        ElementFill::None,
-    )
-    .with_overlayed_scrollbar()
-    .finish();
 
-    let panel_content = Flex::column()
-        .with_main_axis_size(MainAxisSize::Max)
-        .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
-        .with_child(render_project_section(state, workspace, app)) // BISECT-control-bar: control bar temporarily removed
-        .with_child(Shrinkable::new(1., scrollable_groups).finish())
+    // Dedup: with a project selected, the rail's classic vertical tab list
+    // below the separator shows exactly the selected project's tabs — the
+    // same set already shown by the top-bar list and the selected card's
+    // embedded subtree. Hide it (and the separator) so each tab appears once
+    // per surface; the "All" view keeps the full vertical list.
+    let panel_content = if workspace.active_project.is_some() {
+        Flex::column()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+            .with_child(render_project_section(
+                state,
+                workspace,
+                app,
+                /* show_separator */ false,
+            ))
+            .finish()
+    } else {
+        let scrollable_groups = ClippedScrollable::vertical(
+            state.scroll_state.clone(),
+            render_groups(state, workspace, app),
+            ScrollbarWidth::Custom(4.),
+            theme.nonactive_ui_detail().into(),
+            theme.active_ui_detail().into(),
+            ElementFill::None,
+        )
+        .with_overlayed_scrollbar()
         .finish();
+        Flex::column()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+            .with_child(render_project_section(
+                state,
+                workspace,
+                app,
+                /* show_separator */ true,
+            )) // BISECT-control-bar: control bar temporarily removed
+            .with_child(Shrinkable::new(1., scrollable_groups).finish())
+            .finish()
+    };
 
     // The settings popup is rendered at the workspace level (with Dismiss for click-outside-
     // to-close). Rendering it here again shares MouseStateHandle instances across two Hoverable

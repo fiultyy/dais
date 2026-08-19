@@ -5883,7 +5883,14 @@ impl PaneGroup {
         self.panes_of::<TerminalPane>()
             .filter_map(|p| {
                 let terminal_view = p.terminal_view(ctx);
-                let is_shared = terminal_view.as_ref(ctx).is_sharing_session();
+                // `try_view`: during a cross-window tab detach the pane group
+                // is momentarily owned by the preview window's update; reading
+                // through `as_ref` from the source window's render path then
+                // panics with a circular view reference. A pane whose view is
+                // transiently unreadable simply isn't sharing.
+                let is_shared = terminal_view
+                    .try_as_ref(ctx)
+                    .is_some_and(|view| view.is_sharing_session());
                 is_shared.then(|| terminal_view.id())
             })
             .collect()
