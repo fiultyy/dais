@@ -361,8 +361,8 @@ use warpui::clipboard::ClipboardContent;
 #[cfg(target_family = "wasm")]
 use warpui::elements::Percentage;
 use warpui::elements::{
-    CacheOption, ClippedScrollStateHandle, ClippedScrollable, DispatchEventResult, DraggableState,
-    DropTarget, EventHandler, Image, MouseInBehavior, Rect, ScrollbarWidth,
+    CacheOption, ClippedScrollStateHandle, DispatchEventResult, DraggableState, DropTarget,
+    EventHandler, Image, MouseInBehavior, Rect,
 };
 use warpui::ui_components::button::Button;
 use warpui::windowing::{StateEvent, WindowManager};
