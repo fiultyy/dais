@@ -6,7 +6,7 @@ use crate::code::icon_from_file_path;
 use crate::safe_triangle::SafeTriangle;
 use crate::send_telemetry_from_app_ctx;
 use crate::terminal::cli_agent_sessions::listener::session_supports_rich_status;
-use crate::terminal::cli_agent_sessions::CLIAgentSessionsModel;
+use crate::terminal::cli_agent_sessions::{CLIAgentSessionStatus, CLIAgentSessionsModel};
 use crate::terminal::view::TerminalViewState;
 use crate::terminal::CLIAgent;
 use crate::ui_components::icon_with_status::{
@@ -32,6 +32,7 @@ use crate::pane_group::{
 };
 use crate::tab::{tab_position_id, SelectedTabColor, TabData};
 use crate::terminal::session_settings::SessionSettings;
+use crate::terminal::resizable_data::{ModalType, ResizableData};
 use crate::terminal::TerminalView;
 use crate::themes::theme::Fill as ThemeFill;
 use crate::ui_components::buttons::combo_inner_button;
@@ -1461,6 +1462,95 @@ fn render_new_tab_button(
     .finish()
 }
 
+/// Derived agent status for a project card (Orca StatusIndicator equivalent).
+/// Computed at render time from the CLI agent sessions of the project's
+/// terminal tabs — never stored, mirroring how Orca derives worktree status
+/// from its store instead of persisting it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ProjectAgentStatus {
+    /// At least one session is running.
+    Working,
+    /// At least one session is blocked on a user action.
+    Blocked,
+    /// Sessions exist, none running or blocked.
+    Done,
+    /// No sessions at all.
+    Idle,
+}
+
+impl ProjectAgentStatus {
+    fn badge_status(self) -> Option<ConversationStatus> {
+        match self {
+            ProjectAgentStatus::Working => Some(ConversationStatus::InProgress),
+            ProjectAgentStatus::Blocked => Some(ConversationStatus::Blocked {
+                blocked_action: String::new(),
+            }),
+            ProjectAgentStatus::Done => Some(ConversationStatus::Success),
+            ProjectAgentStatus::Idle => None,
+        }
+    }
+}
+
+fn project_agent_status(
+    workspace: &Workspace,
+    project: &Path,
+    app: &AppContext,
+) -> ProjectAgentStatus {
+    let sessions = CLIAgentSessionsModel::as_ref(app);
+    let mut any_session = false;
+    let mut status = ProjectAgentStatus::Idle;
+    for tab in workspace
+        .tabs
+        .iter()
+        .filter(|tab| tab.project_path.as_deref() == Some(project))
+    {
+        for terminal_view in tab.pane_group.as_ref(app).terminal_views(app) {
+            if let Some(session) = sessions.session(terminal_view.as_ref(app).id()) {
+                any_session = true;
+                match session.status {
+                    CLIAgentSessionStatus::InProgress => {
+                        // Working wins over everything else; stop scanning.
+                        return ProjectAgentStatus::Working;
+                    }
+                    CLIAgentSessionStatus::Blocked { .. } => {
+                        status = ProjectAgentStatus::Blocked;
+                    }
+                    CLIAgentSessionStatus::Success => {
+                        if status != ProjectAgentStatus::Blocked {
+                            status = ProjectAgentStatus::Done;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if any_session {
+        status
+    } else {
+        ProjectAgentStatus::Idle
+    }
+}
+
+/// Short path hint for a project card's second line: `~` for the home
+/// directory plus the last three path segments, so same-named projects in
+/// different parents stay distinguishable.
+fn project_path_hint(path: &Path) -> String {
+    let home = std::env::var("HOME").ok().map(PathBuf::from);
+    let display: PathBuf = match &home {
+        Some(h) if path.starts_with(h) => {
+            let mut rest = PathBuf::from("~");
+            rest.push(path.strip_prefix(h).unwrap_or(path));
+            rest
+        }
+        _ => path.to_path_buf(),
+    };
+    let mut tail = PathBuf::new();
+    for segment in display.iter().rev().take(3).collect::<Vec<_>>().into_iter().rev() {
+        tail.push(segment);
+    }
+    tail.to_string_lossy().into_owned()
+}
+
 /// Project rail: section header (title + "+") per known project card, and a
 /// separator above the tab area. Clicking a card switches the tab filter to
 /// that project; "All" clears it. Tabs are never unloaded — other projects'
@@ -1675,11 +1765,23 @@ fn render_project_card(
         })
         .finish();
 
-    // Row: [card (expand)] [× close for real projects]
+    // Row: [status dot] [card (expand)] [× close for real projects]
     let mut row = Flex::row()
         .with_main_axis_size(MainAxisSize::Max)
-        .with_cross_axis_alignment(CrossAxisAlignment::Center)
-        .with_child(Shrinkable::new(1., card).finish());
+        .with_cross_axis_alignment(CrossAxisAlignment::Center);
+
+    if let Some(path) = project.as_ref() {
+        let status = project_agent_status(workspace, path, app);
+        let dot = render_pane_icon_with_status(
+            IconWithStatusVariant::OzAgent {
+                status: status.badge_status(),
+                is_ambient: false,
+            },
+            theme,
+        );
+        row = row.with_child(dot);
+    }
+    row = row.with_child(Shrinkable::new(1., card).finish());
 
     if let Some(project) = project.clone() {
         let close_button = combo_inner_button(
@@ -1704,11 +1806,37 @@ fn render_project_card(
     }
     let row_el = row.finish();
 
+    // Card block: name row + (for real projects) a small path hint line so
+    // same-named projects in different parents stay distinguishable.
+    let mut card_block = Flex::column()
+        .with_main_axis_size(MainAxisSize::Min)
+        .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+        .with_child(row_el);
+
+    if let Some(path) = project.as_ref() {
+        let hint = Text::new_inline(
+            project_path_hint(path),
+            appearance.ui_font_family(),
+            9.5,
+        )
+        .with_color(sub_text.into())
+        .finish();
+        card_block = card_block.with_child(
+            Container::new(Shrinkable::new(1., hint).finish())
+                .with_padding(
+                    Padding::uniform(0.)
+                        .with_left(GROUP_HORIZONTAL_PADDING + BADGE_ICON_SIZE + ICON_WITH_STATUS_GAP)
+                        .with_bottom(1.),
+                )
+                .finish(),
+        );
+    }
+
     // Selected project card: embed its tab groups below (collapsible).
     let mut column = Flex::column()
         .with_main_axis_size(MainAxisSize::Min)
         .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
-        .with_child(row_el);
+        .with_child(card_block.finish());
 
     if let Some(project) = project.as_ref() {
         if is_selected && !is_collapsed {
@@ -6394,6 +6522,20 @@ impl Workspace {
         app: &AppContext,
     ) -> Box<dyn Element> {
         render_vertical_tabs_panel(&self.vertical_tabs_panel, self, side, app)
+    }
+
+    /// Replace the vertical tabs panel's default width handle with the
+    /// window's persisted one (ModalType::VerticalTabsWidth in ResizableData,
+    /// fed by WindowSnapshot on restore). Must run before first render.
+    pub(crate) fn adopt_vertical_tabs_resizable_state(&mut self, ctx: &AppContext) {
+        let handle = ResizableData::handle(ctx).read(ctx, |data, _| {
+            data.get_all_handles(self.window_id).map(|sizes| {
+                sizes.get_resizable_state_handle(ModalType::VerticalTabsWidth)
+            })
+        });
+        if let Some(handle) = handle {
+            self.vertical_tabs_panel.resizable_state = handle;
+        }
     }
 }
 

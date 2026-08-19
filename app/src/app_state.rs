@@ -62,6 +62,8 @@ pub struct WindowSnapshot {
     pub theme_override: Option<ThemeKind>,
     /// Project rail: the selected project path for this window. `None` = "All".
     pub active_project: Option<String>,
+    /// Vertical tabs panel width for this window (project rail + tab list).
+    pub vertical_tabs_width: Option<f32>,
 }
 
 #[derive(Clone, Debug, PartialEq)]

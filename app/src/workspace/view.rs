@@ -270,6 +270,7 @@ use crate::terminal::model::session::Session;
 use crate::terminal::model::session::SessionId;
 use crate::terminal::resizable_data::{
     ModalSizes, ModalType, ResizableData, DEFAULT_LEFT_PANEL_WIDTH, DEFAULT_RIGHT_PANEL_WIDTH,
+    DEFAULT_VERTICAL_TABS_PANEL_WIDTH,
 };
 use crate::terminal::safe_mode_settings::SafeModeSettings;
 use crate::terminal::session_settings::{
@@ -2999,6 +3000,11 @@ impl Workspace {
         };
 
         ws.configure_new_workspace(workspace_setting, ctx);
+        // Swap the vertical tabs panel's default width handle for the
+        // window's persisted one (ModalType::VerticalTabsWidth). Done after
+        // construction because ResizableData is populated above and the
+        // panel state itself is built via Default (no ctx access).
+        ws.adopt_vertical_tabs_resizable_state(ctx);
         ws.sync_panel_positions_from_config(ctx);
         #[cfg(not(target_family = "wasm"))]
         Self::ensure_cockpit_in_config(ctx);
@@ -4471,7 +4477,8 @@ impl Workspace {
     }
 
     /// Switch the project rail selection. Keeps tabs alive (filter-only);
-    /// activates the first visible tab if the current one is filtered out.
+    /// activates the project's most recently opened tab (the last one in
+    /// workspace order) if the current one is filtered out.
     pub fn switch_project(&mut self, project: Option<PathBuf>, ctx: &mut ViewContext<Self>) {
         if self.active_project == project {
             return;
@@ -4479,11 +4486,32 @@ impl Workspace {
         self.active_project = project;
         let visible = self.visible_tab_indices();
         if !visible.contains(&self.active_tab_index) {
-            if let Some(&first) = visible.first() {
-                self.activate_tab_internal(first, ctx);
+            if let Some(&last) = visible.last() {
+                self.activate_tab_internal(last, ctx);
             }
         }
         ctx.notify();
+    }
+
+    /// Orca `ensureWorktreeHasInitialTerminal` equivalent: selecting a project
+    /// that has no tabs opens one terminal in it (no split) instead of
+    /// filtering the rail down to an empty list.
+    fn ensure_project_has_tab(&mut self, project: PathBuf, ctx: &mut ViewContext<Self>) {
+        let needs_tab = !self
+            .tabs
+            .iter()
+            .any(|tab| tab.project_path.as_ref() == Some(&project));
+        self.switch_project(Some(project.clone()), ctx);
+        if needs_tab {
+            self.add_tab_with_pane_layout(
+                PanesLayout::SingleTerminal(Box::new(
+                    NewTerminalOptions::default().with_initial_directory_opt(Some(project)),
+                )),
+                Arc::new(HashMap::new()),
+                None,
+                ctx,
+            );
+        }
     }
 
     /// Project rail "+": pick a folder, persist it as a project, select it,
@@ -4502,22 +4530,7 @@ impl Workspace {
                 });
                 if let Some(handle) = ctx.handle().upgrade(ctx) {
                     handle.update(ctx, move |me, ctx| {
-                        let needs_tab = !me
-                            .tabs
-                            .iter()
-                            .any(|tab| tab.project_path.as_ref() == Some(&path));
-                        me.switch_project(Some(path.clone()), ctx);
-                        if needs_tab {
-                            me.add_tab_with_pane_layout(
-                                PanesLayout::SingleTerminal(Box::new(
-                                    NewTerminalOptions::default()
-                                        .with_initial_directory_opt(Some(path.clone())),
-                                )),
-                                Arc::new(HashMap::new()),
-                                None,
-                                ctx,
-                            );
-                        }
+                        me.ensure_project_has_tab(path.clone(), ctx);
                     });
                 }
             },
@@ -9935,6 +9948,13 @@ impl Workspace {
                 .unwrap_or(DEFAULT_RIGHT_PANEL_WIDTH)
         });
 
+        let vertical_tabs_width = modal_sizes.map(|ms| {
+            ms.vertical_tabs_width
+                .lock()
+                .map(|guard| guard.size())
+                .unwrap_or(DEFAULT_VERTICAL_TABS_PANEL_WIDTH)
+        });
+
         WindowSnapshot {
             tabs,
             active_tab_index,
@@ -9955,6 +9975,7 @@ impl Workspace {
                 .active_project
                 .as_ref()
                 .map(|p| p.to_string_lossy().into_owned()),
+            vertical_tabs_width,
         }
     }
 
@@ -19143,7 +19164,21 @@ impl TypedActionView for Workspace {
 
         match action {
             ActivateTab(index) => self.activate_tab(*index, ctx),
-            SwitchProject { project } => self.switch_project(project.clone(), ctx),
+            SwitchProject { project } => {
+                // Bump last_opened_ts before switching (Orca markVisited
+                // equivalent). Done here — not inside switch_project — so it
+                // also runs for the same-project early-return path, and so
+                // the model update borrows ctx before `self` is taken.
+                if let Some(path) = project.as_ref() {
+                    ProjectManagementModel::handle(ctx).update(ctx, |projects, ctx| {
+                        projects.upsert_project(path.clone(), ctx);
+                    });
+                }
+                match project.clone() {
+                    Some(project) => self.ensure_project_has_tab(project, ctx),
+                    None => self.switch_project(None, ctx),
+                }
+            }
             RemoveProject { project } => self.remove_project_from_rail(project.clone(), ctx),
             OpenAddProjectPicker => self.open_add_project_picker(ctx),
             ActivateTabByNumber(num) => self.activate_tab(num.saturating_sub(1), ctx),

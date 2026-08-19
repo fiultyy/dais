@@ -48,20 +48,22 @@ impl ProjectManagementModel {
     pub fn upsert_project(&mut self, path: PathBuf, ctx: &mut ModelContext<Self>) {
         let now = Utc::now().naive_utc();
 
-        let project = if let Some(existing_project) = self.projects.get_mut(&path) {
+        if let Some(existing_project) = self.projects.get_mut(&path) {
             // Update existing project's last opened time
             existing_project.last_opened_ts = Some(now);
-            existing_project.clone()
-        } else {
-            // Create new project
-            let project = Project {
-                path: path.to_string_lossy().to_string(),
-                added_ts: now,
-                last_opened_ts: Some(now),
-            };
-            self.projects.insert(path.clone(), project.clone());
-            project
+            let project = existing_project.clone();
+            self.save_project(project);
+            ctx.emit(ProjectEvent::Updated { path });
+            return;
+        }
+
+        // Create new project
+        let project = Project {
+            path: path.to_string_lossy().to_string(),
+            added_ts: now,
+            last_opened_ts: Some(now),
         };
+        self.projects.insert(path.clone(), project.clone());
         self.save_project(project);
         ctx.emit(ProjectEvent::Added { path });
     }
