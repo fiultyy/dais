@@ -145,6 +145,10 @@ pub enum WorkspaceAction {
     RemoveProject {
         project: std::path::PathBuf,
     },
+    /// 项目栏: 折叠/展开选中项目卡下方的 tab 子树(chevron 切换)。
+    ToggleProjectCollapsed {
+        project: std::path::PathBuf,
+    },
     /// 项目栏: "+"按钮 — 文件浏览选择文件夹添加项目并选中。
     OpenAddProjectPicker,
     /// 在当前 tab 中央开新 terminal pane,执行 `ssh user@host`(openWarp 独有)。
@@ -634,6 +638,7 @@ impl WorkspaceAction {
             | AddTerminalTab { .. }
             | SwitchProject { .. }
             | RemoveProject { .. }
+            | ToggleProjectCollapsed { .. }
             | OpenAddProjectPicker
             | OpenSshTerminal { .. }
             | ToggleSshManager

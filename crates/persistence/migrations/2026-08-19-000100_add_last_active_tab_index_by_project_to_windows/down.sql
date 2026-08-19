@@ -1,0 +1,2 @@
+-- SQLite 不支持 DROP COLUMN(旧版本), 重建略; 此迁移只向前用。
+-- 但 diesel 约定需要 down 文件; 留空表示不可逆。

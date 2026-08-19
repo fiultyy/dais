@@ -1087,6 +1087,11 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
                     .as_ref()
                     .and_then(|k| serde_json::to_string(k).ok()),
                 active_project: window.active_project.clone(),
+                last_active_tab_index_by_project: serde_json::to_string(
+                    &window.last_active_tab_index_by_project,
+                )
+                .ok(),
+                collapsed_projects: serde_json::to_string(&window.collapsed_projects).ok(),
                 vertical_tabs_width: window.vertical_tabs_width,
             };
             diesel::insert_into(schema::windows::dsl::windows)
@@ -2883,7 +2888,17 @@ fn read_sqlite_data(
                 theme_override: window
                     .theme_override
                     .and_then(|s| serde_json::from_str(&s).ok()),
-                active_project: window.active_project,
+                active_project: window.active_project.clone(),
+                last_active_tab_index_by_project: window
+                    .last_active_tab_index_by_project
+                    .as_deref()
+                    .and_then(|s| serde_json::from_str(s).ok())
+                    .unwrap_or_default(),
+                collapsed_projects: window
+                    .collapsed_projects
+                    .as_deref()
+                    .and_then(|s| serde_json::from_str(s).ok())
+                    .unwrap_or_default(),
                 vertical_tabs_width: window.vertical_tabs_width,
             }
         })

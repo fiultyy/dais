@@ -44,6 +44,8 @@ pub struct Window {
     pub vertical_tabs_panel_open: Option<bool>,
     pub theme_override: Option<String>,
     pub active_project: Option<String>,
+    pub last_active_tab_index_by_project: Option<String>,
+    pub collapsed_projects: Option<String>,
     pub vertical_tabs_width: Option<f32>,
 }
 
@@ -308,6 +310,8 @@ pub struct NewWindow {
     pub vertical_tabs_panel_open: Option<bool>,
     pub theme_override: Option<String>,
     pub active_project: Option<String>,
+    pub last_active_tab_index_by_project: Option<String>,
+    pub collapsed_projects: Option<String>,
     pub vertical_tabs_width: Option<f32>,
 }
 

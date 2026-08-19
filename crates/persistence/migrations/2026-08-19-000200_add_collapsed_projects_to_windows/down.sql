@@ -1,0 +1,1 @@
+-- 前向迁移, 不可逆(SQLite 旧版无 DROP COLUMN)。

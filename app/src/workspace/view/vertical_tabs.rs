@@ -601,9 +601,11 @@ pub(super) struct VerticalTabsPanelState {
     /// Project rail: per-path click states for project cards.
     project_card_mouse_states: RefCell<HashMap<PathBuf, MouseStateHandle>>,
     /// Project rail: collapsed project cards (tabs subtree hidden).
-    project_collapsed: RefCell<std::collections::HashSet<PathBuf>>,
+    pub(super) project_collapsed: RefCell<std::collections::HashSet<PathBuf>>,
     /// Project rail: per-path hover states for card close (x) buttons.
     project_card_close_mouse_states: RefCell<HashMap<PathBuf, MouseStateHandle>>,
+    /// Project rail: per-path click states for the collapse (chevron) toggles.
+    project_collapse_mouse_states: RefCell<HashMap<PathBuf, MouseStateHandle>>,
     /// Project rail: "+" add-project button click state.
     project_add_button_mouse_state: MouseStateHandle,
     pub(super) show_settings_popup: bool,
@@ -643,8 +645,9 @@ impl Default for VerticalTabsPanelState {
             show_diff_stats_mouse_state: Default::default(),
             show_details_on_hover_mouse_state: Default::default(),
             project_card_mouse_states: RefCell::default(),
-            project_collapsed: RefCell::default(),
             project_card_close_mouse_states: RefCell::default(),
+            project_collapsed: RefCell::default(),
+            project_collapse_mouse_states: RefCell::default(),
             project_add_button_mouse_state: Default::default(),
             show_settings_popup: false,
         }
@@ -1794,6 +1797,43 @@ fn render_project_card(
     row = row.with_child(Shrinkable::new(1., card).finish());
 
     if let Some(project) = project.clone() {
+        if is_selected {
+            // Chevron toggle: collapse/expand this project's tab subtree
+            // (Orca `collapsedGroups` equivalent). Only rendered for the
+            // selected card since the subtree only exists there.
+            let collapse_mouse_state = state
+                .project_collapse_mouse_states
+                .borrow_mut()
+                .entry(project.clone())
+                .or_default()
+                .clone();
+            let toggle_project = project.clone();
+            let chevron = if is_collapsed {
+                UiIcon::ChevronRight
+            } else {
+                UiIcon::ChevronDown
+            };
+            let toggle_button = combo_inner_button(
+                appearance,
+                chevron,
+                false,
+                collapse_mouse_state,
+            )
+            .with_style(
+                UiComponentStyles::default()
+                    .set_border_radius(CornerRadius::with_all(CONTROL_BAR_BUTTON_RADIUS))
+                    .set_font_color(sub_text.into()),
+            )
+            .build()
+            .on_click(move |ctx, _, _| {
+                ctx.dispatch_typed_action(WorkspaceAction::ToggleProjectCollapsed {
+                    project: toggle_project.clone(),
+                });
+            })
+            .finish();
+            row = row.with_child(toggle_button);
+        }
+
         let close_button = combo_inner_button(
             appearance,
             UiIcon::X,

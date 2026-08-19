@@ -3423,6 +3423,35 @@ impl Workspace {
                 } else {
                     active_tab_index
                 };
+
+                // Rebuild `last_active_tab_by_project` from the persisted
+                // per-project snapshot indices: map each snapshot index back
+                // to the live tab's pane-group entity id (Orca hydrates
+                // `activeTabIdByWorktree` the same way — by validated id, and
+                // entries whose tab didn't survive are dropped).
+                for (project, snap_index) in &window_snapshot.last_active_tab_index_by_project {
+                    let project_path = PathBuf::from(project.as_str());
+                    // Orca `terminalTabStillExists` equivalent: only accept
+                    // the remembered entry when the tab at that index still
+                    // exists AND belongs to that project (indices shifted
+                    // between snapshot and restore are dropped, not trusted).
+                    if let Some(tab) = self.tabs.get(*snap_index) {
+                        if tab.project_path.as_ref() == Some(&project_path) {
+                            self.last_active_tab_by_project
+                                .insert(project_path, tab.pane_group.id());
+                        }
+                    }
+                }
+
+                if let Ok(mut collapsed) = self
+                    .vertical_tabs_panel
+                    .project_collapsed
+                    .try_borrow_mut()
+                {
+                    for path in &window_snapshot.collapsed_projects {
+                        collapsed.insert(PathBuf::from(path.as_str()));
+                    }
+                }
                 self.activate_tab_internal(effective_active_tab, ctx);
                 self.check_and_trigger_onboarding(ctx);
                 self.maybe_auto_open_conversation_list(ctx);
@@ -4534,6 +4563,21 @@ impl Workspace {
             self.last_active_tab_by_project
                 .insert(project, tab.pane_group.id());
         }
+    }
+
+    /// Toggle the tab subtree under a selected project card (chevron).
+    /// Mutates the panel state's `project_collapsed` set; no re-activation —
+    fn toggle_project_collapsed(&mut self, project: PathBuf, ctx: &mut ViewContext<Self>) {
+        if let Ok(mut collapsed) = self
+            .vertical_tabs_panel
+            .project_collapsed
+            .try_borrow_mut()
+        {
+            if !collapsed.insert(project.clone()) {
+                collapsed.remove(&project);
+            }
+        }
+        ctx.notify();
     }
 
     /// Orca `ensureWorktreeHasInitialTerminal` equivalent: selecting a project
@@ -9882,7 +9926,7 @@ impl Workspace {
         } else {
             None
         };
-        let tabs = self
+        let mut tabs_with_live_index: Vec<(usize, TabSnapshot)> = self
             .tab_views()
             .enumerate()
             .filter(|(tab_index, _)| Some(*tab_index) != transferred_tab_index)
@@ -9910,7 +9954,7 @@ impl Workspace {
                     self.compute_left_panel_snapshot(pane_group_view, left_panel_width, app);
                 let right_panel =
                     self.compute_right_panel_snapshot(pane_group_view, right_panel_width, app);
-                TabSnapshot {
+                let snapshot = TabSnapshot {
                     root,
                     custom_title: pane_group.custom_title(app),
                     default_directory_color: self
@@ -9929,9 +9973,10 @@ impl Workspace {
                         .map(|p| p.to_string_lossy().into_owned()),
                     left_panel,
                     right_panel,
-                }
+                };
+                (tab_index, snapshot)
             })
-            .filter(|tab| {
+            .filter(|(_, tab)| {
                 // Filter out any tab that contains a single, read-only session.
                 !matches!(
                     tab.root,
@@ -9945,6 +9990,39 @@ impl Workspace {
                 )
             })
             .collect();
+
+        let tabs: Vec<TabSnapshot> = tabs_with_live_index
+            .iter()
+            .map(|(_, tab)| tab.clone())
+            .collect();
+
+        // Persisted form of `last_active_tab_by_project`: entity ids are
+        // process-local, so store each remembered pane-group as an index
+        // into the snapshot `tabs` vector (matched via the live index kept
+        // alongside each snapshot). Remembered tabs that didn't survive the
+        // snapshot filters are skipped; restore falls back to the project's
+        // first visible tab for them.
+        let mut last_active_tab_index_by_project = std::collections::HashMap::new();
+        for (project, pane_group_id) in &self.last_active_tab_by_project {
+            let live_index = self
+                .tabs
+                .iter()
+                .position(|tab| tab.pane_group.id() == *pane_group_id);
+            let Some(live_index) = live_index else {
+                continue; // remembered tab no longer exists
+            };
+            if let Some((snap_index, _)) = tabs_with_live_index
+                .iter()
+                .enumerate()
+                .find(|(_, (live, _))| *live == live_index)
+            {
+                last_active_tab_index_by_project.insert(
+                    project.to_string_lossy().into_owned(),
+                    snap_index,
+                );
+            }
+        }
+
 
         let resizable_data = ResizableData::handle(app);
         let modal_sizes = resizable_data.as_ref(app).get_all_handles(window_id);
@@ -9999,8 +10077,24 @@ impl Workspace {
                 .unwrap_or(DEFAULT_VERTICAL_TABS_PANEL_WIDTH)
         });
 
+        // F3: clamp the active index to the snapshot's tab list. Read-only
+        // session tabs are filtered out above, so `self.active_tab_index`
+        // (and any transferred-tab skip) can leave the raw index pointing
+        // past the end or at the wrong tab after restore. Clamping to the
+        // last surviving tab keeps the persisted pair (tabs, index)
+        // self-consistent.
+        let active_tab_index = active_tab_index.min(tabs.len().saturating_sub(1));
+
         WindowSnapshot {
             tabs,
+            last_active_tab_index_by_project,
+            collapsed_projects: self
+                .vertical_tabs_panel
+                .project_collapsed
+                .borrow()
+                .iter()
+                .map(|p| p.to_string_lossy().into_owned())
+                .collect(),
             active_tab_index,
             bounds: window_bounds,
             fullscreen_state: window_fullscreen_state,
@@ -10019,6 +10113,7 @@ impl Workspace {
                 .active_project
                 .as_ref()
                 .map(|p| p.to_string_lossy().into_owned()),
+
             vertical_tabs_width,
         }
     }
@@ -19224,6 +19319,9 @@ impl TypedActionView for Workspace {
                 }
             }
             RemoveProject { project } => self.remove_project_from_rail(project.clone(), ctx),
+            ToggleProjectCollapsed { project } => {
+                self.toggle_project_collapsed(project.clone(), ctx);
+            }
             OpenAddProjectPicker => self.open_add_project_picker(ctx),
             ActivateTabByNumber(num) => self.activate_tab(num.saturating_sub(1), ctx),
             ActivatePrevTab => self.activate_prev_tab(ctx),

@@ -158,6 +158,8 @@ fn test_terminal_window_snapshot(vertical_tabs_panel_open: bool) -> WindowSnapsh
         agent_management_filters: None,
         theme_override: None,
         active_project: None,
+            last_active_tab_index_by_project: Default::default(),
+            collapsed_projects: Default::default(),
             vertical_tabs_width: None,
     }
 }
@@ -245,6 +247,8 @@ fn test_sqlite_round_trips_custom_vertical_tabs_title() {
             agent_management_filters: None,
             theme_override: None,
             active_project: None,
+            last_active_tab_index_by_project: Default::default(),
+            collapsed_projects: Default::default(),
             vertical_tabs_width: None,
         }],
         active_window_index: Some(0),
@@ -321,6 +325,8 @@ fn test_sqlite_round_trips_tab_project_path() {
             agent_management_filters: None,
             theme_override: None,
             active_project: None,
+            last_active_tab_index_by_project: Default::default(),
+            collapsed_projects: Default::default(),
             vertical_tabs_width: None,
         }],
         active_window_index: Some(0),
@@ -390,6 +396,13 @@ fn test_sqlite_round_trips_window_active_project() {
             agent_management_filters: None,
             theme_override: None,
             active_project: Some("/home/yy/warpdotdev/dais".to_string()),
+            last_active_tab_index_by_project: [(
+                "/home/yy/warpdotdev/dais".to_string(),
+                0usize,
+            )]
+            .into_iter()
+            .collect(),
+            collapsed_projects: Default::default(),
             vertical_tabs_width: None,
         }],
         active_window_index: Some(0),
@@ -407,6 +420,14 @@ fn test_sqlite_round_trips_window_active_project() {
     assert_eq!(
         restored.windows[0].active_project.as_deref(),
         Some("/home/yy/warpdotdev/dais")
+    );
+    let expected_map: std::collections::HashMap<String, usize> =
+        [("/home/yy/warpdotdev/dais".to_string(), 0usize)]
+            .into_iter()
+            .collect();
+    assert_eq!(
+        restored.windows[0].last_active_tab_index_by_project,
+        expected_map
     );
 }
 
@@ -460,6 +481,8 @@ fn test_sqlite_round_trips_window_vertical_tabs_width() {
             agent_management_filters: None,
             theme_override: None,
             active_project: None,
+            last_active_tab_index_by_project: Default::default(),
+            collapsed_projects: Default::default(),
             vertical_tabs_width: Some(312.5),
         }],
         active_window_index: Some(0),
@@ -526,6 +549,8 @@ fn test_sqlite_round_trips_code_pane_with_multiple_tabs() {
             agent_management_filters: None,
             theme_override: None,
             active_project: None,
+            last_active_tab_index_by_project: Default::default(),
+            collapsed_projects: Default::default(),
             vertical_tabs_width: None,
         }],
         active_window_index: Some(0),

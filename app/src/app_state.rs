@@ -62,6 +62,14 @@ pub struct WindowSnapshot {
     pub theme_override: Option<ThemeKind>,
     /// Project rail: the selected project path for this window. `None` = "All".
     pub active_project: Option<String>,
+    /// Project rail: per-project last-focused tab, as an index into `tabs`
+    /// (persisted form of `Workspace::last_active_tab_by_project`; entity ids
+    /// are process-local so the snapshot stores the tab's snapshot index).
+    /// `None` entries are skipped. Semantics: switching back to a project
+    /// restores that tab.
+    pub last_active_tab_index_by_project: std::collections::HashMap<String, usize>,
+    /// Project rail: paths whose tab subtree is collapsed (chevron state).
+    pub collapsed_projects: Vec<String>,
     /// Vertical tabs panel width for this window (project rail + tab list).
     pub vertical_tabs_width: Option<f32>,
 }

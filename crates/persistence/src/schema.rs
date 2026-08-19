@@ -490,6 +490,8 @@ diesel::table! {
         vertical_tabs_panel_open -> Nullable<Bool>,
         theme_override -> Nullable<Text>,
         active_project -> Nullable<Text>,
+        last_active_tab_index_by_project -> Nullable<Text>,
+        collapsed_projects -> Nullable<Text>,
         vertical_tabs_width -> Nullable<Float>,
     }
 }
