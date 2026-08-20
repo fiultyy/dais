@@ -496,8 +496,6 @@ pub const PANEL_HEADER_HEIGHT: f32 = TAB_BAR_HEIGHT;
 const TAB_BAR_HOVER_HEIGHT: f32 = 12.;
 const TAB_BAR_PADDING_LEFT: f32 = 4.;
 const TAB_BAR_PADDING_RIGHT: f32 = 8.;
-const TITLE_BAR_SEARCH_BAR_MAX_WIDTH: f32 = 320.;
-const TITLE_BAR_SEARCH_BAR_SLOT_PADDING: f32 = 8.;
 
 // The total height taken up by the tab bar, including its bottom border.
 pub const TOTAL_TAB_BAR_HEIGHT: f32 = TAB_BAR_HEIGHT + TAB_BAR_BORDER_HEIGHT;
@@ -3318,7 +3316,7 @@ impl Workspace {
             }
             | TabSettingsChangedEvent::VerticalTabsShowPrLink { .. }
             | TabSettingsChangedEvent::VerticalTabsShowDiffStats { .. }
-            | TabSettingsChangedEvent::ShowTitleBarSearchBar { .. } => {
+            => {
                 ctx.notify();
             }
             TabSettingsChangedEvent::VerticalTabsShowDetailsOnHover { .. } => {
@@ -12503,9 +12501,6 @@ impl Workspace {
             palette.set_is_shared_session_viewer(is_shared_session_viewer, ctx);
         });
 
-        if matches!(source, PaletteSource::TitleBarSearchBar) {
-            self.tab_bar_pinned_by_popup = true;
-        }
         if matches!(source, PaletteSource::CtrlTab { .. }) {
             self.current_workspace_state.is_ctrl_tab_palette_open = true;
         } else {
@@ -16687,68 +16682,6 @@ impl Workspace {
         Shrinkable::new(1.0, inner).finish()
     }
 
-    fn render_title_bar_search_bar(&self, appearance: &Appearance) -> Box<dyn Element> {
-        let theme = appearance.theme();
-        let text_color = theme.sub_text_color(theme.background());
-
-        Hoverable::new(
-            self.mouse_states.title_bar_search_bar.clone(),
-            |mouse_state| {
-                let row = Flex::row()
-                    .with_cross_axis_alignment(CrossAxisAlignment::Center)
-                    .with_spacing(10.)
-                    .with_child(
-                        ConstrainedBox::new(
-                            icons::Icon::Search.to_warpui_icon(text_color).finish(),
-                        )
-                        .with_width(16.)
-                        .with_height(16.)
-                        .finish(),
-                    )
-                    .with_child(
-                        Shrinkable::new(
-                            1.,
-                            Text::new_inline(
-                                crate::t!("workspace-title-bar-search-placeholder"),
-                                appearance.ui_font_family(),
-                                14.,
-                            )
-                            .with_color(text_color.into())
-                            .with_clip(ClipConfig::ellipsis())
-                            .finish(),
-                        )
-                        .finish(),
-                    )
-                    .finish();
-
-                ConstrainedBox::new(
-                    Container::new(row)
-                        .with_background(if mouse_state.is_hovered() {
-                            internal_colors::fg_overlay_2(theme)
-                        } else {
-                            internal_colors::fg_overlay_1(theme)
-                        })
-                        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
-                        .with_padding_left(16.)
-                        .with_padding_right(16.)
-                        .with_padding_top(4.)
-                        .with_padding_bottom(4.)
-                        .finish(),
-                )
-                .with_width(TITLE_BAR_SEARCH_BAR_MAX_WIDTH)
-                .finish()
-            },
-        )
-        .with_cursor(Cursor::PointingHand)
-        .on_click(|ctx, _, _| {
-            ctx.dispatch_typed_action(WorkspaceAction::OpenPalette {
-                mode: PaletteMode::Command,
-                source: PaletteSource::TitleBarSearchBar,
-                query: None,
-            });
-        })
-        .finish()
-    }
 
     fn render_tab_bar_contents(
         &self,
@@ -16909,7 +16842,6 @@ impl Workspace {
 
             let left_padding = self.compute_tab_bar_left_padding(ctx);
 
-            let show_title_bar_search_bar = *TabSettings::as_ref(ctx).show_title_bar_search_bar;
             let mut tab_bar_row = Flex::row()
                 .with_main_axis_size(MainAxisSize::Max)
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
@@ -16917,25 +16849,9 @@ impl Workspace {
                 // width — a fixed child of a flex gets an unbounded main-axis
                 // constraint, which trips the Shrinkable-tab invariant.
                 .with_child(Shrinkable::new(1., tab_bar.finish()).finish());
-            if show_title_bar_search_bar {
-                tab_bar_row.add_child(
-                    Shrinkable::new(
-                        1.,
-                        Clipped::new(
-                            Container::new(
-                                Align::new(self.render_title_bar_search_bar(appearance)).finish(),
-                            )
-                            .with_padding_left(TITLE_BAR_SEARCH_BAR_SLOT_PADDING)
-                            .with_padding_right(TITLE_BAR_SEARCH_BAR_SLOT_PADDING)
-                            .finish(),
-                        )
-                        .finish(),
-                    )
-                    .finish(),
-                );
-            } else {
-                tab_bar_row.add_child(Shrinkable::new(1., Empty::new().finish()).finish());
-            }
+            // Empty spacer preserves the layout shape (tab bar left,
+            // controls right) that previously hosted the search slot.
+            tab_bar_row.add_child(Shrinkable::new(1., Empty::new().finish()).finish());
             tab_bar_row.add_child(right_controls.finish());
             let tab_bar = tab_bar_row.finish();
 

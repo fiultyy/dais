@@ -48,7 +48,6 @@ pub(super) struct WorkspaceMouseStates {
     pub(super) notifications_mailbox: MouseStateHandle,
     pub(super) session_config_tab_config_chip_close: MouseStateHandle,
     pub(super) tools_panel_icon: MouseStateHandle,
-    pub(super) title_bar_search_bar: MouseStateHandle,
     /// Per-agent titlebar button hover states, keyed by CLIAgent serialized name.
     pub(super) cli_agent_titlebar_button_states: RefCell<HashMap<String, MouseStateHandle>>,
     #[cfg(target_family = "wasm")]

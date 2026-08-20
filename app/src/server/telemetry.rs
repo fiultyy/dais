@@ -410,7 +410,6 @@ pub enum PaletteSource {
     PaneHeader,
     RecentsViewAll,
     AgentTip,
-    TitleBarSearchBar,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]

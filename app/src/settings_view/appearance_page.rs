@@ -58,8 +58,8 @@ use crate::window_settings::{
 use crate::workspace::header_toolbar_editor::HeaderToolbarInlineEditor;
 use crate::workspace::tab_settings::{
     DirectoryTabColor, PreserveActiveTabColor, ShowCodeReviewButton, ShowIndicatorsButton,
-    ShowTitleBarSearchBar, ShowVerticalTabPanelInRestoredWindows, TabCloseButtonPosition,
-    TabSettings, TabSettingsChangedEvent, UseLatestUserPromptAsConversationTitleInTabNames,
+    ShowVerticalTabPanelInRestoredWindows, TabCloseButtonPosition, TabSettings,
+    TabSettingsChangedEvent, UseLatestUserPromptAsConversationTitleInTabNames,
     UseVerticalTabs, WorkspaceDecorationVisibility,
 };
 use crate::workspace::WorkspaceAction;
@@ -481,7 +481,6 @@ pub enum AppearancePageAction {
     TogglePreserveActiveTabColor,
     ToggleVerticalTabs,
     ToggleShowVerticalTabPanelInRestoredWindows,
-    ToggleShowTitleBarSearchBar,
     ToggleUseLatestUserPromptAsConversationTitleInTabNames,
     ToggleLigatureRendering,
     ToggleBlurTexture,
@@ -643,7 +642,6 @@ impl TypedActionView for AppearanceSettingsPageView {
             ToggleShowVerticalTabPanelInRestoredWindows => {
                 self.toggle_show_vertical_tab_panel_in_restored_windows(ctx)
             }
-            ToggleShowTitleBarSearchBar => self.toggle_show_title_bar_search_bar(ctx),
             ToggleUseLatestUserPromptAsConversationTitleInTabNames => {
                 self.toggle_use_latest_user_prompt_as_conversation_title_in_tab_names(ctx)
             }
@@ -1585,7 +1583,6 @@ impl AppearanceSettingsPageView {
             tab_settings_widgets.push(Box::new(
                 ShowVerticalTabPanelInRestoredWindowsWidget::default(),
             ));
-            tab_settings_widgets.push(Box::new(ShowTitleBarSearchBarWidget::default()));
             tab_settings_widgets.push(Box::new(
                 UseLatestUserPromptAsConversationTitleInTabNamesWidget::default(),
             ));
@@ -2877,13 +2874,6 @@ impl AppearanceSettingsPageView {
         });
     }
 
-    fn toggle_show_title_bar_search_bar(&mut self, ctx: &mut ViewContext<Self>) {
-        TabSettings::handle(ctx).update(ctx, |settings, ctx| {
-            report_if_error!(settings
-                .show_title_bar_search_bar
-                .toggle_and_save_value(ctx));
-        });
-    }
 
     fn toggle_use_latest_user_prompt_as_conversation_title_in_tab_names(
         &mut self,
@@ -5530,53 +5520,6 @@ impl SettingsWidget for ShowVerticalTabPanelInRestoredWindowsWidget {
                 .finish(),
             Some(crate::t!(
                 "settings-appearance-tab-show-vertical-panel-in-restored-windows-description"
-            )),
-        )
-    }
-}
-
-#[derive(Default)]
-struct ShowTitleBarSearchBarWidget {
-    switch_state: SwitchStateHandle,
-}
-
-impl SettingsWidget for ShowTitleBarSearchBarWidget {
-    type View = AppearanceSettingsPageView;
-
-    fn search_terms(&self) -> &str {
-        "title bar search bar palette session agent vertical tabs"
-    }
-
-    fn render(
-        &self,
-        view: &Self::View,
-        appearance: &Appearance,
-        app: &AppContext,
-    ) -> Box<dyn Element> {
-        let tab_settings = TabSettings::as_ref(app);
-
-        render_body_item::<AppearancePageAction>(
-            crate::t!("settings-appearance-tab-show-title-bar-search-bar-label"),
-            None,
-            LocalOnlyIconState::for_setting(
-                ShowTitleBarSearchBar::storage_key(),
-                ShowTitleBarSearchBar::sync_to_cloud(),
-                &mut view.local_only_icon_tooltip_states.borrow_mut(),
-                app,
-            ),
-            ToggleState::Enabled,
-            appearance,
-            appearance
-                .ui_builder()
-                .switch(self.switch_state.clone())
-                .check(*tab_settings.show_title_bar_search_bar)
-                .build()
-                .on_click(move |ctx, _, _| {
-                    ctx.dispatch_typed_action(AppearancePageAction::ToggleShowTitleBarSearchBar);
-                })
-                .finish(),
-            Some(crate::t!(
-                "settings-appearance-tab-show-title-bar-search-bar-description"
             )),
         )
     }
