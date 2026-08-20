@@ -22742,12 +22742,22 @@ impl Workspace {
                     || drag_pointer_on_screen.y() > bounds.max_y()
             });
 
-        if (is_drag_outside_window || source_is_single_tab)
+        // Detach (single- or multi-tab) only when the pointer actually
+        // leaves the window. `source_is_single_tab` used to force this path
+        // immediately — dragging the only remaining tab (e.g. after an
+        // in-window split) jumped the whole window to the drag-follow
+        // position even while hovering inside, pushing most of the window
+        // (and the split's left pane) off-screen. Orca detaches on leaving
+        // the window only; the single-tab drag mode is preserved below in
+        // `begin_cross_window_tab_drag`.
+        if is_drag_outside_window
             && FeatureFlag::DragTabsToWindows.is_enabled()
             && self.pending_tab_split.is_none()
         {
-            if let Some(tab_data) = self.tabs.get_mut(current_index) {
-                tab_data.detached = true;
+            if !source_is_single_tab {
+                if let Some(tab_data) = self.tabs.get_mut(current_index) {
+                    tab_data.detached = true;
+                }
             }
 
             self.begin_cross_window_tab_drag(
@@ -22802,8 +22812,14 @@ impl Workspace {
             .or(self.tab_content_bounds)
         else {
             self.pending_tab_split = None;
+            self.tab_content_bounds = None;
             return;
         };
+        // Cache the live bounds so the render path can draw the drop-zone
+        // overlay: it reads `self.tab_content_bounds` (element positions
+        // cannot be queried during render). Previously this was never
+        // written, so the split indicator never appeared.
+        self.tab_content_bounds = Some(content_bounds);
         let zone = target_index.and_then(|target| {
             tab_split_zone_for_point(content_bounds, drag_center).map(|direction| PendingTabSplit {
                 source_tab_index: current_index,
