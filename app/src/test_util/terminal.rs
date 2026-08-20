@@ -58,6 +58,10 @@ use repo_metadata::watcher::DirectoryWatcher;
 /// Initializes all of the necessary models to use a terminal view.
 pub fn initialize_app_for_terminal_view(app: &mut App) {
     initialize_settings_for_tests(app);
+    // terminal view 系测试大量断言英文文案;t! 未 init 时返回 key;并行测试
+    // (如 i18n::tests 的 set_locale(zh-CN))可能热切换全局 locale,故每次强制 en。
+    crate::i18n::init(Some("en"));
+    crate::i18n::set_locale("en");
 
     app.add_singleton_model(|_| ChangelogModel::new(Arc::new(http_client::Client::new())));
     app.add_singleton_model(|_| NetworkStatus::new());

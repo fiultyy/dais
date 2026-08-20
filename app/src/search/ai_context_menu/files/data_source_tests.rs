@@ -409,6 +409,11 @@ fn test_directory_search_support() {
     use crate::search::ai_context_menu::files::search_item::FileSearchItem;
     use fuzzy_match::FuzzyMatchResult;
 
+    // accessibility_label 以 "Directory:"/"File:" 前缀断言;并行测试可能热切换
+    // 全局 locale,每次强制 en。
+    crate::i18n::init(Some("en"));
+    crate::i18n::set_locale("en");
+
     // Test that directories can be created with is_directory flag
     let directory_item = FileSearchItem {
         path: PathBuf::from("src/components/"),

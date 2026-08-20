@@ -86,6 +86,15 @@ pub fn initialize_settings_for_tests_with_mode(
     });
     SessionSettings::register(app);
     SshSettings::register(app);
+    // Zap:以下 group 在生产 register_all_settings(settings/init.rs)注册,
+    // 测试初始化漏掉会让 workspace/AI 构造链 panic "never registered"。
+    crate::settings::language::LanguageSettings::register(app);
+    crate::settings::network::NetworkSettings::register(app);
+    crate::settings::AutoupdateSettings::register(app);
+    crate::settings::WarpDrivePrivacySettings::register(app);
+    crate::settings::app_installation_detection::UserAppInstallDetectionSettings::register(app);
+    crate::settings::CloudSyncSettings::register(app);
+    crate::workflows::aliases::WorkflowAliases::register(app);
     TabSettings::register(app);
     TerminalSettings::register(app);
     PaneSettings::register(app);

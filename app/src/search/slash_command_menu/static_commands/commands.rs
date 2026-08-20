@@ -527,8 +527,9 @@ mod tests {
 
     #[test]
     fn rename_tab_command_requires_argument() {
-        // hint_text 走 i18n,初始化 loader 后取真实英文文案
+        // hint_text 走 i18n;并行测试可能热切换全局 locale,每次强制 en。
         crate::i18n::init(Some("en"));
+        crate::i18n::set_locale("en");
         let command = COMMAND_REGISTRY
             .get_command_with_name(RENAME_TAB.name)
             .expect("expected /rename-tab to be registered");

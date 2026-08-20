@@ -583,6 +583,9 @@ fn test_close_unmodified() {
 #[test]
 fn test_untitled_notebook() {
     App::test((), |mut app| async move {
+        // 断言 "Untitled" 文案;并行测试可能热切换全局 locale,每次强制 en。
+        crate::i18n::init(Some("en"));
+        crate::i18n::set_locale("en");
         initialize_app(&mut app);
         let (_, notebook, _) = create_notebook(&mut app);
 

@@ -21486,7 +21486,10 @@ impl View for Workspace {
                         PositionedElementOffsetBounds::WindowBySize,
                         PositionedElementAnchor::BottomLeft,
                         ChildAnchor::TopLeft,
-                    ),
+                    )
+                    // 锚元素(+ 按钮)位于可开合的 vertical tabs 面板内;菜单与面板
+                    // 同帧打开时锚尚未 paint 进 position cache,miss 时退默认约束。
+                    .with_conditional_anchors(),
                 );
             } else {
                 // TODO(CORE-2300): In the new version of the shell selector, this is not a
@@ -21732,7 +21735,9 @@ impl View for Workspace {
                         PositionedElementOffsetBounds::WindowByPosition,
                         PositionedElementAnchor::MiddleRight,
                         ChildAnchor::TopLeft,
-                    ),
+                    )
+                    // 同上:锚在可开合面板内,miss 时退默认约束而非 debug panic。
+                    .with_conditional_anchors(),
                 );
             } else {
                 let anchor_id = if FeatureFlag::ShellSelector.is_enabled() {

@@ -77,6 +77,9 @@ use warpui::{platform::WindowStyle, App, ViewHandle};
 fn initialize_app(app: &mut App) {
     initialize_settings_for_tests(app);
 
+    // SSH 管理器需要 SQLite 路径;临时文件,OnceLock 全局只生效一次(browser_tests 同款)。
+    let temp_db = std::env::temp_dir().join("warp_workspace_view_test.sqlite");
+    let _ = warp_ssh_manager::set_database_path(temp_db);
     // Add the necessary singleton models to the App
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
     app.add_singleton_model(AuthManager::new_for_test);
@@ -116,6 +119,14 @@ fn initialize_app(app: &mut App) {
     // issue #13: Input 构造 InterceptConfigBar 需要该单例。
     app.add_singleton_model(crate::terminal::intercept_sessions::InterceptSessionsModel::new);
     app.add_singleton_model(AgentConversationsModel::new);
+    // Zap:以下单例在生产 app 启动(lib.rs)注册,workspace/AI 构造链订阅;
+    // 缺注册会在 App::test 里 panic "never registered"。
+    app.add_singleton_model(crate::ai::agent_providers::AgentProviderSecrets::new);
+    app.add_singleton_model(crate::settings::network_secrets::ProxyCredentials::new);
+    app.add_singleton_model(crate::settings::CloudSyncTokenStore::new);
+    app.add_singleton_model(crate::terminal::cli_agent::CLIAgentInstallModel::new);
+    // Workspace 订阅项目模型(projects.rs),测试用空持久化列表。
+    app.add_singleton_model(|ctx| crate::projects::ProjectManagementModel::new(Vec::new(), None, ctx));
     app.add_singleton_model(LLMPreferences::new);
     app.add_singleton_model(|_| SettingsPaneManager::new());
     app.add_singleton_model(|_| AIFactManager::new());

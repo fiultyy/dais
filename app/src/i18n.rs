@@ -271,6 +271,9 @@ mod tests {
     #[test]
     fn fallback_chain_works() {
         init(Some("zh-CN"));
+        // OnceLock 先到先得:其它测试可能已用 en 初始化,强制切换到 zh-CN,
+        // 不依赖注册顺序。
+        set_locale("zh-CN");
         let loader = loader().unwrap();
         // common-ok 中文已译
         assert_eq!(loader.get("common-ok"), "确定");

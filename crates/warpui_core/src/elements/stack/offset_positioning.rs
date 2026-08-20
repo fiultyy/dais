@@ -96,6 +96,19 @@ impl OffsetPositioning {
         )
     }
 
+    /// Marks both axes as conditionally anchored: if the anchor element has not
+    /// been painted into the position cache yet (e.g. it lives inside a panel
+    /// that opens in the same frame), sizing falls back to the default
+    /// constraint instead of tripping the debug assertion.
+    ///
+    /// Only meaningful for child-relative positioning; panics in debug builds
+    /// otherwise (same as [`PositioningAxis::with_conditional_anchor`]).
+    pub fn with_conditional_anchors(mut self) -> Self {
+        self.x_axis = self.x_axis.with_conditional_anchor();
+        self.y_axis = self.y_axis.with_conditional_anchor();
+        self
+    }
+
     /// Returns the size constraint to be used for the stack child, according to the
     /// anchors and bounding behaviors specified in the [`PositionAxis`]'s.
     pub fn size_constraint(

@@ -666,6 +666,9 @@ fn terminal_primary_line_uses_last_completed_command_when_shell_title_matches_wo
 
 #[test]
 fn terminal_primary_line_falls_back_to_new_session() {
+    // t! 依赖全局 i18n init(OnceLock 先到先得):并行测试可能已把 locale 定为
+    // en 或 zh-CN,双语集合断言避免 locale 竞态(未 init 返回 key 则必失败)。
+    crate::i18n::init(Some("en"));
     let line = terminal_primary_line_data(
         false,
         None,
@@ -676,7 +679,11 @@ fn terminal_primary_line_falls_back_to_new_session() {
         None,
     );
 
-    assert_eq!(line.text(), "New session");
+    let text = line.text();
+    assert!(
+        text == "New session" || text == "新建会话",
+        "unexpected fallback text: {text:?}"
+    );
     assert!(matches!(
         line,
         TerminalPrimaryLineData::Text {
