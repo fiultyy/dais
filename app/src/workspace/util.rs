@@ -45,13 +45,13 @@ pub(super) struct WorkspaceMouseStates {
     // 干扰,导致点击静默失效;各自独立句柄隔离。
     pub(super) observatory_icon: MouseStateHandle,
     pub(super) cockpit_icon: MouseStateHandle,
+    /// 独立层级视图(设置/观测台/编排器)标题栏 X 关闭按钮。
+    pub(super) special_view_close_button: MouseStateHandle,
     pub(super) notifications_mailbox: MouseStateHandle,
     pub(super) session_config_tab_config_chip_close: MouseStateHandle,
     pub(super) tools_panel_icon: MouseStateHandle,
     /// Per-region '+' new-tab button hover states, keyed by region id.
     pub(super) region_new_tab_button_states: RefCell<HashMap<u64, MouseStateHandle>>,
-    /// Per-agent titlebar button hover states, keyed by CLIAgent serialized name.
-    pub(super) cli_agent_titlebar_button_states: RefCell<HashMap<String, MouseStateHandle>>,
     #[cfg(target_family = "wasm")]
     pub(super) warp_logo: MouseStateHandle,
 }

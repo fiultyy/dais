@@ -2453,5 +2453,74 @@ fn test_standard_tab_context_menu_shows_hover_only_tab_bar() {
     });
 }
 
+
+#[test]
+fn test_special_view_lifecycle() {
+    App::test((), |mut app| async move {
+        initialize_app(&mut app);
+        #[cfg(not(target_family = "wasm"))]
+        app.add_singleton_model(crate::ai::observatory::model::ObservatoryModel::new);
+        #[cfg(not(target_family = "wasm"))]
+        app.add_singleton_model(crate::ai::cockpit::model::CockpitModel::new);
+        let workspace = mock_workspace(&mut app);
+        workspace.update(&mut app, |workspace, ctx| {
+            workspace.add_terminal_tab(false, ctx);
+            workspace.add_terminal_tab(false, ctx);
+
+            // Settings opens as a special view, not a tab.
+            workspace.handle_action(&WorkspaceAction::ShowSettings, ctx);
+            assert_eq!(workspace.special_view, Some(SpecialView::Settings));
+            let tab_count = workspace.tab_count();
+
+            // Activating a terminal tab exits the special view.
+            workspace.activate_tab_internal(0, ctx);
+            assert_eq!(workspace.special_view, None);
+            assert_eq!(workspace.tab_count(), tab_count, "special view must not add tabs");
+
+            // Observatory toggles on, and off again.
+            workspace.handle_action(&WorkspaceAction::ToggleObservatory, ctx);
+            assert_eq!(workspace.special_view, Some(SpecialView::Observatory));
+            workspace.handle_action(&WorkspaceAction::ToggleObservatory, ctx);
+            assert_eq!(workspace.special_view, None);
+
+            // Switching projects closes the special view too.
+            workspace.handle_action(&WorkspaceAction::ShowSettings, ctx);
+            workspace.handle_action(
+                &WorkspaceAction::SwitchProject { project: None },
+                ctx,
+            );
+            assert_eq!(workspace.special_view, None);
+        });
+    });
+}
+
+#[test]
+fn test_transferred_tab_preserves_project_path() {
+    use std::path::PathBuf;
+
+    App::test((), |mut app| async move {
+        initialize_app(&mut app);
+        let workspace = mock_workspace(&mut app);
+
+        workspace.update(&mut app, |workspace, ctx| {
+            workspace.add_terminal_tab(false, ctx);
+            workspace.add_terminal_tab(false, ctx);
+            // Tag the second tab with a project.
+            let project = PathBuf::from("/tmp/some-project");
+            workspace.tabs[1].project_path = Some(project.clone());
+
+            // Transfer info must carry the project path...
+            let transferred = workspace
+                .get_tab_transfer_info(1, ctx)
+                .expect("transfer info for a multi-tab workspace");
+            assert_eq!(transferred.project_path, Some(project.clone()));
+
+            // ...and re-insertion must restore it (not drop to ungrouped).
+            workspace.remove_tab_without_undo(1, ctx);
+            workspace.insert_transferred_tab_at_index(transferred, 1, ctx);
+            assert_eq!(workspace.tabs[1].project_path, Some(project));
+        });
+    });
+}
 // 已删:test_open_ambient_agent_setup_guide_action_opens_management_view_and_is_idempotent
 // agent_management_view 字段连同 agent setup guide 整片功能在 Phase 2c 已删。

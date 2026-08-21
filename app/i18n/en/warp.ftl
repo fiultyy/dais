@@ -3760,8 +3760,8 @@ observatory-blocks-sidebar-title = Blocks · { $session }
 observatory-session-context = { $model } · context { $used } / { $window } tok · { $pct }
 observatory-session-context-unknown-window = { $model } · context { $used } tok
 
-cockpit-title = Cockpit
-cockpit-pane-title = Cockpit
+cockpit-title = Orchestrator
+cockpit-pane-title = Orchestrator
 cockpit-refresh = Refresh
 cockpit-empty = No live terminals yet
 cockpit-terminal-count = { $count } terminals · { $windows } window(s)

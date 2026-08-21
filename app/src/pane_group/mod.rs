@@ -3522,6 +3522,15 @@ impl PaneGroup {
             .copied()
     }
 
+    /// 查找本 pane group 中的设置 pane id(无则 None)。独立层级改造后仅
+    /// 用于旧快照恢复时识别并丢弃 settings tab。
+    pub fn settings_pane_id(&self) -> Option<PaneId> {
+        self.pane_contents
+            .keys()
+            .find(|pane_id| pane_id.pane_type() == pane::IPaneType::Settings)
+            .copied()
+    }
+
     /// Get the notebook view within the pane at `pane_index`.
     #[cfg(any(test, feature = "integration_tests"))]
     pub fn notebook_view_at_pane_index(

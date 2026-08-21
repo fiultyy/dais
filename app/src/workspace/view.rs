@@ -53,7 +53,7 @@ use crate::ai::{
 use crate::ai_assistant::execution_context::WarpAiExecutionContext;
 use crate::app_state::{
     LeafContents, LeafSnapshot, LeftPanelDisplayedTab, LeftPanelSnapshot, NotebookPaneSnapshot,
-    PaneNodeSnapshot, PaneUuid, RightPanelSnapshot, SettingsPaneSnapshot, TabSnapshot,
+    PaneNodeSnapshot, PaneUuid, RightPanelSnapshot, TabSnapshot,
     TerminalPaneSnapshot, WindowSnapshot, WorkflowPaneSnapshot,
 };
 use crate::code_review::diff_state::DiffStateModel;
@@ -712,6 +712,16 @@ impl ShowTabBar {
     }
 }
 
+/// 独立层级视图:设置页/观测台/编排器(原驾驶舱)。与终端实例 tab
+/// 分离——`special_view = Some(..)` 时内容区整体替换为该视图,不占
+/// tab、不进 region 树、不持久化;任一终端 tab/项目切换即关闭。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SpecialView {
+    Settings,
+    Observatory,
+    Cockpit,
+}
+
 /// The type of content being displayed when the simplified WASM tab bar is shown.
 /// Used to determine which elements to render (e.g., icon, info button).
 #[cfg(target_family = "wasm")]
@@ -852,6 +862,10 @@ pub struct TransferredTab {
     pub right_panel_open: bool,
     pub is_right_panel_maximized: bool,
     pub draggable_state: DraggableState,
+    /// Owning project (rail grouping). Preserved across cross-window
+    /// transfers so a tab dragged out and back doesn't fall into the
+    /// ungrouped bucket and vanish from the project view.
+    pub project_path: Option<PathBuf>,
 }
 
 pub struct Workspace {
@@ -889,6 +903,15 @@ pub struct Workspace {
     /// Content-area rect used to resolve split zones while
     /// `pending_tab_split` is live (cache of the tab content bounds).
     tab_content_bounds: Option<RectF>,
+    /// 独立层级视图(设置/观测台/编排器):Some 时内容区整体替换为该
+    /// 视图,不进 tab 系统;点标题栏 X、切 tab 或切项目即回到终端区。
+    pub(crate) special_view: Option<SpecialView>,
+    /// 观测台面板视图(独立层级用,首次打开懒建;不持久化)。
+    #[cfg(not(target_family = "wasm"))]
+    observatory_view: Option<ViewHandle<crate::ai::observatory::view::ObservatoryPanelView>>,
+    /// 编排器(原驾驶舱)面板视图(同上)。
+    #[cfg(not(target_family = "wasm"))]
+    cockpit_view: Option<ViewHandle<crate::ai::cockpit::view::CockpitPanelView>>,
     pub(crate) hovered_tab_index: Option<TabBarHoverIndex>,
     tab_bar_hover_state: MouseStateHandle,
     tab_fixed_width: Option<f32>,
@@ -3036,6 +3059,11 @@ impl Workspace {
             pending_tab_split: None,
             pending_region_split: None,
             tab_content_bounds: None,
+            special_view: None,
+            #[cfg(not(target_family = "wasm"))]
+            observatory_view: None,
+            #[cfg(not(target_family = "wasm"))]
+            cockpit_view: None,
             hovered_tab_index: None,
             tab_bar_hover_state: Default::default(),
             traffic_light_mouse_states: Default::default(),
@@ -3538,6 +3566,28 @@ impl Workspace {
                             );
                         }
                     });
+
+                // 独立层级改造(2026-08-21):设置/观测台/编排器不再以
+                // tab 存在——旧快照恢复出的 settings tab(观测台/编排器
+                // 本就不持久化)直接丢弃,避免混入终端实例列表。
+                let saved_tab_count = self.tabs.len();
+                {
+                    let mut drop_index = self.tabs.len();
+                    while drop_index > 0 {
+                        drop_index -= 1;
+                        let is_special_tab = self.tabs[drop_index]
+                            .pane_group
+                            .as_ref(ctx)
+                            .settings_pane_id()
+                            .is_some();
+                        if is_special_tab {
+                            self.remove_tab_without_undo(drop_index, ctx);
+                        }
+                    }
+                    if self.tabs.len() < saved_tab_count {
+                        self.sync_active_tab_by_region();
+                    }
+                }
 
                 if self.tab_count() == 0 {
                     if self.should_trigger_get_started_onboarding(ctx) {
@@ -4197,93 +4247,74 @@ impl Workspace {
             !self.current_workspace_state.is_ai_assistant_panel_open;
     }
 
-    /// 打开观测台为**独立标签页**（不再挤右侧工具面板，与
-    /// AI Assistant/Resource Center/CodeReview 不互斥）。
-    /// 已有观测台 tab 时切换过去；没有则新建 tab。
+    /// 打开/关闭观测台(**独立层级视图**,不进 tab 系统)。再点一次
+    /// 或切任何终端 tab/项目即关闭;面板数据轮询 gate 随开合同步。
     #[cfg(not(target_family = "wasm"))]
     fn toggle_observatory(&mut self, ctx: &mut ViewContext<Self>) {
-        use crate::pane_group::pane::observatory_pane::ObservatoryPane;
-
-        // 已有观测台 pane → 聚焦切换
-        if let Some(locator) = self.find_observatory_pane_locator(ctx) {
-            self.focus_pane(locator, ctx);
-            ctx.notify();
+        if self.special_view == Some(SpecialView::Observatory) {
+            self.close_special_view(ctx);
             return;
         }
-
-        // 新建观测台 tab
-        let new_idx = self.tab_count();
-        let pane: Box<dyn crate::pane_group::AnyPaneContent> = {
-            let pane_group_view = self.active_tab_pane_group();
-            let mut pane = None;
-            pane_group_view.update(ctx, |_, ctx| {
-                pane = Some(Box::new(ObservatoryPane::new(ctx))
-                    as Box<dyn crate::pane_group::AnyPaneContent>);
+        self.close_special_view(ctx);
+        if self.observatory_view.is_none() {
+            let model = crate::ai::observatory::model::ObservatoryModel::handle(ctx);
+            let view = ctx.add_typed_action_view(|ctx| {
+                crate::ai::observatory::view::ObservatoryPanelView::new(model.clone(), ctx)
             });
-            pane.expect("observatory pane should be created")
-        };
-        self.add_tab_from_existing_pane(pane, new_idx, ctx);
+            self.observatory_view = Some(view);
+        }
+        crate::ai::observatory::model::ObservatoryModel::handle(ctx).update(ctx, |m, ctx| {
+            m.set_panel_open(true, ctx);
+            m.refresh(ctx);
+        });
+        self.special_view = Some(SpecialView::Observatory);
         ctx.notify();
     }
 
-    /// 查找已打开的观测台 pane 的定位器（跨所有 tab）。
-    #[cfg(not(target_family = "wasm"))]
-    fn find_observatory_pane_locator(&self, ctx: &AppContext) -> Option<PaneViewLocator> {
-        for tab in &self.tabs {
-            let pane_group = tab.pane_group.as_ref(ctx);
-            if let Some(pane_id) = pane_group.observatory_pane_id() {
-                return Some(PaneViewLocator {
-                    pane_group_id: tab.pane_group.id(),
-                    pane_id,
-                });
-            }
-        }
-        None
-    }
-
-    /// 打开驾驶舱为**独立标签页**(hub-tui 的 dais 原生等价物,挂载方式同
-    /// toggle_observatory)。已有驾驶舱 tab 时切换过去;没有则新建 tab。
+    /// 打开/关闭编排器(原驾驶舱,**独立层级视图**,同 toggle_observatory)。
     #[cfg(not(target_family = "wasm"))]
     fn toggle_cockpit(&mut self, ctx: &mut ViewContext<Self>) {
-        use crate::pane_group::pane::cockpit_pane::CockpitPane;
-
-        // 已有驾驶舱 pane → 聚焦切换
-        if let Some(locator) = self.find_cockpit_pane_locator(ctx) {
-            self.focus_pane(locator, ctx);
-            ctx.notify();
+        if self.special_view == Some(SpecialView::Cockpit) {
+            self.close_special_view(ctx);
             return;
         }
-
-        // 新建驾驶舱 tab
-        let new_idx = self.tab_count();
-        let pane: Box<dyn crate::pane_group::AnyPaneContent> = {
-            let pane_group_view = self.active_tab_pane_group();
-            let mut pane = None;
-            pane_group_view.update(ctx, |_, ctx| {
-                pane = Some(Box::new(CockpitPane::new(ctx))
-                    as Box<dyn crate::pane_group::AnyPaneContent>);
+        self.close_special_view(ctx);
+        if self.cockpit_view.is_none() {
+            let model = crate::ai::cockpit::model::CockpitModel::handle(ctx);
+            let view = ctx.add_typed_action_view(|ctx| {
+                crate::ai::cockpit::view::CockpitPanelView::new(model.clone(), ctx)
             });
-            pane.expect("cockpit pane should be created")
-        };
-        self.add_tab_from_existing_pane(pane, new_idx, ctx);
+            self.cockpit_view = Some(view);
+        }
+        crate::ai::cockpit::model::CockpitModel::handle(ctx).update(ctx, |m, ctx| {
+            m.set_panel_open(true, ctx);
+            m.refresh(ctx);
+        });
+        self.special_view = Some(SpecialView::Cockpit);
         ctx.notify();
     }
 
-    /// 查找已打开的驾驶舱 pane 的定位器(跨所有 tab)。
-    #[cfg(not(target_family = "wasm"))]
-    fn find_cockpit_pane_locator(&self, ctx: &AppContext) -> Option<PaneViewLocator> {
-        for tab in &self.tabs {
-            let pane_group = tab.pane_group.as_ref(ctx);
-            if let Some(pane_id) = pane_group.cockpit_pane_id() {
-                return Some(PaneViewLocator {
-                    pane_group_id: tab.pane_group.id(),
-                    pane_id,
+    /// 关闭独立层级视图,回到终端内容区(观测台/编排器轮询 gate 关闭)。
+    pub(crate) fn close_special_view(&mut self, ctx: &mut ViewContext<Self>) {
+        match self.special_view.take() {
+            #[cfg(not(target_family = "wasm"))]
+            Some(SpecialView::Observatory) => {
+                crate::ai::observatory::model::ObservatoryModel::handle(ctx).update(ctx, |m, ctx| {
+                    m.set_panel_open(false, ctx);
                 });
             }
+            #[cfg(not(target_family = "wasm"))]
+            Some(SpecialView::Cockpit) => {
+                crate::ai::cockpit::model::CockpitModel::handle(ctx).update(ctx, |m, ctx| {
+                    m.set_panel_open(false, ctx);
+                });
+            }
+            _ => {}
         }
-        None
+        if self.special_view.is_none() {
+            ctx.notify();
+        }
     }
-
     /// Sets focused to the index of either the selected object or the first item in WD
     fn reset_focused_index_in_warp_drive(
         &mut self,
@@ -4684,6 +4715,8 @@ impl Workspace {
     /// activates the project's remembered tab (Orca `activeTabIdByWorktree`
     /// restore), falling back to its first visible tab.
     pub fn switch_project(&mut self, project: Option<PathBuf>, ctx: &mut ViewContext<Self>) {
+        // 项目切换即退出独立层级视图(同-project 早退路径也要关)。
+        self.close_special_view(ctx);
         if self.active_project == project {
             return;
         }
@@ -4887,6 +4920,8 @@ impl Workspace {
     /// This function is meant to be used by other actions to perform the logic to update the
     /// view's state. It's not meant to be invoked directly by an action.
     pub fn activate_tab_internal(&mut self, index: usize, ctx: &mut ViewContext<Self>) {
+        // 终端 tab 激活即退出独立层级视图(设置/观测台/编排器)。
+        self.close_special_view(ctx);
         if index < self.tab_count() {
             // If the command palette is open when the tab is switched using a keybinding,
             // we want to close the palette so that we don't get into a state where the palette
@@ -7496,25 +7531,20 @@ impl Workspace {
         search_query: Option<&str>,
         ctx: &mut ViewContext<Self>,
     ) {
-        // Ensure there is only one settings pane per window
-        let settings_pane_manager = SettingsPaneManager::handle(ctx);
-        if let Some(locator) = settings_pane_manager.as_ref(ctx).find_pane(ctx.window_id()) {
-            // Update to new page if specified
-            if let Some(page) = page {
-                self.settings_pane.update(ctx, |settings_pane, ctx| {
-                    settings_pane.set_and_refresh_current_page(page, ctx);
-                    if let Some(search_query) = search_query {
-                        settings_pane.set_search_query(search_query, ctx);
-                    }
-                });
-            }
-            // Navigate to and focus existing pane
-            self.focus_pane(locator, ctx);
-            return;
+        // 设置页为独立层级视图(2026-08-21 改造):不再以 tab 打开,内容
+        // 区整体替换;重开时切页/搜索词,关闭走 X 或切 tab/项目。
+        if self.special_view != Some(SpecialView::Settings) {
+            self.close_special_view(ctx);
         }
-
+        if let Some(page) = page {
+            self.settings_pane.update(ctx, |settings_pane, ctx| {
+                settings_pane.set_and_refresh_current_page(page, ctx);
+                if let Some(search_query) = search_query {
+                    settings_pane.set_search_query(search_query, ctx);
+                }
+            });
+        }
         let ps1_grid_info = self.active_session_ps1_grid_info(ctx);
-        // Open new tab and update current page
         self.settings_pane.update(ctx, move |settings_pane, ctx| {
             // TODO: This check shouldn't be necessary, but `active_session_ps1_grid_info` returns
             // None when the active tab has no running terminal sessions, e.g. if it contains only
@@ -7523,21 +7553,8 @@ impl Workspace {
                 settings_pane.set_ps1_info(ps1_grid_info, ctx);
             }
         });
-
-        let panes_layout = PanesLayout::Snapshot(Box::new(PaneNodeSnapshot::Leaf(LeafSnapshot {
-            is_focused: true,
-            custom_vertical_tabs_title: None,
-            contents: LeafContents::Settings(SettingsPaneSnapshot::Local {
-                current_page: page.unwrap_or_default(),
-                search_query: search_query.map(|s| s.to_owned()),
-            }),
-        })));
-        self.add_tab_with_pane_layout(
-            panes_layout,
-            Arc::new(HashMap::new()),
-            Some(crate::t!("settings-title")),
-            ctx,
-        );
+        self.special_view = Some(SpecialView::Settings);
+        ctx.notify();
     }
 
     /// Open a file from the given session as a notebook pane.
@@ -17432,11 +17449,6 @@ impl Workspace {
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                 .with_main_axis_size(MainAxisSize::Min);
 
-            // 标题栏 agent 快捷启动按钮（垂直标签栏模式）
-            for button in self.render_cli_agent_titlebar_buttons(appearance, ctx) {
-                right_controls.add_child(button);
-            }
-
             self.add_configurable_right_side_tab_bar_controls(
                 &mut right_controls,
                 &config,
@@ -17566,11 +17578,6 @@ impl Workspace {
         // Placeholder to make sure the flex row expands across the entire width of the app.
         tab_bar.add_child(Shrinkable::new(0.5, Empty::new().finish()).finish());
 
-        // 标题栏 agent 快捷启动按钮（水平标签栏模式）
-        for button in self.render_cli_agent_titlebar_buttons(appearance, ctx) {
-            tab_bar.add_child(button);
-        }
-
         self.add_configurable_right_side_tab_bar_controls(
             &mut tab_bar,
             &config,
@@ -17646,71 +17653,6 @@ impl Workspace {
             .with_margin_left(TAB_BAR_ICON_PADDING)
             .finish(),
         )
-    }
-
-    /// 渲染标题栏上已安装 CLI agent 的快捷启动按钮。
-    /// 只显示 per-agent 设置中 titlebar 标记为 true 的 agent。
-    fn render_cli_agent_titlebar_buttons(
-        &self,
-        appearance: &Appearance,
-        ctx: &AppContext,
-    ) -> Vec<Box<dyn Element>> {
-        let ai_settings = AISettings::as_ref(ctx);
-        let install_model = CLIAgentInstallModel::as_ref(ctx);
-        let mut buttons = Vec::new();
-
-        for agent in enum_iterator::all::<CLIAgent>() {
-            if matches!(agent, CLIAgent::Unknown) || !install_model.is_cli_agent_installed(agent) {
-                continue;
-            }
-            if !ai_settings.is_cli_agent_titlebar_enabled(agent) {
-                continue;
-            }
-
-            let agent_key = agent.to_serialized_name();
-            let mut states = self
-                .mouse_states
-                .cli_agent_titlebar_button_states
-                .borrow_mut();
-            let handle = states
-                .entry(agent_key.clone())
-                .or_insert_with(MouseStateHandle::default)
-                .clone();
-
-            let icon = agent.icon().unwrap_or(icons::Icon::LayoutAlt01);
-            let theme = appearance.theme();
-            let icon_color = theme.sub_text_color(theme.background());
-            let button =
-                icon_button_with_color(appearance, icon, false, handle.clone(), icon_color)
-                    .with_hovered_styles(UiComponentStyles {
-                        font_color: Some(icon_color.into()),
-                        background: Some(theme.surface_2().into()),
-                        ..UiComponentStyles::default()
-                    })
-                    .with_clicked_styles(UiComponentStyles {
-                        font_color: Some(icon_color.into()),
-                        background: Some(theme.background().into()),
-                        ..UiComponentStyles::default()
-                    })
-                    // 图标缩小到 14×14：padding 从 4 增大到 5.0，按钮外框 24×24 不变
-                    .with_style(UiComponentStyles::default().set_padding(Coords::uniform(5.0)));
-
-            let agent_name = agent.display_name().to_string();
-            let button = button
-                .with_tooltip(self.render_tab_bar_icon_button_tooltip(appearance, agent_name, None))
-                .build()
-                .on_click(move |ctx, _, _| {
-                    ctx.dispatch_typed_action(WorkspaceAction::AddSpecificAgentTab(agent));
-                });
-
-            buttons.push(
-                Container::new(button.finish())
-                    .with_margin_left(TAB_BAR_ICON_PADDING)
-                    .finish(),
-            );
-        }
-
-        buttons
     }
 
     /// Renders the notifications mailbox button (extracted for reuse from
@@ -17988,18 +17930,27 @@ impl Workspace {
     /// split axis with 1px dividers.
     fn render_region_tree(&self, appearance: &Appearance, app: &AppContext) -> Box<dyn Element> {
         let tree = self.region_tree.clone();
-        self.render_region_node(&tree, appearance, app)
+        // Project 视图:物理非空但严格过滤后无可见 tab 的 region(其他
+        // 项目的 tab 独占)整体跳过——不留空白占位,剩余区域摊开;物理
+        // 树不动,切回「全部」即还原全部分割。
+        let hide_filtered_empty = self.active_project.is_some();
+        self.render_region_node(&tree, hide_filtered_empty, appearance, app)
+            .unwrap_or_else(|| Empty::new().finish())
     }
 
     fn render_region_node(
         &self,
         node: &super::regions::RegionNode,
+        hide_filtered_empty: bool,
         appearance: &Appearance,
         app: &AppContext,
-    ) -> Box<dyn Element> {
+    ) -> Option<Box<dyn Element>> {
         match node {
             super::regions::RegionNode::Leaf(region) => {
-                self.render_region_leaf(*region, appearance, app)
+                if hide_filtered_empty && self.visible_region_tab_indices(*region).is_empty() {
+                    return None;
+                }
+                Some(self.render_region_leaf(*region, appearance, app))
             }
             super::regions::RegionNode::Branch { axis, children } => {
                 let mut parent = match axis {
@@ -18007,19 +17958,23 @@ impl Workspace {
                     crate::pane_group::SplitDirection::Vertical => Flex::column(),
                 }
                 .with_cross_axis_alignment(CrossAxisAlignment::Stretch);
-                for (index, child) in children.iter().enumerate() {
-                    if index > 0 {
+                let mut rendered_any = false;
+                for child in children {
+                    let Some(child_el) =
+                        self.render_region_node(&child.node, hide_filtered_empty, appearance, app)
+                    else {
+                        continue;
+                    };
+                    if rendered_any {
                         parent.add_child(Self::render_region_divider(*axis, appearance));
                     }
-                    parent.add_child(
-                        Shrinkable::new(
-                            child.flex,
-                            self.render_region_node(&child.node, appearance, app),
-                        )
-                        .finish(),
-                    );
+                    parent.add_child(Shrinkable::new(child.flex, child_el).finish());
+                    rendered_any = true;
                 }
-                parent.finish()
+                if !rendered_any {
+                    return None;
+                }
+                Some(parent.finish())
             }
         }
     }
@@ -18039,6 +17994,82 @@ impl Workspace {
             crate::pane_group::SplitDirection::Horizontal => rule.with_width(1.).finish(),
             crate::pane_group::SplitDirection::Vertical => rule.with_height(1.).finish(),
         }
+    }
+    /// 独立层级视图(设置/观测台/编排器):标题栏(标题 + X 关闭)+
+    /// 全幅内容,替代 region 树渲染。样式对齐 region tab 栏(34px + 底
+    /// 边线),关闭按钮 Stack 右上角锚定(规避弹性 spacer 布局毒性)。
+    fn render_special_view(
+        &self,
+        view: SpecialView,
+        appearance: &Appearance,
+        app: &AppContext,
+    ) -> Box<dyn Element> {
+        let theme = appearance.theme();
+        let title = match view {
+            SpecialView::Settings => crate::t!("settings-title"),
+            SpecialView::Observatory => crate::t!("observatory-title"),
+            SpecialView::Cockpit => crate::t!("cockpit-title"),
+        };
+        let title_text = Text::new_inline(title, appearance.ui_font_family(), 12.)
+            .with_color(theme.main_text_color(theme.background()).into())
+            .finish();
+
+        let close_button = icon_button_with_color(
+            appearance,
+            crate::ui_components::icons::Icon::X,
+            false,
+            self.mouse_states.special_view_close_button.clone(),
+            theme.sub_text_color(theme.background()),
+        )
+        .build()
+        .on_click(|ctx, _, _| {
+            ctx.dispatch_typed_action(WorkspaceAction::CloseSpecialView);
+        })
+        .finish();
+
+        let title_row = Flex::row()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_alignment(MainAxisAlignment::SpaceBetween)
+            .with_cross_axis_alignment(CrossAxisAlignment::Center)
+            .with_child(
+                Container::new(title_text)
+                    .with_padding_left(TAB_BAR_PADDING_LEFT + 4.)
+                    .finish(),
+            )
+            .with_child(
+                Container::new(close_button)
+                    .with_padding_right(TAB_BAR_PADDING_RIGHT)
+                    .finish(),
+            )
+            .finish();
+        let header = ConstrainedBox::new(
+            Container::new(title_row)
+                .with_border(
+                    Border::bottom(TAB_BAR_BORDER_HEIGHT).with_border_fill(theme.outline()),
+                )
+                .finish(),
+        )
+        .with_height(TAB_BAR_HEIGHT)
+        .finish();
+
+        let content: Box<dyn Element> = match view {
+            SpecialView::Settings => ChildView::new(&self.settings_pane).finish(),
+            #[cfg(not(target_family = "wasm"))]
+            SpecialView::Observatory => match &self.observatory_view {
+                Some(view) => ChildView::new(view).finish(),
+                None => Empty::new().finish(),
+            },
+            #[cfg(not(target_family = "wasm"))]
+            SpecialView::Cockpit => match &self.cockpit_view {
+                Some(view) => ChildView::new(view).finish(),
+                None => Empty::new().finish(),
+            },
+        };
+
+        let mut column = Flex::column().with_cross_axis_alignment(CrossAxisAlignment::Stretch);
+        column.add_child(header);
+        column.add_child(Shrinkable::new(1., content).finish());
+        column.finish()
     }
 
 
@@ -18714,7 +18745,11 @@ impl Workspace {
 
         // 垂直标签模式:内容区渲染 split-region 树(每区域自带 tab 栏)。
         // 水平模式保持单 active tab 的旧布局。
-        let active_content = if vertical_tabs_active {
+        // 独立层级视图(设置/观测台/编排器):内容区整体替换,region 树
+        // 与水平 tab 布局均不渲染。
+        let active_content = if let Some(special) = self.special_view {
+            self.render_special_view(special, appearance, app)
+        } else if vertical_tabs_active {
             self.render_region_tree(appearance, app)
         } else {
             let active_tab_data = &self.tabs[self.active_tab_index];
@@ -19512,7 +19547,7 @@ impl Workspace {
         appearance: &Appearance,
         app: &AppContext,
     ) -> Box<dyn Element> {
-        let is_active = self.find_observatory_pane_locator(app).is_some();
+        let is_active = self.special_view == Some(SpecialView::Observatory);
         let theme = appearance.theme();
         let icon_color = if is_active {
             theme.main_text_color(theme.background())
@@ -19537,7 +19572,7 @@ impl Workspace {
         appearance: &Appearance,
         app: &AppContext,
     ) -> Box<dyn Element> {
-        let is_active = self.find_cockpit_pane_locator(app).is_some();
+        let is_active = self.special_view == Some(SpecialView::Cockpit);
         let theme = appearance.theme();
         let icon_color = if is_active {
             theme.main_text_color(theme.background())
@@ -20669,6 +20704,10 @@ impl TypedActionView for Workspace {
             #[cfg(not(target_family = "wasm"))]
             ToggleObservatory => {
                 self.toggle_observatory(ctx);
+            }
+            #[cfg(not(target_family = "wasm"))]
+            CloseSpecialView => {
+                self.close_special_view(ctx);
             }
             #[cfg(not(target_family = "wasm"))]
             ToggleCockpit => {
@@ -23288,7 +23327,6 @@ impl Workspace {
         let right_panel_open = pane_group.read(ctx, |pg, _| pg.right_panel_open);
         let is_right_panel_maximized = pane_group.read(ctx, |pg, _| pg.is_right_panel_maximized);
         let vertical_tabs_panel_open = self.vertical_tabs_panel_open;
-
         Some(TransferredTab {
             pane_group,
             color,
@@ -23298,6 +23336,7 @@ impl Workspace {
             is_right_panel_maximized,
             draggable_state,
             vertical_tabs_panel_open,
+            project_path: tab.project_path.clone(),
         })
     }
 
@@ -23349,6 +23388,7 @@ impl Workspace {
             pane_group,
             color,
             draggable_state,
+            project_path,
             ..
         } = transferred_tab;
         ctx.subscribe_to_view(&pane_group, move |me, pane_group, event, ctx| {
@@ -23359,7 +23399,12 @@ impl Workspace {
         let mut tab_data = TabData::new(pane_group);
         tab_data.selected_color = color.map_or(SelectedTabColor::Unset, SelectedTabColor::Color);
         tab_data.draggable_state = draggable_state;
+        // 跨窗转移保留 project 归属(拖出再放回不应落入未分组)。
+        tab_data.project_path = project_path;
+        // Region 归属:目标树可能不同,折到首个 leaf。
+        tab_data.region_id = self.region_tree.first_leaf();
         self.tabs.insert(index, tab_data);
+        self.sync_active_tab_by_region();
         self.activate_tab_internal(index, ctx);
         ctx.notify();
     }
@@ -23469,11 +23514,12 @@ impl Workspace {
     }
 
     /// Replaces the placeholder pane group (created by
-    /// `create_transferred_window`) with the real pane group transferred from
-    /// the source window, detaching and dropping the placeholder.
+    /// `create_transferred_window`) with the real transferred one, adopting
+    /// its event subscriptions and preserving the tab's project ownership.
     pub fn adopt_transferred_pane_group(
         &mut self,
         new_pane_group: ViewHandle<PaneGroup>,
+        project_path: Option<PathBuf>,
         ctx: &mut ViewContext<Self>,
     ) {
         if !self.pending_pane_group_transfer {
@@ -23500,6 +23546,7 @@ impl Workspace {
         // the placeholder so its terminals are properly detached.
         let placeholder_pane_group =
             std::mem::replace(&mut placeholder_tab.pane_group, new_pane_group.clone());
+        placeholder_tab.project_path = project_path;
 
         // Re-route pane-group event subscriptions from the placeholder onto
         // the transferred pane group. The workspace was subscribed to the

@@ -3595,8 +3595,8 @@ observatory-blocks-sidebar-title = Blocks · { $session }
 observatory-session-context = { $model } · コンテキスト { $used } / { $window } tok · { $pct }
 observatory-session-context-unknown-window = { $model } · コンテキスト { $used } tok
 
-cockpit-title = コックピット
-cockpit-pane-title = コックピット
+cockpit-title = オーケストレーター
+cockpit-pane-title = オーケストレーター
 cockpit-refresh = 更新
 cockpit-empty = ライブターミナルなし
 cockpit-terminal-count = { $count } ターミナル · { $windows } ウィンドウ

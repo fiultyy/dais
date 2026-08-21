@@ -293,6 +293,8 @@ pub enum WorkspaceAction {
     /// Toggles the Cockpit panel (multi-agent terminal dashboard).
     #[cfg(not(target_family = "wasm"))]
     ToggleCockpit,
+    /// 关闭独立层级视图(设置/观测台/编排器标题栏 X),回到终端内容区。
+    CloseSpecialView,
     ToggleRightPanel,
     /// Opens the code review panel (right panel) without toggling. If already open,
     /// switches to the target pane's repo. Used by vertical tabs diff stats chip.
@@ -855,6 +857,7 @@ impl WorkspaceAction {
             // 子系统物理删。
             #[cfg(target_os = "linux")]
             DismissWaylandCrashRecoveryBannerAndOpenLink => false,
+            CloseSpecialView => false,
             #[cfg(not(target_family = "wasm"))]
             ToggleCockpit => false,
             #[cfg(not(target_family = "wasm"))]

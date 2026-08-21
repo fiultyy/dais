@@ -1759,9 +1759,13 @@ fn render_project_card(
         None => Default::default(),
     };
 
-    // 树行样式(2026-08 大纲重构):不再用卡片背景,选中仅以文字色 +
-    // 左侧细指示条表达;子行(tab 行)按 tree 缩进。
-    let background = ElementFill::None;
+    // 树行样式(2026-08 大纲重构):选中 = 文字亮色 + 行底色 + 左侧
+    // accent 指示条(Stack 锚定,不参与 flex 分配);子行按 tree 缩进。
+    let background = if is_selected {
+        ElementFill::Solid(internal_colors::fg_overlay_1(theme).into())
+    } else {
+        ElementFill::None
+    };
     let text_color = if is_selected { main_text } else { sub_text };
 
     let label = match tab_count {
@@ -1797,6 +1801,31 @@ fn render_project_card(
             });
         })
         .finish();
+    // 选中指示条:2px accent 竖条,锚行左缘(Stack 绝对定位——挂进 flex
+    // 列曾是布局毒性源,绝对定位零参与)。
+    let card = if is_selected {
+        let indicator = ConstrainedBox::new(
+            Rect::new()
+                .with_background(ThemeFill::Solid(theme.accent().into()))
+                .finish(),
+        )
+        .with_width(2.)
+        .with_height(SPLIT_BUTTON_HEIGHT)
+        .finish();
+        let mut stack = Stack::new().with_child(card);
+        stack.add_positioned_child(
+            indicator,
+            OffsetPositioning::offset_from_parent(
+                Vector2F::zero(),
+                ParentOffsetBounds::ParentByPosition,
+                ParentAnchor::MiddleLeft,
+                ChildAnchor::MiddleLeft,
+            ),
+        );
+        stack.finish()
+    } else {
+        card
+    };
 
     // Row: [chevron] [status dot] [label (expand)] [× close for real projects]
     let mut row = Flex::row()
