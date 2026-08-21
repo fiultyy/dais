@@ -3790,4 +3790,5 @@ cockpit-branch-prefix = branch:
 cockpit-badge-shared = shared
 cockpit-badge-readonly = read-only
 project-rail-all-projects = All
+project-rail-ungrouped-instances = Ungrouped instances
 project-rail-section-title = Projects

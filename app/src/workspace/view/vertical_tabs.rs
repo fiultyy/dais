@@ -2094,7 +2094,14 @@ fn render_vertical_tabs_panel(
     // embedded subtree. Hide it (and the separator) so each tab appears once
     // per surface; the "All" view keeps the full vertical list.
     let panel_content = if workspace.active_project.is_some() {
-        Flex::column()
+        let ungrouped_tabs: Vec<usize> = workspace
+            .tabs
+            .iter()
+            .enumerate()
+            .filter(|(_, tab)| tab.project_path.is_none())
+            .map(|(index, _)| index)
+            .collect();
+        let mut project_view = Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
             .with_child(render_header_toolbar_row(workspace, app))
@@ -2103,9 +2110,64 @@ fn render_vertical_tabs_panel(
                 workspace,
                 app,
                 /* show_separator */ false,
-            ))
-            // Spacer pins the footer to the rail's bottom edge.
-            .with_child(Shrinkable::new(1., Empty::new().finish()).finish())
+            ));
+        // 无项目实例:项目过滤保留它们,但项目卡子树只嵌 project_path
+        // =Some 的 tab——不单独列出会从大纲消失。
+        if !ungrouped_tabs.is_empty() {
+            let mut ungrouped_list = Flex::column()
+                .with_main_axis_size(MainAxisSize::Min)
+                .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+                .with_spacing(GROUP_ITEM_SPACING);
+            ungrouped_list.add_child(
+                Container::new(
+                    Text::new_inline(
+                        crate::t!("project-rail-ungrouped-instances"),
+                        appearance.ui_font_family(),
+                        10.5,
+                    )
+                    .with_color(theme.sub_text_color(theme.background()).into())
+                    .finish(),
+                )
+                .with_padding(
+                    Padding::uniform(GROUP_ITEM_SPACING)
+                        .with_left(GROUP_HORIZONTAL_PADDING)
+                        .with_right(GROUP_HORIZONTAL_PADDING),
+                )
+                .finish(),
+            );
+            for tab_index in ungrouped_tabs {
+                ungrouped_list.add_child(render_tab_group(
+                    state,
+                    workspace,
+                    tab_index,
+                    &workspace.tabs[tab_index],
+                    None,
+                    TabGroupDragState {
+                        is_any_pane_dragging: false,
+                        insert_before_index: 0,
+                        insert_after_index: None,
+                    },
+                    app,
+                ));
+            }
+            project_view = project_view.with_child(Box::new(Expanded::new(
+                1.,
+                ClippedScrollable::vertical(
+                    state.scroll_state.clone(),
+                    ungrouped_list.finish(),
+                    ScrollbarWidth::Custom(4.),
+                    theme.nonactive_ui_detail().into(),
+                    theme.active_ui_detail().into(),
+                    ElementFill::None,
+                )
+                .with_overlayed_scrollbar()
+                .finish(),
+            )));
+        } else {
+            project_view =
+                project_view.with_child(Box::new(Expanded::new(1., Empty::new().finish())));
+        }
+        project_view
             .with_child(render_rail_footer(workspace, app))
             .finish()
     } else {
@@ -2130,9 +2192,9 @@ fn render_vertical_tabs_panel(
                 /* show_separator */ true,
             )); // BISECT-control-bar: control bar temporarily removed
         if !state.all_projects_collapsed.get() {
-            all_view = all_view.with_child(Shrinkable::new(1., scrollable_groups).finish());
+            all_view = all_view.with_child(Box::new(Expanded::new(1., scrollable_groups)));
         } else {
-            all_view = all_view.with_child(Shrinkable::new(1., Empty::new().finish()).finish());
+            all_view = all_view.with_child(Box::new(Expanded::new(1., Empty::new().finish())));
         }
         all_view
             .with_child(render_rail_footer(workspace, app))
