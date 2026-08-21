@@ -149,9 +149,9 @@ struct ActiveDrag {
     /// so that releasing the mouse directly over a target tab bar (including
     /// the source's own) still commits a handoff instead of promoting the
     /// preview into a new window.
-    last_drag_center_on_screen: Option<Vector2F>,
+    last_drag_pointer_on_screen: Option<Vector2F>,
     /// Caller window id from the most recent `on_drag` event. Paired with
-    /// `last_drag_center_on_screen` for the drop-time re-resolution above.
+    /// `last_drag_pointer_on_screen` for the drop-time re-resolution above.
     last_caller_window_id: Option<WindowId>,
     /// Whether `on_drop` has already attempted a drop-time re-resolution of
     /// the attach target. Prevents an infinite loop if the post-handoff phase
@@ -477,7 +477,7 @@ impl CrossWindowTabDrag {
             window_size,
             initial_drag_center_offset,
             last_known_target_tab_origin_in_window,
-            last_drag_center_on_screen: None,
+            last_drag_pointer_on_screen: None,
             last_caller_window_id: None,
             drop_resolution_attempted: false,
             source_placeholder_consumed: false,
@@ -511,7 +511,7 @@ impl CrossWindowTabDrag {
             window_size,
             initial_drag_center_offset,
             last_known_target_tab_origin_in_window,
-            last_drag_center_on_screen: None,
+            last_drag_pointer_on_screen: None,
             last_caller_window_id: None,
             drop_resolution_attempted: false,
             source_placeholder_consumed: false,
@@ -535,6 +535,7 @@ impl CrossWindowTabDrag {
         &mut self,
         caller_window_id: WindowId,
         drag_position: RectF,
+        drag_pointer_in_caller: Vector2F,
         ctx: &mut ModelContext<Self>,
     ) -> DragResult {
         let Some(drag) = self.active_drag.as_mut() else {
@@ -551,13 +552,20 @@ impl CrossWindowTabDrag {
         };
 
         let drag_origin_in_window = vec2f(drag_position.min_x(), drag_position.min_y());
-        let drag_center_in_window = drag_origin_in_window + drag.initial_drag_center_offset;
         let drag_origin_on_screen = source_window_origin + drag_origin_in_window;
-        let drag_center_on_screen = source_window_origin + drag_center_in_window;
+        // Resolve attach targets / insertion indices from the *pointer*
+        // position, not the ghost center: the ghost chip can be much wider
+        // than the tab row (grabbing a tab near its left edge shifts the
+        // center by half the chip width), and hit-testing the center made a
+        // drag that had clearly left the window register as hovering the
+        // source window's own tab bar — firing a spurious back-to-caller
+        // put-back and reverse thrash that made rail rows flicker away.
+        // Same pointer-vs-center rule the in-window split zones use.
+        let drag_pointer_on_screen = source_window_origin + drag_pointer_in_caller;
 
         // Cache the screen-space cursor so `on_drop` can re-run attach-target
         // resolution with the same coordinates the user last saw.
-        drag.last_drag_center_on_screen = Some(drag_center_on_screen);
+        drag.last_drag_pointer_on_screen = Some(drag_pointer_on_screen);
         drag.last_caller_window_id = Some(caller_window_id);
 
         match &drag.phase {
@@ -571,7 +579,7 @@ impl CrossWindowTabDrag {
                 self.on_drag_while_ghost(
                     caller_window_id,
                     drag_origin_on_screen,
-                    drag_center_on_screen,
+                    drag_pointer_on_screen,
                     target_wid,
                     target_idx,
                     ctx,
@@ -586,7 +594,7 @@ impl CrossWindowTabDrag {
                 self.on_drag_while_inserted(
                     caller_window_id,
                     drag_origin_on_screen,
-                    drag_center_on_screen,
+                    drag_pointer_on_screen,
                     target_wid,
                     target_idx,
                     ctx,
@@ -595,7 +603,7 @@ impl CrossWindowTabDrag {
             DragPhase::Floating => self.on_drag_while_floating(
                 caller_window_id,
                 drag_origin_on_screen,
-                drag_center_on_screen,
+                drag_pointer_on_screen,
                 ctx,
             ),
             DragPhase::Transitioning => DragResult::Handled,
@@ -617,7 +625,7 @@ impl CrossWindowTabDrag {
         &mut self,
         caller_window_id: WindowId,
         drag_origin_on_screen: Vector2F,
-        drag_center_on_screen: Vector2F,
+        drag_pointer_on_screen: Vector2F,
         target_window_id: WindowId,
         target_insertion_index: usize,
         ctx: &mut ModelContext<Self>,
@@ -669,7 +677,7 @@ impl CrossWindowTabDrag {
                             tb.size(),
                         );
                         expanded_rect(on_screen, TAB_BAR_HIT_MARGIN)
-                            .contains_point(drag_center_on_screen)
+                            .contains_point(drag_pointer_on_screen)
                     })
             })
             .unwrap_or(false);
@@ -699,7 +707,7 @@ impl CrossWindowTabDrag {
                 ws.read(ctx, |workspace, ctx| {
                     workspace.tab_insertion_index_for_cursor(
                         target_window_id,
-                        drag_center_on_screen,
+                        drag_pointer_on_screen,
                         ctx,
                     )
                 })
@@ -708,7 +716,7 @@ impl CrossWindowTabDrag {
 
         let new_cursor_in_target = ctx
             .window_bounds(&target_window_id)
-            .map(|wb| drag_center_on_screen - wb.origin())
+            .map(|wb| drag_pointer_on_screen - wb.origin())
             .unwrap_or_default();
 
         if new_index != target_insertion_index
@@ -746,7 +754,7 @@ impl CrossWindowTabDrag {
         &mut self,
         caller_window_id: WindowId,
         drag_origin_on_screen: Vector2F,
-        drag_center_on_screen: Vector2F,
+        drag_pointer_on_screen: Vector2F,
         target_window_id: WindowId,
         target_insertion_index: usize,
         ctx: &mut ModelContext<Self>,
@@ -772,7 +780,7 @@ impl CrossWindowTabDrag {
                             tb.size(),
                         );
                         expanded_rect(tab_bar_on_screen, TAB_BAR_HIT_MARGIN)
-                            .contains_point(drag_center_on_screen)
+                            .contains_point(drag_pointer_on_screen)
                     })
             })
             .unwrap_or(false);
@@ -784,7 +792,7 @@ impl CrossWindowTabDrag {
                     ws.read(ctx, |workspace, ctx| {
                         workspace.tab_insertion_index_for_cursor(
                             target_window_id,
-                            drag_center_on_screen,
+                            drag_pointer_on_screen,
                             ctx,
                         )
                     })
@@ -824,7 +832,7 @@ impl CrossWindowTabDrag {
             };
 
             if let Some(target_window_bounds) = ctx.window_bounds(&target_window_id) {
-                let mouse_pos_in_target = drag_center_on_screen - target_window_bounds.origin();
+                let mouse_pos_in_target = drag_pointer_on_screen - target_window_bounds.origin();
                 let mouse_offset = -drag.initial_drag_center_offset;
                 if let Some(target_ws) = WorkspaceRegistry::as_ref(ctx).get(target_window_id, ctx) {
                     target_ws.update(ctx, |workspace, _ctx| {
@@ -874,7 +882,7 @@ impl CrossWindowTabDrag {
         &mut self,
         caller_window_id: WindowId,
         drag_origin_on_screen: Vector2F,
-        drag_center_on_screen: Vector2F,
+        drag_pointer_on_screen: Vector2F,
         ctx: &mut ModelContext<Self>,
     ) -> DragResult {
         let Some(drag) = self.active_drag.as_mut() else {
@@ -895,7 +903,7 @@ impl CrossWindowTabDrag {
         let handoff_target = cross_window_attach_target(
             caller_window_id,
             drag.source_window_id,
-            drag_center_on_screen,
+            drag_pointer_on_screen,
             preview_window_id,
             ctx,
         );
@@ -946,7 +954,7 @@ impl CrossWindowTabDrag {
 
             let ghost_cursor_in_target = ctx
                 .window_bounds(&target.window_id)
-                .map(|wb| drag_center_on_screen - wb.origin())
+                .map(|wb| drag_pointer_on_screen - wb.origin())
                 .unwrap_or_default();
 
             drag.phase = DragPhase::GhostInTarget {
@@ -1047,7 +1055,7 @@ impl CrossWindowTabDrag {
                 && !drag.source_placeholder_consumed
             {
                 drag.drop_resolution_attempted = true;
-                let last_cursor = drag.last_drag_center_on_screen;
+                let last_cursor = drag.last_drag_pointer_on_screen;
                 let last_caller = drag.last_caller_window_id;
                 let source_window_id = drag.source_window_id;
                 let preview_window_id = drag.preview_window_id();

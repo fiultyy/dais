@@ -22694,8 +22694,9 @@ impl Workspace {
 
         if CrossWindowTabDrag::as_ref(ctx).is_active() {
             let window_id = ctx.window_id();
-            let drag_result = CrossWindowTabDrag::handle(ctx)
-                .update(ctx, |drag, ctx| drag.on_drag(window_id, position, ctx));
+            let drag_result = CrossWindowTabDrag::handle(ctx).update(ctx, |drag, ctx| {
+                drag.on_drag(window_id, position, drag_pointer, ctx)
+            });
             match drag_result {
                 DragResult::Handled => {}
                 DragResult::AdjustDraggable { adjustment } => {
