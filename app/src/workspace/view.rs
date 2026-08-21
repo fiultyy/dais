@@ -16809,9 +16809,16 @@ impl Workspace {
         &self,
         tab_index: usize,
         tab_bar_state: TabBarState,
+        show_id_badge: bool,
         ctx: &AppContext,
     ) -> Box<dyn Element> {
         let tab = &self.tabs[tab_index];
+        let id_badge = show_id_badge.then(|| {
+            tab.pane_group
+                .as_ref(ctx)
+                .active_session_view(ctx)
+                .map(|view| format!("#{}", view.id()))
+        });
         let close_button_position = if FeatureFlag::TabCloseButtonOnLeft.is_enabled() {
             TabSettings::as_ref(ctx).close_button_position
         } else {
@@ -16835,6 +16842,7 @@ impl Workspace {
             is_drag_target,
             ctx,
         )
+        .with_id_badge(id_badge.flatten())
         .build()
         .finish()
     }
@@ -17373,7 +17381,7 @@ impl Workspace {
                     continue;
                 }
                 vertical_tabs_row.add_child(
-                    self.render_tab_in_tab_bar(i, vertical_tab_bar_state.clone(), ctx),
+                    self.render_tab_in_tab_bar(i, vertical_tab_bar_state.clone(), false, ctx),
                 );
             }
             // Tabs are Shrinkable; flexible descendants must only sit under
@@ -17486,12 +17494,12 @@ impl Workspace {
                 }
                 if is_transferred {
                     tab_bar.add_child(
-                        ConstrainedBox::new(self.render_tab_in_tab_bar(i, tab_bar_state, ctx))
+                        ConstrainedBox::new(self.render_tab_in_tab_bar(i, tab_bar_state, false, ctx))
                             .with_width(0.)
                             .finish(),
                     );
                 } else {
-                    tab_bar.add_child(self.render_tab_in_tab_bar(i, tab_bar_state, ctx));
+                    tab_bar.add_child(self.render_tab_in_tab_bar(i, tab_bar_state, false, ctx));
                 }
             }
 
@@ -18023,7 +18031,9 @@ impl Workspace {
 
         let mut tabs_row = Flex::row().with_cross_axis_alignment(CrossAxisAlignment::Center);
         for index in indices {
-            tabs_row.add_child(self.render_tab_in_tab_bar(index, tab_bar_state.clone(), app));
+            tabs_row.add_child(
+                self.render_tab_in_tab_bar(index, tab_bar_state.clone(), true, app),
+            );
         }
         tabs_row.add_child(self.render_region_new_tab_button(region, appearance));
         let bar_right_padding = if self.top_right_region_id() == region {

@@ -733,6 +733,18 @@ impl<'a> TabComponent<'a> {
         self
     }
 
+    /// Prefixes the displayed title with the tab's orchestration ID
+    /// (`#<terminal view EntityId>` — the same identifier the rail rows and
+    /// harness interception use). Purely a title-string change: no custom
+    /// layout elements, so the region bar keeps the battle-tested
+    /// TabComponent render path.
+    pub fn with_id_badge(mut self, badge: Option<String>) -> Self {
+        if let Some(badge) = badge {
+            self.title = format!("{badge} · {}", self.title);
+        }
+        self
+    }
+
     /// Returns the agent indicator for the focused session's active conversation,
     /// or `None` if there is no non-empty, non-passive conversation to display.
     /// When a shell command is long-running the status is overridden to
