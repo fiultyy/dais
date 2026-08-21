@@ -3563,11 +3563,17 @@ impl Workspace {
                 // must resolve to that project's own tab, else the rail and
                 // the top bar disagree about what is active.
                 let effective_active_tab = if self.active_project.is_some() {
-                    let visible = self.visible_tab_indices();
-                    if visible.contains(&active_tab_index) {
+                    // Strict: the project's own tabs only — ungrouped
+                    // instances don't appear in project-view region bars,
+                    // so they can't be the restored active tab either.
+                    let project_tabs = self.project_tab_indices();
+                    if project_tabs.contains(&active_tab_index) {
                         active_tab_index
                     } else {
-                        visible.first().copied().unwrap_or(active_tab_index)
+                        project_tabs
+                            .first()
+                            .copied()
+                            .unwrap_or(active_tab_index)
                     }
                 } else {
                     active_tab_index
@@ -4683,17 +4689,24 @@ impl Workspace {
         }
         let restored_from = project.clone();
         self.active_project = project;
-        let visible = self.visible_tab_indices();
-        if !visible.contains(&self.active_tab_index) {
+        // Strict candidate set: a project view activates only that project's
+        // tab (region bars exclude ungrouped instances). Empty set = the
+        // project owns no tab yet; `ensure_project_has_tab` (caller) opens
+        // and activates one right after, so no restore target is fine.
+        let candidates = match &self.active_project {
+            Some(_) => self.project_tab_indices(),
+            None => self.visible_tab_indices(),
+        };
+        if !candidates.contains(&self.active_tab_index) {
             let restored = restored_from
                 .as_ref()
                 .and_then(|p| self.last_active_tab_by_project.get(p).copied())
                 .and_then(|pane_group_id| {
-                    visible.iter().copied().find(|&i| {
+                    candidates.iter().copied().find(|&i| {
                         self.tabs.get(i).is_some_and(|tab| tab.pane_group.id() == pane_group_id)
                     })
                 })
-                .or_else(|| visible.first().copied());
+                .or_else(|| candidates.first().copied());
             if let Some(index) = restored {
                 self.activate_tab_internal(index, ctx);
             }
@@ -12338,19 +12351,44 @@ impl Workspace {
             .collect()
     }
 
-    /// Tabs of `region` visible under the current project filter — drives
-    /// region tab bar rendering and drag insertion math (slot indices are
-    /// positions among *visible* tabs). Physical membership queries
-    /// (close/prune/move bookkeeping) keep using `region_tab_indices`.
+    /// Tabs owned strictly by the active project (empty when "All" view) —
+    /// unlike `visible_tab_indices`, ungrouped (project-less) tabs are
+    /// excluded: the region tab bars show only the selected project's
+    /// instances. Ungrouped tabs stay reachable via the "All" view and the
+    /// rail's ungrouped section.
+    pub(crate) fn project_tab_indices(&self) -> Vec<usize> {
+        match &self.active_project {
+            None => Vec::new(),
+            Some(project) => self
+                .tabs
+                .iter()
+                .enumerate()
+                .filter(|(_, tab)| tab.project_path.as_ref() == Some(project))
+                .map(|(index, _)| index)
+                .collect(),
+        }
+    }
+
+    /// Tabs of `region` shown in its tab bar — strictly the active project's
+    /// tabs when a project is selected (ungrouped instances excluded), all of
+    /// the region's tabs in the "All" view. Slot indices are positions among
+    /// these. Physical membership queries (close/prune/move bookkeeping) keep
+    /// using `region_tab_indices`.
     pub(crate) fn visible_region_tab_indices(
         &self,
         region: super::regions::RegionId,
     ) -> Vec<usize> {
-        let visible = self.visible_tab_indices();
-        self.region_tab_indices(region)
-            .into_iter()
-            .filter(|index| visible.contains(index))
-            .collect()
+        let physical = self.region_tab_indices(region);
+        match &self.active_project {
+            None => physical,
+            Some(_) => {
+                let project_tabs = self.project_tab_indices();
+                physical
+                    .into_iter()
+                    .filter(|index| project_tabs.contains(index))
+                    .collect()
+            }
+        }
     }
 
     /// The focused region: the region owning the active tab (fallback: the
