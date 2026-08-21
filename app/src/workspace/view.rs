@@ -524,6 +524,17 @@ pub(crate) const TAB_BAR_POSITION_ID: &str = "workspace_view:tab_bar";
 pub(crate) const VERTICAL_TABS_PANEL_POSITION_ID: &str = "workspace_view:vertical_tabs_panel";
 
 /// The main content area in a workspace. This is directly below the tab bar.
+/// Save position for a split region's content area (per-region anchor used
+/// by drag hit-testing and region overlays).
+fn region_content_position_id(region: super::regions::RegionId) -> String {
+    format!("workspace_view:region_content_{region}")
+}
+
+/// Save position for a region's '+' new-tab button (dropdown anchor).
+fn region_new_tab_button_position_id(region: super::regions::RegionId) -> String {
+    format!("workspace_view:region_new_tab_button_{region}")
+}
+
 const TAB_CONTENT_POSITION_ID: &str = "workspace_view:tab_content";
 
 const WELCOME_TIPS_POSITION_ID: &str = "welcome_tips_pill";
@@ -719,6 +730,7 @@ type WorkspaceMenuHandles = (
     ViewHandle<Menu<WorkspaceAction>>,
     ViewHandle<Menu<WorkspaceAction>>,
     ViewHandle<Menu<NewSessionSidecarSelection>>,
+    ViewHandle<Menu<WorkspaceAction>>,
 );
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -856,11 +868,24 @@ pub struct Workspace {
     last_active_tab_by_project: HashMap<PathBuf, EntityId>,
     /// Project rail: scroll state for the vertical-mode top-bar tab list.
     vertical_tabs_top_bar_scroll_state: ClippedScrollStateHandle,
+    /// Split-region tree for the content area. Each leaf region owns a tab
+    /// stack (see `TabData::region_id`); regions render their own tab bar.
+    pub(crate) region_tree: super::regions::RegionNode,
+    /// Monotonic id source for new split regions (root region is id 0).
+    next_region_id: super::regions::RegionId,
+    /// Monotonic id source for new split regions (root region is id 0).
+    /// Per-region active tab, as an index into `tabs`. Kept in sync by the
+    /// tab add/remove/activate paths; the global `active_tab_index` is the
+    /// tab of the focused region.
+    pub(crate) active_tab_by_region: HashMap<super::regions::RegionId, usize>,
     /// In-window tab→split drag (Orca `dropUnifiedTab` with
     /// `splitDirection` equivalent): while a tab drag hovers the content
     /// area's edge zone, holds the source tab and the resolved split
     /// direction for `DropTab` to execute as a pane merge.
     pub(crate) pending_tab_split: Option<PendingTabSplit>,
+    /// In-window tab→region split drag (vertical layout): hovered region
+    /// edge zone for `DropTab` to execute as a new split region.
+    pub(crate) pending_region_split: Option<PendingRegionSplit>,
     /// Content-area rect used to resolve split zones while
     /// `pending_tab_split` is live (cache of the tab content bounds).
     tab_content_bounds: Option<RectF>,
@@ -871,6 +896,10 @@ pub struct Workspace {
     tab_rename_editor: ViewHandle<EditorView>,
     pane_rename_editor: ViewHandle<EditorView>,
     vertical_tabs_search_input: ViewHandle<EditorView>,
+    /// Region '+' 下拉菜单(标准终端 + harness 快速启动),per-region 填充。
+    region_new_tab_menu: ViewHandle<Menu<WorkspaceAction>>,
+    /// Which region's new-tab dropdown is open.
+    show_region_new_tab_menu: Option<super::regions::RegionId>,
     tips_completed: ModelHandle<TipsCompleted>,
     user_default_shell_unsupported_banner_model_handle: ModelHandle<BannerState>,
     auth_state: Arc<AuthState>,
@@ -1038,6 +1067,42 @@ impl PartialEq for PendingTabSplit {
     }
 }
 
+/// In-window tab→region split (vertical tabs layout): dropping the dragged
+/// tab on a region's content edge zone splits that region and moves the
+/// dragged tab into the freshly created sibling region.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PendingRegionSplit {
+    pub(crate) source_tab_index: usize,
+    /// Region under the cursor whose edge zone is hovered.
+    pub(crate) region: super::regions::RegionId,
+    /// Edge zone the cursor hovers, as the new region's placement.
+    pub(crate) direction: Direction,
+    /// Cached bounds of the hovered region's content area (window-local).
+    pub(crate) bounds: RectF,
+}
+
+impl PartialEq for PendingRegionSplit {
+    fn eq(&self, other: &Self) -> bool {
+        self.source_tab_index == other.source_tab_index
+            && self.region == other.region
+            && std::mem::discriminant(&self.direction) == std::mem::discriminant(&other.direction)
+    }
+}
+
+/// Region hit for a window-local pointer during a tab drag.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum RegionHit {
+    /// Pointer over the region's tab bar strip.
+    Bar {
+        region: super::regions::RegionId,
+        bar_bounds: RectF,
+    },
+    /// Pointer over the region's content area (below its tab bar).
+    Content {
+        region: super::regions::RegionId,
+        content_bounds: RectF,
+    },
+}
 /// Resolves the Orca edge-zone for a point inside the content area:
 /// left/right 20% bands win; above the tab-strip only the vertical bands
 /// apply (matching Orca's `resolvePaneColumnEdgeZone`). Points outside the
@@ -1776,7 +1841,21 @@ impl Workspace {
             me.handle_new_session_sidecar_event(event, ctx);
         });
 
-        (tab_right_click_menu, new_session_menu, new_session_sidecar)
+        let region_new_tab_menu = ctx.add_typed_action_view(|_| {
+            Menu::new()
+                .with_safe_triangle()
+                .with_ignore_hover_when_covered()
+        });
+        ctx.subscribe_to_view(&region_new_tab_menu, move |me, _, event, ctx| {
+            me.handle_region_new_tab_menu_event(event, ctx);
+        });
+
+        (
+            tab_right_click_menu,
+            new_session_menu,
+            new_session_sidecar,
+            region_new_tab_menu,
+        )
     }
 
     fn build_launch_config_save_modal(
@@ -2527,8 +2606,12 @@ impl Workspace {
         terminal::platform::init().expect("Terminal platform initialized");
 
         let tab_bar_overflow_menu = Self::build_tab_bar_overflow_menu(ctx);
-        let (tab_right_click_menu, new_session_dropdown_menu, new_session_sidecar_menu) =
-            Self::build_menus(ctx);
+        let (
+            tab_right_click_menu,
+            new_session_dropdown_menu,
+            new_session_sidecar_menu,
+            region_new_tab_menu,
+        ) = Self::build_menus(ctx);
 
         // Subscribe to network changes
         ctx.subscribe_to_model(
@@ -2947,7 +3030,11 @@ impl Workspace {
             active_project: None,
             last_active_tab_by_project: HashMap::new(),
             vertical_tabs_top_bar_scroll_state: ClippedScrollStateHandle::default(),
+            region_tree: super::regions::RegionNode::root(),
+            next_region_id: 1,
+            active_tab_by_region: HashMap::new(),
             pending_tab_split: None,
+            pending_region_split: None,
             tab_content_bounds: None,
             hovered_tab_index: None,
             tab_bar_hover_state: Default::default(),
@@ -3054,6 +3141,8 @@ impl Workspace {
             suppress_detach_panes_on_window_close: false,
             is_tab_drag_preview: false,
             new_session_sidecar_menu,
+            region_new_tab_menu,
+            show_region_new_tab_menu: None,
             show_new_session_sidecar: false,
             worktree_sidecar_active: false,
             worktree_sidecar_search_editor: Self::build_worktree_sidecar_search_input(ctx),
@@ -4847,6 +4936,9 @@ impl Workspace {
         };
 
         self.active_tab_index = index;
+        if let Some(region) = self.tabs.get(index).map(|tab| tab.region_id) {
+            self.active_tab_by_region.insert(region, index);
+        }
         self.record_tab_focus_for_project(index);
 
         if self.vertical_tabs_panel_open
@@ -10031,6 +10123,11 @@ impl Workspace {
                         .get(tab_index)
                         .and_then(|tab| tab.project_path.as_ref())
                         .map(|p| p.to_string_lossy().into_owned()),
+                    region_id: self
+                        .tabs
+                        .get(tab_index)
+                        .map(|tab| tab.region_id)
+                        .unwrap_or(0),
                     left_panel,
                     right_panel,
                 };
@@ -10453,6 +10550,9 @@ impl Workspace {
     ) {
         if self.remove_tab(index, add_to_undo_stack, detach_panes_for_close, ctx) {
             self.sync_agent_conversations(ctx);
+            // 区域模型:tab 移除后清掉空 region(保留最后一个)。
+            self.prune_empty_regions(ctx);
+            self.sync_active_tab_by_region();
         }
     }
 
@@ -11036,6 +11136,11 @@ impl Workspace {
 
         let mut new_tab_data = TabData::new(new_pane_group);
         new_tab_data.project_path = new_tab_project_path;
+        // 区域模型:非恢复的新 tab 归入当前聚焦 region;恢复路径的
+        // region 归属由快照恢复逻辑决定(暂为 root)。
+        if !is_restoration {
+            new_tab_data.region_id = self.focused_region_id();
+        }
 
         match new_tab_placement_setting {
             NewTabPlacement::AfterAllTabs => {
@@ -12118,6 +12223,13 @@ impl Workspace {
             return ShowTabBar::Stacked;
         }
 
+        // 2026-08 布局重构:垂直标签模式下顶栏整体移除——tab 由内容区各
+        // split region 顶部的区域 tab 栏显示,顶栏功能按钮迁移至左侧
+        // 大纲区(窗口控制按钮本来就是独立悬浮层)。
+        if FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(app).use_vertical_tabs
+        {
+            return ShowTabBar::Hidden;
+        }
         if !FeatureFlag::FullScreenZenMode.is_enabled() {
             return ShowTabBar::default();
         }
@@ -12204,6 +12316,386 @@ impl Workspace {
             platform_window
                 .as_ref()
                 .set_titlebar_height(scaled_tab_bar_height);
+        }
+    }
+
+    // ---- Split regions -------------------------------------------------
+
+    /// Tabs owned by `region`, in tab order.
+    pub(crate) fn region_tab_indices(&self, region: super::regions::RegionId) -> Vec<usize> {
+        self.tabs
+            .iter()
+            .enumerate()
+            .filter(|(_, tab)| tab.region_id == region)
+            .map(|(index, _)| index)
+            .collect()
+    }
+
+    /// The focused region: the region owning the active tab (fallback: the
+    /// first leaf of the tree).
+    pub(crate) fn focused_region_id(&self) -> super::regions::RegionId {
+        self.tabs
+            .get(self.active_tab_index)
+            .map(|tab| tab.region_id)
+            .filter(|&id| self.region_tree.contains(id))
+            .unwrap_or_else(|| self.region_tree.first_leaf())
+    }
+
+    /// The active tab of `region` (its remembered entry, else its first
+    /// tab, else the workspace active tab when the region owns it).
+    pub(crate) fn active_tab_index_in_region(
+        &self,
+        region: super::regions::RegionId,
+    ) -> Option<usize> {
+        let indices = self.region_tab_indices(region);
+        if indices.is_empty() {
+            return None;
+        }
+        if let Some(&remembered) = self.active_tab_by_region.get(&region) {
+            if indices.contains(&remembered) {
+                return Some(remembered);
+            }
+        }
+        Some(indices[0])
+    }
+
+    /// Rebuilds `active_tab_by_region` from the current tab list, dropping
+    /// stale entries (tabs removed or moved to other regions). Also folds
+    /// tabs whose region vanished (cross-window put-back, undo, restores)
+    /// back into the tree's first leaf. Called from the tab
+    /// add/remove/reorder paths.
+    pub(crate) fn sync_active_tab_by_region(&mut self) {
+        let fallback = self.region_tree.first_leaf();
+        for tab in self.tabs.iter_mut() {
+            if !self.region_tree.contains(tab.region_id) {
+                tab.region_id = fallback;
+            }
+        }
+        let mut by_region: HashMap<super::regions::RegionId, Vec<usize>> = HashMap::new();
+        for (index, tab) in self.tabs.iter().enumerate() {
+            by_region.entry(tab.region_id).or_default().push(index);
+        }
+        self.active_tab_by_region
+            .retain(|region, remembered| by_region.get(region).is_some_and(|v| v.contains(remembered)));
+        for (region, indices) in by_region {
+            self.active_tab_by_region
+                .entry(region)
+                .or_insert(indices[0]);
+        }
+    }
+
+    /// Removes every tab of `region` and prunes the region leaf from the
+    /// tree. The last region is never removable.
+    pub(crate) fn close_region(
+        &mut self,
+        region: super::regions::RegionId,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        let mut indices = self.region_tab_indices(region);
+        if indices.is_empty() {
+            return;
+        }
+        // Remove from the back so earlier indices stay valid.
+        while let Some(index) = indices.pop() {
+            self.remove_tab_without_undo(index, ctx);
+            for slot in indices.iter_mut() {
+                if *slot > index {
+                    *slot -= 1;
+                }
+            }
+        }
+        self.region_tree.remove_leaf(region);
+        self.active_tab_by_region.remove(&region);
+        self.sync_active_tab_by_region();
+        let fallback = self
+            .active_tab_index_in_region(self.focused_region_id())
+            .unwrap_or(0);
+        if self.active_tab_index != fallback {
+            self.set_active_tab_index(fallback, ctx);
+        }
+        ctx.notify();
+    }
+
+    /// Splits `region` in `direction`: a new sibling region is created and
+    /// receives a fresh default tab. The source region keeps its tabs.
+    pub(crate) fn split_region(
+        &mut self,
+        region: super::regions::RegionId,
+        direction: PaneGroupDirection,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        if !self.region_tree.contains(region) {
+            return;
+        }
+        let new_region = self.next_region_id;
+        self.next_region_id += 1;
+        let axis = match direction {
+            PaneGroupDirection::Left | PaneGroupDirection::Right => {
+                crate::pane_group::SplitDirection::Horizontal
+            }
+            PaneGroupDirection::Up | PaneGroupDirection::Down => {
+                crate::pane_group::SplitDirection::Vertical
+            }
+        };
+        if !self.region_tree.split_leaf(region, axis, new_region, false) {
+            return;
+        }
+        self.add_default_tab_in_region(new_region, ctx);
+    }
+
+    /// Adds a default terminal tab owned by `region`. Placement follows the
+    /// ordinary new-tab path; the created tab is tagged with `region` and
+    /// activated (which also makes `region` the focused region).
+    pub(crate) fn add_default_tab_in_region(
+        &mut self,
+        region: super::regions::RegionId,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        let previous_region = self.tabs.get(self.active_tab_index).map(|tab| tab.region_id);
+        self.add_terminal_tab(false, ctx);
+        let Some(new_index) = self.tabs.len().checked_sub(1) else {
+            return;
+        };
+        if let Some(tab) = self.tabs.get_mut(new_index) {
+            tab.region_id = region;
+        }
+        // Re-tag any tabs the placement logic may have left pointing at a
+        // stale active index; activation below fixes the focus map.
+        self.sync_active_tab_by_region();
+        let _ = previous_region;
+    }
+
+    // ---- Region drag hit-testing / moves (vertical layout) ---------------
+
+    /// Finds the leaf region whose saved content bounds contain `pointer`.
+    /// The top `TAB_BAR_HEIGHT + TAB_BAR_BORDER_HEIGHT` strip of a region's
+    /// bounds is its tab bar.
+    pub(crate) fn region_hit_test(
+        &self,
+        pointer: Vector2F,
+        ctx: &ViewContext<Self>,
+    ) -> Option<RegionHit> {
+        let mut ids = std::collections::BTreeSet::new();
+        self.region_tree.collect_region_ids(&mut ids);
+        let mut best: Option<(super::regions::RegionId, RectF)> = None;
+        for region in ids {
+            let Some(bounds) = ctx.element_position_by_id(region_content_position_id(region))
+            else {
+                continue;
+            };
+            if !bounds.contains_point(pointer) {
+                continue;
+            }
+            // Prefer the smallest containing region rect (nested SavePosition
+            // ids are unique per leaf, but be defensive).
+            let is_better = best
+                .as_ref()
+                .is_none_or(|(_, b)| bounds.width() * bounds.height() <= b.width() * b.height());
+            if is_better {
+                best = Some((region, bounds));
+            }
+        }
+        let (region, bounds) = best?;
+        let bar_height = TAB_BAR_HEIGHT + TAB_BAR_BORDER_HEIGHT;
+        if pointer.y() < bounds.min_y() + bar_height {
+            Some(RegionHit::Bar {
+                region,
+                bar_bounds: RectF::new(
+                    bounds.origin(),
+                    vec2f(bounds.width(), bar_height),
+                ),
+            })
+        } else {
+            Some(RegionHit::Content {
+                region,
+                content_bounds: RectF::new(
+                    vec2f(bounds.min_x(), bounds.min_y() + bar_height),
+                    vec2f(bounds.width(), (bounds.height() - bar_height).max(0.)),
+                ),
+            })
+        }
+    }
+
+    /// Local insertion slot within `region`'s tab bar for `pointer`: 0..=len
+    /// (position among the region's tabs). Uses cached tab positions that
+    /// intersect the bar strip (excludes the rail's rows sharing the same
+    /// SavePosition ids).
+    pub(crate) fn region_bar_insertion_slot(
+        &self,
+        region: super::regions::RegionId,
+        bar_bounds: &RectF,
+        pointer: Vector2F,
+        dragging_index: usize,
+        ctx: &ViewContext<Self>,
+    ) -> usize {
+        let indices = self.region_tab_indices(region);
+        let mut slot = 0;
+        for index in indices {
+            if index == dragging_index {
+                // The dragged tab's own position doesn't constrain where it
+                // lands relative to itself.
+                continue;
+            }
+            let Some(tab_bounds) = ctx.element_position_by_id(tab_position_id(index)) else {
+                continue;
+            };
+            if tab_bounds.max_y() < bar_bounds.min_y()
+                || tab_bounds.min_y() > bar_bounds.max_y()
+            {
+                // Position from the rail row, not this region's bar.
+                continue;
+            }
+            if pointer.x() < tab_bounds.center().x() {
+                break;
+            }
+            slot += 1;
+        }
+        slot
+    }
+
+    /// Moves the tab at `current_index` into `region` at local slot
+    /// `insertion` (0..=len among the region's tabs). Keeps the moved tab
+    /// active.
+    pub(crate) fn move_tab_to_region(
+        &mut self,
+        current_index: usize,
+        region: super::regions::RegionId,
+        insertion: usize,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        if !self.region_tree.contains(region) {
+            return;
+        }
+        let Some(mut tab) = self.tabs.get(current_index).cloned() else {
+            return;
+        };
+        if tab.region_id == region {
+            // Same region: plain local reorder.
+            let indices = self.region_tab_indices(region);
+            let Some(local_pos) = indices.iter().position(|&i| i == current_index) else {
+                return;
+            };
+            let target_local = insertion.min(indices.len().saturating_sub(1));
+            if local_pos == target_local {
+                return;
+            }
+            let target_global = indices[target_local];
+            let target_global = indices[target_local];
+            let was_active = self.active_tab_index == current_index;
+            self.tabs.swap(current_index, target_global);
+            if was_active {
+                self.set_active_tab_index(target_global, ctx);
+            }
+            self.sync_active_tab_by_region();
+            ctx.notify();
+            return;
+        }
+        tab.region_id = region;
+        let tab = tab;
+        self.tabs.remove(current_index);
+        // Region indices in the shrunk vec.
+        let indices = self.region_tab_indices(region);
+        let global_insert = if indices.is_empty() {
+            self.tabs.len()
+        } else if insertion >= indices.len() {
+            indices[indices.len() - 1] + 1
+        } else {
+            indices[insertion.min(indices.len() - 1)]
+        };
+        let global_insert = global_insert.min(self.tabs.len());
+        self.tabs.insert(global_insert, tab);
+        self.sync_active_tab_by_region();
+        self.set_active_tab_index(global_insert, ctx);
+        ctx.notify();
+    }
+
+    /// Executes a pending tab→region split: splits the hovered region and
+    /// moves the dragged tab into the new sibling region.
+    pub(crate) fn execute_pending_region_split(&mut self, ctx: &mut ViewContext<Self>) {
+        let Some(pending) = self.pending_region_split.take() else {
+            return;
+        };
+        if pending.source_tab_index >= self.tabs.len() {
+            return;
+        }
+        let source_index = pending.source_tab_index;
+        if !self.region_tree.contains(pending.region) {
+            return;
+        }
+        let new_region = self.next_region_id;
+        self.next_region_id += 1;
+        let (axis, new_first) = match pending.direction {
+            Direction::Left => (crate::pane_group::SplitDirection::Horizontal, true),
+            Direction::Up => (crate::pane_group::SplitDirection::Vertical, true),
+            Direction::Right => (crate::pane_group::SplitDirection::Horizontal, false),
+            Direction::Down => (crate::pane_group::SplitDirection::Vertical, false),
+        };
+        if !self.region_tree.split_leaf(pending.region, axis, new_region, new_first) {
+            return;
+        }
+        if let Some(tab) = self.tabs.get_mut(source_index) {
+            tab.region_id = new_region;
+        }
+        self.sync_active_tab_by_region();
+        self.set_active_tab_index(source_index, ctx);
+        self.tab_content_bounds = None;
+        ctx.notify();
+    }
+
+    /// Adds a tab in `region` that launches the given CLI agent (intercept
+    /// path identical to `add_tab_with_specific_agent`).
+    pub(crate) fn add_agent_tab_in_region(
+        &mut self,
+        region: super::regions::RegionId,
+        agent: CLIAgent,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        self.add_default_tab_in_region(region, ctx);
+        self.active_tab_pane_group().update(ctx, |pane_group, ctx| {
+            if let Some(terminal_view) = pane_group.active_session_view(ctx) {
+                let view_id = terminal_view.id().to_string();
+                let command = {
+                    #[cfg(not(target_family = "wasm"))]
+
+                    {
+                        crate::ai::harness_intercept::intercept_cli_agent_command(
+                            agent, view_id, ctx,
+                        )
+                        .unwrap_or_else(|| agent.command_prefix().to_string())
+                    }
+                    #[cfg(target_family = "wasm")]
+                    {
+                        let _ = view_id;
+                        agent.command_prefix().to_string()
+                    }
+                };
+                terminal_view.update(ctx, |view, ctx| {
+                    view.execute_command_or_set_pending(&command, ctx);
+                });
+            }
+        });
+    }
+
+
+    /// The region whose tab bar sits at the top-right corner of the content
+    /// area (first leaf along vertical stacks, last along horizontal rows).
+    /// Its tab bar reserves space for the floating traffic-light buttons.
+    pub(crate) fn top_right_region_id(&self) -> super::regions::RegionId {
+        let mut node = &self.region_tree;
+        loop {
+            match node {
+                super::regions::RegionNode::Leaf(id) => return *id,
+                super::regions::RegionNode::Branch { axis, children } => {
+                    let pick = match axis {
+                        crate::pane_group::SplitDirection::Horizontal => children.last(),
+                        crate::pane_group::SplitDirection::Vertical => children.first(),
+                    };
+                    match pick {
+                        Some(child) => node = &child.node,
+                        None => return self.region_tree.first_leaf(),
+                    }
+                }
+            }
         }
     }
 
@@ -12922,6 +13414,18 @@ impl Workspace {
                 self.update_active_session(ctx);
                 // ctx.notify();
             }
+            pane_group::Event::SplitRequested { direction } => {
+                // 区域模型:split 请求转为在源 tab 的 region 旁创建新
+                // region(新 region 开新 tab)。找不到 owning tab 时忽略。
+                let region = self
+                    .tabs
+                    .iter()
+                    .find(|tab| tab.pane_group.id() == pane_group.id())
+                    .map(|tab| tab.region_id);
+                if let Some(region) = region {
+                    self.split_region(region, *direction, ctx);
+                }
+            }
             pane_group::Event::Escape => {
                 if self.current_workspace_state.is_resource_center_open {
                     self.current_workspace_state.is_resource_center_open = false;
@@ -13268,6 +13772,18 @@ impl Workspace {
             // If focused pane contains an object, then set selected state in WD to that object
             pane_group::Event::PaneFocused => {
                 self.current_workspace_state.close_all_modals();
+
+                // 区域模型:点击/聚焦某 region 的 pane 时,把全局 active
+                // tab 同步到该 pane group 所属 tab(键盘/命令面板目标随焦点)。
+                if let Some(index) = self
+                    .tabs
+                    .iter()
+                    .position(|tab| tab.pane_group.id() == pane_group.id())
+                {
+                    if index != self.active_tab_index {
+                        self.set_active_tab_index(index, ctx);
+                    }
+                }
 
                 // Re-evaluate which region is focused and update pane dimming accordingly.
                 self.update_pane_dimming_for_current_focus_region(ctx);
@@ -17375,6 +17891,256 @@ impl Workspace {
         );
     }
 
+    // ---- Split-region rendering (vertical tabs layout) --------------------
+
+    /// Renders the full split-region tree for the content area: every leaf
+    /// region shows its own tab bar (its tabs + a '+' dropdown) above its
+    /// active tab's pane group; branches lay their children out along their
+    /// split axis with 1px dividers.
+    fn render_region_tree(&self, appearance: &Appearance, app: &AppContext) -> Box<dyn Element> {
+        let tree = self.region_tree.clone();
+        self.render_region_node(&tree, appearance, app)
+    }
+
+    fn render_region_node(
+        &self,
+        node: &super::regions::RegionNode,
+        appearance: &Appearance,
+        app: &AppContext,
+    ) -> Box<dyn Element> {
+        match node {
+            super::regions::RegionNode::Leaf(region) => {
+                self.render_region_leaf(*region, appearance, app)
+            }
+            super::regions::RegionNode::Branch { axis, children } => {
+                let mut parent = match axis {
+                    crate::pane_group::SplitDirection::Horizontal => Flex::row(),
+                    crate::pane_group::SplitDirection::Vertical => Flex::column(),
+                }
+                .with_cross_axis_alignment(CrossAxisAlignment::Stretch);
+                for (index, child) in children.iter().enumerate() {
+                    if index > 0 {
+                        parent.add_child(Self::render_region_divider(*axis, appearance));
+                    }
+                    parent.add_child(
+                        Shrinkable::new(
+                            child.flex,
+                            self.render_region_node(&child.node, appearance, app),
+                        )
+                        .finish(),
+                    );
+                }
+                parent.finish()
+            }
+        }
+    }
+
+    /// Visual separator between sibling regions (1px rule). Resizing regions
+    /// by dragging the divider is future work; flex stays equal for now.
+    fn render_region_divider(
+        axis: crate::pane_group::SplitDirection,
+        appearance: &Appearance,
+    ) -> Box<dyn Element> {
+        let rule = ConstrainedBox::new(
+            Rect::new()
+                .with_background(appearance.theme().outline().with_opacity(40))
+                .finish(),
+        );
+        match axis {
+            crate::pane_group::SplitDirection::Horizontal => rule.with_width(1.).finish(),
+            crate::pane_group::SplitDirection::Vertical => rule.with_height(1.).finish(),
+        }
+    }
+
+    fn render_region_leaf(
+        &self,
+        region: super::regions::RegionId,
+        appearance: &Appearance,
+        app: &AppContext,
+    ) -> Box<dyn Element> {
+        let theme = appearance.theme();
+        let indices = self.region_tab_indices(region);
+        let active_index = self.active_tab_index_in_region(region);
+        let tab_bar_state = TabBarState {
+            tab_count: self.tabs.len(),
+            active_tab_index: active_index,
+            is_any_tab_renaming: self.current_workspace_state.is_tab_being_renamed(),
+            is_any_tab_dragging: self.current_workspace_state.is_tab_being_dragged
+                || CrossWindowTabDrag::as_ref(app).is_active(),
+            hover_fixed_width: None,
+        };
+
+        let mut tabs_row = Flex::row().with_cross_axis_alignment(CrossAxisAlignment::Center);
+        for index in indices {
+            tabs_row.add_child(self.render_tab_in_tab_bar(index, tab_bar_state.clone(), app));
+        }
+        tabs_row.add_child(self.render_region_new_tab_button(region, appearance));
+        let bar_right_padding = if self.top_right_region_id() == region {
+            // Top-right region bar reserves space for the floating window
+            // controls (minimize/maximize/close overlay).
+            let zoom_factor = WindowSettings::as_ref(app).zoom_level.as_zoom_factor();
+            traffic_light_data(app, self.window_id)
+                .filter(|data| data.side == TrafficLightSide::Right)
+                .map(|data| data.width(zoom_factor) + TAB_BAR_PADDING_RIGHT)
+                .unwrap_or(TAB_BAR_PADDING_RIGHT)
+        } else {
+            TAB_BAR_PADDING_RIGHT
+        };
+        let bar = ConstrainedBox::new(
+            Container::new(Clipped::new(tabs_row.finish()).finish())
+                .with_border(
+                    Border::bottom(TAB_BAR_BORDER_HEIGHT).with_border_fill(theme.outline()),
+                )
+                .with_padding_left(TAB_BAR_PADDING_LEFT)
+                .with_padding_right(bar_right_padding)
+                .finish(),
+        )
+        .with_height(TAB_BAR_HEIGHT)
+        .finish();
+
+        let mut column = Flex::column().with_cross_axis_alignment(CrossAxisAlignment::Stretch);
+        column.add_child(bar);
+        if let Some(active_index) = active_index {
+            let content = ChildView::new(&self.tabs[active_index].pane_group).finish();
+            column.add_child(Shrinkable::new(1., content).finish());
+        } else {
+            // Empty region (its last tab was just closed); pruning will fold
+            // it away, render a safe placeholder meanwhile.
+            column.add_child(Shrinkable::new(1., Empty::new().finish()).finish());
+        }
+
+        let content_id = region_content_position_id(region);
+        SavePosition::new(column.finish(), &content_id).finish()
+    }
+    /// The '+' button at the end of a region's tab bar. Clicking opens the
+    /// region new-tab dropdown (standard terminal + harness quick starts).
+    fn render_region_new_tab_button(
+        &self,
+        region: super::regions::RegionId,
+        appearance: &Appearance,
+    ) -> Box<dyn Element> {
+        let theme = appearance.theme();
+        let icon_color = theme.sub_text_color(theme.background());
+        let button = icon_button_with_color(
+            appearance,
+            crate::ui_components::icons::Icon::Plus,
+            false,
+            self.mouse_states.region_new_tab_button_states.borrow_mut().entry(region).or_default().clone(),
+            icon_color,
+        )
+        .with_hovered_styles(UiComponentStyles {
+            font_color: Some(icon_color.into()),
+            background: Some(theme.surface_2().into()),
+            ..UiComponentStyles::default()
+        })
+        .with_clicked_styles(UiComponentStyles {
+            font_color: Some(icon_color.into()),
+            background: Some(theme.background().into()),
+            ..UiComponentStyles::default()
+        })
+        .build()
+        .on_click(move |ctx, _, _| {
+            ctx.dispatch_typed_action(WorkspaceAction::ToggleRegionNewTabMenu { region });
+        })
+        .finish();
+        let anchor_id = region_new_tab_button_position_id(region);
+        SavePosition::new(
+            Container::new(button)
+                .with_margin_left(4.)
+                .finish(),
+            &anchor_id,
+        )
+        .finish()
+    }
+
+
+    /// Opens the region new-tab dropdown: standard terminal first, then the
+    /// harness quick starts (installed + titlebar-enabled CLI agents).
+    fn open_region_new_tab_menu(
+        &mut self,
+        region: super::regions::RegionId,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        let mut menu_items = vec![MenuItemFields::new(crate::t!("workspace-new-session-terminal"))
+            .with_on_select_action(WorkspaceAction::AddDefaultTabInRegion(region))
+            .with_icon(icons::Icon::LayoutAlt01)
+            .into_item()];
+
+        let ai_settings = AISettings::as_ref(ctx);
+        let install_model = CLIAgentInstallModel::as_ref(ctx);
+        for agent in enum_iterator::all::<CLIAgent>() {
+            if matches!(agent, CLIAgent::Unknown)
+                || !install_model.is_cli_agent_installed(agent)
+                || !ai_settings.is_cli_agent_titlebar_enabled(agent)
+            {
+                continue;
+            }
+            menu_items.push(
+                MenuItemFields::new(agent.display_name())
+                    .with_on_select_action(WorkspaceAction::AddSpecificAgentTabInRegion(
+                        region, agent,
+                    ))
+                    .with_icon(agent.icon().unwrap_or(icons::Icon::LayoutAlt01))
+                    .into_item(),
+            );
+        }
+
+        ctx.update_view(&self.region_new_tab_menu, |menu, view_ctx| {
+            menu.set_width(240.);
+            menu.set_items(menu_items, view_ctx);
+            menu.reset_selection(view_ctx);
+        });
+        self.show_region_new_tab_menu = Some(region);
+        ctx.focus(&self.region_new_tab_menu);
+        ctx.notify();
+    }
+
+    fn close_region_new_tab_menu(&mut self, ctx: &mut ViewContext<Self>) {
+        if self.show_region_new_tab_menu.take().is_some() {
+            ctx.notify();
+        }
+    }
+
+    fn handle_region_new_tab_menu_event(
+        &mut self,
+        event: &MenuEvent,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        match event {
+            MenuEvent::Close { .. } | MenuEvent::ItemSelected => {
+                self.close_region_new_tab_menu(ctx);
+            }
+            MenuEvent::ItemHovered => {}
+        }
+    }
+
+    /// Removes region leaves that no longer own any tab. The last region is
+    /// always kept. Called from the tab-removal chokepoints.
+    pub(crate) fn prune_empty_regions(&mut self, ctx: &mut ViewContext<Self>) {
+        let mut ids = std::collections::BTreeSet::new();
+        self.region_tree.collect_region_ids(&mut ids);
+        let occupied: std::collections::BTreeSet<super::regions::RegionId> =
+            self.tabs.iter().map(|tab| tab.region_id).collect();
+        let mut changed = false;
+        for id in ids {
+            if !occupied.contains(&id) {
+                changed |= self.region_tree.remove_leaf(id);
+                self.active_tab_by_region.remove(&id);
+            }
+        }
+        if changed {
+            // Tabs referencing regions that vanished from the tree (stale
+            // snapshots) fall back to the root region.
+            let fallback = self.region_tree.first_leaf();
+            for tab in self.tabs.iter_mut() {
+                if !self.region_tree.contains(tab.region_id) {
+                    tab.region_id = fallback;
+                }
+            }
+            ctx.notify();
+        }
+    }
+
     fn render_new_session_button(&self, ctx: &AppContext) -> Box<dyn Element> {
         const CORNER_RADIUS: Radius = Radius::Pixels(4.);
         const BUTTON_HEIGHT: f32 = 24.;
@@ -17844,9 +18610,17 @@ impl Workspace {
         app: &AppContext,
         appearance: &Appearance,
     ) -> Box<dyn Element> {
-        let active_tab_data = &self.tabs[self.active_tab_index];
+        let vertical_tabs_active =
+            FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(app).use_vertical_tabs;
 
-        let active_content = ChildView::new(&active_tab_data.pane_group).finish();
+        // 垂直标签模式:内容区渲染 split-region 树(每区域自带 tab 栏)。
+        // 水平模式保持单 active tab 的旧布局。
+        let active_content = if vertical_tabs_active {
+            self.render_region_tree(appearance, app)
+        } else {
+            let active_tab_data = &self.tabs[self.active_tab_index];
+            ChildView::new(&active_tab_data.pane_group).finish()
+        };
 
         let terminal_content = match self.maybe_render_workspace_banner(app, appearance) {
             Some(banner_element) => Flex::column()
@@ -17856,8 +18630,6 @@ impl Workspace {
             None => active_content,
         };
 
-        let vertical_tabs_active =
-            FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(app).use_vertical_tabs;
         let pane_group = self.active_tab_pane_group().as_ref(app);
         let is_right_open = pane_group.right_panel_open;
         let is_right_maximized = is_right_open && pane_group.is_right_panel_maximized;
@@ -19179,9 +19951,6 @@ impl Workspace {
                 entry_focus: GlobalSearchEntryFocus::Results,
             });
         }
-        if WarpDriveSettings::is_warp_drive_enabled(ctx) {
-            views.push(ToolPanelView::ZapDrive);
-        }
         // openWarp 独有:SSH 管理器,无 feature flag,默认始终显示。
         views.push(ToolPanelView::SshManager);
         if FeatureFlag::ServerFileBrowser.is_enabled() && FeatureFlag::SshRemoteServer.is_enabled()
@@ -19300,6 +20069,13 @@ impl TypedActionView for Workspace {
             ToggleProjectCollapsed { project } => {
                 self.toggle_project_collapsed(project.clone(), ctx);
             }
+            ToggleAllProjectsCollapsed => {
+                let collapsed = self.vertical_tabs_panel.all_projects_collapsed.get();
+                self.vertical_tabs_panel
+                    .all_projects_collapsed
+                    .set(!collapsed);
+                ctx.notify();
+            }
             OpenAddProjectPicker => self.open_add_project_picker(ctx),
             ActivateTabByNumber(num) => self.activate_tab(num.saturating_sub(1), ctx),
             ActivatePrevTab => self.activate_prev_tab(ctx),
@@ -19396,6 +20172,19 @@ impl TypedActionView for Workspace {
             AddGetStartedTab => self.add_get_started_tab(ctx),
             AddAgentTab => self.add_terminal_tab_with_new_agent_view(ctx),
             AddSpecificAgentTab(agent) => self.add_tab_with_specific_agent(*agent, ctx),
+            AddDefaultTabInRegion(region) => self.add_default_tab_in_region(*region, ctx),
+            ToggleRegionNewTabMenu { region } => {
+                if self.show_region_new_tab_menu == Some(*region) {
+                    self.close_region_new_tab_menu(ctx);
+                } else {
+                    self.open_region_new_tab_menu(*region, ctx);
+                }
+            }
+            AddSpecificAgentTabInRegion(region, agent) => {
+                self.add_agent_tab_in_region(*region, *agent, ctx)
+            }
+            SplitRegion { region, direction } => self.split_region(*region, *direction, ctx),
+            CloseRegion(region) => self.close_region(*region, ctx),
             AddDockerSandboxTab => self.add_docker_sandbox_tab(ctx),
             ToggleTabConfigsMenu => self.toggle_tab_configs_menu(ctx),
             ShowSessionConfigModal => self.show_session_config_modal(ctx),
@@ -20059,15 +20848,41 @@ impl TypedActionView for Workspace {
                 // coalesced during fast drags (Orca resolves the drop zone
                 // on pointerup for the same reason). Skipped once the drag
                 // has been handed off to another window.
+                let vertical_layout = FeatureFlag::VerticalTabs.is_enabled()
+                    && *TabSettings::as_ref(ctx).use_vertical_tabs;
                 if !CrossWindowTabDrag::as_ref(ctx).is_active() && self.tabs.len() > 1 {
                     let pointer = self.drag_pointer_position(*tab_index, *tab_position);
-                    self.update_pending_tab_split(*tab_index, pointer, ctx);
+                    if vertical_layout {
+                        // 区域模型:垂直布局下重解析 region 边缘区。
+                        if let Some(RegionHit::Content {
+                            region,
+                            content_bounds,
+                        }) = self.region_hit_test(pointer, ctx)
+                        {
+                            let zone = tab_split_zone_for_point(content_bounds, pointer).map(
+                                |direction| PendingRegionSplit {
+                                    source_tab_index: *tab_index,
+                                    region,
+                                    direction,
+                                    bounds: content_bounds,
+                                },
+                            );
+                            self.pending_region_split = zone;
+                        } else {
+                            self.pending_region_split = None;
+                        }
+                    } else {
+                        self.update_pending_tab_split(*tab_index, pointer, ctx);
+                    }
                 }
                 // In-window tab→split drop wins when a zone is pending —
                 // the drag never left this window, so skip the cross-window
                 // cleanup entirely (Orca resolves the split before any
                 // other drop handling too).
-                if self.pending_tab_split.is_some() {
+                if self.pending_region_split.is_some() {
+                    self.current_workspace_state.is_tab_being_dragged = false;
+                    self.execute_pending_region_split(ctx);
+                } else if self.pending_tab_split.is_some() {
                     self.current_workspace_state.is_tab_being_dragged = false;
                     self.execute_pending_tab_split(ctx);
                 } else {
@@ -21211,6 +22026,46 @@ impl View for Workspace {
             );
         }
 
+        // 区域模型 overlay(垂直布局):高亮悬停 region 的边缘落位区。
+        if let Some(pending) = self.pending_region_split {
+            let appearance = Appearance::as_ref(app);
+            let theme = appearance.theme();
+            let b = pending.bounds;
+            let (zone_origin, zone_size) = match pending.direction {
+                Direction::Left => (b.origin(), vec2f(b.width() * 0.5, b.height())),
+                Direction::Right => (
+                    vec2f(b.min_x() + b.width() * 0.5, b.min_y()),
+                    vec2f(b.width() * 0.5, b.height()),
+                ),
+                Direction::Up => (b.origin(), vec2f(b.width(), b.height() * 0.5)),
+                Direction::Down => (
+                    vec2f(b.min_x(), b.min_y() + b.height() * 0.5),
+                    vec2f(b.width(), b.height() * 0.5),
+                ),
+            };
+            let zone = ConstrainedBox::new(
+                Rect::new()
+                    .with_background(theme.accent().with_opacity(40))
+                    .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+                    .finish(),
+            )
+            .with_width(zone_size.x())
+            .with_height(zone_size.y())
+            .finish();
+            let anchor_id = region_content_position_id(pending.region);
+            stack.add_positioned_overlay_child(
+                zone,
+                OffsetPositioning::offset_from_save_position_element(
+                    anchor_id,
+                    zone_origin - b.origin(),
+                    PositionedElementOffsetBounds::WindowBySize,
+                    PositionedElementAnchor::TopLeft,
+                    ChildAnchor::TopLeft,
+                )
+                .with_conditional_anchors(),
+            );
+        }
+
 
 
         #[cfg(target_family = "wasm")]
@@ -21382,16 +22237,24 @@ impl View for Workspace {
         match tab_bar_mode {
             ShowTabBar::Stacked => (), // The tab bar was rendered in the content column.
             ShowTabBar::Hidden => {
-                // Hide the tab bar, but include a hover area.
-                stack.add_positioned_child(
-                    self.render_tab_bar_hover_area(),
-                    OffsetPositioning::offset_from_parent(
-                        Vector2F::zero(),
-                        ParentOffsetBounds::WindowByPosition,
-                        ParentAnchor::TopLeft,
-                        ChildAnchor::TopLeft,
-                    ),
-                );
+                // Hide the tab bar, but include a hover area. Skipped in
+                // vertical-tabs mode: the top bar is removed entirely there
+                // (region tab bars own the tabs), and the strip would sit
+                // over the top of the content area swallowing clicks.
+                let vertical_tabs_removed =
+                    FeatureFlag::VerticalTabs.is_enabled()
+                        && *TabSettings::as_ref(app).use_vertical_tabs;
+                if !vertical_tabs_removed {
+                    stack.add_positioned_child(
+                        self.render_tab_bar_hover_area(),
+                        OffsetPositioning::offset_from_parent(
+                            Vector2F::zero(),
+                            ParentOffsetBounds::WindowByPosition,
+                            ParentAnchor::TopLeft,
+                            ChildAnchor::TopLeft,
+                        ),
+                    );
+                }
             }
         }
 
@@ -21638,6 +22501,26 @@ impl View for Workspace {
                     );
                 }
             }
+
+        }
+
+        // Region '+' dropdown (standard terminal + harness quick starts),
+        // anchored under the opening region's '+' button.
+        if let Some(region) = self.show_region_new_tab_menu {
+            stack.add_positioned_overlay_child(
+                ChildView::new(&self.region_new_tab_menu).finish(),
+                OffsetPositioning::offset_from_save_position_element(
+                    region_new_tab_button_position_id(region),
+                    vec2f(0., 4.),
+                    PositionedElementOffsetBounds::WindowBySize,
+                    PositionedElementAnchor::BottomLeft,
+                    ChildAnchor::TopLeft,
+                )
+                // The '+' button lives inside a region leaf that may open
+                // the menu in the same frame it first paints; fall back to
+                // default constraints when the anchor isn't cached yet.
+                .with_conditional_anchors(),
+            );
         }
 
         if self.current_workspace_state.is_command_search_open {
@@ -22133,16 +23016,37 @@ impl View for Workspace {
                         -WORKSPACE_PADDING,
                     )
                 };
-                stack.add_positioned_overlay_child(
-                    ChildView::new(stack_view).finish(),
-                    OffsetPositioning::offset_from_save_position_element(
-                        TAB_BAR_POSITION_ID,
-                        vec2f(offset_x, 4.),
-                        PositionedElementOffsetBounds::WindowByPosition,
-                        toast_anchor,
-                        toast_child_anchor,
-                    ),
-                );
+                // 垂直布局下顶栏已移除(TAB_BAR_POSITION_ID 无缓存),
+                // toast 直接锚窗口角,避免每帧 position 缺失告警。
+                let top_bar_removed = FeatureFlag::VerticalTabs.is_enabled()
+                    && *TabSettings::as_ref(app).use_vertical_tabs;
+                if top_bar_removed {
+                    let (parent_anchor, child_anchor) = if mailbox_on_left {
+                        (ParentAnchor::BottomLeft, ChildAnchor::TopLeft)
+                    } else {
+                        (ParentAnchor::BottomRight, ChildAnchor::TopRight)
+                    };
+                    stack.add_positioned_overlay_child(
+                        ChildView::new(stack_view).finish(),
+                        OffsetPositioning::offset_from_parent(
+                            vec2f(offset_x, WORKSPACE_PADDING),
+                            ParentOffsetBounds::WindowByPosition,
+                            parent_anchor,
+                            child_anchor,
+                        ),
+                    );
+                } else {
+                    stack.add_positioned_overlay_child(
+                        ChildView::new(stack_view).finish(),
+                        OffsetPositioning::offset_from_save_position_element(
+                            TAB_BAR_POSITION_ID,
+                            vec2f(offset_x, 4.),
+                            PositionedElementOffsetBounds::WindowByPosition,
+                            toast_anchor,
+                            toast_child_anchor,
+                        ),
+                    );
+                }
             }
         }
 
@@ -22711,12 +23615,64 @@ impl Workspace {
             return;
         }
 
+        // 区域模型(垂直布局):先做 region 命中测试——
+        //  · 指针在某个 region 的 tab 栏上 → 区域内重排/跨区移动;
+        //  · 指针在某个 region 的内容边缘区 → tab→region split 挂起;
+        //  · 其余(左侧大纲区等)回落到旧的全局重排逻辑。
+        let vertical_layout = FeatureFlag::VerticalTabs.is_enabled()
+            && *TabSettings::as_ref(ctx).use_vertical_tabs;
+        if vertical_layout {
+            match self.region_hit_test(drag_pointer, ctx) {
+                Some(RegionHit::Bar {
+                    region,
+                    bar_bounds,
+                }) => {
+                    self.pending_region_split = None;
+                    self.pending_tab_split = None;
+                    let insertion = self.region_bar_insertion_slot(
+                        region,
+                        &bar_bounds,
+                        drag_pointer,
+                        current_index,
+                        ctx,
+                    );
+                    self.move_tab_to_region(current_index, region, insertion, ctx);
+                    return;
+                }
+                Some(RegionHit::Content {
+                    region,
+                    content_bounds,
+                }) => {
+                    // 边缘 20% 区域决定新 region 的落位方向。单 tab 拖
+                    // 自己 region 的边缘同样成立(把它 split 成新区域
+                    // 是合法操作),不做 no-op 豁免。
+                    let zone = tab_split_zone_for_point(content_bounds, drag_pointer);
+                    let pending = zone.map(|direction| PendingRegionSplit {
+                        source_tab_index: current_index,
+                        region,
+                        direction,
+                        bounds: content_bounds,
+                    });
+                    if pending != self.pending_region_split {
+                        self.pending_region_split = pending;
+                        ctx.notify();
+                    }
+                    return;
+                }
+                None => {
+                    if self.pending_region_split.take().is_some() {
+                        ctx.notify();
+                    }
+                }
+            }
+        }
+
         // In-window tab→split (Orca pane-column split target): a drag that
         // left the tab bar but still hovers the content area's edge zone
         // resolves to a split instead of a cross-window detach. Updated on
         // every drag event; `DropTab` consumes it.
         let source_is_single_tab = self.tabs.len() == 1;
-        if !source_is_single_tab {
+        if !source_is_single_tab && !vertical_layout {
             self.update_pending_tab_split(current_index, drag_pointer, ctx);
         } else {
             self.pending_tab_split = None;
@@ -22754,6 +23710,7 @@ impl Workspace {
         if is_drag_outside_window
             && FeatureFlag::DragTabsToWindows.is_enabled()
             && self.pending_tab_split.is_none()
+            && self.pending_region_split.is_none()
         {
             if !source_is_single_tab {
                 if let Some(tab_data) = self.tabs.get_mut(current_index) {

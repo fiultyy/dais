@@ -151,6 +151,8 @@ pub enum WorkspaceAction {
     },
     /// 项目栏: "+"按钮 — 文件浏览选择文件夹添加项目并选中。
     OpenAddProjectPicker,
+    /// 项目栏: "全部"行折叠/展开其 tab 子行。
+    ToggleAllProjectsCollapsed,
     /// 在当前 tab 中央开新 terminal pane,执行 `ssh user@host`(openWarp 独有)。
     /// 由 SshServerView 的 Connect 按钮 / SshManagerPanel 右键"连接" 触发。
     OpenSshTerminal {
@@ -172,6 +174,21 @@ pub enum WorkspaceAction {
     AddSpecificAgentTab(CLIAgent),
     /// Add a new tab running a local Docker sandbox via `sbx`.
     AddDockerSandboxTab,
+    /// 在指定 split region 内新建默认 tab(区域级 '+' 按钮)。
+    AddDefaultTabInRegion(super::regions::RegionId),
+    /// 打开指定 region 的 '+' 下拉(标准终端 + harness 快速启动)。
+    ToggleRegionNewTabMenu {
+        region: super::regions::RegionId,
+    },
+    /// 在指定 split region 内新建 tab 并启动指定 CLI agent。
+    AddSpecificAgentTabInRegion(super::regions::RegionId, CLIAgent),
+    /// 分割指定 region:原 region 保留,旁侧新 region 开新 tab。
+    SplitRegion {
+        region: super::regions::RegionId,
+        direction: crate::pane_group::Direction,
+    },
+    /// 关闭整个 region(连同其全部 tab)。
+    CloseRegion(super::regions::RegionId),
     ToggleTabConfigsMenu,
     ToggleNewSessionMenu {
         position: Vector2F,
@@ -653,11 +670,17 @@ impl WorkspaceAction {
             | AddGetStartedTab
             | AddAgentTab
             | AddSpecificAgentTab(_)
+            | AddDefaultTabInRegion(_)
+            | ToggleRegionNewTabMenu { .. }
+            | AddSpecificAgentTabInRegion(_, _)
+            | SplitRegion { .. }
+            | CloseRegion(_)
             | AddDockerSandboxTab
             | AddWindow
             | AddWindowWithShell { .. }
             | CloseWindow
             | ScrollToSettingsWidget { .. }
+            | ToggleAllProjectsCollapsed
             | NewPaneInAgentMode { .. }
             | OpenNotebook { .. }
             | RunWorkflow { .. }

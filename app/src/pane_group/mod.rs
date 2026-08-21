@@ -435,6 +435,12 @@ pub fn init(app: &mut AppContext) {
 
 pub enum Event {
     AppStateChanged,
+    /// 用户请求分割(split pane 菜单/快捷键)。新模型里 split 产生新的
+    /// 区域 tab(region),由 Workspace 拦截执行;PaneGroup 自身不再
+    /// 在组内插 pane。
+    SplitRequested {
+        direction: Direction,
+    },
     Escape,
     Exited {
         add_to_undo_stack: bool,
@@ -4151,18 +4157,45 @@ impl PaneGroup {
             // pane's type. This makes it easy to get a terminal session next to a non-terminal
             // pane like a notebook. Once it's possible to open the same notebook more than once,
             // we may revisit this so that splitting from a terminal pane starts a new session, but
-            // splitting from a notebook pane reopens the notebook side-by-side.
+            // 2026-08 区域模型重构:垂直标签模式下 split 不再在 pane group
+            // 内插 pane,而是 emit 给 Workspace,由其创建新的 split region
+            // (tab 绑定单视图,分割后的区域各自独立多 tab)。水平模式保持
+            // 原有组内 split 行为(该模式沿用旧顶栏布局)。
             PaneEvent::SplitLeft(chosen_shell) => {
-                self.insert_terminal_pane(Direction::Left, pane_id, chosen_shell.clone(), ctx);
+                if crate::tab::uses_vertical_tabs(ctx) {
+                    ctx.emit(Event::SplitRequested {
+                        direction: Direction::Left,
+                    });
+                } else {
+                    self.insert_terminal_pane(Direction::Left, pane_id, chosen_shell.clone(), ctx);
+                }
             }
             PaneEvent::SplitRight(chosen_shell) => {
-                self.insert_terminal_pane(Direction::Right, pane_id, chosen_shell.clone(), ctx);
+                if crate::tab::uses_vertical_tabs(ctx) {
+                    ctx.emit(Event::SplitRequested {
+                        direction: Direction::Right,
+                    });
+                } else {
+                    self.insert_terminal_pane(Direction::Right, pane_id, chosen_shell.clone(), ctx);
+                }
             }
             PaneEvent::SplitUp(chosen_shell) => {
-                self.insert_terminal_pane(Direction::Up, pane_id, chosen_shell.clone(), ctx);
+                if crate::tab::uses_vertical_tabs(ctx) {
+                    ctx.emit(Event::SplitRequested {
+                        direction: Direction::Up,
+                    });
+                } else {
+                    self.insert_terminal_pane(Direction::Up, pane_id, chosen_shell.clone(), ctx);
+                }
             }
             PaneEvent::SplitDown(chosen_shell) => {
-                self.insert_terminal_pane(Direction::Down, pane_id, chosen_shell.clone(), ctx);
+                if crate::tab::uses_vertical_tabs(ctx) {
+                    ctx.emit(Event::SplitRequested {
+                        direction: Direction::Down,
+                    });
+                } else {
+                    self.insert_terminal_pane(Direction::Down, pane_id, chosen_shell.clone(), ctx);
+                }
             }
             PaneEvent::ToggleMaximized => {
                 // The toggled pane might not be the active pane -- focus it first.

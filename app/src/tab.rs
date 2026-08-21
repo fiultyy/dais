@@ -150,6 +150,8 @@ pub struct TabData {
     pub detached: bool,
     /// Owning project path for the project rail. `None` = no project (always visible).
     pub project_path: Option<PathBuf>,
+    /// Owning split region in the content area (see `workspace::regions`).
+    pub region_id: u64,
 }
 
 const TAB_COLOR_ICON_PATH: &str = "bundled/svg/ellipse.svg";
@@ -169,6 +171,7 @@ impl TabData {
             intercept_hover_state: Default::default(),
             detached: false,
             project_path: None,
+            region_id: 0,
         }
     }
 

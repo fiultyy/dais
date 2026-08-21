@@ -602,12 +602,17 @@ pub(super) struct VerticalTabsPanelState {
     project_card_mouse_states: RefCell<HashMap<PathBuf, MouseStateHandle>>,
     /// Project rail: collapsed project cards (tabs subtree hidden).
     pub(super) project_collapsed: RefCell<std::collections::HashSet<PathBuf>>,
+    /// Project rail: "All projects" row collapsed (tab sub-rows hidden).
+    pub(super) all_projects_collapsed: std::cell::Cell<bool>,
     /// Project rail: per-path hover states for card close (x) buttons.
     project_card_close_mouse_states: RefCell<HashMap<PathBuf, MouseStateHandle>>,
     /// Project rail: per-path click states for the collapse (chevron) toggles.
     project_collapse_mouse_states: RefCell<HashMap<PathBuf, MouseStateHandle>>,
     /// Project rail: "+" add-project button click state.
     project_add_button_mouse_state: MouseStateHandle,
+    /// Project rail: "全部"行 chevron click state (dedicated — sharing with
+    /// the '+' button would let the two Hoverable instances steal clicks).
+    all_collapse_mouse_state: MouseStateHandle,
     pub(super) show_settings_popup: bool,
 }
 
@@ -647,8 +652,10 @@ impl Default for VerticalTabsPanelState {
             project_card_mouse_states: RefCell::default(),
             project_card_close_mouse_states: RefCell::default(),
             project_collapsed: RefCell::default(),
+            all_projects_collapsed: std::cell::Cell::new(false),
             project_collapse_mouse_states: RefCell::default(),
             project_add_button_mouse_state: Default::default(),
+            all_collapse_mouse_state: Default::default(),
             show_settings_popup: false,
         }
     }
@@ -1752,11 +1759,9 @@ fn render_project_card(
         None => Default::default(),
     };
 
-    let background = if is_selected {
-        internal_colors::fg_overlay_3(theme).into()
-    } else {
-        ElementFill::None
-    };
+    // 树行样式(2026-08 大纲重构):不再用卡片背景,选中仅以文字色 +
+    // 左侧细指示条表达;子行(tab 行)按 tree 缩进。
+    let background = ElementFill::None;
     let text_color = if is_selected { main_text } else { sub_text };
 
     let label = match tab_count {
@@ -1767,8 +1772,8 @@ fn render_project_card(
     // ui_builder().button() injects font family/size — required by text labels
     // (WrappableText::build unwraps font_family_id; bare UiComponentStyles panics).
     // Explicit height: without it the button's hit rect expands to the loose
-    // cross-axis constraint and swallows the cards below — clicks then land on
-    // the wrong card (the hit≠visual trap from the showcase investigation).
+    // cross-axis constraint and swallows the rows below — clicks then land on
+    // the wrong row (the hit≠visual trap from the showcase investigation).
     let click_project = project.clone();
     let mut button = appearance
         .ui_builder()
@@ -1776,7 +1781,7 @@ fn render_project_card(
         .with_text_label(label)
         .with_style(
             UiComponentStyles::default()
-                .set_border_radius(CornerRadius::with_all(CONTROL_BAR_BUTTON_RADIUS))
+                .set_border_radius(CornerRadius::with_all(Radius::Pixels(0.)))
                 .set_font_color(text_color.into())
                 .set_background(background)
                 .set_height(SPLIT_BUTTON_HEIGHT),
@@ -1793,10 +1798,37 @@ fn render_project_card(
         })
         .finish();
 
-    // Row: [status dot] [card (expand)] [× close for real projects]
+    // Row: [chevron] [status dot] [label (expand)] [× close for real projects]
     let mut row = Flex::row()
         .with_main_axis_size(MainAxisSize::Max)
         .with_cross_axis_alignment(CrossAxisAlignment::Center);
+
+    // "全部"行:chevron 折叠/展开整个 tab 子行列表。
+    if project.is_none() {
+        let all_collapsed = state.all_projects_collapsed.get();
+        let chevron = if all_collapsed {
+            UiIcon::ChevronRight
+        } else {
+            UiIcon::ChevronDown
+        };
+        let toggle_button = combo_inner_button(
+            appearance,
+            chevron,
+            false,
+            state.all_collapse_mouse_state.clone(),
+        )
+        .with_style(
+            UiComponentStyles::default()
+                .set_border_radius(CornerRadius::with_all(CONTROL_BAR_BUTTON_RADIUS))
+                .set_font_color(sub_text.into()),
+        )
+        .build()
+        .on_click(move |ctx, _, _| {
+            ctx.dispatch_typed_action(WorkspaceAction::ToggleAllProjectsCollapsed);
+        })
+        .finish();
+        row = row.with_child(toggle_button);
+    }
 
     if let Some(path) = project.as_ref() {
         let status = project_agent_status(workspace, path, app);
@@ -1933,6 +1965,119 @@ fn render_project_card(
     column.finish()
 }
 
+/// Rail 顶部工具行:原顶栏左侧的功能按钮(观测台/驾驶舱/标签面板/工具
+/// 面板/agent 管理等,由 header_toolbar 配置决定)并入大纲区顶部、项目
+/// 加号区上方。
+fn render_header_toolbar_row(workspace: &Workspace, app: &AppContext) -> Box<dyn Element> {
+    let appearance = Appearance::as_ref(app);
+    let config = TabSettings::as_ref(app)
+        .header_toolbar_chip_selection
+        .clone();
+    let mut row = Flex::row()
+        .with_cross_axis_alignment(CrossAxisAlignment::Center)
+        .with_main_axis_size(MainAxisSize::Min)
+        .with_spacing(2.);
+    for item in config.left_items() {
+        if let Some(button) = workspace.render_header_toolbar_button(&item, appearance, app) {
+            row.add_child(button);
+        }
+    }
+    Container::new(row.finish())
+        .with_padding(
+            Padding::uniform(0.)
+                .with_left(GROUP_HORIZONTAL_PADDING)
+                .with_right(GROUP_HORIZONTAL_PADDING)
+                .with_top(GROUP_ITEM_SPACING)
+                .with_bottom(GROUP_ITEM_SPACING),
+        )
+        .finish()
+}
+
+/// Rail 底部功能区:承接原顶栏右侧的控件(离线指示、更新 pill、右侧
+/// 配置项如 CodeReview/通知、头像/设置)。
+fn render_rail_footer(workspace: &Workspace, app: &AppContext) -> Box<dyn Element> {
+    let appearance = Appearance::as_ref(app);
+    let theme = appearance.theme();
+    let config = TabSettings::as_ref(app)
+        .header_toolbar_chip_selection
+        .clone();
+
+    let mut column = Flex::column()
+        .with_main_axis_size(MainAxisSize::Min)
+        .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+        .with_spacing(4.);
+
+    let mut row = Flex::row()
+        .with_cross_axis_alignment(CrossAxisAlignment::Center)
+        .with_main_axis_size(MainAxisSize::Min)
+        .with_spacing(2.);
+
+    let is_online = crate::network::NetworkStatus::as_ref(app).is_online();
+    if !is_online {
+        row.add_child(workspace.render_offline_button(appearance));
+    }
+    for item in config.right_items() {
+        if let Some(button) = workspace.render_header_toolbar_button(&item, appearance, app) {
+            row.add_child(button);
+        }
+    }
+    column.add_child(
+        Container::new(row.finish())
+            .with_padding(
+                Padding::uniform(0.)
+                    .with_left(GROUP_HORIZONTAL_PADDING)
+                    .with_right(GROUP_HORIZONTAL_PADDING),
+            )
+            .finish(),
+    );
+
+    // 头像/设置放在最底部一行。
+    let mut account_row = Flex::row()
+        .with_cross_axis_alignment(CrossAxisAlignment::Center)
+        .with_main_axis_size(MainAxisSize::Min)
+        .with_spacing(2.);
+    if crate::FeatureFlag::AvatarInTabBar.is_enabled() {
+        account_row.add_child(workspace.render_avatar_button(appearance, app));
+    } else {
+        account_row.add_child(workspace.render_settings_button(appearance));
+    }
+    column.add_child(
+        Container::new(account_row.finish())
+            .with_padding(
+                Padding::uniform(0.)
+                    .with_left(GROUP_HORIZONTAL_PADDING)
+                    .with_right(GROUP_HORIZONTAL_PADDING)
+                    .with_bottom(GROUP_ITEM_SPACING),
+            )
+            .finish(),
+    );
+
+    let separator = ConstrainedBox::new(
+        Rect::new()
+            .with_background(theme.foreground_button_color().with_opacity(20))
+            .finish(),
+    )
+    .with_height(1.)
+    .with_width(0.)
+    .finish();
+
+    Flex::column()
+        .with_main_axis_size(MainAxisSize::Min)
+        .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+        .with_child(
+            Container::new(Shrinkable::new(1., separator).finish())
+                .with_padding(
+                    Padding::uniform(0.)
+                        .with_left(GROUP_HORIZONTAL_PADDING)
+                        .with_right(GROUP_HORIZONTAL_PADDING)
+                        .with_top(GROUP_ITEM_SPACING),
+                )
+                .finish(),
+        )
+        .with_child(column.finish())
+        .finish()
+}
+
 fn render_vertical_tabs_panel(
     state: &VerticalTabsPanelState,
     workspace: &Workspace,
@@ -1952,6 +2097,7 @@ fn render_vertical_tabs_panel(
         Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+            .with_child(render_header_toolbar_row(workspace, app))
             .with_child(render_project_section(
                 state,
                 workspace,
@@ -1970,16 +2116,21 @@ fn render_vertical_tabs_panel(
         )
         .with_overlayed_scrollbar()
         .finish();
-        Flex::column()
+        let mut all_view = Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+            .with_child(render_header_toolbar_row(workspace, app))
             .with_child(render_project_section(
                 state,
                 workspace,
                 app,
                 /* show_separator */ true,
-            )) // BISECT-control-bar: control bar temporarily removed
-            .with_child(Shrinkable::new(1., scrollable_groups).finish())
+            )); // BISECT-control-bar: control bar temporarily removed
+        if !state.all_projects_collapsed.get() {
+            all_view = all_view.with_child(Shrinkable::new(1., scrollable_groups).finish());
+        }
+        all_view
+            .with_child(render_rail_footer(workspace, app))
             .finish()
     };
 

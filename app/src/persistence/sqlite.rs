@@ -2783,6 +2783,7 @@ fn read_sqlite_data(
                         root,
                         custom_title: tab.custom_title,
                         project_path: tab.project_path,
+                        region_id: 0,
                         default_directory_color: None,
                         selected_color: tab
                             .color

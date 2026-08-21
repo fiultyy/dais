@@ -84,6 +84,8 @@ pub struct TabSnapshot {
     pub right_panel: Option<RightPanelSnapshot>,
     /// Owning project path for the project rail. `None` = no project (always visible).
     pub project_path: Option<String>,
+    /// Owning split region in the content area (0 = single-region layout).
+    pub region_id: u64,
 }
 
 impl TabSnapshot {
