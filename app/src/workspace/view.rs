@@ -10675,6 +10675,10 @@ impl Workspace {
         }
         if should_sync_agent_conversations {
             self.sync_agent_conversations(ctx);
+            // 区域模型:关闭后回收空 region(分割区不留白)。树折叠沿
+            // 父分支轴向并拢——垂直栈中兄弟吸收空间,优先垂直向回收。
+            self.prune_empty_regions(ctx);
+            self.sync_active_tab_by_region();
         }
         true
     }
@@ -12604,6 +12608,9 @@ impl Workspace {
         };
         let global_insert = global_insert.min(self.tabs.len());
         self.tabs.insert(global_insert, tab);
+        // 源 region 可能因此变空 → 回收(树折叠并拢)。prune 只动树不动
+        // tab,global_insert 仍指向被拖 tab。
+        self.prune_empty_regions(ctx);
         self.sync_active_tab_by_region();
         self.set_active_tab_index(global_insert, ctx);
         ctx.notify();
@@ -12633,11 +12640,23 @@ impl Workspace {
         if !self.region_tree.split_leaf(pending.region, axis, new_region, new_first) {
             return;
         }
-        if let Some(tab) = self.tabs.get_mut(source_index) {
-            tab.region_id = new_region;
+        // 源 region 还有其他 tab → 拖拽 tab 移入新 region;源 region 只剩
+        // 这一个 tab → 保持不动,新 region 开一个默认 tab(split 语义,
+        // 否则移走后源空、剪枝会把 split 整个吞掉)。
+        let source_region_tabs = self.region_tab_indices(pending.region);
+        if source_region_tabs.len() > 1 {
+            if let Some(tab) = self.tabs.get_mut(source_index) {
+                tab.region_id = new_region;
+            }
+            self.sync_active_tab_by_region();
+            self.set_active_tab_index(source_index, ctx);
+        } else {
+            self.sync_active_tab_by_region();
+            self.add_default_tab_in_region(new_region, ctx);
         }
+        // 结构变化后回收空 region(跨区移动等路径也可能留下空位)。
+        self.prune_empty_regions(ctx);
         self.sync_active_tab_by_region();
-        self.set_active_tab_index(source_index, ctx);
         self.tab_content_bounds = None;
         ctx.notify();
     }
@@ -22259,9 +22278,13 @@ impl View for Workspace {
         }
 
         // If the tab bar is being shown in "stacked" mode, we want to render
-        // the traffic lights relative to the full workspace, so they appear
-        // in the top-right corner even if a right-side panel is open.
-        if tab_bar_mode == ShowTabBar::Stacked {
+        // traffic lights relative to the full workspace, so they appear in the
+        // top-right corner even if a right-side panel is open. The top-bar-less
+        // vertical-tabs layout renders them unconditionally — they are an
+        // independent floating layer, not part of the removed top bar.
+        let vertical_tabs_layout = FeatureFlag::VerticalTabs.is_enabled()
+            && *TabSettings::as_ref(app).use_vertical_tabs;
+        if tab_bar_mode == ShowTabBar::Stacked || vertical_tabs_layout {
             self.maybe_render_traffic_lights(&mut stack, app);
         }
 

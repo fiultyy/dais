@@ -2104,6 +2104,9 @@ fn render_vertical_tabs_panel(
                 app,
                 /* show_separator */ false,
             ))
+            // Spacer pins the footer to the rail's bottom edge.
+            .with_child(Shrinkable::new(1., Empty::new().finish()).finish())
+            .with_child(render_rail_footer(workspace, app))
             .finish()
     } else {
         let scrollable_groups = ClippedScrollable::vertical(
@@ -2128,6 +2131,8 @@ fn render_vertical_tabs_panel(
             )); // BISECT-control-bar: control bar temporarily removed
         if !state.all_projects_collapsed.get() {
             all_view = all_view.with_child(Shrinkable::new(1., scrollable_groups).finish());
+        } else {
+            all_view = all_view.with_child(Shrinkable::new(1., Empty::new().finish()).finish());
         }
         all_view
             .with_child(render_rail_footer(workspace, app))
@@ -2615,11 +2620,9 @@ fn render_tab_group_internal(
                 ) else {
                     continue;
                 };
-                let view_mode = *TabSettings::as_ref(app).vertical_tabs_view_mode.value();
-                let row = match view_mode {
-                    VerticalTabsViewMode::Compact => render_compact_pane_row(pane_props, app),
-                    VerticalTabsViewMode::Expanded => render_pane_row(pane_props, app),
-                };
+                // 大纲行统一走小卡片样式(ID 标签);Compact/Expanded
+                // 富行样式保留在设置里供日后恢复。
+                let row = render_minimal_pane_row(pane_props, app);
                 rows.add_child(row);
             }
             rows.finish()
@@ -6547,6 +6550,62 @@ pub(super) fn render_detail_sidecar(
         child_anchor,
         sidecar: ConstrainedBox::new(sidecar).with_width(width).finish(),
     })
+}
+
+/// 大纲 tab 行(2026-08 小卡片样式):单行紧凑行,标签 = 编排器识别 ID
+/// (terminal view 的 EntityId,harness 拦截/编排器会话注册即用此 ID),
+/// 附加暗色短标题辅助辨认。非 terminal pane 无识别 ID,退化为短标题。
+fn render_minimal_pane_row(props: PaneProps<'_>, app: &AppContext) -> Box<dyn Element> {
+    let appearance = Appearance::as_ref(app);
+    let theme = appearance.theme();
+    let main_text_color = theme.main_text_color(theme.background());
+    let sub_text_color = theme.sub_text_color(theme.background());
+    let font_family = appearance.ui_font_family();
+
+    let icon = render_pane_icon_with_status(
+        resolve_icon_with_status_variant(&props.typed, &props.title, appearance, app),
+        theme,
+    );
+
+    let (label, title_text) = match &props.typed {
+        TypedPane::Terminal(terminal_pane) => {
+            let view_id = terminal_pane.terminal_view(app).id();
+            (format!("#{view_id}"), props.displayed_title().to_string())
+        }
+        _ => (String::new(), props.displayed_title().to_string()),
+    };
+
+    let mut label_row = Flex::row()
+        .with_main_axis_size(MainAxisSize::Min)
+        .with_cross_axis_alignment(CrossAxisAlignment::Center)
+        .with_spacing(4.);
+
+    if !label.is_empty() {
+        label_row.add_child(
+            Text::new_inline(label, font_family, 11.)
+                .with_color(main_text_color.into())
+                .finish(),
+        );
+    }
+    // 暗色短标题:仅作辅助,不抢 ID 标签的主位。
+    if !title_text.is_empty() {
+        label_row.add_child(
+            Text::new_inline(title_text, font_family, 10.)
+                .with_clip(ClipConfig::ellipsis())
+                .with_color(sub_text_color.into())
+                .finish(),
+        );
+    }
+
+    let content = Flex::row()
+        .with_main_axis_size(MainAxisSize::Max)
+        .with_cross_axis_alignment(CrossAxisAlignment::Center)
+        .with_spacing(ICON_WITH_STATUS_GAP)
+        .with_child(icon)
+        .with_child(Shrinkable::new(1., label_row.finish()).finish())
+        .finish();
+
+    render_pane_row_element(props, Padding::uniform(4.), true, content, theme)
 }
 
 fn render_compact_pane_row(props: PaneProps<'_>, app: &AppContext) -> Box<dyn Element> {
