@@ -11115,7 +11115,10 @@ impl Workspace {
                     Self::project_for_directory(&dir, ctx)
                 })
             })
-            .flatten();
+            .flatten()
+            // Project view: a tab opened while a project is selected belongs
+            // to that project unless its directory maps to a different one.
+            .or_else(|| self.active_project.clone());
         let new_pane_group = ctx.add_typed_action_view(|ctx| {
             let mut pane_group = PaneGroup::new_with_panes_layout(
                 self.tips_completed.clone(),
@@ -12335,6 +12338,21 @@ impl Workspace {
             .collect()
     }
 
+    /// Tabs of `region` visible under the current project filter — drives
+    /// region tab bar rendering and drag insertion math (slot indices are
+    /// positions among *visible* tabs). Physical membership queries
+    /// (close/prune/move bookkeeping) keep using `region_tab_indices`.
+    pub(crate) fn visible_region_tab_indices(
+        &self,
+        region: super::regions::RegionId,
+    ) -> Vec<usize> {
+        let visible = self.visible_tab_indices();
+        self.region_tab_indices(region)
+            .into_iter()
+            .filter(|index| visible.contains(index))
+            .collect()
+    }
+
     /// The focused region: the region owning the active tab (fallback: the
     /// first leaf of the tree).
     pub(crate) fn focused_region_id(&self) -> super::regions::RegionId {
@@ -12532,7 +12550,7 @@ impl Workspace {
         dragging_index: usize,
         ctx: &ViewContext<Self>,
     ) -> usize {
-        let indices = self.region_tab_indices(region);
+        let indices = self.visible_region_tab_indices(region);
         let mut slot = 0;
         for index in indices {
             if index == dragging_index {
@@ -12575,7 +12593,7 @@ impl Workspace {
         };
         if tab.region_id == region {
             // Same region: plain local reorder.
-            let indices = self.region_tab_indices(region);
+            let indices = self.visible_region_tab_indices(region);
             let Some(local_pos) = indices.iter().position(|&i| i == current_index) else {
                 return;
             };
@@ -12583,10 +12601,16 @@ impl Workspace {
             if local_pos == target_local {
                 return;
             }
-            let target_global = indices[target_local];
-            let target_global = indices[target_local];
             let was_active = self.active_tab_index == current_index;
-            self.tabs.swap(current_index, target_global);
+            let tab = self.tabs.remove(current_index);
+            // Physical index in the shrunk vec (tabs after the removed one
+            // shift down by one).
+            let target_global = if indices[target_local] > current_index {
+                indices[target_local] - 1
+            } else {
+                indices[target_local]
+            };
+            self.tabs.insert(target_global, tab);
             if was_active {
                 self.set_active_tab_index(target_global, ctx);
             }
@@ -12598,7 +12622,7 @@ impl Workspace {
         let tab = tab;
         self.tabs.remove(current_index);
         // Region indices in the shrunk vec.
-        let indices = self.region_tab_indices(region);
+        let indices = self.visible_region_tab_indices(region);
         let global_insert = if indices.is_empty() {
             self.tabs.len()
         } else if insertion >= indices.len() {
@@ -17971,6 +17995,7 @@ impl Workspace {
         }
     }
 
+
     fn render_region_leaf(
         &self,
         region: super::regions::RegionId,
@@ -17978,10 +18003,17 @@ impl Workspace {
         app: &AppContext,
     ) -> Box<dyn Element> {
         let theme = appearance.theme();
-        let indices = self.region_tab_indices(region);
-        let active_index = self.active_tab_index_in_region(region);
+        let indices = self.visible_region_tab_indices(region);
+        // Active tab under the project filter: the region's remembered tab
+        // when it is still visible, else its first visible tab.
+        let active_index = self
+            .active_tab_by_region
+            .get(&region)
+            .copied()
+            .filter(|index| indices.contains(index))
+            .or_else(|| indices.first().copied());
         let tab_bar_state = TabBarState {
-            tab_count: self.tabs.len(),
+            tab_count: indices.len(),
             active_tab_index: active_index,
             is_any_tab_renaming: self.current_workspace_state.is_tab_being_renamed(),
             is_any_tab_dragging: self.current_workspace_state.is_tab_being_dragged
@@ -23713,13 +23745,18 @@ impl Workspace {
             .window_bounds(&ctx.window_id())
             .map(|bounds| drag_pointer + bounds.origin())
             .unwrap_or(drag_pointer);
+        // Region tab bars hug the window's top edge; a reorder drag aimed at
+        // the bar easily grazes past y=0 and would otherwise detach into a
+        // preview window (scrambling project tab data). Only detach once the
+        // pointer is genuinely clear of the window by this margin.
+        const DRAG_DETACH_MARGIN: f32 = 16.;
         let is_drag_outside_window = ctx
             .window_bounds(&ctx.window_id())
             .is_none_or(|bounds| {
-                drag_pointer_on_screen.x() < bounds.min_x()
-                    || drag_pointer_on_screen.x() > bounds.max_x()
-                    || drag_pointer_on_screen.y() < bounds.min_y()
-                    || drag_pointer_on_screen.y() > bounds.max_y()
+                drag_pointer_on_screen.x() < bounds.min_x() - DRAG_DETACH_MARGIN
+                    || drag_pointer_on_screen.x() > bounds.max_x() + DRAG_DETACH_MARGIN
+                    || drag_pointer_on_screen.y() < bounds.min_y() - DRAG_DETACH_MARGIN
+                    || drag_pointer_on_screen.y() > bounds.max_y() + DRAG_DETACH_MARGIN
             });
 
         // Detach (single- or multi-tab) only when the pointer actually
