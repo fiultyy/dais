@@ -13,9 +13,18 @@
 //!   污染)。`cc-dais` 走 `--settings` 深覆盖(静态文件
 //!   `~/.config/dais/cc-entry-settings.json`, env 块从用户 `~/.claude/
 //!   settings.json` 透传合并 + `ANTHROPIC_BASE_URL` 覆盖为入口 `/cc`);
-//!   `omp-dais`/`pi-dais` 传 `--model dais/<动态默认模型>`(启动时从各 CLI
-//!   独立配置读取默认模型 ID; `dais/` 前缀保证走入口 `/omp`、`/pi`,
-//!   models.yml 由编排侧写)。
+//!   `omp-dais`/`pi-dais` **透明代理**(alias-transparent, 2026-08-22):
+//!   不传 `--model`——模型/effort/角色全部走用户 config 原样; 重定向经
+//!   进程 env `ZHIPU_CODING_PLAN_BASE_URL=http://127.0.0.1:<port>/omp`
+//!   (omp 上游 catalog 按 MOONSHOT_BASE_URL 同款约定支持 env 重定向,
+//!   discovery 与流式请求一起过入口, 模型目录保持上游动态——零清单
+//!   维护, 上游新模型自动出现)。凭据与实例标记头经用户级
+//!   `~/.omp/agent/models.yml` 对内置 provider `zhipu-coding-plan` 的
+//!   **传输覆盖**(仅 apiKey/authHeader/headers, 不含 baseUrl/不列
+//!   models——裸 `omp` 行为不变)。
+//!   `pi-dais` 同样零 `--model` 篡改; 但 pi 当前无 per-invocation baseUrl
+//!   env 面(models.json baseUrl 不插值 `${VAR}`, 实测 Invalid URL)——
+//!   env 对 pi 是 no-op, 重定向待 pi 上游采用同款 env 约定后自动生效。
 //!
 //! 生命周期: 外部捕获开关开 → [`ensure_gateway`](Self) 起 8787; 关 →
 //! [`shutdown`] 落 Exit + 端口释放。旧 T3 路径(pane 级登记/劫持裸命令/
@@ -114,55 +123,12 @@ pub enum ArmingDialect {
 /// - cc-dais: `ANTHROPIC_CUSTOM_HEADERS="x-dais-instance: <tag>"` 进程 env
 ///   赋值前缀(CC 只从进程 env 读; settings env 块优先级压过进程 env —
 ///   T3 实证, 不能写进 cc-entry-settings.json)。
-/// - omp/pi: `DAIS_INSTANCE_TAG` 进程 env(模型配置 provider `headers` 的
-///   env 引用: omp models.yml `DAIS_INSTANCE_TAG`, pi models.json
-///   `${DAIS_INSTANCE_TAG}`)。
+/// - omp/pi: `DAIS_INSTANCE_TAG` 进程 env(models.yml 对内置 provider 的
+///   传输覆盖 headers 里 `!printenv DAIS_INSTANCE_TAG` 引用——env 未设
+///   时该头被丢弃, 裸命令零污染)。
 /// 网关按标记键控 session(`external-<p>-<tag>`), 转发前剥头(管道字节
 /// 不变)。
 ///
-/// T9: 解析 CLI 独立默认模型 ID — 动态跟随, 替代 `alias_defs` 原铸死 glm-5.2。
-///
-/// - **omp**: 读 `$HOME/.omp/agent/config.yml` → `modelRoles.default`
-///   (如 `zhipu-coding-plan/glm-5.2` 或 `zhipu-coding-plan/glm-5-turbo`)。
-/// - **pi**: 读 `$HOME/.pi/agent/settings.json` → `defaultModel` (如 `glm-5.2`)。
-/// 提取裸模型 ID(去 provider 前缀 + `:effort` 后缀)。任意环节缺省/解析失败
-/// → 兜底 `"glm-5.2"`(原铸死值)。
-fn resolve_default_model_id(cli: &str) -> String {
-    const FALLBACK: &str = "glm-5.2";
-    let home = std::env::var("HOME").unwrap_or_default();
-    let raw = match cli {
-        "omp" => {
-            let path = std::path::Path::new(&home).join(".omp/agent/config.yml");
-            std::fs::read_to_string(&path)
-                .ok()
-                .and_then(|s| serde_yaml::from_str::<serde_yaml::Value>(&s).ok())
-                .and_then(|v| {
-                    v.get("modelRoles")?
-                        .get("default")?
-                        .as_str()
-                        .map(String::from)
-                })
-        }
-        "pi" => {
-            let path = std::path::Path::new(&home).join(".pi/agent/settings.json");
-            std::fs::read_to_string(&path)
-                .ok()
-                .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
-                .and_then(|v| v.get("defaultModel")?.as_str().map(String::from))
-        }
-        _ => None,
-    };
-    let Some(raw) = raw else {
-        return FALLBACK.to_string();
-    };
-    // 去 provider 前缀 + `:effort` 后缀。
-    let bare = raw.split(':').next().unwrap_or(&raw);
-    bare.rsplit('/')
-        .next()
-        .unwrap_or(bare)
-        .to_string()
-}
-
 /// 别名函数体按方言包装(单行, 无换行 — 投递安全)。
 fn alias_defs(entry_port: u16, dialect: ArmingDialect) -> String {
     let cc_settings = cc_entry_settings_path().display().to_string();
@@ -176,15 +142,27 @@ fn alias_defs(entry_port: u16, dialect: ArmingDialect) -> String {
         r#"set -lx ANTHROPIC_CUSTOM_HEADERS "x-dais-instance: "(date +%s%N)-$fish_pid"#,
         r#"set -lx DAIS_INSTANCE_TAG (date +%s%N)-$fish_pid"#,
     );
-    let omp_model = resolve_default_model_id("omp");
-    let pi_model = resolve_default_model_id("pi");
+    let entry = format!("http://127.0.0.1:{entry_port}/omp");
+    // alias-transparent: 模型选择零干预; 重定向全靠 env(见模块 doc)。
+    // omp 上游 catalog 按 env 重定向 discovery+流式; pi 当前无 env 面
+    // (该 env 对 pi 是 no-op, 见模块 doc 的 pi 缺口注记)。
+    let redirect = format!(r#"ZHIPU_CODING_PLAN_BASE_URL="{entry}""#);
+    let redirect_f = format!("set -lx ZHIPU_CODING_PLAN_BASE_URL {entry}");
     let bodies: [(&str, String, String); 3] = [
-        ("cc-dais", format!("command claude --settings"), cc_settings),
-        ("omp-dais", format!("command omp --model dais/{omp_model}"), String::new()),
-        ("pi-dais", format!("command pi --model dais/{pi_model}"), String::new()),
+        ("cc-dais", "command claude --settings".to_string(), cc_settings.clone()),
+        ("omp-dais", format!("{redirect} command omp"), String::new()),
+        ("pi-dais", format!("{redirect} command pi"), String::new()),
     ];
-    let _ = entry_port; // settings 文件内固化端口; 函数体不重复携带
-    bodies
+    let bodies_f: [(&str, String, String); 3] = [
+        ("cc-dais", "command claude --settings".to_string(), cc_settings),
+        ("omp-dais", format!("{redirect_f}; command omp"), String::new()),
+        ("pi-dais", format!("{redirect_f}; command pi"), String::new()),
+    ];
+    let picked = match dialect {
+        ArmingDialect::Posix => &bodies,
+        ArmingDialect::Fish => &bodies_f,
+    };
+    picked
         .iter()
         .map(|(name, body, extra)| {
             let is_cc = *name == "cc-dais";
@@ -334,12 +312,14 @@ mod tests {
             r#"cc-dais(){ ANTHROPIC_CUSTOM_HEADERS="x-dais-instance: $(date +%s%N)-$$" command claude --settings"#
         ));
         assert!(posix.contains("/cc-entry-settings.json' \"$@\"; }"));
+        // alias-transparent: 零 --model; env 重定向 + 调用时铸标记。
         assert!(posix.contains(
-            r#"omp-dais(){ DAIS_INSTANCE_TAG="$(date +%s%N)-$$" command omp --model dais/glm-5.2 "$@"; }"#
+            r#"omp-dais(){ DAIS_INSTANCE_TAG="$(date +%s%N)-$$" ZHIPU_CODING_PLAN_BASE_URL="http://127.0.0.1:8787/omp" command omp "$@"; }"#
         ));
         assert!(posix.contains(
-            r#"pi-dais(){ DAIS_INSTANCE_TAG="$(date +%s%N)-$$" command pi --model dais/glm-5.2 "$@"; }"#
+            r#"pi-dais(){ DAIS_INSTANCE_TAG="$(date +%s%N)-$$" ZHIPU_CODING_PLAN_BASE_URL="http://127.0.0.1:8787/omp" command pi "$@"; }"#
         ));
+        assert!(!posix.contains("--model dais/"), "别名不得携带 --model 篡改");
         assert!(!posix.contains('\n'), "单行投递安全");
 
         let fish = alias_defs(8787, ArmingDialect::Fish);
@@ -347,7 +327,7 @@ mod tests {
             r#"set -lx ANTHROPIC_CUSTOM_HEADERS "x-dais-instance: "(date +%s%N)-$fish_pid"#
         ));
         assert!(fish.contains(
-            "set -lx DAIS_INSTANCE_TAG (date +%s%N)-$fish_pid; command omp --model dais/glm-5.2 $argv; end"
+            "set -lx DAIS_INSTANCE_TAG (date +%s%N)-$fish_pid; set -lx ZHIPU_CODING_PLAN_BASE_URL http://127.0.0.1:8787/omp; command omp $argv; end"
         ));
     }
 
@@ -428,7 +408,7 @@ mod tests {
     // ── T4-E2E 回归钉 ──────────────────────────────────────────────────
 
     /// 别名函数体: 三别名均携带一次性实例标记前缀(T8), cc-dais 另携
-    /// --settings 全路径(入 HOME), omp/pi 携 --model dais/glm-5.2; 裸命令
+    /// --settings 全路径(入 HOME), omp/pi 携 env 重定向零 --model; 裸命令
     /// (claude/omp/pi)零函数定义 — bootstrap 注入不劫持裸调用。
     #[test]
     fn t4_alias_bodies_pin_settings_path_model_and_zero_bare_hijack() {
@@ -463,8 +443,8 @@ mod tests {
                 )
             );
             assert!(!cc.contains("--model"), "cc-dais 不携带 --model");
-            // omp-dais / pi-dais: --model dais/glm-5.2; 不带 --settings;
-            // DAIS_INSTANCE_TAG 调用时铸。
+            // omp-dais / pi-dais: 零 --model(模型选择零干预); env 重定向
+            // + DAIS_INSTANCE_TAG 调用时铸; 不带 --settings。
             for (name, bin, next) in [
                 ("omp-dais", "omp", "pi-dais()"),
                 ("pi-dais", "pi", "\u{0}none"),
@@ -473,16 +453,17 @@ mod tests {
                 assert_eq!(
                     d,
                     format!(
-                        r#"{name}(){{ DAIS_INSTANCE_TAG="$(date +%s%N)-$$" command {bin} --model dais/glm-5.2 "$@"; }}"#
+                        r#"{name}(){{ DAIS_INSTANCE_TAG="$(date +%s%N)-$$" ZHIPU_CODING_PLAN_BASE_URL="http://127.0.0.1:8787/omp" command {bin} "$@"; }}"#
                     )
                 );
+                assert!(!d.contains("--model"), "{name} 不携带 --model");
                 assert!(!d.contains("--settings"), "{name} 不携带 --settings");
             }
             // fish 方言: 三别名齐全(pi 也钉, 全等)。
             let fish = alias_defs(8787, ArmingDialect::Fish);
             assert_eq!(
                 seg(&fish, "function pi-dais", "\u{0}none"),
-                "function pi-dais; set -lx DAIS_INSTANCE_TAG (date +%s%N)-$fish_pid; command pi --model dais/glm-5.2 $argv; end"
+                "function pi-dais; set -lx DAIS_INSTANCE_TAG (date +%s%N)-$fish_pid; set -lx ZHIPU_CODING_PLAN_BASE_URL http://127.0.0.1:8787/omp; command pi $argv; end"
             );
 
             // 裸命令零劫持: 不存在裸名(claude/omp/pi)函数定义。
@@ -501,73 +482,6 @@ mod tests {
         }
         result
     }
-    /// T9: 别名武装动态跟随 CLI 独立默认模型 — omp/pi 各读独立配置
-    /// (config.yml modelRoles.default / settings.json defaultModel), 嵌入
-    /// `--model dais/<id>`。无配置兜底原铸死值 glm-5.2。
-    #[test]
-    fn t9_alias_model_follows_cli_default() {
-        let _env = T4_LOCK.lock();
-        let dir = tempfile::tempdir().unwrap();
-        let orig_home = std::env::var("HOME").ok();
-        std::env::set_var("HOME", dir.path());
-        let result = (|| {
-            // ── 装备 omp config.yml (modelRoles.default 含 :effort 后缀) ──
-            std::fs::create_dir_all(dir.path().join(".omp/agent")).unwrap();
-            std::fs::write(
-                dir.path().join(".omp/agent/config.yml"),
-                "modelRoles:\n  default: zhipu-coding-plan/glm-5-turbo\n",
-            )
-            .unwrap();
-            // ── 装备 pi settings.json (defaultModel 裸 id) ──
-            std::fs::create_dir_all(dir.path().join(".pi/agent")).unwrap();
-            std::fs::write(
-                dir.path().join(".pi/agent/settings.json"),
-                r#"{"defaultModel":"glm-5-turbo"}"#,
-            )
-            .unwrap();
-
-            let posix = alias_defs(8787, ArmingDialect::Posix);
-            // omp-dais: 动态读 config.yml → glm-5-turbo。
-            assert!(
-                posix.contains("--model dais/glm-5-turbo"),
-                "omp-dais 应跟随 omp config 默认模型: {posix}"
-            );
-            // pi-dais: 动态读 settings.json → glm-5-turbo。
-            assert!(
-                posix.contains("pi --model dais/glm-5-turbo"),
-                "pi-dais 应跟随 pi settings 默认模型: {posix}"
-            );
-            // fish 同口径。
-            let fish = alias_defs(8787, ArmingDialect::Fish);
-            assert!(
-                fish.contains("--model dais/glm-5-turbo"),
-                "fish omp-dais 应跟随: {fish}"
-            );
-            assert!(
-                fish.contains("pi --model dais/glm-5-turbo"),
-                "fish pi-dais 应跟随: {fish}"
-            );
-
-            // ── 无配置 → 兜底 glm-5.2 (原铸死值不变) ──
-            std::fs::remove_file(dir.path().join(".omp/agent/config.yml")).unwrap();
-            std::fs::remove_file(dir.path().join(".pi/agent/settings.json")).unwrap();
-            let posix_fb = alias_defs(8787, ArmingDialect::Posix);
-            assert!(
-                posix_fb.contains("omp --model dais/glm-5.2"),
-                "omp 配置缺失 → 兜底 glm-5.2: {posix_fb}"
-            );
-            assert!(
-                posix_fb.contains("pi --model dais/glm-5.2"),
-                "pi 配置缺失 → 兜底 glm-5.2: {posix_fb}"
-            );
-        })();
-        match orig_home {
-            Some(h) => std::env::set_var("HOME", h),
-            None => std::env::remove_var("HOME"),
-        }
-        result
-    }
-
     /// cc-entry-settings.json: 端口参数贯通(BASE_URL 随入口端口变化)。
     /// 只读断言(不写盘), 覆盖优先级由上方 merge 测试钉。
     #[test]
