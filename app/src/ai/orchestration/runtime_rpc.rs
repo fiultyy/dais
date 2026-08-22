@@ -113,7 +113,7 @@ pub fn read_metadata() -> Option<RuntimeMetadata> {
         }
     };
     serde_json::from_str(&data)
-        .map_err(|e| => {
+        .map_err(|e| {
             log::warn!("runtime_rpc: corrupt metadata: {e}");
             e
         })
