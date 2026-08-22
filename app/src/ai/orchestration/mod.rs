@@ -240,3 +240,7 @@ pub mod dispatch_assign;
 pub mod dispatch_send;
 #[cfg(unix)]
 pub mod runtime_rpc;
+
+pub mod projects_cli;
+pub mod worktrees;
+pub mod new_terminal;

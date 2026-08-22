@@ -390,6 +390,67 @@ pub fn execute_command(
                     .map_err(|e| anyhow!("{e}"))?;
             }
         }
+
+        // ── orch-caps-v2: project / worktree / new-terminal ──
+        OrchestrationCommand::ProjectAdd { path } => {
+            println!("{}", crate::ai::orchestration::projects_cli::project_add(path, cx)?);
+        }
+
+        OrchestrationCommand::ProjectRemove { path, force } => {
+            println!(
+                "{}",
+                crate::ai::orchestration::projects_cli::project_remove(path, *force, cx)?
+            );
+        }
+
+        OrchestrationCommand::ProjectList => {
+            let out = crate::ai::orchestration::projects_cli::project_list()?;
+            if !out.is_empty() {
+                println!("{out}");
+            }
+        }
+
+        OrchestrationCommand::WorktreeCreate { project_path, name } => {
+            println!(
+                "{}",
+                crate::ai::orchestration::worktrees::worktree_create(project_path, name, cx)?
+            );
+        }
+
+        OrchestrationCommand::WorktreeList { project_path } => {
+            let out = crate::ai::orchestration::worktrees::worktree_list(project_path.as_deref())?;
+            if out.is_empty() {
+                println!("no worktrees");
+            } else {
+                println!("{out}");
+            }
+        }
+
+        OrchestrationCommand::WorktreeRemove { path, force } => {
+            println!(
+                "{}",
+                crate::ai::orchestration::worktrees::worktree_remove(path, *force, cx)?
+            );
+        }
+
+        OrchestrationCommand::NewTerminal {
+            project_path,
+            alias,
+            cwd,
+        } => {
+            // GUI action: the L2 fast path forwards this to the GUI process
+            // (try_socket_fast_path). Landing here headless (no GUI) errors
+            // inside with a clear message.
+            println!(
+                "{}",
+                crate::ai::orchestration::new_terminal::new_terminal(
+                    project_path,
+                    alias.as_deref(),
+                    cwd.as_deref(),
+                    cx,
+                )?
+            );
+        }
     }
 
     Ok(())

@@ -182,4 +182,71 @@ pub enum OrchestrationCommand {
         #[arg(long = "type")]
         message_type: Vec<String>,
     },
+
+    /// Add a project (absolute path) to the project list. Idempotent for an
+    /// existing path (refreshes last_opened_ts). A live GUI refreshes its
+    /// project rail immediately via the project event.
+    ProjectAdd {
+        /// Absolute path of the project root.
+        path: String,
+    },
+
+    /// Remove a project from the project list. Refuses when tabs/terminals
+    /// still reference the project (reports them) unless --force is given
+    /// (--force resets those tabs to "no project", matching GUI semantics).
+    ProjectRemove {
+        /// Absolute path of the project root.
+        path: String,
+        /// Detach referencing tabs (reset to no-project) and remove anyway.
+        #[arg(long)]
+        force: bool,
+    },
+
+    /// List all registered projects. Machine-parseable: one line per project
+    /// `path<TAB>added_ts<TAB>last_opened_ts`.
+    ProjectList,
+
+    /// Create a git worktree for a project at `<project>/../<repo>-<name>`
+    /// (new branch `<name>` from HEAD) and register it as a project.
+    /// Prints the worktree path.
+    WorktreeCreate {
+        /// Existing project path (main checkout) to create the worktree from.
+        project_path: String,
+        /// Worktree name: suffix for the sibling directory and the new branch.
+        name: String,
+    },
+
+    /// List git worktrees (porcelain `git worktree list` wrapped). Without a
+    /// path, lists worktrees of every registered project that is a git repo.
+    WorktreeList {
+        /// Optional project path to scope the listing to.
+        project_path: Option<String>,
+    },
+
+    /// Remove a git worktree. Refuses when terminals reference it (reports
+    /// them) unless --force (detaches those tabs first, then
+    /// `git worktree remove --force`).
+    WorktreeRemove {
+        /// Absolute path of the worktree to remove.
+        path: String,
+        /// Detach referencing tabs and force-remove even if dirty.
+        #[arg(long)]
+        force: bool,
+    },
+
+    /// Open a new terminal tab in a project's active window (GUI action —
+    /// runs on the GUI main thread via the runtime RPC; errors without a
+    /// running GUI). Prints the new terminal's session mailbox handle
+    /// (`session_<sid>`).
+    NewTerminal {
+        /// Project path whose window/tab the terminal opens in.
+        project_path: String,
+        /// Alias of an intercept-style harness TUI to launch in the shell
+        /// (e.g. omp / pi / cc). Without it a bare shell starts.
+        #[arg(long)]
+        alias: Option<String>,
+        /// Working directory override (default: the project path).
+        #[arg(long)]
+        cwd: Option<String>,
+    },
 }
