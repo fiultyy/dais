@@ -109,7 +109,7 @@ const CLAUDE_EXIT_COMMAND: &str = "/exit";
 /// The CLI receives `--session-id <uuid>` to pin a fresh local session to that id.
 /// If `system_prompt_path` is provided, the CLI appends its contents to the base
 /// system prompt.
-/// If `settings_path` is provided (Zap intercept), the CLI receives
+/// If `settings_path` is provided (Dais intercept), the CLI receives
 /// `--settings` — CC merges it on top of user settings, letting the intercept
 /// override `env.ANTHROPIC_BASE_URL` (PTY env alone is silently ignored).
 fn claude_command(
@@ -372,7 +372,7 @@ impl HarnessRunner for ClaudeHarnessRunner {
         let claude_version = self.resolve_claude_version(foreground).await;
 
         let _ = (foreground, conversation_id, block_id, claude_version);
-        log::debug!("Skipping Claude transcript and block snapshot export in Zap");
+        log::debug!("Skipping Claude transcript and block snapshot export in Dais");
 
         Ok(())
     }

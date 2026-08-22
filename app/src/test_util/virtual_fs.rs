@@ -4,15 +4,15 @@ pub use virtual_fs::{Dirs, Stub, VirtualFS};
 pub trait WarpDirs {
     #[allow(dead_code)]
     fn git_repository_fixture(&self) -> PathBuf {
-        Zap::fixtures().join("git_repository")
+        Dais::fixtures().join("git_repository")
     }
 }
 
 impl WarpDirs for Dirs {}
 
-pub struct Zap;
+pub struct Dais;
 
-impl Zap {
+impl Dais {
     #[allow(dead_code)]
     pub fn executable() -> PathBuf {
         let mut path = {

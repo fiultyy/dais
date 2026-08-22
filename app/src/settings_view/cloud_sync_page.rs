@@ -33,7 +33,7 @@ use crate::ssh_manager::{SshTreeChangedEvent, SshTreeChangedNotifier};
 use crate::view_components::dropdown::{Dropdown, DropdownItem};
 
 use warp_ssh_manager::{with_conn, DbVersionStore, SyncMetaRepository, SshSyncProvider};
-use zap_sync::{GistClient, SyncEngine, SyncPlatform, SyncResult};
+use dais_sync::{GistClient, SyncEngine, SyncPlatform, SyncResult};
 
 const INPUT_AREA_MAX_WIDTH: f32 = 420.0;
 const BUTTON_PADDING: f32 = 6.0;

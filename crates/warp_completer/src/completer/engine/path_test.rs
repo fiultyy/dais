@@ -21,6 +21,7 @@ mod unix_constants {
 use unix_constants::*;
 
 #[test]
+// zap-purge: macOS bundle path, kept as real filesystem reference
 fn test_split_path() {
     let path = TypedPathBuf::from_unix("/Users/warpuser");
     let split_path = SplitPath::new(

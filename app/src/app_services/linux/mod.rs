@@ -64,7 +64,7 @@ pub fn pass_startup_args_to_existing_instance(
 #[derive(Debug, thiserror::Error)]
 #[cfg(feature = "release_bundle")]
 pub enum StartupArgsForwardingError {
-    /// There's no instance of Zap already running.
+    /// There's no instance of Dais already running.
     #[error("no existing instance found to forward args to")]
     NoExistingInstance,
     /// This instance was launched after an auto-update and should not forward
@@ -81,7 +81,7 @@ impl From<zbus::fdo::Error> for StartupArgsForwardingError {
     fn from(value: zbus::fdo::Error) -> Self {
         // While ServiceUnknown usually means that D-Bus doesn't know how to
         // _launch_ something to handle your message, in our case, we're not
-        // registering a service, so this really means that Zap is not already
+        // registering a service, so this really means that Dais is not already
         // running.
         if matches!(value, zbus::fdo::Error::ServiceUnknown(_)) {
             StartupArgsForwardingError::NoExistingInstance

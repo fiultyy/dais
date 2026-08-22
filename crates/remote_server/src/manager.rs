@@ -147,7 +147,7 @@ fn version_is_compatible(client: Option<&str>, server: &str) -> bool {
 
 /// 是否应当对远端 `server_version` 强制做 tag 严格匹配。
 ///
-/// 对于 [`Channel::Oss`](Zap),源码本地构建没有
+/// 对于 [`Channel::Oss`](Dais),源码本地构建没有
 /// `GIT_RELEASE_TAG`,但 SSH Extension 可能安装 latest release 的
 /// remote-server。若强制校验,客户端 `None` 与服务端非空 tag 会触发
 /// 删除、重装、再次不匹配的循环。release 构建通过版本化安装路径规避
@@ -850,7 +850,7 @@ impl RemoteServerManager {
         // tag than the client expects, the binary on disk is stale. Remove it so
         // the next reconnect (or explicit reconnect by the user) will reinstall.
         //
-        // `Channel::Oss`(Zap)下临时复用官方 release 二进制,客户端自己
+        // `Channel::Oss`(Dais)下临时复用官方 release 二进制,客户端自己
         // 没有 `GIT_RELEASE_TAG`,与服务器永远不匹配,故跳过严格校验。详见
         // [`should_enforce_remote_version_check`] 的注释。
         let client_version = ChannelState::app_version();

@@ -149,7 +149,7 @@ const OFFLINE_BANNER_PADDING_VERTICAL: f32 = 4.;
 
 pub const DRIVE_INDEX_VIEW_POSITION_ID: &str = "drive_index_view_id";
 
-// Sets the speed of the autoscroll that occurs when you drag an item near the Zap Drive border.
+// Sets the speed of the autoscroll that occurs when you drag an item near the Dais Drive border.
 pub const AUTOSCROLL_SPEED_MULTIPLIER: f32 = 10.;
 // Sets the distance from a border at which scroll events start to occur.
 pub const AUTOSCROLL_DETECTION_DISTANCE: f32 = 30.0;
@@ -278,10 +278,10 @@ pub enum DriveIndexAction {
     CloseTrashIndex,
     FocusPreviousItem,
     FocusNextItem,
-    /// Hitting one of the l/r arrow keys on a Zap Drive item.
+    /// Hitting one of the l/r arrow keys on a Dais Drive item.
     LeftArrowKey,
     RightArrowKey,
-    /// Hitting enter key on a Zap Drive item.
+    /// Hitting enter key on a Dais Drive item.
     EnterKey,
     /// Hitting escape key from trash index returns to main drive index.
     EscapeKey,
@@ -412,10 +412,10 @@ struct SpaceMenuState {
     offset: Vector2F,
 }
 
-/// The main view for the Zap Drive sidebar.
+/// The main view for the Dais Drive sidebar.
 /// `DriveIndex` is different from `DrivePanel` in that it is responsible for
-/// all the logic within Zap Drive, whereas `DrivePanel` is responsible for
-/// how Zap Drive interacts with the workspace and the rest of the app.
+/// all the logic within Dais Drive, whereas `DrivePanel` is responsible for
+/// how Dais Drive interacts with the workspace and the rest of the app.
 #[derive(Clone)]
 pub struct DriveIndex {
     window_id: WindowId,
@@ -423,7 +423,7 @@ pub struct DriveIndex {
     /// default, should get the menu fields on open, example: + button to add notebook)
     menu: ViewHandle<Menu<DriveIndexAction>>,
 
-    /// Variant of the index, determines whether base Zap Drive or trash is viewed.
+    /// Variant of the index, determines whether base Dais Drive or trash is viewed.
     index_variant: DriveIndexVariant,
     /// If None, the context menu is closed. Otherwise, this contains the ID of the object it's open on.
     menu_object_id_if_open: Option<WarpDriveItemId>,
@@ -448,7 +448,7 @@ pub struct DriveIndex {
     /// A hashmap of location (space/folder) to a list of hashed IDs of objects inside
     /// the space/folder, used for rendering our objects
     sorted_orders_by_location: HashMap<StoredObjectLocation, Vec<ObjectUid>>,
-    /// A sorted list of all the items (spaces + objects) in Zap Drive
+    /// A sorted list of all the items (spaces + objects) in Dais Drive
     /// Unlike sorted_orders_by_location, this is not used for rendering
     /// This is used for object focusing and WD keyboard navigation
     ordered_items: Vec<WarpDriveItemId>,
@@ -458,7 +458,7 @@ pub struct DriveIndex {
     /// from links before everything has been set up.
     has_initialized_sections: Condition,
 
-    /// The number of objects in Zap Drive that have errored.
+    /// The number of objects in Dais Drive that have errored.
     /// This value is cached so that we can determine whether to render the "retry all"
     /// objects button in the case of syncing failures.
     num_errored_objects: usize,
@@ -933,7 +933,7 @@ impl DriveIndex {
         app: &AppContext,
     ) -> bool {
         if let Some(object) = ObjectStoreModel::as_ref(app).get_by_uid(&object_type_and_id.uid()) {
-            // Zap(去中心化分支):本地对象(无 server_id,SyncQueue 上行无 auth no-op)
+            // Dais(去中心化分支):本地对象(无 server_id,SyncQueue 上行无 auth no-op)
             // 在原逻辑下永远拿不到 trash/move 菜单。这里把"无 server_id"视为本地对象,
             // 允许其执行本地侧操作(trash 走 sqlite,无需服务器协调)。
             if !object_type_and_id.has_server_id() {
@@ -1111,7 +1111,7 @@ impl DriveIndex {
         ctx.notify();
     }
 
-    /// Expand the section for zap drive item. This is called when we perform deep link to warp
+    /// Expand the section for dais drive item. This is called when we perform deep link to warp
     /// drive items.
     pub fn expand_section_for_drive_item_id(
         &mut self,
@@ -1279,7 +1279,7 @@ impl DriveIndex {
             Hoverable::new(
                 section_state.header_hover_state.clone(),
                 move |mouse_state| {
-                    // If the item is hovered, set a hover background that matches the hover state of zap drive items.
+                    // If the item is hovered, set a hover background that matches the hover state of dais drive items.
                     if mouse_state.is_hovered() && !is_focused || section_state.menu_open {
                         container = container.with_background(
                             warp_core::ui::theme::color::internal_colors::fg_overlay_2(
@@ -1479,7 +1479,7 @@ impl DriveIndex {
         Hoverable::new(
             section_state.header_hover_state.clone(),
             move |mouse_state| {
-                // If the item is hovered, set a hover background that matches the hover state of zap drive items.
+                // If the item is hovered, set a hover background that matches the hover state of dais drive items.
                 if mouse_state.is_hovered() && !is_focused || section_state.menu_open {
                     container = container.with_background(
                         warp_core::ui::theme::color::internal_colors::fg_overlay_2(
@@ -2273,7 +2273,7 @@ impl DriveIndex {
             .finish()
     }
 
-    /// Renders a zap drive item within the index. If the item is a folder, we recursively call
+    /// Renders a dais drive item within the index. If the item is a folder, we recursively call
     /// this function in order to render the folder's children (if it's open).
     /// This index refers to the idx within a given space, and is needed to render the context menu at the
     /// correct position. If the item should not be shown, this returns [`None`].
@@ -2300,7 +2300,7 @@ impl DriveIndex {
         let access_level =
             ObjectStoreViewModel::as_ref(app).access_level(&row_object_id.uid(), app);
 
-        // Zap Phase 2a: sharing dialog removed; pass `false` for the
+        // Dais Phase 2a: sharing dialog removed; pass `false` for the
         // legacy `share_dialog_open` slot in `WarpDriveRow::new_from_cloud_object`.
         let share_dialog_open = false;
         let menu_open = self.menu_object_id_if_open == Some(warp_drive_item_id);
@@ -2332,7 +2332,7 @@ impl DriveIndex {
             share_dialog_open,
             is_selected,
             is_focused,
-            false, /* Zap(Wave 4):SyncQueue 整删,is_dequeueing 永远 false */
+            false, /* Dais(Wave 4):SyncQueue 整删,is_dequeueing 永远 false */
             tools_panel_menu_direction(app),
             appearance,
         )?;
@@ -2555,7 +2555,7 @@ impl DriveIndex {
             }
         };
 
-        // This icon should render the same as other ZapDrive icons but with no click or hover states.
+        // This icon should render the same as other DaisDrive icons but with no click or hover states.
         Container::new(
             ConstrainedBox::new(icon.to_warpui_icon(icon_color).finish())
                 .with_width(SECTION_HEADER_FONT_SIZE)
@@ -2738,7 +2738,7 @@ impl DriveIndex {
         if self.focused_index.is_some() {
             let DriveIndexSection::Space(space) = *section;
             self.set_focused_item(WarpDriveItemId::Space(space), true, ctx);
-            // Need to re-render focused index in Zap Drive after a space has been toggled
+            // Need to re-render focused index in Dais Drive after a space has been toggled
             if let Some(focused_index) = self.focused_index {
                 self.update_focused_params(focused_index, ObjectStoreModel::as_ref(ctx));
             }
@@ -2858,7 +2858,7 @@ impl DriveIndex {
         ctx.notify();
     }
 
-    /// If the given space is tied to a section in zap drive, ensures that that section is open.
+    /// If the given space is tied to a section in dais drive, ensures that that section is open.
     fn open_section_of_space(&mut self, space: Space) {
         if let Some(target_section) = self
             .sections
@@ -3367,7 +3367,7 @@ impl DriveIndex {
     }
 
     fn retry_all_failed(&mut self, ctx: &mut ViewContext<Self>) {
-        // Zap(Wave 4):SyncQueue 整删后,“重试”原语义(重新上报服务端)
+        // Dais(Wave 4):SyncQueue 整删后,“重试”原语义(重新上报服务端)
         // 不再适用;本地化后对象不会进入 errored 态,这个路径是 dead code。
         let _ = ctx;
     }
@@ -3749,7 +3749,7 @@ impl DriveIndex {
         let object = ObjectStoreModel::as_ref(app).get_by_uid(&object_type_and_id.uid());
 
         if let ObjectTypeAndId::Folder(folder_id) = object_type_and_id {
-            // Zap:本地 folder(ClientId,SyncQueue 上行无 auth no-op)永远拿不到 server_id,
+            // Dais:本地 folder(ClientId,SyncQueue 上行无 auth no-op)永远拿不到 server_id,
             // 原 `SyncId::ServerId(_) && is_online` 双重门槛会让本地文件夹永远没有"新建子项/Rename"右键菜单。
             // 这里把"本地 folder"视为永远 ready。
             let is_local_folder = matches!(folder_id, SyncId::ClientId(_));
@@ -3871,7 +3871,7 @@ impl DriveIndex {
                 );
 
                 if let Some(object) = object {
-                    // Zap(Wave 6-7):“Leave shared object” 菜单随 `leave_object` pub fn 退役。
+                    // Dais(Wave 6-7):“Leave shared object” 菜单随 `leave_object` pub fn 退役。
                     let _ = object;
                 }
             }
@@ -4058,7 +4058,7 @@ impl DriveIndex {
                                     .into_item(),
                             );
                         }
-                        // Zap Phase 2a: drive-share menu item removed (sharing dialog gone).
+                        // Dais Phase 2a: drive-share menu item removed (sharing dialog gone).
                         if !warpui::platform::is_mobile_device()
                             && !ContextFlag::HideOpenOnDesktopButton.is_enabled()
                             && *UserAppInstallDetectionSettings::as_ref(app)
@@ -4109,7 +4109,7 @@ impl DriveIndex {
                 }
 
                 if FeatureFlag::SharedWithMe.is_enabled() && object.can_leave(app) {
-                    // Zap(Wave 6-7):“Leave shared object” 菜单随 `leave_object` pub fn 退役。
+                    // Dais(Wave 6-7):“Leave shared object” 菜单随 `leave_object` pub fn 退役。
                 }
             }
         }
@@ -4130,7 +4130,7 @@ impl DriveIndex {
         menu_items
     }
 
-    /// Builder for a menu item to open a Zap Drive object in a pane. The icon and label depend
+    /// Builder for a menu item to open a Dais Drive object in a pane. The icon and label depend
     /// on whether the object is editable or not.
     ///
     /// If `prefer_open` is `true`, the item defaults to view/open mode rather than edit mode.

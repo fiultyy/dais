@@ -1,7 +1,7 @@
 use super::{workflow::Workflow, WorkflowObjectModel};
 use crate::{
     cloud_object::{model::persistence::ObjectStoreModel, GenericStoredObject, Owner},
-    drive::ZapDriveObjectSettings,
+    drive::DaisDriveObjectSettings,
     pane_group::{PaneContent, WorkflowPane},
     safe_warn,
     server::ids::{ClientId, SyncId},
@@ -39,7 +39,7 @@ pub enum WorkflowOpenSource {
 
 impl WorkflowManager {
     pub fn new(_ctx: &mut ModelContext<Self>) -> Self {
-        // Zap:无云端 = 无 client_id→server_id 转换事件,原 UpdateManager
+        // Dais:无云端 = 无 client_id→server_id 转换事件,原 UpdateManager
         // 订阅 + handle_update_manager_event 为死代码,Phase 2c‑1 删除。
         WorkflowManager {
             panes_by_hashed_id: HashMap::new(),
@@ -59,7 +59,7 @@ impl WorkflowManager {
     pub fn create_pane(
         &mut self,
         source: &WorkflowOpenSource,
-        settings: &ZapDriveObjectSettings,
+        settings: &DaisDriveObjectSettings,
         mode: WorkflowViewMode,
         window_id: WindowId,
         ctx: &mut ModelContext<Self>,
@@ -116,7 +116,7 @@ impl WorkflowManager {
                             *initial_folder_id,
                             ClientId::default(),
                         ),
-                        &ZapDriveObjectSettings::default(),
+                        &DaisDriveObjectSettings::default(),
                         mode,
                         ctx,
                     );

@@ -305,7 +305,7 @@ fn has_any(lower: &str, needles: &[&str]) -> bool {
 // ---------------------------------------------------------------------------
 
 /// Preamble construction parameters.
-/// Ported from Orca `PreambleParams` (drift / capability omitted — zap has no
+/// Ported from Orca `PreambleParams` (drift / capability omitted — dais has no
 /// dispatch capability tokens or base-drift preflight yet).
 pub struct PreambleParams<'a> {
     pub task_id: &'a str,
@@ -313,7 +313,7 @@ pub struct PreambleParams<'a> {
     pub task_spec: &'a str,
     pub coordinator_handle: &'a str,
     pub worker_handle: &'a str,
-    /// CLI binary the worker should invoke (`dais` in zap).
+    /// CLI binary the worker should invoke (`dais`).
     pub cli_command: &'a str,
     /// Prompt-returning agents idle after worker_done; bare shells exit.
     pub worker_kind: WorkerKind,
@@ -329,8 +329,8 @@ pub enum WorkerKind {
 pub const HEARTBEAT_INTERVAL_MIN: u32 = 5;
 
 /// Build the dispatch preamble: CLI instructions + behavioral rules + TASK block.
-/// Ported from Orca `buildDispatchPreamble`; the CLI examples use zap's actual
-/// command surface and snake_case JSON payloads (matching zap's
+/// Ported from Orca `buildDispatchPreamble`; the CLI examples use dais's actual
+/// command surface and snake_case JSON payloads (matching dais's
 /// `WorkerDonePayload` / `HeartbeatPayload` serde shapes).
 pub fn build_dispatch_preamble(params: &PreambleParams) -> String {
     let cli = params.cli_command;
@@ -363,7 +363,7 @@ reset and start the new task; ignore the previous task's follow-ups."
     };
 
     format!(
-        "You are working inside zap, a multi-agent terminal. You are a dispatched worker.\n\
+        "You are working inside dais, a multi-agent terminal. You are a dispatched worker.\n\
 Your coordinator's terminal handle is: {coordinator}\n\
 Your task ID is: {task_id}\n\n\
 You talk to the coordinator only through the CLI commands below. Do not use\n\
@@ -511,7 +511,7 @@ mod tests {
         assert!(p.contains("worker_done"));
         assert!(p.contains("NEVER use AskUserQuestion"));
         assert!(p.contains("=== AFTER YOU SEND worker_done ==="));
-        // The worker_done example must parse as the payload zap reconciles.
+        // The worker_done example must parse as the payload dais reconciles.
         let start = p.find("--body '{\"task_id\"").unwrap() + "--body '".len();
         let end = p[start..].find("}'").unwrap() + start + 1;
         let payload: crate::agent::orchestration::types::WorkerDonePayload =

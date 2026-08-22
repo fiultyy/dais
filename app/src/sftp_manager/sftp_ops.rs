@@ -1,6 +1,6 @@
 //! SFTP 操作封装层
 //!
-//! 将 zap_sftp 协议层 API 封装为 UI 层可直接使用的高级操作。
+//! 将 dais_sftp 协议层 API 封装为 UI 层可直接使用的高级操作。
 //! author: logic
 //! date: 2026-05-26
 
@@ -13,9 +13,9 @@ use std::time::Duration;
 use warp_ssh_manager::SshRepository;
 use warp_ssh_manager::secrets::SshSecretStore;
 use warp_ssh_manager::types::{AuthType, ResolvedSshAuth, SshServerInfo};
-use zap_sftp::Sftp;
-use zap_sftp::session::{AuthMethod, SftpSession};
-use zap_sftp::types::OpenOptions;
+use dais_sftp::Sftp;
+use dais_sftp::session::{AuthMethod, SftpSession};
+use dais_sftp::types::OpenOptions;
 
 use super::types::{FileEntry, FileEntryType};
 
@@ -46,8 +46,8 @@ impl std::fmt::Display for SftpOpsError {
     }
 }
 
-impl From<zap_sftp::SftpError> for SftpOpsError {
-    fn from(e: zap_sftp::SftpError) -> Self {
+impl From<dais_sftp::SftpError> for SftpOpsError {
+    fn from(e: dais_sftp::SftpError) -> Self {
         SftpOpsError::Operation(e.to_string())
     }
 }
@@ -93,10 +93,10 @@ pub fn list_dir(sftp: &Sftp, path: &Path) -> Result<Vec<FileEntry>, SftpOpsError
         .into_iter()
         .map(|entry| {
             let file_type = match entry.metadata.file_type {
-                zap_sftp::types::FileType::Dir => FileEntryType::Directory,
-                zap_sftp::types::FileType::File => FileEntryType::File,
-                zap_sftp::types::FileType::Symlink => FileEntryType::Symlink,
-                zap_sftp::types::FileType::Other => FileEntryType::Other,
+                dais_sftp::types::FileType::Dir => FileEntryType::Directory,
+                dais_sftp::types::FileType::File => FileEntryType::File,
+                dais_sftp::types::FileType::Symlink => FileEntryType::Symlink,
+                dais_sftp::types::FileType::Other => FileEntryType::Other,
             };
             let modified = entry.metadata.modified.map(|t| {
                 let datetime: chrono::DateTime<chrono::Local> = t.into();
@@ -131,12 +131,12 @@ pub fn delete_dir_recursive(sftp: &Sftp, path: &Path) -> Result<(), SftpOpsError
     let entries = sftp.read_dir(path)?;
     for entry in entries {
         match entry.metadata.file_type {
-            zap_sftp::types::FileType::Dir => {
+            dais_sftp::types::FileType::Dir => {
                 delete_dir_recursive(sftp, &entry.path)?;
             }
-            zap_sftp::types::FileType::File
-            | zap_sftp::types::FileType::Symlink
-            | zap_sftp::types::FileType::Other => {
+            dais_sftp::types::FileType::File
+            | dais_sftp::types::FileType::Symlink
+            | dais_sftp::types::FileType::Other => {
                 sftp.remove_file(&entry.path)?;
             }
         }
@@ -153,7 +153,7 @@ pub fn create_dir(sftp: &Sftp, path: &Path) -> Result<(), SftpOpsError> {
 
 /// 重命名远程文件或目录
 pub fn rename(sftp: &Sftp, old_path: &Path, new_path: &Path) -> Result<(), SftpOpsError> {
-    let opts = zap_sftp::types::RenameOptions {
+    let opts = dais_sftp::types::RenameOptions {
         overwrite: false,
         atomic: false,
         native: false,
@@ -213,7 +213,7 @@ pub fn upload_file_streaming(
             let rename_result = sftp.rename(
                 &temp_remote_path,
                 remote_path,
-                zap_sftp::types::RenameOptions {
+                dais_sftp::types::RenameOptions {
                     overwrite: true,
                     atomic: false,
                     native: false,
@@ -230,7 +230,7 @@ pub fn upload_file_streaming(
                         .rename(
                             remote_path,
                             &backup_path,
-                            zap_sftp::types::RenameOptions {
+                            dais_sftp::types::RenameOptions {
                                 overwrite: false,
                                 atomic: false,
                                 native: false,
@@ -241,7 +241,7 @@ pub fn upload_file_streaming(
                     match sftp.rename(
                         &temp_remote_path,
                         remote_path,
-                        zap_sftp::types::RenameOptions {
+                        dais_sftp::types::RenameOptions {
                             overwrite: false,
                             atomic: false,
                             native: false,
@@ -259,7 +259,7 @@ pub fn upload_file_streaming(
                                 let _ = sftp.rename(
                                     &backup_path,
                                     remote_path,
-                                    zap_sftp::types::RenameOptions {
+                                    dais_sftp::types::RenameOptions {
                                         overwrite: false,
                                         atomic: false,
                                         native: false,
@@ -437,7 +437,7 @@ pub fn download_dir_recursive(
         let local_path = local_dir.join(&entry.name);
 
         match entry.metadata.file_type {
-            zap_sftp::types::FileType::Dir => {
+            dais_sftp::types::FileType::Dir => {
                 download_dir_recursive(
                     sftp,
                     &safe_remote_path,
@@ -446,9 +446,9 @@ pub fn download_dir_recursive(
                     cancel_flag,
                 )?;
             }
-            zap_sftp::types::FileType::File
-            | zap_sftp::types::FileType::Symlink
-            | zap_sftp::types::FileType::Other => {
+            dais_sftp::types::FileType::File
+            | dais_sftp::types::FileType::Symlink
+            | dais_sftp::types::FileType::Other => {
                 download_file_streaming(
                     sftp,
                     &safe_remote_path,
@@ -582,10 +582,10 @@ mod tests {
         assert!(matches!(ops_err, SftpOpsError::LocalIo(_)));
     }
 
-    /// 测试从 zap_sftp::SftpError 转换为 SftpOpsError
+    /// 测试从 dais_sftp::SftpError 转换为 SftpOpsError
     #[test]
     fn test_sftp_ops_error_from_sftp_error() {
-        let sftp_err = zap_sftp::SftpError::General("test error".into());
+        let sftp_err = dais_sftp::SftpError::General("test error".into());
         let ops_err: SftpOpsError = sftp_err.into();
         assert!(matches!(ops_err, SftpOpsError::Operation(_)));
     }

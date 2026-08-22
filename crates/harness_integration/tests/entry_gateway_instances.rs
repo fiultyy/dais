@@ -98,14 +98,15 @@ async fn entry_gateway_instance_keyed_sessions_marker_stripped_fallback_intact()
     // ── 环境隔离(HOME 指向临时目录; /omp 出口走 omp-upstream.json) ──
     let tmp = tempfile::tempdir().unwrap();
     let orig_home = std::env::var("HOME").ok();
-    let orig_upstream = std::env::var("ZAP_UPSTREAM_BASE").ok();
+    let orig_upstream = std::env::var("DAIS_UPSTREAM_BASE").or_else(|_| std::env::var("ZAP_UPSTREAM_BASE")).ok();
     std::env::set_var("HOME", tmp.path());
+    std::env::remove_var("DAIS_UPSTREAM_BASE");
     std::env::remove_var("ZAP_UPSTREAM_BASE");
 
     let upstream_port = spawn_fake_upstream().await;
     std::fs::create_dir_all(tmp.path().join(".config/dais")).unwrap();
     let omp_cfg = format!(
-        r#"{{"api_base":"http://127.0.0.1:{upstream_port}","api_key_env":"ZAP_OMP_KEY","response_format":"openai"}}"#
+        r#"{{\"api_base\":\"http://127.0.0.1:{upstream_port}\",\"api_key_env\":\"DAIS_OMP_KEY\",\"response_format\":\"openai\"}}"#
     );
     std::fs::write(tmp.path().join(".config/dais/omp-upstream.json"), omp_cfg).unwrap();
 
@@ -243,8 +244,8 @@ async fn entry_gateway_instance_keyed_sessions_marker_stripped_fallback_intact()
         None => std::env::remove_var("HOME"),
     }
     match orig_upstream {
-        Some(v) => std::env::set_var("ZAP_UPSTREAM_BASE", v),
-        None => std::env::remove_var("ZAP_UPSTREAM_BASE"),
+        Some(v) => { std::env::set_var("DAIS_UPSTREAM_BASE", &v); std::env::set_var("ZAP_UPSTREAM_BASE", &v); }
+        None => { std::env::remove_var("DAIS_UPSTREAM_BASE"); std::env::remove_var("ZAP_UPSTREAM_BASE"); }
     }
     result
 }

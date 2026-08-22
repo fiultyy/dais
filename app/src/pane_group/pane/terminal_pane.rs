@@ -719,8 +719,8 @@ fn handle_terminal_view_event(
                 group.focus_pane(terminal_pane_id.into(), true, ctx);
                 ctx.emit(pane_group::Event::FocusPaneGroup);
             }
-            Event::ZapDriveObjectInPane(uid) => {
-                ctx.emit(pane_group::Event::ZapDriveObjectInPane(uid.clone()));
+            Event::DaisDriveObjectInPane(uid) => {
+                ctx.emit(pane_group::Event::DaisDriveObjectInPane(uid.clone()));
             }
             Event::OpenSuggestedAgentModeWorkflowModal { workflow_and_id } => {
                 ctx.emit(pane_group::Event::OpenSuggestedAgentModeWorkflowModal {
@@ -739,7 +739,7 @@ fn handle_terminal_view_event(
                 group.terminal_with_open_summarization_dialog = is_open.then_some(terminal_pane_id);
                 ctx.notify();
             }
-            // Zap Wave 7-3:`Event::EnvironmentSetupModeSelectorToggled` handler 随
+            // Dais Wave 7-3:`Event::EnvironmentSetupModeSelectorToggled` handler 随
             // ambient-agent UI 子系统物理删。
             #[cfg(feature = "local_fs")]
             Event::OpenFileWithTarget {
@@ -753,7 +753,7 @@ fn handle_terminal_view_event(
                     line_col: *line_col,
                 });
             }
-            // Zap:把终端发出的"打开远端文件"事件透传给 pane_group → workspace。
+            // Dais:把终端发出的"打开远端文件"事件透传给 pane_group → workspace。
             #[cfg(all(feature = "local_tty", feature = "local_fs"))]
             Event::OpenRemoteFileFromTerminal {
                 remote_path,
@@ -848,7 +848,7 @@ fn handle_terminal_view_event(
                     initial_content: initial_content.clone(),
                 });
             }
-            // Zap Wave 7-3:`OpenEnvironmentManagementPane` event forwarding 随 ambient-agent UI
+            // Dais Wave 7-3:`OpenEnvironmentManagementPane` event forwarding 随 ambient-agent UI
             // 子系统物理删。
             #[cfg(feature = "local_fs")]
             Event::FileRenamed { old_path, new_path } => {

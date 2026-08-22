@@ -68,7 +68,7 @@ impl View for WarpDriveSettingsPageView {
 
 impl SettingsPageMeta for WarpDriveSettingsPageView {
     fn section() -> SettingsSection {
-        SettingsSection::ZapDrive
+        SettingsSection::DaisDrive
     }
 
     fn should_render(&self, _ctx: &AppContext) -> bool {
@@ -90,7 +90,7 @@ impl SettingsPageMeta for WarpDriveSettingsPageView {
 
 impl From<ViewHandle<WarpDriveSettingsPageView>> for SettingsPageViewHandle {
     fn from(view_handle: ViewHandle<WarpDriveSettingsPageView>) -> Self {
-        SettingsPageViewHandle::ZapDrive(view_handle)
+        SettingsPageViewHandle::DaisDrive(view_handle)
     }
 }
 

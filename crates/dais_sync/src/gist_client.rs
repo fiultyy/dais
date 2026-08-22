@@ -9,8 +9,8 @@ use serde_json::json;
 use std::time::Duration;
 use thiserror::Error;
 
-const GIST_DESCRIPTION: &str = "ZAP_CONFIG";
-const GIST_FILENAME: &str = "zap_config.json";
+const GIST_DESCRIPTION: &str = "ZAP_CONFIG"; // zap-purge: legacy gist description, kept for compat
+const GIST_FILENAME: &str = "zap_config.json"; // zap-purge: legacy gist filename, kept for compat
 /// HTTP 整体请求超时（含 connect + read），避免网络挂起让 UI 永远卡在 Syncing
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -60,7 +60,7 @@ impl GistClient {
     /// 也不要静默回退到无 user-agent 的 Client::default() — GitHub 强制要求 UA。
     pub fn new() -> Self {
         let client = Client::builder()
-            .user_agent("Zap-Terminal")
+            .user_agent("Dais-Terminal")
             .timeout(REQUEST_TIMEOUT)
             .connect_timeout(CONNECT_TIMEOUT)
             .build()

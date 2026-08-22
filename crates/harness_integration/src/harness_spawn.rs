@@ -26,11 +26,11 @@ use proxy_interceptor::UpstreamConfig;
 use crate::session::SessionContext;
 
 /// Env var read to override the intercept mode at spawn time.
-pub const INTERCEPT_MODE_ENV: &str = "ZAP_INTERCEPT_MODE";
+pub const INTERCEPT_MODE_ENV: &str = "DAIS_INTERCEPT_MODE";
 
 /// Resolve the effective intercept mode.
 ///
-/// Explicit argument wins; otherwise the `ZAP_INTERCEPT_MODE` env var is
+/// Explicit argument wins; otherwise the `DAIS_INTERCEPT_MODE` env var is
 /// consulted; defaults to `Full`.
 pub fn resolve_intercept_mode(explicit: Option<InterceptMode>) -> InterceptMode {
     if let Some(m) = explicit {
@@ -46,8 +46,8 @@ pub fn resolve_intercept_mode(explicit: Option<InterceptMode>) -> InterceptMode 
 
 /// Build the environment variables to inject into the spawned harness process.
 ///
-/// - **Full**: proxy env vars (base URL + CA cert) + `ZAP_HOOK_SERVER_URL` + `ZAP_HOOK_TOKEN`.
-/// - **HooksOnly**: `ZAP_HOOK_SERVER_URL` + `ZAP_HOOK_TOKEN`.
+/// - **Full**: proxy env vars (base URL + CA cert) + `DAIS_HOOK_SERVER_URL` + `DAIS_HOOK_TOKEN`.
+/// - **HooksOnly**: `DAIS_HOOK_SERVER_URL` + `DAIS_HOOK_TOKEN`.
 /// - **Bypass**: empty.
 pub fn build_spawn_env(
     mode: InterceptMode,
@@ -66,17 +66,25 @@ pub fn build_spawn_env(
                 }
             }
             if let Some(url) = hook_url {
+                // Dual-write: DAIS_* first (new primary), ZAP_* for external hook script compat.
+                env.push(("DAIS_HOOK_SERVER_URL".to_string(), url.to_string()));
                 env.push(("ZAP_HOOK_SERVER_URL".to_string(), url.to_string()));
             }
             if let Some(token) = hook_token {
+                // Dual-write: DAIS_* first (new primary), ZAP_* for external hook script compat.
+                env.push(("DAIS_HOOK_TOKEN".to_string(), token.to_string()));
                 env.push(("ZAP_HOOK_TOKEN".to_string(), token.to_string()));
             }
         }
         InterceptMode::HooksOnly => {
             if let Some(url) = hook_url {
+                // Dual-write: DAIS_* first (new primary), ZAP_* for external hook script compat.
+                env.push(("DAIS_HOOK_SERVER_URL".to_string(), url.to_string()));
                 env.push(("ZAP_HOOK_SERVER_URL".to_string(), url.to_string()));
             }
             if let Some(token) = hook_token {
+                // Dual-write: DAIS_* first (new primary), ZAP_* for external hook script compat.
+                env.push(("DAIS_HOOK_TOKEN".to_string(), token.to_string()));
                 env.push(("ZAP_HOOK_TOKEN".to_string(), token.to_string()));
             }
         }
@@ -207,7 +215,7 @@ mod tests {
             HarnessType::ClaudeCode,
         );
         let map = env_to_map(&env);
-        assert_eq!(map.get("ZAP_HOOK_SERVER_URL").unwrap(), "http://127.0.0.1:9999");
+        assert_eq!(map.get("DAIS_HOOK_SERVER_URL").unwrap(), "http://127.0.0.1:9999");
         assert!(!map.contains_key("ANTHROPIC_BASE_URL"));
     }
 
@@ -221,7 +229,7 @@ mod tests {
             HarnessType::ClaudeCode,
         );
         let map = env_to_map(&env);
-        assert!(map.contains_key("ZAP_HOOK_SERVER_URL"));
+        assert!(map.contains_key("DAIS_HOOK_SERVER_URL"));
         // No proxy → no ANTHROPIC_BASE_URL
         assert!(!map.contains_key("ANTHROPIC_BASE_URL"));
     }
@@ -236,7 +244,7 @@ mod tests {
             HarnessType::ClaudeCode,
         );
         let map = env_to_map(&env);
-        assert_eq!(map.get("ZAP_HOOK_TOKEN").unwrap(), "test-token-abc");
+        assert_eq!(map.get("DAIS_HOOK_TOKEN").unwrap(), "test-token-abc");
     }
 
     #[test]
@@ -249,6 +257,6 @@ mod tests {
             HarnessType::ClaudeCode,
         );
         let map = env_to_map(&env);
-        assert_eq!(map.get("ZAP_HOOK_TOKEN").unwrap(), "test-token-xyz");
+        assert_eq!(map.get("DAIS_HOOK_TOKEN").unwrap(), "test-token-xyz");
     }
 }

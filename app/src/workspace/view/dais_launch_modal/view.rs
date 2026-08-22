@@ -23,7 +23,7 @@ use crate::view_components::action_button::{ActionButton, ActionButtonTheme, But
 
 const MODAL_WIDTH: f32 = 420.;
 const HERO_HEIGHT: f32 = 92.;
-const HERO_IMAGE_PATH: &str = "async/png/onboarding/zap_launch_banner.png";
+const HERO_IMAGE_PATH: &str = "async/png/onboarding/openwarp_launch_banner.png";
 const REPO_URL: &str = "https://github.com/warpdotdev/warp";
 const CONTRIBUTING_URL: &str = "https://github.com/warpdotdev/warp/blob/master/CONTRIBUTING.md";
 
@@ -44,23 +44,23 @@ fn feature_items() -> [FeatureItem; 3] {
     [
         FeatureItem {
             icon: Icon::HeartHand,
-            title: crate::t!("zap-launch-contribute-title"),
-            description: crate::t!("zap-launch-contribute-description"),
+            title: crate::t!("dais-launch-contribute-title"),
+            description: crate::t!("dais-launch-contribute-description"),
             inline_link: Some(InlineLink {
-                text: crate::t!("zap-launch-contribute-link-text"),
+                text: crate::t!("dais-launch-contribute-link-text"),
                 url: CONTRIBUTING_URL,
             }),
         },
         FeatureItem {
             icon: Icon::Oz,
-            title: crate::t!("zap-launch-oad-title"),
-            description: crate::t!("zap-launch-oad-description"),
+            title: crate::t!("dais-launch-oad-title"),
+            description: crate::t!("dais-launch-oad-description"),
             inline_link: None,
         },
         FeatureItem {
             icon: Icon::MessageChatSquare,
-            title: crate::t!("zap-launch-auto-model-title"),
-            description: crate::t!("zap-launch-auto-model-description"),
+            title: crate::t!("dais-launch-auto-model-title"),
+            description: crate::t!("dais-launch-auto-model-description"),
             inline_link: None,
         },
     ]
@@ -71,19 +71,19 @@ pub fn init(app: &mut AppContext) {
 
     app.register_fixed_bindings([FixedBinding::new(
         "escape",
-        ZapLaunchModalAction::Close,
-        id!(ZapLaunchModal::ui_name()),
+        DaisLaunchModalAction::Close,
+        id!(DaisLaunchModal::ui_name()),
     )]);
 }
 
 #[derive(Clone, Debug)]
-pub enum ZapLaunchModalAction {
+pub enum DaisLaunchModalAction {
     Close,
     VisitRepo,
 }
 
 #[derive(Clone, Debug)]
-pub enum ZapLaunchModalEvent {
+pub enum DaisLaunchModalEvent {
     Close,
 }
 
@@ -125,24 +125,24 @@ impl ActionButtonTheme for CtaButtonTheme {
     }
 }
 
-pub struct ZapLaunchModal {
+pub struct DaisLaunchModal {
     close_button: ViewHandle<ActionButton>,
     cta_button: ViewHandle<ActionButton>,
 }
 
-impl ZapLaunchModal {
+impl DaisLaunchModal {
     pub fn new(ctx: &mut ViewContext<Self>) -> Self {
         let close_button = ctx.add_view(|_ctx| {
             ActionButton::new("", CloseButtonTheme)
                 .with_icon(Icon::X)
                 .with_size(ButtonSize::Small)
-                .on_click(|ctx| ctx.dispatch_typed_action(ZapLaunchModalAction::Close))
+                .on_click(|ctx| ctx.dispatch_typed_action(DaisLaunchModalAction::Close))
         });
 
         let cta_button = ctx.add_view(|_ctx| {
-            ActionButton::new(crate::t!("zap-launch-visit-repo"), CtaButtonTheme)
+            ActionButton::new(crate::t!("dais-launch-visit-repo"), CtaButtonTheme)
                 .with_full_width(true)
-                .on_click(|ctx| ctx.dispatch_typed_action(ZapLaunchModalAction::VisitRepo))
+                .on_click(|ctx| ctx.dispatch_typed_action(DaisLaunchModalAction::VisitRepo))
         });
 
         Self {
@@ -202,7 +202,7 @@ impl ZapLaunchModal {
 
     fn render_title(appearance: &Appearance) -> Box<dyn Element> {
         Text::new(
-            crate::t!("zap-launch-title"),
+            crate::t!("dais-launch-title"),
             appearance.ui_font_family(),
             20.,
         )
@@ -213,7 +213,7 @@ impl ZapLaunchModal {
 
     fn render_description(appearance: &Appearance) -> Box<dyn Element> {
         Text::new(
-            crate::t!("zap-launch-description"),
+            crate::t!("dais-launch-description"),
             appearance.ui_font_family(),
             14.,
         )
@@ -364,13 +364,13 @@ impl ZapLaunchModal {
     }
 }
 
-impl Entity for ZapLaunchModal {
-    type Event = ZapLaunchModalEvent;
+impl Entity for DaisLaunchModal {
+    type Event = DaisLaunchModalEvent;
 }
 
-impl View for ZapLaunchModal {
+impl View for DaisLaunchModal {
     fn ui_name() -> &'static str {
-        "ZapLaunchModal"
+        "DaisLaunchModal"
     }
 
     fn on_focus(&mut self, _focus_ctx: &warpui::FocusContext, ctx: &mut ViewContext<Self>) {
@@ -402,17 +402,17 @@ impl View for ZapLaunchModal {
     }
 }
 
-impl TypedActionView for ZapLaunchModal {
-    type Action = ZapLaunchModalAction;
+impl TypedActionView for DaisLaunchModal {
+    type Action = DaisLaunchModalAction;
 
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
         match action {
-            ZapLaunchModalAction::Close => {
-                ctx.emit(ZapLaunchModalEvent::Close);
+            DaisLaunchModalAction::Close => {
+                ctx.emit(DaisLaunchModalEvent::Close);
             }
-            ZapLaunchModalAction::VisitRepo => {
+            DaisLaunchModalAction::VisitRepo => {
                 ctx.open_url(REPO_URL);
-                ctx.emit(ZapLaunchModalEvent::Close);
+                ctx.emit(DaisLaunchModalEvent::Close);
             }
         }
     }

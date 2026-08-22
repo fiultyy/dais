@@ -315,7 +315,7 @@ impl ClippedScrollable {
         // Cloning the scene is cheap! On a bundled app, the following operations take < 10 microseconds:
         // - 100 warp tabs open
         // - Set line height to 0.2 and fill the block list and make a large number of glyphs
-        // - Expanded all folders in zap drive and opened command palette (to check non-view ported elements)
+        // - Expanded all folders in dais drive and opened command palette (to check non-view ported elements)
         // - Render many images (as it turns out the scene only holds a rect and Arc, not the image content itself)
         // We want to avoid excesively cloning the scene though, because calling clone on the scene on multiple
         // `ClippedScrollable` elements in the paint code path caused this latency to be an order of magnitude

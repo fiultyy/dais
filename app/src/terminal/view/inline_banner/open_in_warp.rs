@@ -46,7 +46,7 @@ impl OpenInWarpBannerState {
     }
 }
 
-/// Given an openable file, format a file-specific title for the Open in Zap banner.
+/// Given an openable file, format a file-specific title for the Open in Dais banner.
 fn file_title_text(openable_path: &OpenablePath) -> String {
     match openable_path.file_type {
         OpenableFileType::Markdown => {

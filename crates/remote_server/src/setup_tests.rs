@@ -196,7 +196,7 @@ fn parse_preinstall_missing_status_falls_open() {
 }
 
 #[test]
-fn oss_remote_server_dir_uses_zap_namespace() {
+fn oss_remote_server_dir_uses_legacy_zap_namespace() { // zap-purge: testing the actual compat path
     assert_eq!(remote_server_dir(), "~/.zap/remote-server");
 }
 
@@ -216,14 +216,14 @@ fn oss_download_tarball_url_uses_github_release_asset() {
 
     assert_eq!(
         url,
-        "https://github.com/fiultyy/dais/releases/latest/download/zap-linux-x86_64.tar.gz"
+        "https://github.com/fiultyy/dais/releases/latest/download/zap-linux-x86_64.tar.gz"  // zap-purge: matches zap_release.yml artifact name
     );
     assert!(!url.contains("app.warp.dev"));
     assert!(!url.contains("/download/cli"));
 }
 
 #[test]
-fn install_script_uses_zap_asset_and_staging_placeholder() {
+fn install_script_uses_zap_asset_and_staging_placeholder() {  // zap-purge: testing legacy artifact names
     let script = install_script(Some("~/.zap/remote-server/zap-upload.tar.gz"));
 
     assert!(script

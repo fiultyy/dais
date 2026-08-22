@@ -918,7 +918,7 @@ impl EventLoop {
                 };
 
                 // There is a winit bug such that events which cause a window to switch displays to
-                // one with a different scale factor resize the Zap window to an absurdly small
+                // one with a different scale factor resize the Dais window to an absurdly small
                 // size, <157, 25> on my system when I repro it. Events include unplugging a
                 // display, changing a display from extended to mirrored, and the like. We work
                 // around that by listening for [`WindowEvent::ScaleFactorChanged`] and changing
@@ -1303,7 +1303,7 @@ impl EventLoop {
                 }
 
                 // If the event is a modifier key, just by itself, we handle it specially, issuing
-                // the appropriate Zap-side event (ModifierKeyChanged).
+                // the appropriate Dais-side event (ModifierKeyChanged).
                 if let (None, keyboard::PhysicalKey::Code(keycode)) =
                     (&event.text, &event.physical_key)
                 {

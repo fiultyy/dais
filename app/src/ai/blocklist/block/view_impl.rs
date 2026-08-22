@@ -671,7 +671,7 @@ pub fn render_citation(
             )
         }
         AIAgentCitation::WarpDocumentation { .. } => {
-            let icon = Icon::Zap.to_warpui_icon(theme.foreground()).finish();
+            let icon = Icon::Dais.to_warpui_icon(theme.foreground()).finish();
             let name = String::from("Dais Docs");
             (Some(icon), name)
         }

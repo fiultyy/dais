@@ -94,7 +94,7 @@ pub enum ClientEvent {
 /// This type does **not** own the child subprocess whose stdio backs it.
 /// For transports that spawn a subprocess (e.g. SSH), the caller is
 /// responsible for holding the `Child` for the lifetime of the session
-/// so that `kill_on_drop` fires when teardown occurs. In Zap this is
+/// so that `kill_on_drop` fires when teardown occurs. In Dais this is
 /// the `RemoteServerManager`, which stores the child in
 /// `RemoteSessionState` alongside the `Arc<RemoteServerClient>`. That
 /// way the child's lifetime is gated by the manager's session map
@@ -127,7 +127,7 @@ impl RemoteServerClient {
     /// The caller retains ownership of the `Child` itself. Typically the
     /// caller spawns the `Command` with `kill_on_drop(true)` and stashes
     /// the returned `Child` somewhere whose lifetime matches the
-    /// session's (in Zap, on the `RemoteServerManager`'s
+    /// session's (in Dais, on the `RemoteServerManager`'s
     /// `RemoteSessionState`). Dropping the `Child` there triggers
     /// SIGKILL on the subprocess, regardless of how many
     /// `Arc<RemoteServerClient>` clones are still alive.
@@ -375,7 +375,7 @@ impl RemoteServerClient {
         }
     }
 
-    /// Zap:列举远端主机上某个目录的直接子项。
+    /// Dais:列举远端主机上某个目录的直接子项。
     ///
     /// 终端文件链接检测用它精确校验远端路径形态(本地会话靠
     /// `fs::metadata` 做这件事,远端文件不在本地磁盘上)。
@@ -541,7 +541,7 @@ impl RemoteServerClient {
 
     /// Sends a buffer edit notification to the remote host.
     ///
-    /// Zap:与其它 fire-and-forget 通知不同,buffer 编辑投递失败必须上报。
+    /// Dais:与其它 fire-and-forget 通知不同,buffer 编辑投递失败必须上报。
     /// `outbound_tx` 关闭(连接已死)时若静默吞掉,本地 buffer 会继续推进而
     /// daemon 收不到编辑,造成不可见的失步。失败返回 `Err` 让调用方处理。
     pub fn send_buffer_edit(

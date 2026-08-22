@@ -38,8 +38,8 @@ pub const AI_FEATURES: &[&str] = &[
     "Agents over SSH",
 ];
 
-/// User-facing names of the Zap Drive features enabled when the terminal
-/// intention is selected with Zap Drive turned on. Shared by the login slide's
+/// User-facing names of the Dais Drive features enabled when the terminal
+/// intention is selected with Dais Drive turned on. Shared by the login slide's
 /// skip-login confirmation dialog so the list stays in sync with any future
 /// surfaces that need it.
 pub const WARP_DRIVE_FEATURES: &[&str] = &["Dais Drive", "Session Sharing"];

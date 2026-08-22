@@ -26,7 +26,7 @@ pub enum UseCache {
     No,
 }
 
-/// Singleton model that loads and caches local (non-ZapDrive) workflows.
+/// Singleton model that loads and caches local (non-DaisDrive) workflows.
 pub struct LocalWorkflows {
     app_workflows: Vec<Workflow>,
 
@@ -44,12 +44,12 @@ impl LocalWorkflows {
         }
     }
 
-    /// Returns an iterator over hardcoded "application" workflows included in the Zap binary.
+    /// Returns an iterator over hardcoded "application" workflows included in the Dais binary.
     pub fn app_workflows(&self) -> impl Iterator<Item = &Workflow> {
         self.app_workflows.iter()
     }
 
-    /// Returns an iterator over the static set of workflows for 3rd party tools loaded from Zap's
+    /// Returns an iterator over the static set of workflows for 3rd party tools loaded from Dais's
     /// workflows GitHub repo.
     pub fn global_workflows(
         &self,

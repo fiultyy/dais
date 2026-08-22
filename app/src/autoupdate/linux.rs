@@ -31,7 +31,7 @@ pub(super) async fn download_update_and_cleanup(
                 .await
         }
         UpdateMethod::PackageManager(package_manager) => {
-            log::info!("Detected that Zap was installed using {package_manager:?}");
+            log::info!("Detected that Dais was installed using {package_manager:?}");
             Ok(DownloadReady::NeedsAuthorization)
         }
     }
@@ -77,6 +77,7 @@ mod appimage {
         // openWarp:从 GitHub Release 缓存里取真实下载 URL,绕开空的 releases_base_url。
         // 官方 channel 仍然走 release_assets_directory_url。
         let url = if matches!(channel, warp_core::channel::Channel::Oss) {
+            // zap-purge: CI 打包契约,匹配 script/linux/bundle_appimage 产物名。
             // OSS Linux AppImage 默认资产名 "Zap-x86_64.AppImage"。
             // 已知 release 资产名固定在 GitHub Actions 里。
             let asset = "Zap-x86_64.AppImage";
@@ -165,6 +166,7 @@ mod appimage {
         if matches!(channel, warp_core::channel::Channel::Oss) {
             let temp_path = new_appimage.path().to_path_buf();
             if let Err(e) =
+            // zap-purge: CI 打包契约,匹配 script/linux/bundle_appimage 产物名。
                 crate::autoupdate::verify_oss_asset_sha256(&temp_path, "Zap-x86_64.AppImage")
             {
                 // 临时文件会随 NamedTempFile drop 自动清理,这里只需返回错误。
@@ -185,7 +187,7 @@ mod appimage {
             .as_file_mut()
             .set_permissions(appimage_path.metadata()?.permissions())?;
 
-        // Move new AppImage over the one that launched the current Zap instance.
+        // Move new AppImage over the one that launched the current Dais instance.
         let new_appimage_path = new_appimage.into_temp_path();
         let mv_status = command::r#async::Command::new("mv")
             .arg(new_appimage_path.as_os_str())
@@ -256,14 +258,14 @@ mod package_manager {
     }
 }
 
-/// Returns which method should be used to update Zap.
+/// Returns which method should be used to update Dais.
 #[derive(Debug)]
 pub(crate) enum UpdateMethod {
-    /// We don't know how to update Zap.
+    /// We don't know how to update Dais.
     Unknown,
-    /// Zap is running as an AppImage and should be updated in-place.
+    /// Dais is running as an AppImage and should be updated in-place.
     AppImage(PathBuf),
-    /// Zap can be updated using the given package manager.
+    /// Dais can be updated using the given package manager.
     PackageManager(PackageManager),
 }
 
@@ -322,7 +324,8 @@ impl PackageManager {
             Channel::Dev => &["warp-terminal-dev"],
             Channel::Integration => &["warp-terminal-integration"],
             Channel::Local => &["warp-terminal-local"],
-            // OSS:bundle_deb/rpm/arch 全部用 `zap` 作 package name,但 AUR
+            // zap-purge: CI 打包契约,匹配 script/linux/bundle_* 包名。
+            // bundle_deb/rpm/arch 全部用 `zap` 作 package name,但 AUR
             // 维护者可能选 `zap-bin` / `zap-git`,所以也试一下。
             Channel::Oss => &["zap", "zap-bin", "zap-git"],
         }

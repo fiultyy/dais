@@ -2390,7 +2390,7 @@ pub enum AIAgentInput {
 
     SummarizeConversation {
         prompt: Option<String>,
-        /// Zap BYOP:本字段标记本次摘要是否由 token-overflow 自动触发,
+        /// Dais BYOP:本字段标记本次摘要是否由 token-overflow 自动触发,
         /// `chat_stream::SummarizeConversation` 分支据此决定 follow-up 文案
         /// (overflow 路径会拼一段 "previous request exceeded ..." 解释)。
         /// 本地 agent conversation 路径不读这个字段。所有现有调用点保持 `overflow: false`。

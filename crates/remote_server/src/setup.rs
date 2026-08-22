@@ -261,14 +261,14 @@ pub fn parse_uname_output(output: &str) -> Result<RemotePlatform> {
 /// - dev:         `~/.warp-dev/remote-server`
 /// - local:       `~/.warp-local/remote-server`
 /// - integration: `~/.warp-dev/remote-server`
-/// - warp-oss:    `~/.zap/remote-server`
+/// - warp-oss:    `~/.zap/remote-server`  // zap-purge: legacy data dir for OSS, kept for compat
 pub fn remote_server_dir() -> String {
     let warp_dir = match ChannelState::channel() {
         Channel::Stable => ".warp",
         Channel::Preview => ".warp-preview",
         Channel::Dev | Channel::Integration => ".warp-dev",
         Channel::Local => ".warp-local",
-        Channel::Oss => ".zap",
+        Channel::Oss => ".zap", // zap-purge: legacy data dir for OSS, kept for compat
     };
     format!("~/{warp_dir}/remote-server")
 }
@@ -311,7 +311,7 @@ pub fn binary_name() -> &'static str {
 /// 返回当前 channel 和客户端版本对应的远端二进制完整路径。
 ///
 /// Local 构建保留无版本后缀路径,以便 `script/deploy_remote_server`
-/// 覆盖同一个开发 slot。Zap release 构建带 `GIT_RELEASE_TAG`
+/// 覆盖同一个开发 slot。Dais release 构建带 `GIT_RELEASE_TAG`
 /// 时使用版本后缀,这样新版本会自然触发重新安装;源码本地构建没有
 /// release tag,仍使用无后缀路径。
 pub fn remote_server_binary() -> String {
@@ -378,17 +378,17 @@ fn version_suffix() -> String {
     }
 }
 
-/// 返回指定远端平台对应的 Zap CLI tarball URL。
+/// 返回指定远端平台对应的 Dais CLI tarball URL。
 pub fn download_tarball_url(platform: &RemotePlatform) -> String {
     format!(
-        "{}/zap-{}-{}.tar.gz",
+        "{}/zap-{}-{}.tar.gz",  // zap-purge: matches zap_release.yml artifact name
         download_url(),
         platform.os.as_str(),
         platform.arch.as_str(),
     )
 }
 
-/// Zap fork:开发模式(DEBUG 源码构建,无 release tag)下,
+/// Dais fork:开发模式(DEBUG 源码构建,无 release tag)下,
 /// SSH transport 不再从 GitHub 下载陈旧的发行版,而是本地交叉编译
 /// 当前 `warp` 二进制并上传。下面这些常量集中描述该交叉编译产物,
 /// 与 `script/deploy_remote_server` 保持一致(同 profile / 同 features /

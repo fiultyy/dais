@@ -33,7 +33,7 @@ pub enum InterceptSessionsModelEvent {
 pub struct InterceptSessionsModel {
     mode: InterceptMode,
     /// Explicit upstream API base override. Empty string = auto-detect
-    /// (env `ZAP_UPSTREAM_BASE`, then harness default).
+    /// (env `DAIS_UPSTREAM_BASE` (fallback: `ZAP_UPSTREAM_BASE`), then harness default).
     upstream_base: String,
     /// Explicit auth env-var name override (e.g. `ANTHROPIC_API_KEY`).
     /// Empty = keep the resolved default from [`UpstreamConfig`].
@@ -246,7 +246,7 @@ impl InterceptSessionsModel {
 
     /// Resolve the effective upstream config for `harness`, applying the
     /// explicit overrides on top of `UpstreamConfig::resolve`'s three-tier
-    /// precedence (explicit base > `ZAP_UPSTREAM_BASE` env > harness default).
+    /// precedence (explicit base > `DAIS_UPSTREAM_BASE / ZAP_UPSTREAM_BASE env > harness default).
     /// Returns `None` only if resolution fails for the given harness.
     pub fn resolve_upstream(&self, harness: HarnessType) -> Option<UpstreamConfig> {
         let explicit = if self.upstream_base.is_empty() {
@@ -362,6 +362,7 @@ mod tests {
 
     #[test]
     fn resolve_upstream_defaults_without_overrides() {
+        std::env::remove_var("DAIS_UPSTREAM_BASE");
         std::env::remove_var("ZAP_UPSTREAM_BASE");
         let model = model_with_overrides("", "");
         let config = model.resolve_upstream(HarnessType::ClaudeCode).unwrap();
@@ -372,6 +373,7 @@ mod tests {
 
     #[test]
     fn resolve_upstream_applies_explicit_overrides() {
+        std::env::remove_var("DAIS_UPSTREAM_BASE");
         std::env::remove_var("ZAP_UPSTREAM_BASE");
         let model = model_with_overrides("http://localhost:9999", "MY_TEST_KEY");
         let config = model.resolve_upstream(HarnessType::ClaudeCode).unwrap();

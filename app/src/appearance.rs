@@ -291,6 +291,8 @@ impl AppearanceManager {
             log::debug!("Setting app icon in memory to: {icon_name}");
             // Locate the plugin bundle.
             let plugins_path: id = msg_send![bundle, builtInPlugInsPath];
+            // zap-purge: Objective-C 插件文件名,必须与 script/macos/bundle 中
+            // DOCK_TILE_PLUGIN_DIR 对齐,macOS dock 系统按文件名查找。
             let plugin_name = make_nsstring("ZapDockTilePlugin.docktileplugin");
             let plugin_path: id =
                 msg_send![plugins_path, stringByAppendingPathComponent: plugin_name];

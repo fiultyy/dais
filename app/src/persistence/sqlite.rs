@@ -78,7 +78,7 @@ use crate::cloud_object::{
 };
 use crate::code::editor_management::CodeSource;
 use crate::drive::folders::{FolderId, FolderObject, FolderObjectModel};
-use crate::drive::ZapDriveObjectSettings;
+use crate::drive::DaisDriveObjectSettings;
 use crate::env_vars::{EnvVarCollectionObject, EnvVarCollectionObjectModel};
 use crate::features::FeatureFlag;
 use crate::notebooks::{NotebookId, NotebookObject};
@@ -134,6 +134,7 @@ const COMMANDS_COUNT_LIMIT: i64 = 10000;
 use crate::persistence::cloud_objects::{upsert_stored_object, StoredObjectId};
 
 const WARP_SQLITE_FILE_NAME: &str = "warp.sqlite";
+// zap-purge: legacy key, kept for data compat — 已迁移的用户磁盘上存在此 marker 文件。
 const ZAP_APP_GROUP_SQLITE_MIGRATION_MARKER: &str = ".zap-app-group-sqlite-migrated";
 #[cfg(target_os = "macos")]
 const WARP_APP_GROUP_ID: &str = "2BBY89MBSN.dev.warp";
@@ -395,7 +396,7 @@ unsafe fn init_logging() {
             // According to the docs, this error means that the database file was moved (or deleted),
             // so SQLite can't safely modify it and the rollback journal:
             //     https://www.sqlite.org/rescode.html#readonly_dbmoved
-            // This is mostly outside of Zap's control (e.g. the user or some system program is
+            // This is mostly outside of Dais's control (e.g. the user or some system program is
             // moving around files in the user data directory), so downgrade to a warning.
             (_, sqlite3::SQLITE_READONLY_DBMOVED) => log::Level::Warn,
             _ => log::Level::Error,
@@ -459,7 +460,7 @@ pub(super) fn init_db() -> Result<SqliteConnection> {
     if warp_core::channel::ChannelState::channel() == warp_core::channel::Channel::Oss {
         if let Some(legacy_dir) = zap_legacy_app_group_sqlite_dir() {
             if let Err(err) = migrate_zap_app_group_sqlite_if_needed(&db_path, &legacy_dir)
-                .context("Failed to migrate Zap SQLite database out of legacy App Group")
+                .context("Failed to migrate Dais SQLite database out of legacy App Group")
             {
                 report_error!(err);
                 log::warn!("Skipping legacy App Group SQLite migration and continuing startup");
@@ -528,6 +529,7 @@ fn migrate_zap_app_group_sqlite_if_needed(target_db: &Path, legacy_dir: &Path) -
         return Ok(());
     };
 
+// zap-purge: legacy key, kept for data compat — 已迁移的用户磁盘上存在此 marker 文件。
     let marker = target_dir.join(ZAP_APP_GROUP_SQLITE_MIGRATION_MARKER);
     if marker.exists() {
         return Ok(());
@@ -556,8 +558,8 @@ fn migrate_zap_app_group_sqlite_if_needed(target_db: &Path, legacy_dir: &Path) -
     write_zap_app_group_sqlite_migration_marker(&marker)?;
 
     safe_info!(
-        safe: ("Migrated Zap SQLite database out of legacy App Group"),
-        full: ("Migrated Zap SQLite database from `{}` to `{}`", legacy_db.display(), target_db.display())
+        safe: ("Migrated Dais SQLite database out of legacy App Group"),
+        full: ("Migrated Dais SQLite database from `{}` to `{}`", legacy_db.display(), target_db.display())
     );
 
     Ok(())
@@ -1280,7 +1282,7 @@ fn save_pane_state(
         LeafContents::GetStarted => GET_STARTED_PANE_KIND,
         LeafContents::Welcome { .. } => WELCOME_PANE_KIND,
         LeafContents::AIDocument(_) => AI_DOCUMENT_PANE_KIND,
-        // Zap Wave 7-3:`EnvironmentManagement` arm 随 variant 一同物理删。
+        // Dais Wave 7-3:`EnvironmentManagement` arm 随 variant 一同物理删。
         LeafContents::SshServer { .. } => {
             // These pane types are filtered out before this function is
             // called; see `LeafContents::is_persisted` and the skip in
@@ -1465,7 +1467,7 @@ fn save_pane_state(
                 .values(workflow)
                 .execute(conn)?;
         }
-        // Zap Wave 7-3:`EnvironmentManagement` LeafContents arm 随 variant 一同物理删。
+        // Dais Wave 7-3:`EnvironmentManagement` LeafContents arm 随 variant 一同物理删。
         LeafContents::Settings(settings_pane_snapshot) => {
             let current_page = match settings_pane_snapshot {
                 SettingsPaneSnapshot::Local { current_page, .. } => current_page,
@@ -2532,7 +2534,7 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
                         Some(path) => NotebookPaneSnapshot::LocalFileNotebook { path: Some(path) },
                         None => NotebookPaneSnapshot::NotebookObject {
                             notebook_id,
-                            settings: ZapDriveObjectSettings::default(),
+                            settings: DaisDriveObjectSettings::default(),
                         },
                     })
                 }
@@ -2550,7 +2552,7 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
 
                     LeafContents::Workflow(WorkflowPaneSnapshot::WorkflowObject {
                         workflow_id,
-                        settings: ZapDriveObjectSettings::default(),
+                        settings: DaisDriveObjectSettings::default(),
                     })
                 }
                 CODE_PANE_KIND => {

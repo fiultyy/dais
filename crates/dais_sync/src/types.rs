@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn test_gist_entry_deserialization() {
-        let json = r#"{"id":"abc123","description":"ZAP_CONFIG"}"#;
+        let json = r#"{"id":"abc123","description":"ZAP_CONFIG"}"#; // zap-purge: legacy wire value, kept for compat
         let entry: GistEntry = serde_json::from_str(json).unwrap();
         assert_eq!(entry.id, "abc123");
         assert_eq!(entry.description, Some("ZAP_CONFIG".to_string()));

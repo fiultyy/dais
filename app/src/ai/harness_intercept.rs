@@ -2,7 +2,7 @@
 //! AgentDriver 的 third-party harness spawn 链路。
 //!
 //! 职责（对应 intercept 四层架构的第 3.5 层：生命周期接线）：
-//! - 进程级 tokio runtime（`zap-intercept`）：承载 HookServer / TLS proxy /
+//! - 进程级 tokio runtime（`dais-intercept`）：承载 HookServer / TLS proxy /
 //!   raw-processor 三个长驻 tokio 任务；GUI 主线程只做一次短暂的
 //!   `block_on`（bind 监听器），之后零占用。
 //! - [`InterceptSession`]：一次 harness 运行的拦截会话。构造时启动
@@ -22,10 +22,10 @@ use proxy_interceptor::{HarnessType, ProxyManager};
 static INTERCEPT_RT: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
-        .thread_name("zap-intercept")
+        .thread_name("dais-intercept")
         .enable_all()
         .build()
-        .expect("failed to build zap-intercept runtime")
+        .expect("failed to build dais-intercept runtime")
 });
 /// Map a `warp_cli` harness selection onto the interceptor's harness type.
 pub fn intercept_harness_type(harness: warp_cli::agent::Harness) -> HarnessType {
@@ -178,7 +178,7 @@ impl InterceptSession {
                         "type": "command",
                         "command": format!(
                             "curl -s -o /dev/null -X POST -H 'content-type: application/json' \
-                             -H 'x-zap-hook-token: {token}' \
+                             -H 'x-dais-hook-token: {token}' \
                              --data-binary @- '{url}/hooks/{}'",
                             event.to_lowercase()
                         ),
@@ -300,7 +300,7 @@ pub fn maybe_start_intercept(
     use crate::terminal::intercept_sessions::InterceptSessionsModel;
     use warpui::SingletonEntity;
 
-    // Oz 走 Zap 内建 agent 基础设施，无 LLM 流量可拦截。
+    // Oz 走 Dais 内建 agent 基础设施，无 LLM 流量可拦截。
     if selected_harness == warp_cli::agent::Harness::Oz {
         return None;
     }
@@ -338,12 +338,12 @@ fn claude_upstream_from_user_settings() -> Option<proxy_interceptor::UpstreamCon
     }
     // proxy handler 从本进程 env 读 token（api_key_env 指向）注入上游
     // Bearer header —— 与 CC 自身的 AUTH_TOKEN 认证方式一致。
-    std::env::set_var("ZAP_CC_AUTH_TOKEN", token);
+    std::env::set_var("DAIS_CC_AUTH_TOKEN", token);
     Some(proxy_interceptor::UpstreamConfig {
         api_base: base.trim_end_matches('/').to_string(),
         auth_header: "authorization".into(),
         auth_prefix: "Bearer ".into(),
-        api_key_env: "ZAP_CC_AUTH_TOKEN".into(),
+        api_key_env: "DAIS_CC_AUTH_TOKEN".into(),
         request_path: "/v1/messages".into(),
         response_format: proxy_interceptor::ResponseFormat::AnthropicSSE,
     })
@@ -437,7 +437,7 @@ pub fn intercept_command_line(
         }
         // Gemini/Amp/Droid/Copilot/Pi/Auggie/CursorCli/Goose/DeepSeek/Antigravity/
         // Unknown：generic HTTPS_PROXY 形状，需显式上游（Proxy tab base 覆盖
-        // 或 ZAP_UPSTREAM_BASE），否则 resolve 失败回退原命令。
+        // 或 DAIS_UPSTREAM_BASE (fallback: ZAP_UPSTREAM_BASE)），否则 resolve 失败回退原命令。
         _ => intercept_env_command(command, HarnessType::Generic, &model, mode, terminal_view_id),
     }
 }
@@ -456,7 +456,10 @@ fn intercept_env_command(
     let env = session.spawn_env();
     if !env
         .iter()
-        .any(|(k, _)| k != "ZAP_HOOK_SERVER_URL" && k != "ZAP_HOOK_TOKEN")
+        .any(|(k, _)| k != "DAIS_HOOK_SERVER_URL"
+            && k != "DAIS_HOOK_TOKEN"
+            && k != "ZAP_HOOK_SERVER_URL"
+            && k != "ZAP_HOOK_TOKEN")
     {
         return None;
     }

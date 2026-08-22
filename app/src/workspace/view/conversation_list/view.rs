@@ -796,7 +796,7 @@ impl TypedActionView for ConversationListView {
                         ));
                     }
 
-                    // Zap Phase 2a: conversation share menu item removed
+                    // Dais Phase 2a: conversation share menu item removed
                     // (cloud-conversation sharing was already retired upstream).
 
                     let fork_items: Option<[MenuItem<ConversationListViewAction>; 2]> =

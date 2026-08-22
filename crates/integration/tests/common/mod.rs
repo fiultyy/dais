@@ -26,7 +26,7 @@ pub fn run_integration_test(name: &str) -> Result<(), String> {
             k == "PATH"
                 // Propagate any Rust-related variables.
                 || k.starts_with("RUST_")
-                // Propagate any Zap-specific variables.
+                // Propagate any Dais-specific variables.
                 || k.starts_with("WARP_")
                 || k.starts_with("WARPUI_")
                 // Propagate any wgpu-specific variables.
@@ -120,7 +120,7 @@ pub fn run_integration_test(name: &str) -> Result<(), String> {
             k == "PATH"
                 // Propagate any Rust-related variables.
                 || k.starts_with("RUST_")
-                // Propagate any Zap-specific variables.
+                // Propagate any Dais-specific variables.
                 || k.starts_with("WARP_")
                 || k.starts_with("WARPUI_")
                 // Propagate any wgpu-specific variables.

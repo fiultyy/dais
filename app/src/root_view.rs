@@ -11,7 +11,7 @@ use crate::cloud_object::model::persistence::ObjectStoreModel;
 use crate::cloud_object::{GenericStringObjectFormat, JsonObjectType, ObjectType};
 use crate::drive::export::ExportManager;
 use crate::drive::items::WarpDriveItemId;
-use crate::drive::{ObjectTypeAndId, ZapDriveObjectArgs, ZapDriveObjectSettings};
+use crate::drive::{ObjectTypeAndId, DaisDriveObjectArgs, DaisDriveObjectSettings};
 use crate::experiments::{BlockOnboarding, Experiment};
 use crate::interval_timer::IntervalTimer;
 use crate::launch_configs::launch_config;
@@ -103,7 +103,7 @@ use crate::auth::{WebHandoffEvent, WebHandoffView};
 /// 返回当前 channel 的产品名,作为窗口标题初始值与 quake/transferred 窗口标题。
 ///
 /// 取 `ChannelState::app_id().application_name()` 是为了让 OSS 构建显示 `Dais`、
-/// 而 Stable/Preview/Dev 等上游 channel 仍显示各自的 `Zap` / `WarpPreview` / `WarpDev`,
+/// 而 Stable/Preview/Dev 等上游 channel 仍显示各自的 `Dais` / `WarpPreview` / `WarpDev`,
 /// 避免在 fork 中跨多处硬编码字符串(Windows 任务管理器按窗口标题做进程分组,
 /// 硬编码应用名会让 Dais 在任务管理器里显示成 `Dais(N)`)。
 ///
@@ -751,7 +751,7 @@ fn path_if_directory(path: &Path) -> Option<&Path> {
 /// Opens a new window with the workspace configured according to `source`. Returns the
 /// newly-opened window ID and a handle to the root view in that window.
 ///
-/// This is the canonical way to open a new Zap window - all other entrypoints should delegate to
+/// This is the canonical way to open a new Dais window - all other entrypoints should delegate to
 /// it if possible.
 pub(crate) fn open_new_with_workspace_source(
     source: NewWorkspaceSource,
@@ -866,7 +866,7 @@ fn open_linear_issue_work_in_new_window(args: &LinearIssueWork, ctx: &mut AppCon
     });
 }
 
-fn open_warp_drive_object(arg: &ZapDriveObjectArgs, ctx: &mut AppContext) {
+fn open_warp_drive_object(arg: &DaisDriveObjectArgs, ctx: &mut AppContext) {
     match arg.object_type {
         ObjectType::Notebook => open_new_workspace_with_notebook_open(
             SyncId::ServerId(arg.server_id),
@@ -892,7 +892,7 @@ fn display_object_missing_error_in_window(window_id: WindowId, ctx: &mut AppCont
 
 fn open_new_workspace_with_notebook_open(
     notebook_id: SyncId,
-    settings: ZapDriveObjectSettings,
+    settings: DaisDriveObjectSettings,
     ctx: &mut AppContext,
 ) {
     open_new_with_workspace_source(
@@ -906,7 +906,7 @@ fn open_new_workspace_with_notebook_open(
 
 fn open_new_workspace_with_workflow_open(
     workflow_id: SyncId,
-    settings: ZapDriveObjectSettings,
+    settings: DaisDriveObjectSettings,
     ctx: &mut AppContext,
 ) {
     open_new_with_workspace_source(
@@ -1254,11 +1254,11 @@ fn toggle_quake_mode_window(global_resource_handles: &GlobalResourceHandles, ctx
     };
 }
 
-/// This action will show or hide all of Zap's windows except the quake window
+/// This action will show or hide all of Dais's windows except the quake window
 ///
-/// - If Zap is active and has any windows, hide those windows.
-/// - If Zap is hidden, show all windows.
-/// - If Zap is active but has 0 normal windows, create a new window with a new session.
+/// - If Dais is active and has any windows, hide those windows.
+/// - If Dais is hidden, show all windows.
+/// - If Dais is active but has 0 normal windows, create a new window with a new session.
 fn show_or_hide_non_quake_mode_windows(_: &(), ctx: &mut AppContext) {
     let quake_window_id = get_quake_mode_state(ctx).map(|state| state.window_id);
     let non_quake_mode_window_ids = ctx
@@ -1269,7 +1269,7 @@ fn show_or_hide_non_quake_mode_windows(_: &(), ctx: &mut AppContext) {
         open_new(&(), ctx);
     }
     let windowing_model = ctx.windows();
-    // Now there is at least one window. If a Zap window is active, hide the app.
+    // Now there is at least one window. If a Dais window is active, hide the app.
     // Otherwise, show activate the app to show it in front.
     let active_window_id = windowing_model.active_window();
     match active_window_id {
@@ -1314,11 +1314,11 @@ pub enum NewWorkspaceSource {
     },
     NotebookById {
         id: SyncId,
-        settings: ZapDriveObjectSettings,
+        settings: DaisDriveObjectSettings,
     },
     WorkflowById {
         id: SyncId,
-        settings: ZapDriveObjectSettings,
+        settings: DaisDriveObjectSettings,
     },
     AgentSession {
         options: Box<NewTerminalOptions>,
@@ -1451,7 +1451,7 @@ impl RootView {
             me.handle_auth_manager_event(event, ctx);
         });
 
-        // Zap(本地化,Phase 5):`PreferencesSyncer` 已物理删除。
+        // Dais(本地化,Phase 5):`PreferencesSyncer` 已物理删除。
         // 原 `InitialLoadCompleted` 事件用于在云端 preferences 同步完成后调用
         // `apply_onboarding_settings`,本地化场景下 onboarding 设置直接本地应用。
 
@@ -1482,7 +1482,7 @@ impl RootView {
                 if #[cfg(target_family = "wasm")] {
                     AuthOnboardingState::WebImport(AuthOnboardingTarget::Workspace(workspace_args.into()))
                 } else {
-                    // When ZapNewSettingsModes is enabled, show onboarding before login for
+                    // When DaisNewSettingsModes is enabled, show onboarding before login for
                     // users who haven't completed it yet (tracked via a local UserPreferences key).
                     let has_completed_local_onboarding = FeatureFlag::ZapNewSettingsModes.is_enabled()
                         && has_completed_local_onboarding(ctx);
@@ -1958,7 +1958,7 @@ impl RootView {
 
     pub fn open_warp_drive_object_in_existing_window(
         &mut self,
-        arg: &ZapDriveObjectArgs,
+        arg: &DaisDriveObjectArgs,
         ctx: &mut ViewContext<Self>,
     ) -> bool {
         if let AuthOnboardingState::Terminal(handle) = &self.auth_onboarding_state {
@@ -2049,7 +2049,7 @@ impl RootView {
             ctx.windows().show_window_and_focus_app(window_id);
             ctx.notify();
         } else {
-            log::warn!("Auth not complete before trying to open zap drive object");
+            log::warn!("Auth not complete before trying to open dais drive object");
         }
         true
     }
@@ -2237,7 +2237,7 @@ impl RootView {
                 } else if let AuthOnboardingState::NeedsSsoLink { .. } = &self.auth_onboarding_state
                 {
                     // We should be able to access their SSO state; if not, default to true,
-                    // since we should err on the side of them _not_ being able to use Zap.
+                    // since we should err on the side of them _not_ being able to use Dais.
                     if auth_state.needs_sso_link() == Some(false) {
                         self.auth_onboarding_state.complete_sso_link(ctx);
                     }
@@ -2273,8 +2273,8 @@ impl RootView {
                             // application, which ought to be valid.
                             self.web_handoff(ctx);
                         } else {
-                            // Zap 已移除 log_out UI 入口,native 不再强制登出。
-                            log::warn!("User account disabled; ignoring (Zap 已移除 log_out)");
+                            // Dais 已移除 log_out UI 入口,native 不再强制登出。
+                            log::warn!("User account disabled; ignoring (Dais 已移除 log_out)");
                         }
                     }
                 }
@@ -2305,7 +2305,7 @@ impl RootView {
     ) {
         match event {
             AuthOverrideWarningModalEvent::Close => {
-                // Zap 已移除 log_out 入口,关闭时不再触发登出。
+                // Dais 已移除 log_out 入口,关闭时不再触发登出。
             }
             AuthOverrideWarningModalEvent::BulkExport => {
                 self.export_all_warp_drive_objects(ctx);
@@ -2426,7 +2426,7 @@ impl RootView {
         true
     }
 
-    /// Zap(本地化,Phase 5):原 `handle_preferences_syncer_event` 在云端
+    /// Dais(本地化,Phase 5):原 `handle_preferences_syncer_event` 在云端
     /// preferences 同步初始加载完成后应用 onboarding settings,随同步器物理删除。
     /// onboarding settings 现在在 onboarding 完成时直接应用,不需要延迟到 cloud sync 后。
     /// If onboarding stored a pending tutorial (because login was required first),

@@ -1,5 +1,5 @@
 //! Inline block view that asks the user whether they want to install
-//! Zap's SSH extension on the remote host the shell just connected to,
+//! Dais's SSH extension on the remote host the shell just connected to,
 //! or continue without installing (falling back to the existing
 //! ControlMaster warpification path).
 //!
@@ -49,14 +49,14 @@ pub enum SshRemoteServerChoiceViewAction {
     Install,
     Skip,
     ToggleDoNotAskAgain,
-    ZapifySettings,
+    DaisifySettings,
 }
 
 #[derive(Clone, Debug)]
 pub enum SshRemoteServerChoiceViewEvent {
     Install,
     Skip,
-    ZapifySettings,
+    DaisifySettings,
 }
 
 /// Choice block prompting the user to install the remote-server binary on the remote host or skip.
@@ -177,7 +177,7 @@ impl SshRemoteServerChoiceView {
                 crate::t!("ssh-remote-choice-manage-warpify-settings"),
                 None,
                 Some(Box::new(|ctx| {
-                    ctx.dispatch_typed_action(SshRemoteServerChoiceViewAction::ZapifySettings);
+                    ctx.dispatch_typed_action(SshRemoteServerChoiceViewAction::DaisifySettings);
                 })),
                 self.manage_settings_mouse_state.clone(),
             )
@@ -304,8 +304,8 @@ impl TypedActionView for SshRemoteServerChoiceView {
                 );
                 ctx.notify();
             }
-            SshRemoteServerChoiceViewAction::ZapifySettings => {
-                ctx.emit(SshRemoteServerChoiceViewEvent::ZapifySettings);
+            SshRemoteServerChoiceViewAction::DaisifySettings => {
+                ctx.emit(SshRemoteServerChoiceViewEvent::DaisifySettings);
             }
         }
     }

@@ -7,7 +7,7 @@ use warpui::elements::{CornerRadius, MouseState, Radius};
 use warpui::Element;
 
 /// Shared item highlight state for left-panel style lists (file tree, global search results,
-/// zap drive rows, etc.).
+/// dais drive rows, etc.).
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ItemHighlightState {
     None,

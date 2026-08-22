@@ -14,7 +14,7 @@ use std::time::Duration;
 use tower::ServiceBuilder;
 use tracing::Span;
 
-/// A small webserver to serve the Zap wasm bundle and assets for local development.
+/// A small webserver to serve the Dais wasm bundle and assets for local development.
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {

@@ -63,6 +63,7 @@ data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usa
     // UserPromptSubmit
     client
         .post(format!("{}/hooks/user_prompt_submit", hook_url))
+        .header("x-dais-hook-token", &hook_token)
         .header("x-zap-hook-token", &hook_token)
         .json(&serde_json::json!({"prompt": "now refactor it"}))
         .send()
@@ -73,6 +74,7 @@ data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usa
     // PreToolUse
     client
         .post(format!("{}/hooks/pre_tool_use", hook_url))
+        .header("x-dais-hook-token", &hook_token)
         .header("x-zap-hook-token", &hook_token)
         .json(&serde_json::json!({"tool_name": "str_replace_editor"}))
         .send()
@@ -83,6 +85,7 @@ data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usa
     // PostToolUse
     client
         .post(format!("{}/hooks/post_tool_use", hook_url))
+        .header("x-dais-hook-token", &hook_token)
         .header("x-zap-hook-token", &hook_token)
         .json(&serde_json::json!({"tool_name": "str_replace_editor", "result": "ok"}))
         .send()
@@ -93,6 +96,7 @@ data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usa
     // Stop
     client
         .post(format!("{}/hooks/stop", hook_url))
+        .header("x-dais-hook-token", &hook_token)
         .header("x-zap-hook-token", &hook_token)
         .json(&serde_json::json!({"exit_code": 0}))
         .send()

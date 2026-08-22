@@ -848,7 +848,7 @@ struct ViewerCommandExecutionRequest {
 /// Where a command execution request originates from.
 #[derive(Clone)]
 pub enum CommandExecutionSource {
-    /// A non-shared command execution request from Zap AI++.
+    /// A non-shared command execution request from Dais AI++.
     /// Shared commands use the SharedSession variant instead.
     AI {
         /// Metadata associated with the execution.
@@ -2266,7 +2266,7 @@ impl Input {
                 AgentInputFooterEvent::PluginInstalled(agent) => {
                     ctx.emit(Event::RegisterPluginListener(*agent));
                 }
-                // Zap Wave 7-3:`AgentInputFooterEvent::OpenEnvironmentManagementPane` handler
+                // Dais Wave 7-3:`AgentInputFooterEvent::OpenEnvironmentManagementPane` handler
                 // 随 ambient-agent UI 子系统物理删。
                 #[cfg(not(target_family = "wasm"))]
                 AgentInputFooterEvent::OpenPluginInstructionsPane(agent, kind) => {
@@ -5409,7 +5409,7 @@ impl Input {
         });
     }
 
-    /// Predicts the next action using an AI model and past context on blocks within Zap.
+    /// Predicts the next action using an AI model and past context on blocks within Dais.
     /// Populates the autosuggestion with the predicted action, if any. Otherwise, falls back to
     /// existing autosuggestion logic.
     #[cfg_attr(target_family = "wasm", allow(unused_variables))]
@@ -6567,7 +6567,7 @@ impl Input {
             .string_model;
 
         if shell_type == ShellType::Fish {
-            // Zap currently doesn't support newlines in Fish, just prepend the vars
+            // Dais currently doesn't support newlines in Fish, just prepend the vars
             let mut command = env_vars.export_variables_for_shell(ShellType::Fish);
             command.push(' ');
             Some(command)
@@ -9757,7 +9757,7 @@ impl Input {
 
     /// Check if we can attach on filepaths paste or drag-drop
     fn can_attach_on_filepaths_paste_or_dragdrop(&self, ctx: &mut ViewContext<Self>) -> bool {
-        // Shared session viewers cannot attach images in Zap.
+        // Shared session viewers cannot attach images in Dais.
         let is_viewer = self.model.lock().shared_session_status().is_viewer();
         if is_viewer {
             return false;
@@ -11747,7 +11747,7 @@ impl Input {
                     return;
                 }
 
-                // Collect pending files for the spawn request. Cloud mode image attachments are disabled in Zap.
+                // Collect pending files for the spawn request. Cloud mode image attachments are disabled in Dais.
                 let attachments: Vec<AttachmentInput> = if false {
                     let mut inputs: Vec<AttachmentInput> = self
                         .ai_context_model
@@ -12919,7 +12919,7 @@ impl Input {
                                 .cloned(),
                             workflow_selection_source: selected_workflow_state
                                 .workflow_selection_source,
-                            // This is only `Some()` for ZapDrive workflows; we don't track
+                            // This is only `Some()` for DaisDrive workflows; we don't track
                             // ID for execution of local workflows because they have no such
                             // unique ID.
                             workflow_id: selected_workflow_state.workflow_type.server_id(),

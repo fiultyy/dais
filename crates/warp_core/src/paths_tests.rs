@@ -12,7 +12,7 @@ fn test_data_dir_path() {
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
             assert_eq!(data_dir(), home_dir.join(".local/share/dais"));
         } else if #[cfg(windows)] {
-            assert_eq!(data_dir(), home_dir.join("AppData\\Roaming\\zap\\Zap\\data"));
+            assert_eq!(data_dir(), home_dir.join("AppData\\Roaming\\zap\\Zap\\data")); // zap-purge: legacy Windows path, kept for compat
         } else {
             unimplemented!("Need to update tests for current platform!");
         }
@@ -29,7 +29,7 @@ fn test_config_local_dir_path() {
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
             assert_eq!(config_local_dir(), home_dir.join(".config/dais"));
         } else if #[cfg(windows)] {
-            assert_eq!(config_local_dir(), home_dir.join("AppData\\Local\\zap\\Zap\\config"));
+            assert_eq!(config_local_dir(), home_dir.join("AppData\\Local\\zap\\Zap\\config")); // zap-purge: legacy Windows path, kept for compat
         } else {
             unimplemented!("Need to update tests for current platform!");
         }
@@ -53,7 +53,7 @@ fn test_warp_home_config_dir_path() {
 #[test]
 fn test_warp_home_skills_and_mcp_paths() {
     let Some(config_dir) = warp_home_config_dir() else {
-        panic!("Should be able to compute Zap home config directory");
+        panic!("Should be able to compute Dais home config directory");
     };
 
     assert_eq!(warp_home_skills_dir(), Some(config_dir.join("skills")));
@@ -72,7 +72,7 @@ fn test_cache_dir_path() {
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
             assert_eq!(cache_dir(), home_dir.join(".cache/dais"));
         } else if #[cfg(windows)] {
-            assert_eq!(cache_dir(), home_dir.join("AppData\\Local\\zap\\Zap\\cache"));
+            assert_eq!(cache_dir(), home_dir.join("AppData\\Local\\zap\\Zap\\cache")); // zap-purge: legacy Windows path, kept for compat
         } else {
             unimplemented!("Need to update tests for current platform!");
         }
@@ -89,7 +89,7 @@ fn test_state_dir_path() {
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
             assert_eq!(state_dir(), home_dir.join(".local/state/dais"));
         } else if #[cfg(windows)] {
-            assert_eq!(state_dir(), home_dir.join("AppData\\Local\\zap\\Zap\\data"));
+            assert_eq!(state_dir(), home_dir.join("AppData\\Local\\zap\\Zap\\data")); // zap-purge: legacy Windows path, kept for compat
         } else {
             unimplemented!("Need to update tests for current platform!");
         }
@@ -98,25 +98,25 @@ fn test_state_dir_path() {
 
 #[test]
 fn test_oss_secure_state_dir_is_disabled() {
-    // ChannelState 默认是 Channel::Oss。Zap 不应该探测 Zap 官方 App Group,
+    // ChannelState 默认是 Channel::Oss。Dais 不应该探测旧 Zap 官方 App Group,
     // 否则 macOS 会把它识别成访问其他 App 数据并在每次启动时弹权限窗。
     assert_eq!(secure_state_dir(), None);
 }
 
 #[test]
 fn test_project_path_for_dais_dev_app_id() {
-    // Covers the `starts_with("Zap")` branch in `project_dirs_for_app_id` on Linux,
-    // which maps suffixed application names like `ZapDev` to a dashed lowercase
-    // directory matching the Linux package name (e.g. `dais-dev`, D5 改名).
-    let project_dirs = project_dirs_for_app_id(AppId::new("dev", "zap", "ZapDev"), None)
+    // Covers the `starts_with("Zap")` compat branch in `project_dirs_for_app_id` on Linux,
+    // which maps suffixed legacy application names like `ZapDev` to a dashed lowercase
+    // directory matching the Linux package name (e.g. `dais-dev`). // zap-purge: legacy app ID
+    let project_dirs = project_dirs_for_app_id(AppId::new("dev", "zap", "ZapDev"), None) // zap-purge: legacy app ID, kept for compat
         .expect("should be able to compute project dirs");
     cfg_if::cfg_if! {
         if #[cfg(target_os = "macos")] {
-            assert_eq!(project_dirs.project_path(), "dev.zap.ZapDev");
+            assert_eq!(project_dirs.project_path(), "dev.zap.ZapDev"); // zap-purge: legacy app ID, kept for compat
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
             assert_eq!(project_dirs.project_path(), "dais-dev");
         } else if #[cfg(windows)] {
-            assert_eq!(project_dirs.project_path(), "zap\\ZapDev");
+            assert_eq!(project_dirs.project_path(), "zap\\ZapDev"); // zap-purge: legacy app ID, kept for compat
         } else {
             unimplemented!("Need to update tests for current platform!");
         }
@@ -125,15 +125,15 @@ fn test_project_path_for_dais_dev_app_id() {
 
 #[test]
 fn test_project_path_for_oss_app_id() {
-    let project_dirs = project_dirs_for_app_id(AppId::new("dev", "zap", "Zap"), None)
+    let project_dirs = project_dirs_for_app_id(AppId::new("dev", "zap", "Zap"), None)  // zap-purge: legacy app ID, kept for compat
         .expect("should be able to compute project dirs");
     cfg_if::cfg_if! {
         if #[cfg(target_os = "macos")] {
-            assert_eq!(project_dirs.project_path(), "dev.zap.Zap");
+            assert_eq!(project_dirs.project_path(), "dev.zap.Zap");  // zap-purge: legacy app ID, kept for compat
         } else if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
             assert_eq!(project_dirs.project_path(), "dais");
         } else if #[cfg(windows)] {
-            assert_eq!(project_dirs.project_path(), "zap\\Zap");
+            assert_eq!(project_dirs.project_path(), "zap\\Zap");  // zap-purge: legacy app ID, kept for compat
         } else {
             unimplemented!("Need to update tests for current platform!");
         }

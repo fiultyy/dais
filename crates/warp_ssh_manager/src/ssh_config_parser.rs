@@ -16,7 +16,7 @@ use std::path::PathBuf;
 ///
 /// 字段是 OpenSSH `ssh_config` 的子集 —— PRODUCT.md decision I/J/K 选定
 /// 的最小集。`alias` 是 `Host` 行上的字面别名,导入到 `SshServerInfo`
-/// 时作为 `host` 字段使用,这样后续从 Zap 启动 `ssh` 时 OpenSSH 仍能
+/// 时作为 `host` 字段使用,这样后续从 Dais 启动 `ssh` 时 OpenSSH 仍能
 /// 应用 `~/.ssh/config` 里这个别名对应的高级指令(`ProxyJump` 等)。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SshConfigCandidate {

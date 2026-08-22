@@ -4,7 +4,7 @@
 //! per resolved recipient, sharing a `thread_id` for independent read-tracking.
 //!
 //! Adaptation: Orca uses `RuntimeTerminalSummary[]` (live terminal metadata).
-//! Zap uses a simplified `TerminalSnapshot` — the caller provides whatever
+//! Dais uses a simplified `TerminalSnapshot` — the caller provides whatever
 //! terminal info is available at send-time. Agent name matching uses a
 //! case-insensitive whole-word regex (same semantics as Orca's
 //! `buildAgentNameRe`, simplified for our agent set).

@@ -47,7 +47,7 @@ pub fn ensure_local_ca() -> Result<LocalCA> {
 
     // 自签 CA
     let mut ca_params = CertificateParams::new(Vec::new())?;
-    ca_params.distinguished_name.push(DnType::CommonName, "Zap Local Proxy CA");
+    ca_params.distinguished_name.push(DnType::CommonName, "Dais Local Proxy CA");
     ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
     ca_params.key_usages = vec![
         KeyUsagePurpose::DigitalSignature,

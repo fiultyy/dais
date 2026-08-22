@@ -80,17 +80,17 @@ const SETUP_FAILED_IDLE_TIMEOUT: Duration = Duration::from_secs(120);
 /// If no follow-up status arrives within this window, the driver terminates with the
 /// original error so the CLI does not hang indefinitely.
 const AUTO_RESUME_TIMEOUT: Duration = Duration::from_secs(120);
-/// Signals to Claude child-harness hooks that Zap already owns the background
+/// Signals to Claude child-harness hooks that Dais already owns the background
 /// message-listener lifecycle, so the plugin should reuse the shared state
 /// files instead of spawning and cleaning up its own listener.
 ///
 /// When this variable is absent, the Claude plugin falls back to its legacy
-/// self-managed listener path so older Zap builds and standalone plugin
+/// self-managed listener path so older Dais builds and standalone plugin
 /// invocations keep working.
 pub(crate) const OZ_MESSAGE_LISTENER_MANAGED_EXTERNALLY_ENV: &str =
     "OZ_MESSAGE_LISTENER_MANAGED_EXTERNALLY";
 /// Optional root directory for the per-session Claude message-listener state
-/// that Zap and the Claude hook scripts share.
+/// that Dais and the Claude hook scripts share.
 pub(crate) const OZ_MESSAGE_LISTENER_STATE_ROOT_ENV: &str = "OZ_MESSAGE_LISTENER_STATE_ROOT";
 // Keep exporting the legacy `OZ_PARENT_*` names to child hooks until the
 // external Claude plugin has fully migrated to the canonical
@@ -187,7 +187,7 @@ pub struct AgentDriverOptions {
     pub selected_harness: Harness,
 }
 
-/// `AgentDriver` is a model for driving an ambient Zap agent to completion.
+/// `AgentDriver` is a model for driving an ambient Dais agent to completion.
 ///
 /// Its primary responsibility is to configure a headless terminal pane and execute an AI query within it.
 pub struct AgentDriver {
@@ -210,7 +210,7 @@ pub struct AgentDriver {
     /// In the future, we _may_ use the harness abstraction for the Oz agent as well.
     harness: Option<Arc<dyn HarnessRunner>>,
 
-    /// Zap 拦截会话：third-party harness 运行期间持有 proxy+hooks 的
+    /// Dais 拦截会话：third-party harness 运行期间持有 proxy+hooks 的
     /// 生命周期。Drop（或 run 结束时 finish）自动关停。
     #[cfg(not(target_family = "wasm"))]
     intercept: Option<crate::ai::harness_intercept::InterceptSession>,
@@ -356,7 +356,7 @@ impl AgentDriver {
             )
         );
 
-        // Zap 启动时会初始化本地用户;走到这里说明本地 auth singleton 未正确初始化。
+        // Dais 启动时会初始化本地用户;走到这里说明本地 auth singleton 未正确初始化。
         if !AuthStateProvider::as_ref(ctx).get().is_logged_in() {
             return Err(AgentDriverError::NotLoggedIn);
         }
@@ -440,7 +440,7 @@ impl AgentDriver {
             selected_harness,
         ));
 
-        // Zap 拦截接线：third-party harness 启动前建立 intercept 会话
+        // Dais 拦截接线：third-party harness 启动前建立 intercept 会话
         // （proxy+hooks）。CC 的生效配置经 prepare_harness → build_runner
         // 以 --settings 传入（settings.json env 优先级高于 PTY env）；
         // PTY env 不再注入（对 CC 无效）。
@@ -1022,7 +1022,7 @@ impl AgentDriver {
     }
 
     /// Sets up the third-party harness by subscribing to CLI session events and
-    /// installing the Zap plugin and platform plugin, if applicable.
+    /// installing the Dais plugin and platform plugin, if applicable.
     ///
     /// Returns a oneshot receiver that fires when the harness should exit
     /// (either immediately on completion or after the idle-on-complete timeout).
@@ -1068,7 +1068,7 @@ impl AgentDriver {
                         return Err(AgentDriverError::InvalidRuntimeState);
                     }
 
-                    // Zap 拦截：把 intercept 会话的 harness 侧生效配置带给
+                    // Dais 拦截：把 intercept 会话的 harness 侧生效配置带给
                     // build_runner（CC 走 --settings；其他 harness 忽略）。
                     #[cfg(not(target_family = "wasm"))]
                     let intercept_settings = me
@@ -1170,7 +1170,7 @@ impl AgentDriver {
         let exit_code = command_result?;
         log::debug!("Agent harness exited with status {exit_code}");
 
-        // Zap 拦截：harness 退出 → 记录 Exit block 并释放 proxy/hooks
+        // Dais 拦截：harness 退出 → 记录 Exit block 并释放 proxy/hooks
         // （Drop 兜底未观测路径）。整个块 native-only：wasm 下无 intercept。
         #[cfg(not(target_family = "wasm"))]
         {
@@ -1416,7 +1416,7 @@ impl AgentDriver {
             }
         });
 
-        // openWarp 不同步 plan 到 Zap Drive,原 "plan_artifact_created" CLI 输出依赖云 notebook_link,
+        // openWarp 不同步 plan 到 Dais Drive,原 "plan_artifact_created" CLI 输出依赖云 notebook_link,
         // 这里不再订阅 AIDocumentModel 的 SaveStatusUpdated 事件。
 
         // Submit the AI query.

@@ -68,7 +68,7 @@ pub fn model_reasoning_variants(
             vec![]
         }
         // DeepSeek thinking-mode 模型(deepseek-reasoner / v4 / thinking / r1)。
-        // Zap 本地 fork(`lib/rust-genai`)放宽了 adapter_shared.rs 的注入条件,
+        // Dais 本地 fork(`lib/rust-genai`)放宽了 adapter_shared.rs 的注入条件,
         // 让 `reasoning_effort` 顶层字段按 DeepSeek thinking_mode 文档下发。
         //
         // Ollama 后端模型 id 任意,保守留空。

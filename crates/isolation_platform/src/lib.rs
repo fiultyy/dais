@@ -18,29 +18,25 @@ mod namespace;
 #[cfg(not(target_family = "wasm"))]
 const WARP_ISOLATION_PLATFORM_ENV: &str = "WARP_ISOLATION_PLATFORM";
 
-/// Environment variable containing the generic Zap-managed workload token that we use
-/// for isolation platforms that don't issue their own tokens.
+/// Environment variable containing the generic Dais-managed workload token that we use
 #[cfg(not(target_family = "wasm"))]
 const WARP_WORKLOAD_TOKEN_ENV: &str = "WARP_WORKLOAD_TOKEN";
 
-/// A kind of isolation platform. For our usage, isolation platforms are different ways where Zap
+/// A kind of isolation platform. For our usage, isolation platforms are different ways where Dais
 /// can be sandboxed, such as VMs, containers, or cloud hosts. This may also include weaker forms
 /// of sandboxing such as Git worktrees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IsolationPlatformType {
-    /// Zap is running within a Docker container. Note that this does *not* mean this is a Zap-hosted
+    /// Dais is running within a Docker container. Note that this does *not* mean this is a Dais-hosted
     /// Docker Sandboxes environment. Instead, it's likely a self-hosted agent.
     #[cfg(not(target_family = "wasm"))]
     Docker,
-    /// Zap is running within a Docker Sandbox, likely as a Zap-hosted agent.
-    #[cfg(not(target_family = "wasm"))]
+    /// Dais is running within a Docker Sandbox, likely as a Dais-hosted agent.
     DockerSandbox,
-    /// Zap is running within a Kubernetes pod, likely as a self-hosted agent.
-    #[cfg(not(target_family = "wasm"))]
+    /// Dais is running within a Kubernetes pod, likely as a self-hosted agent.
     Kubernetes,
-    /// Zap is running within a Namespace instance, likely as a Zap-hosted agent.
-    #[cfg(not(target_family = "wasm"))]
+    /// Dais is running within a Namespace instance, likely as a Dais-hosted agent.
     Namespace,
 }
 

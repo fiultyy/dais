@@ -136,7 +136,7 @@ mod loader {
     }
 }
 
-// We use font-kit's family handle to load fonts that come with Zap as
+// We use font-kit's family handle to load fonts that come with Dais as
 // these binaries are already in memory and won't increase our memory load.
 fn load_font_family_from_bytes(name: &str, font_bytes: Vec<Vec<u8>>) -> Result<FontFamily> {
     use owned_ttf_parser::OwnedFace;

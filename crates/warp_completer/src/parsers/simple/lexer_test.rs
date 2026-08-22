@@ -164,7 +164,7 @@ fn test_multiple_whitespace() {
 }
 
 #[test]
-fn test_backtick_escape_char() {
+fn test_backtick_escape_char() {  // zap-purge: historical Windows installer path, kept as test fixture
     let source = r#"& "$HOME\Downloads\Zap` Setup.exe" /SP- /SILENT `t`"#;
     let tokens: Vec<_> = Lexer::new(source, EscapeChar::Backtick, false)
         .map(|t| (t.item, t.span))

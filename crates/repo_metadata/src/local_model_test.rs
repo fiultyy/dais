@@ -1257,7 +1257,7 @@ Thumbs.db
         });
     }
 
-    /// Regression test for https://github.com/zerx-lab/zap/issues/260.
+    /// Regression test for https://github.com/zerx-lab/zap/issues/260.  // zap-purge: upstream repo URL, kept as historical reference
     /// The home directory must be indexable as a lazy-loaded standalone path so that
     /// the file tree shows its first-level children when the terminal starts in `~`.
     #[cfg(feature = "local_fs")]

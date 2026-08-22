@@ -15,7 +15,7 @@ mod tests;
 mod vertical_tabs;
 #[cfg(target_family = "wasm")]
 mod wasm_view;
-pub(crate) mod zap_launch_modal;
+pub(crate) mod dais_launch_modal;
 
 use self::vertical_tabs::telemetry::{VerticalTabsDisplayOption, VerticalTabsTelemetryEvent};
 use self::vertical_tabs::{
@@ -108,7 +108,7 @@ use crate::workspace::header_toolbar_editor::{HeaderToolbarEditorEvent, HeaderTo
 use crate::workspace::header_toolbar_item::HeaderToolbarItemKind;
 use crate::workspace::tab_settings::TabCloseButtonPosition;
 use crate::workspace::view::codex_modal::{CodexModal, CodexModalEvent};
-use crate::workspace::view::zap_launch_modal::{ZapLaunchModal, ZapLaunchModalEvent};
+use crate::workspace::view::dais_launch_modal::{DaisLaunchModal, DaisLaunchModalEvent};
 use crate::workspace::{ForkFromExchange, ForkedConversationDestination};
 use crate::BlocklistAIHistoryModel;
 
@@ -142,7 +142,7 @@ use crate::pane_group::{
 };
 use crate::quit_warning::UnsavedStateSummary;
 use crate::search::command_palette::view::NavigationMode;
-// Zap Wave 3-1:`AuthClient` trait 随 server_api/auth.rs 一同物理删。
+// Dais Wave 3-1:`AuthClient` trait 随 server_api/auth.rs 一同物理删。
 use crate::settings::{
     AISettings, AISettingsChangedEvent, CodeSettings, CodeSettingsChangedEvent, CtrlTabBehavior,
     DefaultSessionMode,
@@ -171,7 +171,7 @@ use repo_metadata::RemoteRepositoryIdentifier;
 #[cfg(target_family = "wasm")]
 use url::Url;
 
-// Zap:删除 SharedObjectsCreationDeniedModal(云端 Drive 配额拒绝弹窗)
+// Dais:删除 SharedObjectsCreationDeniedModal(云端 Drive 配额拒绝弹窗)
 
 #[cfg(target_family = "wasm")]
 use crate::wasm_nux_dialog::WasmNUXDialog;
@@ -201,7 +201,7 @@ use crate::drive::import::modal::{ImportModal, ImportModalEvent};
 use crate::drive::workflows::arguments::ArgumentsState;
 use crate::drive::workflows::modal::{WorkflowModal, WorkflowModalEvent};
 use crate::drive::{
-    DriveObjectType, DrivePanel, DrivePanelEvent, ObjectTypeAndId, ZapDriveObjectSettings,
+    DriveObjectType, DrivePanel, DrivePanelEvent, ObjectTypeAndId, DaisDriveObjectSettings,
 };
 use crate::experiments::{BlockOnboarding, Experiment};
 use crate::menu::{
@@ -489,7 +489,7 @@ const MAX_FONT_SIZE: f32 = 25.0;
 const FONT_SIZE_INCREMENT: f32 = 1.0;
 
 pub const TAB_BAR_HEIGHT: f32 = 34.;
-/// Height for all panel headers (tab bar, zap drive, resource center, theme chooser, etc.).
+/// Height for all panel headers (tab bar, dais drive, resource center, theme chooser, etc.).
 /// This ensures consistent header heights across all UI panels.
 pub const PANEL_HEADER_HEIGHT: f32 = TAB_BAR_HEIGHT;
 /// The hover area height for states where the tab bar is revealed on hover.
@@ -727,7 +727,7 @@ pub(crate) enum SpecialView {
 #[cfg(target_family = "wasm")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SimplifiedWasmTabBarContent {
-    /// Viewing a Zap Drive object (notebook, workflow, env vars, AI facts, MCP servers)
+    /// Viewing a Dais Drive object (notebook, workflow, env vars, AI facts, MCP servers)
     WarpDriveObject,
     /// Participating in a shared session (viewer or writer). Contains the optional ambient agent task ID.
     SharedSession { task_id: Option<AmbientAgentTaskId> },
@@ -998,7 +998,7 @@ pub struct Workspace {
     theme_deletion_modal: ViewHandle<ThemeDeletionModal>,
     suggested_agent_mode_workflow_modal: ViewHandle<SuggestedAgentModeWorkflowModal>,
     suggested_rule_modal: ViewHandle<SuggestedRuleModal>,
-    zap_launch_modal: ViewHandle<ZapLaunchModal>,
+    dais_launch_modal: ViewHandle<DaisLaunchModal>,
     codex_modal: ViewHandle<CodexModal>,
     toast_stack: ViewHandle<DismissibleToastStack<WorkspaceAction>>,
     agent_toast_stack: ViewHandle<AgentToastStack>,
@@ -1500,7 +1500,7 @@ impl Workspace {
                 if let Some(id) = id_to_force_expand {
                     self.open_notebook(
                         &NotebookSource::Existing(id),
-                        &ZapDriveObjectSettings::default(),
+                        &DaisDriveObjectSettings::default(),
                         ctx,
                         true,
                     );
@@ -1515,7 +1515,7 @@ impl Workspace {
                     id_to_force_expand = Some(workflow.id);
                 }
                 if let Some(id) = id_to_force_expand {
-                    self.open_workflow_with_existing(id, &ZapDriveObjectSettings::default(), ctx);
+                    self.open_workflow_with_existing(id, &DaisDriveObjectSettings::default(), ctx);
                     ObjectStoreModel::handle(ctx).update(ctx, |object_store_model, ctx| {
                         object_store_model.force_expand_object_and_ancestors(id, ctx);
                     });
@@ -2713,9 +2713,9 @@ impl Workspace {
 
         let suggested_rule_modal = Self::build_suggested_rule_modal(ctx);
 
-        let zap_launch_view = ctx.add_typed_action_view(ZapLaunchModal::new);
-        ctx.subscribe_to_view(&zap_launch_view, |me, _, event, ctx| {
-            me.handle_zap_launch_modal_event(event, ctx);
+        let dais_launch_view = ctx.add_typed_action_view(DaisLaunchModal::new);
+        ctx.subscribe_to_view(&dais_launch_view, |me, _, event, ctx| {
+            me.handle_dais_launch_modal_event(event, ctx);
         });
 
         let launch_config_save_modal = Self::build_launch_config_save_modal(ctx);
@@ -2833,7 +2833,7 @@ impl Workspace {
             me.handle_window_settings_changed_event(event, ctx);
         });
 
-        // Show the Zap AI warm welcome iff the user hasn't dismissed it nor interacted with Zap AI before.
+        // Show the Dais AI warm welcome iff the user hasn't dismissed it nor interacted with Dais AI before.
         // Also, avoid showing it in integration tests to prevent interaction with other tests.
         let mut should_show_ai_assistant_warm_welcome: bool = !FeatureFlag::AgentMode.is_enabled()
             && AISettings::as_ref(ctx).is_any_ai_enabled(ctx)
@@ -2846,7 +2846,7 @@ impl Workspace {
                 .map(|dismissed: bool| !dismissed)
                 .unwrap_or(true);
 
-        // Don't automatically show the Zap AI welcome during onboarding if the block onboarding flow is being used.
+        // Don't automatically show the Dais AI welcome during onboarding if the block onboarding flow is being used.
         // This way, we can delay the reveal until the end of the onboarding flow so as not to overwhelm the user.
         if matches!(
             BlockOnboarding::get_group(ctx),
@@ -2995,7 +2995,7 @@ impl Workspace {
         });
 
         let native_modal = Self::build_native_modal_view(ctx);
-        // Zap:删除 SharedObjectsCreationDeniedModal 注册(云端 Drive 配额拒绝弹窗)
+        // Dais:删除 SharedObjectsCreationDeniedModal 注册(云端 Drive 配额拒绝弹窗)
 
         ctx.subscribe_to_model(&AISettings::handle(ctx), |me, _, event, ctx| match event {
             AISettingsChangedEvent::IsAnyAIEnabled { .. }
@@ -3024,8 +3024,8 @@ impl Workspace {
                 // The model has already determined which window should show the modal.
                 let model_ref = model.as_ref(ctx);
                 if model_ref.target_window_id() == Some(ctx.window_id()) {
-                    if model_ref.is_zap_launch_modal_open() {
-                        me.focus_zap_launch_modal(ctx);
+                    if model_ref.is_dais_launch_modal_open() {
+                        me.focus_dais_launch_modal(ctx);
                     } else if model_ref.is_hoa_onboarding_open() {
                         me.show_hoa_onboarding_flow(ctx);
                     }
@@ -3160,7 +3160,7 @@ impl Workspace {
             #[cfg(target_family = "wasm")]
             transcript_details_panel,
             tab_fixed_width: None,
-            zap_launch_modal: zap_launch_view,
+            dais_launch_modal: dais_launch_view,
             codex_modal,
             lightbox_view: None,
             hoa_onboarding_flow: None,
@@ -3841,7 +3841,7 @@ impl Workspace {
                 LeftPanelDisplayedTab::GlobalSearch => ToolPanelView::GlobalSearch {
                     entry_focus: GlobalSearchEntryFocus::Results,
                 },
-                LeftPanelDisplayedTab::ZapDrive => ToolPanelView::ZapDrive,
+                LeftPanelDisplayedTab::DaisDrive => ToolPanelView::DaisDrive,
                 LeftPanelDisplayedTab::ConversationListView => ToolPanelView::ConversationListView,
                 LeftPanelDisplayedTab::SshManager => ToolPanelView::SshManager,
                 LeftPanelDisplayedTab::ServerFileBrowser => ToolPanelView::ServerFileBrowser,
@@ -3911,26 +3911,26 @@ impl Workspace {
             placeholder_pane = Some(home_pane.as_pane().id());
             self.add_tab_from_existing_pane(home_pane, 0, ctx);
 
-            // If we can't start a terminal session to run the onboarding flow, show the Zap Home
-            // placeholder along with Zap Drive.
+            // If we can't start a terminal session to run the onboarding flow, show the Dais Home
+            // placeholder along with Dais Drive.
             true
         };
         let initial_tab = self.active_tab_pane_group().clone();
 
         if open_warp_drive {
-            // We open Zap Drive automatically in two cases:
-            // * The user is new to Zap, and went through the overall onboarding flow
+            // We open Dais Drive automatically in two cases:
+            // * The user is new to Dais, and went through the overall onboarding flow
             // * The user is on the web, so we can't open a terminal session.
             let initial_load_complete =
                 crate::cloud_object::model::persistence::ObjectStoreModel::as_ref(ctx)
                     .initial_load_complete();
             ctx.spawn(initial_load_complete, move |me, _, ctx| {
-                // New Zap users can have non-welcome objects if they were directly invited OR if
+                // New Dais users can have non-welcome objects if they were directly invited OR if
                 // linked objects were copied over from an anonymous user.
                 if ObjectStoreModel::as_ref(ctx).has_non_welcome_objects() {
                     me.open_or_toggle_warp_drive(false, false, ctx);
 
-                    // After opening Zap Drive, if we rendered the Zap Home placeholder panel, replace it with one of
+                    // After opening Dais Drive, if we rendered the Dais Home placeholder panel, replace it with one of
                     // the user's own objects.
                     if show_warp_home {
                         let object_store_model = ObjectStoreModel::as_ref(ctx);
@@ -4090,7 +4090,7 @@ impl Workspace {
             }
         }
 
-        // Check if focused pane is a Zap Drive object
+        // Check if focused pane is a Dais Drive object
         let focused_pane_id = pane_group.focused_pane_id(ctx);
         if focused_pane_id.is_warp_drive_object_pane() {
             return Some(SimplifiedWasmTabBarContent::WarpDriveObject);
@@ -4231,9 +4231,9 @@ impl Workspace {
         });
 
         // The panel is already open and no models are open, so just refocus the panel.
-        // If there is a modal open, it would sit above the Zap AI panel and we would end up
-        // focusing the Zap AI panel _behind_ the floating modal. Instead, we opt for the normal
-        // toggle behavior which will close the current modal view and then toggle Zap AI.
+        // If there is a modal open, it would sit above the Dais AI panel and we would end up
+        // focusing the Dais AI panel _behind_ the floating modal. Instead, we opt for the normal
+        // toggle behavior which will close the current modal view and then toggle Dais AI.
         if self.current_workspace_state.is_ai_assistant_panel_open
             && !self.ai_assistant_panel.is_self_or_child_focused(ctx)
             && !self.current_workspace_state.is_any_modal_open(ctx)
@@ -4355,8 +4355,8 @@ impl Workspace {
             .has_warp_drive_initialized_sections(app)
     }
 
-    /// Check if Zap Drive view is focused within.
-    /// Routes to the appropriate Zap Drive panel.
+    /// Check if Dais Drive view is focused within.
+    /// Routes to the appropriate Dais Drive panel.
     fn is_warp_drive_view_focused(&self, ctx: &mut ViewContext<Self>) -> bool {
         let app = ctx;
         self.left_panel_view.is_self_or_child_focused(app)
@@ -4558,7 +4558,7 @@ impl Workspace {
     }
 
     /// This function shifts focus to the panel on the left.
-    /// The current focusable panels are: Zap Drive, theme chooser, AI, resource center (keyboard shortcuts page only),
+    /// The current focusable panels are: Dais Drive, theme chooser, AI, resource center (keyboard shortcuts page only),
     /// 以及 V2 左面板(ProjectExplorer / SshManager / SkillManager / Drive 等 ToolPanelView,
     /// 开关是 pane_group 的 left_panel_open)。
     fn focus_left_panel(&mut self, ctx: &mut ViewContext<Self>) {
@@ -4586,7 +4586,7 @@ impl Workspace {
         {
             self.focus_active_tab(ctx);
         }
-        // Starts from a left panel: Zap Drive
+        // Starts from a left panel: Dais Drive
         else if self.is_warp_drive_view_focused(ctx) {
             // 环绕到右侧:has_right_region 涵盖 V2 右面板(pane_group.
             // right_panel_open)与 legacy(resource center / AI 助手),
@@ -4635,7 +4635,7 @@ impl Workspace {
                 ctx.focus(&self.theme_chooser_view);
             }
         }
-        // Starts from a left panel: Zap Drive, theme chooser
+        // Starts from a left panel: Dais Drive, theme chooser
         else if self.is_warp_drive_view_focused(ctx)
             || self.theme_chooser_view.is_self_or_child_focused(ctx)
         {
@@ -5900,7 +5900,7 @@ impl Workspace {
                 let pane_group = self.active_tab_pane_group().clone();
                 self.handle_file_tree_event(pane_group, pane_group_event, ctx);
             }
-            LeftPanelEvent::ZapDrive(drive_event) => {
+            LeftPanelEvent::DaisDrive(drive_event) => {
                 self.handle_warp_drive_event(drive_event, ctx);
             }
             LeftPanelEvent::ServerFileBrowser(event) => match event {
@@ -6429,7 +6429,7 @@ impl Workspace {
     ///
     /// 故意**不**打包的内容(权衡):
     /// - `.dmp` minidump 二进制(可能极大,需要单独按需上传);
-    /// - `zap.prompt_chips.log`(含命令 stdout/stderr,仅在 debug channel 生成,默认隐私风险);
+    /// - `zap.prompt_chips.log` (zap-purge: legacy filename, kept for log compat)(含命令 stdout/stderr,仅在 debug channel 生成,默认隐私风险);
     /// - profiling 产物(`dhat-heap.json` / `profile.pb`,仅特殊 cargo feature 启用)。
     #[cfg(not(target_family = "wasm"))]
     fn collect_log_bundle_extras(ctx: &AppContext) -> warp_logging::LogBundleExtras {
@@ -7198,7 +7198,7 @@ impl Workspace {
     /// If the user is new and therefore has not seen the in app onboarding,
     /// triggers the welcome block to be shown after bootstrapping is completed.
     fn check_and_trigger_onboarding(&mut self, ctx: &mut ViewContext<Self>) -> bool {
-        // Zap: 去掉首次打开的 agentic suggestions 欢迎块教程。仍把用户标记为
+        // Dais: 去掉首次打开的 agentic suggestions 欢迎块教程。仍把用户标记为
         // onboarded,避免下游(如 telemetry banner)把已用户当新用户处理。
         if !self.auth_state.is_onboarded().unwrap_or_default() {
             AuthManager::handle(ctx).update(ctx, |auth_manager, ctx| {
@@ -7253,7 +7253,7 @@ impl Workspace {
         ctx.notify();
     }
 
-    /// Opens the Zap Drive object identified by `uid` in a new pane
+    /// Opens the Dais Drive object identified by `uid` in a new pane
     /// if it has a pane representation.
     fn open_warp_drive_object_in_new_pane(&mut self, uid: &ObjectUid, ctx: &mut ViewContext<Self>) {
         let Some(object) = ObjectStoreModel::as_ref(ctx).get_by_uid(uid) else {
@@ -7265,7 +7265,7 @@ impl Workspace {
             ObjectType::Notebook => {
                 self.open_notebook(
                     &NotebookSource::Existing(sync_id),
-                    &ZapDriveObjectSettings::default(),
+                    &DaisDriveObjectSettings::default(),
                     ctx,
                     true,
                 );
@@ -7273,7 +7273,7 @@ impl Workspace {
             ObjectType::Workflow => {
                 self.open_workflow_in_pane(
                     &WorkflowOpenSource::Existing(sync_id),
-                    &ZapDriveObjectSettings::default(),
+                    &DaisDriveObjectSettings::default(),
                     WorkflowViewMode::View,
                     ctx,
                 );
@@ -7302,7 +7302,7 @@ impl Workspace {
     pub fn open_notebook(
         &mut self,
         source: &NotebookSource,
-        settings: &ZapDriveObjectSettings,
+        settings: &DaisDriveObjectSettings,
         ctx: &mut ViewContext<Self>,
         default_to_new_pane: bool,
     ) {
@@ -7324,7 +7324,7 @@ impl Workspace {
                 );
             }
             // TODO(zap-cloud-removal Phase 5): invitee_email/source 这条
-            // notebook 邀请链路已无 UI 出口,但 `ZapDriveObjectSettings.invitee_email`
+            // notebook 邀请链路已无 UI 出口,但 `DaisDriveObjectSettings.invitee_email`
             // 仍由 URL handler / drag-drop 链路传入。Phase 5 退役 invitee 概念时
             // 把字段从 settings 结构里也删掉。
             let _ = settings;
@@ -7346,7 +7346,7 @@ impl Workspace {
             });
         }
 
-        // Get notebook ID to set Zap drive index selected state
+        // Get notebook ID to set Dais drive index selected state
         if let NotebookSource::Existing(notebook_id) = source {
             let focused_folder_id = settings.focused_folder_id.map(SyncId::ServerId);
             if !notebook_already_open && !default_to_new_pane {
@@ -7375,11 +7375,11 @@ impl Workspace {
         }
     }
 
-    /// Open a Zap Drive workflow in response to an intent URL.
+    /// Open a Dais Drive workflow in response to an intent URL.
     pub fn open_workflow_from_intent(
         &mut self,
         workflow_id: SyncId,
-        settings: &ZapDriveObjectSettings,
+        settings: &DaisDriveObjectSettings,
         ctx: &mut ViewContext<Self>,
     ) {
         // If running workflows is supported, do so. Otherwise, or if the workflow isn't in memory,
@@ -7422,7 +7422,7 @@ impl Workspace {
     pub fn open_workflow_in_pane(
         &mut self,
         source: &WorkflowOpenSource,
-        settings: &ZapDriveObjectSettings,
+        settings: &DaisDriveObjectSettings,
         mode: WorkflowViewMode,
         ctx: &mut ViewContext<Self>,
     ) {
@@ -8027,7 +8027,7 @@ impl Workspace {
         });
     }
 
-    // Zap Wave 7-3:`open_environment_management_pane` 随 ambient-agent UI 子系统
+    // Dais Wave 7-3:`open_environment_management_pane` 随 ambient-agent UI 子系统
     // 物理删。
 
     pub(super) fn active_session_view(
@@ -8043,7 +8043,7 @@ impl Workspace {
         ctx.notify();
     }
 
-    /// Find an active session and pre-fill the input editor the Zap executable with the
+    /// Find an active session and pre-fill the input editor the Dais executable with the
     /// [`warp_cli::Command::DumpDebugInfo`] subcommand.
     fn dump_debug_info(&mut self, ctx: &mut ViewContext<Self>) {
         if let Some(exec) = std::env::current_exe()
@@ -8082,7 +8082,7 @@ impl Workspace {
         }
     }
 
-    /// Install the Zap CLI by creating a symlink in /usr/local/bin
+    /// Install the Dais CLI by creating a symlink in /usr/local/bin
     #[cfg(target_os = "macos")]
     fn install_cli(&mut self, ctx: &mut ViewContext<Self>) {
         ctx.spawn(async { cli_install::install_cli() }, |view, result, ctx| {
@@ -8112,7 +8112,7 @@ impl Workspace {
         });
     }
 
-    /// Uninstall the Zap CLI by removing the symlink from /usr/local/bin
+    /// Uninstall the Dais CLI by removing the symlink from /usr/local/bin
     #[cfg(target_os = "macos")]
     fn uninstall_cli(&mut self, ctx: &mut ViewContext<Self>) {
         ctx.spawn(
@@ -8203,28 +8203,28 @@ impl Workspace {
         explicit_user_action: bool,
         ctx: &mut ViewContext<Self>,
     ) {
-        // Closing all left panels will also close zap drive so we need to retrieve
-        // whether zap drive was open first, and toggle based on the initial value.
+        // Closing all left panels will also close dais drive so we need to retrieve
+        // whether dais drive was open first, and toggle based on the initial value.
         let was_warp_drive_open = self.current_workspace_state.is_warp_drive_open;
         self.current_workspace_state.close_all_left_panels();
         self.current_workspace_state.is_warp_drive_open =
             if toggle { !was_warp_drive_open } else { true };
 
-        // Set selected object to None upon toggle close of Zap Drive
+        // Set selected object to None upon toggle close of Dais Drive
         if !self.current_workspace_state.is_warp_drive_open {
             self.set_selected_object(None, ctx);
             self.focus_active_tab(ctx);
         }
 
-        // Reset focused index when opening/toggling Zap Drive open
+        // Reset focused index when opening/toggling Dais Drive open
         if self.current_workspace_state.is_warp_drive_open {
             self.reset_focused_index_in_warp_drive(true, ctx);
         }
 
         ctx.notify();
 
-        // Telemetry and welcome tip logic is only for when the user explicitly opens Zap Drive
-        // AND zap drive wasn't open before. There are other scenarios where we open Zap Drive like:
+        // Telemetry and welcome tip logic is only for when the user explicitly opens Dais Drive
+        // AND dais drive wasn't open before. There are other scenarios where we open Dais Drive like:
         // new user onboarding, user joins a team, etc so we want to avoid counting those.
         if explicit_user_action
             && !was_warp_drive_open
@@ -8239,7 +8239,7 @@ impl Workspace {
             );
             self.tips_completed.update(ctx, |tips_completed, ctx| {
                 mark_feature_used_and_write_to_user_defaults(
-                    Tip::Action(TipAction::ZapDrive),
+                    Tip::Action(TipAction::DaisDrive),
                     tips_completed,
                     ctx,
                 );
@@ -9853,7 +9853,7 @@ impl Workspace {
                     // Proc same behavior as DrivePanelEvent::RunWorkflow
                     self.run_cloud_workflow_in_active_input(
                         workflow.clone(),
-                        WorkflowSelectionSource::ZapDrive,
+                        WorkflowSelectionSource::DaisDrive,
                         TerminalSessionFallbackBehavior::default(),
                         ctx,
                     );
@@ -10273,7 +10273,7 @@ impl Workspace {
         let warp_drive_index_width = modal_sizes.map(|ms| {
             ms.warp_drive_index_width
                 .lock()
-                .expect("should be able to lock zap drive resizable state handle")
+                .expect("should be able to lock dais drive resizable state handle")
                 .size()
         });
 
@@ -11331,7 +11331,7 @@ impl Workspace {
     pub fn add_tab_for_cloud_notebook(
         &mut self,
         notebook_id: SyncId,
-        settings: &ZapDriveObjectSettings,
+        settings: &DaisDriveObjectSettings,
         ctx: &mut ViewContext<Self>,
     ) {
         // TODO: We should validate that this notebook exists and fallback if it doesn't
@@ -11349,7 +11349,7 @@ impl Workspace {
     fn add_tab_for_cloud_workflow(
         &mut self,
         workflow_id: SyncId,
-        settings: &ZapDriveObjectSettings,
+        settings: &DaisDriveObjectSettings,
         ctx: &mut ViewContext<Self>,
     ) {
         let panes_layout = PanesLayout::Snapshot(Box::new(PaneNodeSnapshot::Leaf(LeafSnapshot {
@@ -13172,7 +13172,7 @@ impl Workspace {
                 _ => self.open_navigation_palette(ctx),
             },
             PaletteMode::LaunchConfig => self.open_launch_config_palette(ctx),
-            PaletteMode::ZapDrive => self.open_warp_drive_palette(ctx),
+            PaletteMode::DaisDrive => self.open_warp_drive_palette(ctx),
             PaletteMode::Files => self.open_files_palette(ctx),
             PaletteMode::Conversations => self.open_conversations_palette(ctx),
         }
@@ -13265,7 +13265,7 @@ impl Workspace {
             }
             CommandPaletteEvent::OpenNotebook { id } => self.open_notebook(
                 &NotebookSource::Existing(*id),
-                &ZapDriveObjectSettings::default(),
+                &DaisDriveObjectSettings::default(),
                 ctx,
                 true,
             ),
@@ -13307,11 +13307,11 @@ impl Workspace {
     }
 
     /// This function is used when we set a selected object, which is an object open in an active pane.
-    /// We do not want to focus Zap Drive, instead we want to focus the editor of the open object.
+    /// We do not want to focus Dais Drive, instead we want to focus the editor of the open object.
     fn view_in_warp_drive(&mut self, item_id: WarpDriveItemId, ctx: &mut ViewContext<Self>) {
         self.open_left_panel(ctx);
         self.left_panel_view.update(ctx, |left_panel, ctx| {
-            left_panel.handle_action(&LeftPanelAction::ZapDrive, ctx);
+            left_panel.handle_action(&LeftPanelAction::DaisDrive, ctx);
         });
 
         if let WarpDriveItemId::Object(object_id) = item_id {
@@ -13326,7 +13326,7 @@ impl Workspace {
         });
     }
 
-    /// This function is used when we want to view an item in Zap Drive AND focus Zap Drive.
+    /// This function is used when we want to view an item in Dais Drive AND focus Dais Drive.
     pub fn view_in_and_focus_warp_drive(
         &mut self,
         item_id: WarpDriveItemId,
@@ -13341,7 +13341,7 @@ impl Workspace {
         ctx.notify();
     }
 
-    /// Updates the left panel's zap drive view.
+    /// Updates the left panel's dais drive view.
     fn update_warp_drive_view<F>(&mut self, ctx: &mut ViewContext<Self>, update_fn: F)
     where
         F: FnOnce(&mut DrivePanel, &mut ViewContext<DrivePanel>),
@@ -13450,10 +13450,10 @@ impl Workspace {
         ctx: &mut ViewContext<Self>,
     ) {
         match event {
-            // Zap 去中心化分支:`CheckForUpdate` / `ZapDrive` 事件 arm 随
+            // Dais 去中心化分支:`CheckForUpdate` / `DaisDrive` 事件 arm 随
             // `SettingsViewEvent` 中同名 variant 一同物理删。手动检查更新仍可
             // 由 `WorkspaceAction::CheckForUpdate`(`workspace:check_for_updates` binding)
-            // 触发;Zap Drive 仍可由 `WorkspaceAction::ZapDrive` 触发。
+            // 触发;Dais Drive 仍可由 `WorkspaceAction::DaisDrive` 触发。
             SettingsViewEvent::Pane(_) | SettingsViewEvent::StartResize => {}
             SettingsViewEvent::ShowToast { message, flavor } => {
                 self.toast_stack.update(ctx, |toast_stack, ctx| {
@@ -13704,7 +13704,7 @@ impl Workspace {
                 self.open_workflow_with_command(command.clone(), ctx)
             }
             pane_group::Event::OpenCloudWorkflowForEdit(workflow_id) => self
-                .open_workflow_with_existing(*workflow_id, &ZapDriveObjectSettings::default(), ctx),
+                .open_workflow_with_existing(*workflow_id, &DaisDriveObjectSettings::default(), ctx),
             pane_group::Event::OpenWorkflowModalWithTemporary(workflow) => {
                 self.open_workflow_with_temporary(*workflow.clone(), ctx)
             }
@@ -13764,7 +13764,7 @@ impl Workspace {
             } => {
                 self.move_to_drive_space(*object_type_and_id, *space, ctx);
             }
-            pane_group::Event::ZapDriveLink {
+            pane_group::Event::DaisDriveLink {
                 open_warp_drive_args,
             } => {
                 let object_found = ObjectStoreModel::as_ref(ctx)
@@ -13812,7 +13812,7 @@ impl Workspace {
                         ctx,
                     ),
                     _ => {
-                        log::warn!("Attempted to open an unsupported Zap Drive link")
+                        log::warn!("Attempted to open an unsupported Dais Drive link")
                     }
                 }
             }
@@ -14353,7 +14353,7 @@ impl Workspace {
                 ctx.notify();
             }
             pane_group::Event::ClearHoveredTabIndex => self.hovered_tab_index = None,
-            pane_group::Event::ZapDriveObjectInPane(uid) => {
+            pane_group::Event::DaisDriveObjectInPane(uid) => {
                 self.open_warp_drive_object_in_new_pane(uid, ctx);
             }
             pane_group::Event::OpenSuggestedAgentModeWorkflowModal { workflow_and_id } => {
@@ -14556,7 +14556,7 @@ impl Workspace {
                     self.left_panel_view
                         .read(ctx, |left_panel, _| match target_view {
                             LeftPanelTargetView::FileTree => left_panel.is_file_tree_active(),
-                            LeftPanelTargetView::ZapDrive => left_panel.is_warp_drive_active(),
+                            LeftPanelTargetView::DaisDrive => left_panel.is_warp_drive_active(),
                         });
 
                 if self.active_tab_pane_group().as_ref(ctx).left_panel_open && is_target_active {
@@ -14571,7 +14571,7 @@ impl Workspace {
                     self.left_panel_view.update(ctx, |left_panel, ctx| {
                         let action = match target_view {
                             LeftPanelTargetView::FileTree => LeftPanelAction::ProjectExplorer,
-                            LeftPanelTargetView::ZapDrive => LeftPanelAction::ZapDrive,
+                            LeftPanelTargetView::DaisDrive => LeftPanelAction::DaisDrive,
                         };
                         left_panel.handle_action_with_force_open(&action, *force_open, ctx);
                     });
@@ -14595,7 +14595,7 @@ impl Workspace {
                     ctx,
                 );
             }
-            // Zap:终端里 Ctrl/Cmd+点击远端 SSH 文件路径,走 buffer-sync 协议打开。
+            // Dais:终端里 Ctrl/Cmd+点击远端 SSH 文件路径,走 buffer-sync 协议打开。
             #[cfg(all(feature = "local_tty", feature = "local_fs"))]
             pane_group::Event::OpenRemoteFileFromTerminal {
                 remote_path,
@@ -14614,7 +14614,7 @@ impl Workspace {
             pane_group::Event::OpenAgentProfileEditor { profile_id } => {
                 self.open_execution_profile_editor_pane(None, *profile_id, ctx);
             }
-            // Zap Wave 7-3:`pane_group::Event::OpenEnvironmentManagementPane` handler 随
+            // Dais Wave 7-3:`pane_group::Event::OpenEnvironmentManagementPane` handler 随
             // ambient-agent UI 子系统物理删。
             pane_group::Event::LeftPanelToggled { is_open } => {
                 // Only handle visibility changes from the active pane group.
@@ -15089,7 +15089,7 @@ impl Workspace {
             DrivePanelEvent::RunWorkflow(workflow) => {
                 self.run_cloud_workflow_in_active_input(
                     workflow.as_ref().clone(),
-                    WorkflowSelectionSource::ZapDrive,
+                    WorkflowSelectionSource::DaisDrive,
                     TerminalSessionFallbackBehavior::default(),
                     ctx,
                 );
@@ -15117,27 +15117,27 @@ impl Workspace {
             DrivePanelEvent::OpenWorkflowModalWithWorkflowObject(workflow_id) => {
                 self.open_workflow_with_existing(
                     *workflow_id,
-                    &ZapDriveObjectSettings::default(),
+                    &DaisDriveObjectSettings::default(),
                     ctx,
                 );
             }
             DrivePanelEvent::OpenSearch => {
-                self.open_palette_action(PaletteMode::ZapDrive, PaletteSource::ZapDrive, None, ctx);
+                self.open_palette_action(PaletteMode::DaisDrive, PaletteSource::DaisDrive, None, ctx);
             }
             DrivePanelEvent::OpenNotebook(source) => {
-                self.open_notebook(source, &ZapDriveObjectSettings::default(), ctx, true)
+                self.open_notebook(source, &DaisDriveObjectSettings::default(), ctx, true)
             }
             DrivePanelEvent::OpenEnvVarCollection(source) => {
                 self.open_env_var_collection(source, false, ctx)
             }
             DrivePanelEvent::OpenWorkflowInPane(source, mode) => {
-                self.open_workflow_in_pane(source, &ZapDriveObjectSettings::default(), *mode, ctx)
+                self.open_workflow_in_pane(source, &DaisDriveObjectSettings::default(), *mode, ctx)
             }
             DrivePanelEvent::OpenAIFactCollection => {
                 self.open_ai_fact_collection_pane(None, None, ctx);
                 send_telemetry_from_ctx!(
                     TelemetryEvent::KnowledgePaneOpened {
-                        entrypoint: KnowledgePaneEntrypoint::ZapDrive,
+                        entrypoint: KnowledgePaneEntrypoint::DaisDrive,
                     },
                     ctx
                 );
@@ -15147,7 +15147,7 @@ impl Workspace {
 
                 send_telemetry_from_ctx!(
                     TelemetryEvent::MCPServerCollectionPaneOpened {
-                        entrypoint: MCPServerCollectionPaneEntrypoint::ZapDrive,
+                        entrypoint: MCPServerCollectionPaneEntrypoint::DaisDrive,
                     },
                     ctx
                 );
@@ -15156,7 +15156,7 @@ impl Workspace {
                 ctx.focus(&self.left_panel_view);
             }
             DrivePanelEvent::OpenSharedObjectsCreationDeniedModal(_, _) => {
-                // Zap:云端 Drive 配额拒绝弹窗已删除,事件直接忽略
+                // Dais:云端 Drive 配额拒绝弹窗已删除,事件直接忽略
             }
             DrivePanelEvent::AttachPlanAsContext(id) => {
                 self.attach_plan_as_context(*id, ctx);
@@ -15550,7 +15550,7 @@ impl Workspace {
                     AcceptNotebook(sync_id) => {
                         self.open_notebook(
                             &NotebookSource::Existing(*sync_id),
-                            &ZapDriveObjectSettings::default(),
+                            &DaisDriveObjectSettings::default(),
                             ctx,
                             true,
                         );
@@ -15562,7 +15562,7 @@ impl Workspace {
                             ctx,
                         );
                     }
-                    ZapAI => {
+                    DaisAI => {
                         if !AISettings::as_ref(ctx).is_any_ai_enabled(ctx) {
                             return;
                         }
@@ -16279,7 +16279,7 @@ impl Workspace {
     }
 
     fn set_selected_object(&mut self, id: Option<WarpDriveItemId>, ctx: &mut ViewContext<Self>) {
-        // Set Zap drive index selected state
+        // Set Dais drive index selected state
         self.update_warp_drive_view(ctx, |drive_panel, ctx| {
             drive_panel.set_selected_object(id, ctx);
         });
@@ -16401,15 +16401,15 @@ impl Workspace {
         }
     }
 
-    fn handle_zap_launch_modal_event(
+    fn handle_dais_launch_modal_event(
         &mut self,
-        event: &ZapLaunchModalEvent,
+        event: &DaisLaunchModalEvent,
         ctx: &mut ViewContext<Self>,
     ) {
         match event {
-            ZapLaunchModalEvent::Close => {
+            DaisLaunchModalEvent::Close => {
                 OneTimeModalModel::handle(ctx).update(ctx, |model, ctx| {
-                    model.mark_zap_launch_modal_dismissed(ctx);
+                    model.mark_dais_launch_modal_dismissed(ctx);
                 });
                 self.focus_active_tab(ctx);
                 ctx.notify();
@@ -16735,7 +16735,7 @@ impl Workspace {
         ctx.notify();
     }
 
-    // Zap:删除 open_shared_objects_creation_denied_modal(云端 Drive 配额拒绝弹窗)
+    // Dais:删除 open_shared_objects_creation_denied_modal(云端 Drive 配额拒绝弹窗)
 
     /// Opens the workflow modal in the provided space and folder with no existing content (i.e. a new workflow modal).
     fn open_workflow_modal(
@@ -16753,7 +16753,7 @@ impl Workspace {
         let owner = match space {
             Space::Team { team_uid } => {
                 if !UserWorkspaces::has_capacity_for_shared_workflows(team_uid, ctx, 1) {
-                    // Zap:云端配额拒绝弹窗已删除,直接 return
+                    // Dais:云端配额拒绝弹窗已删除,直接 return
                     return;
                 }
 
@@ -16784,7 +16784,7 @@ impl Workspace {
     fn open_workflow_with_existing(
         &mut self,
         workflow_id: SyncId,
-        settings: &ZapDriveObjectSettings,
+        settings: &DaisDriveObjectSettings,
         ctx: &mut ViewContext<Self>,
     ) {
         let source = WorkflowOpenSource::Existing(workflow_id);
@@ -16804,7 +16804,7 @@ impl Workspace {
         };
         self.open_workflow_in_pane(
             &source,
-            &ZapDriveObjectSettings::default(),
+            &DaisDriveObjectSettings::default(),
             WorkflowViewMode::Create,
             ctx,
         );
@@ -16825,7 +16825,7 @@ impl Workspace {
         };
         self.open_workflow_in_pane(
             &source,
-            &ZapDriveObjectSettings::default(),
+            &DaisDriveObjectSettings::default(),
             WorkflowViewMode::Create,
             ctx,
         );
@@ -17051,7 +17051,7 @@ impl Workspace {
                         .left_panel_views
                         .first()
                         .copied()
-                        .unwrap_or(ToolPanelView::ZapDrive)
+                        .unwrap_or(ToolPanelView::DaisDrive)
                     {
                         ToolPanelView::ProjectExplorer => {
                             crate::t!("workspace-left-panel-project-explorer")
@@ -17059,7 +17059,7 @@ impl Workspace {
                         ToolPanelView::GlobalSearch { .. } => {
                             crate::t!("workspace-left-panel-global-search")
                         }
-                        ToolPanelView::ZapDrive => crate::t!("workspace-left-panel-warp-drive"),
+                        ToolPanelView::DaisDrive => crate::t!("workspace-left-panel-warp-drive"),
                         ToolPanelView::ConversationListView => {
                             crate::t!("workspace-left-panel-agent-conversations")
                         }
@@ -17120,7 +17120,7 @@ impl Workspace {
                 .left_panel_views
                 .first()
                 .copied()
-                .unwrap_or(ToolPanelView::ZapDrive)
+                .unwrap_or(ToolPanelView::DaisDrive)
             {
                 ToolPanelView::ProjectExplorer => {
                     crate::t!("workspace-left-panel-project-explorer")
@@ -17128,7 +17128,7 @@ impl Workspace {
                 ToolPanelView::GlobalSearch { .. } => {
                     crate::t!("workspace-left-panel-global-search")
                 }
-                ToolPanelView::ZapDrive => crate::t!("workspace-left-panel-warp-drive"),
+                ToolPanelView::DaisDrive => crate::t!("workspace-left-panel-warp-drive"),
                 ToolPanelView::ConversationListView => {
                     crate::t!("workspace-left-panel-agent-conversations")
                 }
@@ -17384,7 +17384,7 @@ impl Workspace {
             .is_user_web_anonymous_user()
             .unwrap_or_default();
 
-        // Simplified mode for viewing Zap Drive objects, shared sessions, or conversation transcripts on WASM
+        // Simplified mode for viewing Dais Drive objects, shared sessions, or conversation transcripts on WASM
         #[cfg(target_family = "wasm")]
         if let Some(content_type) = self.get_simplified_wasm_tab_bar_content(ctx) {
             // Use MainAxisAlignment::SpaceBetween and expand to fill width
@@ -17393,10 +17393,10 @@ impl Workspace {
                 .with_main_axis_size(MainAxisSize::Max);
             let bg_color = blended_colors::neutral_1(appearance.theme());
 
-            // Left: Zap logo - clickable to link to warp.dev
+            // Left: Dais logo - clickable to link to warp.dev
             let warp_logo = Hoverable::new(self.mouse_states.warp_logo.clone(), |_state| {
                 ConstrainedBox::new(
-                    warp_core::ui::Icon::Zap
+                    warp_core::ui::Icon::Dais
                         .to_warpui_icon(appearance.theme().foreground())
                         .finish(),
                 )
@@ -17851,7 +17851,7 @@ impl Workspace {
                     .finish(),
             );
         } else {
-            // 去中心化分支:不再渲染 Zap Essentials(灯泡)按钮,只保留设置齿轮。
+            // 去中心化分支:不再渲染 Dais Essentials(灯泡)按钮,只保留设置齿轮。
             target.add_child(
                 Container::new(self.render_settings_button(appearance))
                     .with_margin_left(TAB_BAR_PADDING_LEFT)
@@ -20048,7 +20048,7 @@ impl Workspace {
     fn process_updated_sync_state(&self, ctx: &mut ViewContext<Self>) {
         // If there is an active terminal, return a sync event that all
         // other synced terminals should apply to match it.
-        // If there is no active terminal (like when all Zap windows are
+        // If there is no active terminal (like when all Dais windows are
         // minimized), return an event to start syncing.
         let sync_event = self
             .active_tab_pane_group()
@@ -20097,8 +20097,8 @@ impl Workspace {
         self.tab_views().map(|tab| tab.id())
     }
 
-    fn focus_zap_launch_modal(&mut self, ctx: &mut ViewContext<Self>) {
-        ctx.focus(&self.zap_launch_modal);
+    fn focus_dais_launch_modal(&mut self, ctx: &mut ViewContext<Self>) {
+        ctx.focus(&self.dais_launch_modal);
     }
 
     fn open_left_panel_view(&mut self, action: &LeftPanelAction, ctx: &mut ViewContext<Self>) {
@@ -20175,7 +20175,7 @@ impl Workspace {
         });
     }
 
-    /// Opens a given URL in the desktop Zap app if installed, or redirects to download page.
+    /// Opens a given URL in the desktop Dais app if installed, or redirects to download page.
     #[cfg(target_family = "wasm")]
     fn open_link_on_desktop(&mut self, url: &Url, ctx: &mut ViewContext<Self>) {
         use crate::settings::app_installation_detection::{
@@ -20659,7 +20659,7 @@ impl TypedActionView for Workspace {
                             owner: personal_drive,
                             initial_folder_id: None,
                         },
-                        &ZapDriveObjectSettings::default(),
+                        &DaisDriveObjectSettings::default(),
                         ctx,
                         true,
                     );
@@ -20689,7 +20689,7 @@ impl TypedActionView for Workspace {
                     };
                     self.open_workflow_in_pane(
                         &source,
-                        &ZapDriveObjectSettings::default(),
+                        &DaisDriveObjectSettings::default(),
                         WorkflowViewMode::Create,
                         ctx,
                     );
@@ -20713,9 +20713,9 @@ impl TypedActionView for Workspace {
                 self.finish_tab_rename(ctx);
                 self.current_workspace_state.is_tab_being_dragged = true;
             }
-            ZapDrive => {
+            DaisDrive => {
                 if WarpDriveSettings::is_warp_drive_enabled(ctx) {
-                    self.open_left_panel_view(&LeftPanelAction::ZapDrive, ctx);
+                    self.open_left_panel_view(&LeftPanelAction::DaisDrive, ctx);
                 }
             }
             ToggleLeftPanel => {
@@ -20753,7 +20753,7 @@ impl TypedActionView for Workspace {
                             ctx
                         );
                     } else if warp_drive_active {
-                        // Tools panel opened with Zap Drive as the active view
+                        // Tools panel opened with Dais Drive as the active view
                         send_telemetry_from_ctx!(
                             TelemetryEvent::WarpDriveOpened {
                                 source: WarpDriveSource::LeftPanelToolbelt,
@@ -21234,7 +21234,7 @@ impl TypedActionView for Workspace {
                 });
                 self.open_workflow_with_existing(
                     *workflow_id,
-                    &ZapDriveObjectSettings::default(),
+                    &DaisDriveObjectSettings::default(),
                     ctx,
                 );
             }
@@ -21351,7 +21351,7 @@ impl TypedActionView for Workspace {
                     ctx
                 );
             }
-            // Zap Wave 7-3:`OpenEnvironmentManagementPane` WorkspaceAction handler 随
+            // Dais Wave 7-3:`OpenEnvironmentManagementPane` WorkspaceAction handler 随
             // ambient-agent UI 子系统物理删。
             OpenAIDocumentPane {
                 document_id,
@@ -21460,7 +21460,7 @@ impl TypedActionView for Workspace {
             }
             OpenNotebook { id } => self.open_notebook(
                 &NotebookSource::Existing(*id),
-                &ZapDriveObjectSettings::default(),
+                &DaisDriveObjectSettings::default(),
                 ctx,
                 true,
             ),
@@ -21595,7 +21595,7 @@ impl TypedActionView for Workspace {
                     };
                     self.open_workflow_in_pane(
                         &source,
-                        &ZapDriveObjectSettings::default(),
+                        &DaisDriveObjectSettings::default(),
                         WorkflowViewMode::Create,
                         ctx,
                     );
@@ -21621,32 +21621,32 @@ impl TypedActionView for Workspace {
                 log::info!("AWS Bedrock login banner dismissed state has been reset");
             }
             #[cfg(debug_assertions)]
-            OpenZapLaunchModal => {
-                // Force open the Zap launch modal for debugging
+            OpenDaisLaunchModal => {
+                // Force open the Dais launch modal for debugging
                 OneTimeModalModel::handle(ctx).update(ctx, |model, ctx| {
-                    model.force_open_zap_launch_modal(ctx);
+                    model.force_open_dais_launch_modal(ctx);
                 });
                 ctx.notify();
             }
             #[cfg(debug_assertions)]
-            ResetZapLaunchModalState => {
-                // Reset the Zap launch modal dismissed state for debugging
+            ResetDaisLaunchModalState => {
+                // Reset the Dais launch modal dismissed state for debugging
                 let old_value = *GeneralSettings::as_ref(ctx)
-                    .did_check_to_trigger_zap_launch_modal
+                    .did_check_to_trigger_dais_launch_modal
                     .value();
                 GeneralSettings::handle(ctx).update(ctx, |settings, ctx| {
                     if let Err(e) = settings
-                        .did_check_to_trigger_zap_launch_modal
+                        .did_check_to_trigger_dais_launch_modal
                         .set_value(false, ctx)
                     {
-                        log::warn!("Failed to reset Zap launch modal dismissed setting: {e}");
+                        log::warn!("Failed to reset Dais launch modal dismissed setting: {e}");
                     }
                 });
                 let new_value = *GeneralSettings::as_ref(ctx)
-                    .did_check_to_trigger_zap_launch_modal
+                    .did_check_to_trigger_dais_launch_modal
                     .value();
                 log::info!(
-                    "Zap launch modal state: old={}, new={}, feature_flag_enabled={}",
+                    "Dais launch modal state: old={}, new={}, feature_flag_enabled={}",
                     old_value,
                     new_value,
                     FeatureFlag::ZapLaunchModal.is_enabled()
@@ -21756,8 +21756,8 @@ impl TypedActionView for Workspace {
             ToggleWarpDrive => {
                 if WarpDriveSettings::is_warp_drive_enabled(ctx) {
                     let is_showing =
-                        self.left_panel_view.as_ref(ctx).active_view() == ToolPanelView::ZapDrive;
-                    self.toggle_left_panel_view(&LeftPanelAction::ZapDrive, is_showing, ctx);
+                        self.left_panel_view.as_ref(ctx).active_view() == ToolPanelView::DaisDrive;
+                    self.toggle_left_panel_view(&LeftPanelAction::DaisDrive, is_showing, ctx);
                 }
             }
             ToggleSshManager => {
@@ -22140,7 +22140,7 @@ impl View for Workspace {
 
         let tab_bar_mode = self.tab_bar_mode(app);
 
-        // For WASM simplified tab bar views (Zap Drive objects, shared sessions, conversation transcripts),
+        // For WASM simplified tab bar views (Dais Drive objects, shared sessions, conversation transcripts),
         // we render the tab bar outside of panels so that the details panel only affects content below the tab bar.
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {
@@ -22886,8 +22886,8 @@ impl View for Workspace {
         let one_time_modal_model = OneTimeModalModel::as_ref(app);
         let should_show_modal = one_time_modal_model.target_window_id() == Some(self.window_id);
 
-        if should_show_modal && one_time_modal_model.is_zap_launch_modal_open() {
-            stack.add_child(ChildView::new(&self.zap_launch_modal).finish());
+        if should_show_modal && one_time_modal_model.is_dais_launch_modal_open() {
+            stack.add_child(ChildView::new(&self.dais_launch_modal).finish());
         }
 
         if let Some(hoa_flow) = &self.hoa_onboarding_flow {

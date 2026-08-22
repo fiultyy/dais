@@ -1,5 +1,5 @@
 -- Orchestration core: 6 tables ported from Orca orchestration module.
--- Adapted from TS TEXT-timestamp schema to zap TIMESTAMP convention.
+-- Adapted from TS TEXT-timestamp schema to dais TIMESTAMP convention.
 -- Tables: runs, messages, deliveries, worker_dispatches, tasks, dispatch_contexts.
 
 -- ── runs ──────────────────────────────────────────────────────────────────

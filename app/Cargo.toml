@@ -207,7 +207,7 @@ warp_core.workspace = true
 warp_editor.workspace = true
 warp_js = { workspace = true, optional = true }
 warp_ssh_manager.workspace = true
-zap_sftp = { path = "../crates/zap_sftp" }
+dais_sftp = { path = "../crates/dais_sftp" }
 warp_util.workspace = true
 warpui = { workspace = true, features = ["schema_gen", "settings_value"] }
 voice_input = { workspace = true, optional = true }
@@ -236,7 +236,7 @@ rmcp = { workspace = true, features = ["client"] }
 warp_isolation_platform.workspace = true
 warp_ripgrep.workspace = true
 warp_managed_secrets.workspace = true
-zap_sync = { path = "../crates/zap_sync" }
+dais_sync = { path = "../crates/dais_sync" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block.workspace = true

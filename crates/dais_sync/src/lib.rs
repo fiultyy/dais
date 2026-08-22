@@ -1,4 +1,4 @@
-//! zap_sync - 云同步通用基础设施
+//! dais_sync - 云同步通用基础设施
 //!
 // author: logic
 // date: 2026-05-24

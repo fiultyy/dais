@@ -65,7 +65,7 @@ use crate::workflows::local_workflows::LocalWorkflows;
 use crate::ObjectActions;
 use crate::{experiments, workspace, GlobalResourceHandlesProvider};
 
-// Zap(本地化,Phase 5):`PreferencesSyncer` 已物理删除。
+// Dais(本地化,Phase 5):`PreferencesSyncer` 已物理删除。
 
 use crate::terminal::shared_session::protocol::SessionId;
 use ai::project_context::model::ProjectContextModel;
@@ -113,7 +113,7 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(NotebookKeybindings::new);
     app.add_singleton_model(TerminalKeybindings::new);
     app.add_singleton_model(NotebookManager::mock);
-    // Zap(本地化,Phase 5):`PreferencesSyncer` 已物理删除,test singleton 不再需要。
+    // Dais(本地化,Phase 5):`PreferencesSyncer` 已物理删除,test singleton 不再需要。
     app.add_singleton_model(|_| BlocklistAIHistoryModel::new_for_test());
     app.add_singleton_model(|_| CLIAgentSessionsModel::new());
     // issue #13: Input 构造 InterceptConfigBar 需要该单例。
@@ -121,7 +121,7 @@ fn initialize_app(app: &mut App) {
     // cockpit-instant:TerminalView 事件泵推送 TerminalActivityModel;未注册 panic。
     app.add_singleton_model(crate::terminal::terminal_activity::TerminalActivityModel::new);
     app.add_singleton_model(AgentConversationsModel::new);
-    // Zap:以下单例在生产 app 启动(lib.rs)注册,workspace/AI 构造链订阅;
+    // Dais:以下单例在生产 app 启动(lib.rs)注册,workspace/AI 构造链订阅;
     // 缺注册会在 App::test 里 panic "never registered"。
     app.add_singleton_model(crate::ai::agent_providers::AgentProviderSecrets::new);
     app.add_singleton_model(crate::settings::network_secrets::ProxyCredentials::new);
@@ -145,7 +145,7 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(|ctx| {
         AIExecutionProfilesModel::new(&crate::LaunchMode::new_for_unit_test(), ctx)
     });
-    // Zap:RepoOutlines 已删除,不再注册。
+    // Dais:RepoOutlines 已删除,不再注册。
     #[cfg(feature = "voice_input")]
     app.add_singleton_model(voice_input::VoiceInput::new);
     app.add_singleton_model(BlocklistAIPermissions::new);
@@ -359,7 +359,7 @@ fn test_tab_split_zone_edge_bands_win_left_right_first() {
 /// RAII guard that removes tab config TOML files whose name starts with
 /// `prefix` from `~/.warp/tab_configs/` on drop. Because `Drop` runs even
 /// when a test panics, this prevents stale worktree configs from leaking
-/// into Zap dev.
+/// into Dais dev.
 #[cfg(feature = "local_fs")]
 struct TabConfigCleanupGuard {
     prefix: &'static str,
@@ -1204,7 +1204,7 @@ fn test_notebook_pane_tracking() {
                     owner: Owner::mock_current_user(),
                     initial_folder_id: None,
                 },
-                &ZapDriveObjectSettings::default(),
+                &DaisDriveObjectSettings::default(),
                 ctx,
                 true,
             );
@@ -1244,7 +1244,7 @@ fn test_notebook_pane_tracking() {
             // Re-opening the notebook should not create a new view.
             workspace.open_notebook(
                 &NotebookSource::Existing(notebook_id),
-                &ZapDriveObjectSettings::default(),
+                &DaisDriveObjectSettings::default(),
                 ctx,
                 true,
             );
@@ -1361,7 +1361,7 @@ fn test_open_or_toggle_warp_drive() {
 
         let workspace = mock_workspace(&mut app);
         workspace.update(&mut app, |workspace, ctx| {
-            // First, unconditionally open Zap Drive as a system action. WD should be open and welcome tips should not have opening zap drive.
+            // First, unconditionally open Dais Drive as a system action. WD should be open and welcome tips should not have opening dais drive.
             workspace.open_or_toggle_warp_drive(
                 false, /* toggle */
                 false, /* explicit_user_action */
@@ -1369,18 +1369,18 @@ fn test_open_or_toggle_warp_drive() {
             );
             assert!(
                 workspace.current_workspace_state.is_warp_drive_open,
-                "Zap Drive should be open"
+                "Dais Drive should be open"
             );
             assert!(
                 !workspace
                     .tips_completed
                     .as_ref(ctx)
                     .features_used
-                    .contains(&Tip::Action(TipAction::ZapDrive)),
-                "Zap drive welcome tip should not be completed"
+                    .contains(&Tip::Action(TipAction::DaisDrive)),
+                "Dais drive welcome tip should not be completed"
             );
 
-            // Next, toggle zap drive as a user action. WD should be closed and tip should not be filled out.
+            // Next, toggle dais drive as a user action. WD should be closed and tip should not be filled out.
             workspace.open_or_toggle_warp_drive(
                 true, /* toggle */
                 true, /* explicit_user_action */
@@ -1388,18 +1388,18 @@ fn test_open_or_toggle_warp_drive() {
             );
             assert!(
                 !workspace.current_workspace_state.is_warp_drive_open,
-                "Zap Drive should be closed"
+                "Dais Drive should be closed"
             );
             assert!(
                 !workspace
                     .tips_completed
                     .as_ref(ctx)
                     .features_used
-                    .contains(&Tip::Action(TipAction::ZapDrive)),
-                "Zap drive welcome tip should not be completed"
+                    .contains(&Tip::Action(TipAction::DaisDrive)),
+                "Dais drive welcome tip should not be completed"
             );
 
-            // Finally, toggle zap drive again as a user action. WD should be open and tip filled out.
+            // Finally, toggle dais drive again as a user action. WD should be open and tip filled out.
             workspace.open_or_toggle_warp_drive(
                 true, /* toggle */
                 true, /* explicit_user_action */
@@ -1407,15 +1407,15 @@ fn test_open_or_toggle_warp_drive() {
             );
             assert!(
                 workspace.current_workspace_state.is_warp_drive_open,
-                "Zap Drive should be open"
+                "Dais Drive should be open"
             );
             assert!(
                 workspace
                     .tips_completed
                     .as_ref(ctx)
                     .features_used
-                    .contains(&Tip::Action(TipAction::ZapDrive)),
-                "Zap drive welcome tip should not be completed"
+                    .contains(&Tip::Action(TipAction::DaisDrive)),
+                "Dais drive welcome tip should not be completed"
             );
         });
     });
@@ -1504,7 +1504,7 @@ fn test_switch_focus_panels() {
         workspace.update(&mut app, |view, ctx| {
             assert!(
                 view.left_panel_view.is_self_or_child_focused(ctx),
-                "Expected Zap Drive panel to be focused"
+                "Expected Dais Drive panel to be focused"
             );
         });
 

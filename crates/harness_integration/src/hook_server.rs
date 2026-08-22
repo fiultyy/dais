@@ -17,7 +17,8 @@
 //!
 //! 所有 `/hooks/*` 端点要求 token 校验，支持三种方式（任一匹配即通过）：
 //! - `Authorization: Bearer <token>` 头
-//! - `x-zap-hook-token: <token>` 头
+//! - `x-dais-hook-token: <token>` 头（首选）
+//! - `x-zap-hook-token: <token>` 头（回落兼容）
 //! - `?token=<token>` query 参数
 //!
 //! `/health` 端点不鉴权。
@@ -86,7 +87,17 @@ async fn auth_middleware(
         }
     }
 
-    // 2. x-zap-hook-token: <token>
+    // 2. x-dais-hook-token (preferred) / x-zap-hook-token (fallback)
+    // zap-purge: legacy wire header, kept for compat
+    if !found {
+        if let Some(h) = headers.get("x-dais-hook-token") {
+            if let Ok(t) = h.to_str() {
+                if t == expected {
+                    found = true;
+                }
+            }
+        }
+    }
     if !found {
         if let Some(h) = headers.get("x-zap-hook-token") {
             if let Ok(t) = h.to_str() {

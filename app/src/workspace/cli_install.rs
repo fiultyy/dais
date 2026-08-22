@@ -92,7 +92,7 @@ fn remove_file_with_admin(target: &Path) -> Result<()> {
 /// Install the CLI by creating a symlink (channel-specific target)
 ///
 /// This function:
-/// 1. Detects the current Zap channel and finds the appropriate binary
+/// 1. Detects the current Dais channel and finds the appropriate binary
 /// 2. Attempts to create a symlink without admin privileges first
 /// 3. Falls back to prompting for admin privileges if needed
 /// 4. Handles existing installations and edge cases

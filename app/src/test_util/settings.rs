@@ -47,7 +47,7 @@ pub fn initialize_settings_for_tests_with_mode(
     AccessibilitySettings::register(app);
     app.update(AISettings::register_and_subscribe_to_events);
     AliasExpansionSettings::register(app);
-    // Zap Wave 7-3:`AmbientAgentSettings` 随 ambient-agent UI 子系统物理删。
+    // Dais Wave 7-3:`AmbientAgentSettings` 随 ambient-agent UI 子系统物理删。
     AppEditorSettings::register(app);
     BlockVisibilitySettings::register(app);
     BlockListSettings::register(app);
@@ -86,7 +86,7 @@ pub fn initialize_settings_for_tests_with_mode(
     });
     SessionSettings::register(app);
     SshSettings::register(app);
-    // Zap:以下 group 在生产 register_all_settings(settings/init.rs)注册,
+    // Dais:以下 group 在生产 register_all_settings(settings/init.rs)注册,
     // 测试初始化漏掉会让 workspace/AI 构造链 panic "never registered"。
     crate::settings::language::LanguageSettings::register(app);
     crate::settings::network::NetworkSettings::register(app);

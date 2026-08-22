@@ -159,7 +159,7 @@ fn error_to_user_message(error: &rmcp::RmcpError) -> String {
     }
 }
 
-/// An MCP server integration that Zap ships with bundled skills for.
+/// An MCP server integration that Dais ships with bundled skills for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum McpIntegration {
     Figma,
@@ -773,7 +773,7 @@ impl TemplatableMCPServerManager {
             // (repo root for project-scoped configs, ~/.warp/ or ~ for globals). This
             // matches user expectations for repo-relative commands in `.mcp.json`.
             // Cloud-templated installations (lookup returns None) are unaffected and
-            // continue to inherit Zap's process cwd.
+            // continue to inherit Dais's process cwd.
             if cli_server.cwd_parameter.is_none() {
                 if let Some(spawn_root) =
                     FileBasedMCPManager::as_ref(ctx).spawn_root_for_installation(installation_uuid)

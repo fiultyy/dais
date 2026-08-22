@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# 在远端主机安装 Zap CLI 二进制,用于 remote-server-proxy。
+# 在远端主机安装 Dais CLI 二进制,用于 remote-server-proxy。
 #
 # setup.rs 会在运行时替换这些占位符:
 #   {download_base_url}     - 例如 https://github.com/zerx-lab/warp/releases/latest/download
-#   {install_dir}           - 例如 ~/.zap/remote-server
+#   {install_dir}           - 例如 ~/.zap/remote-server  # zap-purge: legacy install dir, kept for compat
 #   {binary_name}           - 例如 dais
 #   {version_suffix}        - 例如 -v0.2026...,没有 release tag 时为空
 #   {staging_tarball_path}  - SCP fallback 预上传 tarball 路径,常规下载路径为空
@@ -43,9 +43,9 @@ if [ -n "$staging_tarball_path" ]; then
   case "$staging_tarball_path" in
     "~"|"~/"*) staging_tarball_path="${HOME}${staging_tarball_path#\~}" ;;
   esac
-  mv "$staging_tarball_path" "$tmpdir/zap.tar.gz"
+  mv "$staging_tarball_path" "$tmpdir/zap.tar.gz"  # zap-purge: matches zap_release.yml artifact name
 else
-  url="{download_base_url}/zap-$os_name-$arch_name.tar.gz"
+  url="{download_base_url}/zap-$os_name-$arch_name.tar.gz"  # zap-purge: matches zap_release.yml artifact name
   if command -v curl >/dev/null 2>&1; then
     curl -fSL --connect-timeout 15 "$url" -o "$tmpdir/zap.tar.gz"
   elif command -v wget >/dev/null 2>&1; then

@@ -22,11 +22,11 @@ pub enum SyncPlatformSetting {
 }
 
 impl SyncPlatformSetting {
-    /// 转换为 zap_sync::SyncPlatform
-    pub fn to_sync_platform(self) -> zap_sync::SyncPlatform {
+    /// 转换为 dais_sync::SyncPlatform
+    pub fn to_sync_platform(self) -> dais_sync::SyncPlatform {
         match self {
-            Self::GitHub => zap_sync::SyncPlatform::GitHub,
-            Self::Gitee => zap_sync::SyncPlatform::Gitee,
+            Self::GitHub => dais_sync::SyncPlatform::GitHub,
+            Self::Gitee => dais_sync::SyncPlatform::Gitee,
         }
     }
 
@@ -83,11 +83,11 @@ mod tests {
     fn test_sync_platform_to_sync() {
         assert_eq!(
             SyncPlatformSetting::GitHub.to_sync_platform(),
-            zap_sync::SyncPlatform::GitHub
+            dais_sync::SyncPlatform::GitHub
         );
         assert_eq!(
             SyncPlatformSetting::Gitee.to_sync_platform(),
-            zap_sync::SyncPlatform::Gitee
+            dais_sync::SyncPlatform::Gitee
         );
     }
 

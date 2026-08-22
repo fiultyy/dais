@@ -3784,6 +3784,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "dais_sftp"
+version = "0.1.0"
+dependencies = [
+ "openssl-sys",
+ "smol",
+ "ssh2",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "dais_sync"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "anyhow",
+ "base64 0.22.1",
+ "chrono",
+ "log",
+ "reqwest 0.12.28",
+ "rustls 0.23.40",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14937,6 +14966,8 @@ dependencies = [
  "csv",
  "ctor",
  "cvt",
+ "dais_sftp",
+ "dais_sync",
  "dashmap",
  "deltae",
  "derivative",
@@ -15150,8 +15181,6 @@ dependencies = [
  "winit",
  "winreg",
  "x11rb",
- "zap_sftp",
- "zap_sync",
  "zbus 5.16.0",
  "zeroize",
 ]
@@ -15508,6 +15537,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "command",
+ "dais_sync",
  "diesel",
  "diesel_migrations",
  "dirs 6.0.0",
@@ -15525,7 +15555,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "uuid",
- "zap_sync",
  "zeroize",
 ]
 
@@ -17353,35 +17382,6 @@ dependencies = [
  "quote",
  "syn 2.0.117",
  "synstructure",
-]
-
-[[package]]
-name = "zap_sftp"
-version = "0.1.0"
-dependencies = [
- "openssl-sys",
- "smol",
- "ssh2",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "zap_sync"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "anyhow",
- "base64 0.22.1",
- "chrono",
- "log",
- "reqwest 0.12.28",
- "rustls 0.23.40",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "thiserror 2.0.18",
- "tokio",
 ]
 
 [[package]]

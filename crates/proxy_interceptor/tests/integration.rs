@@ -49,12 +49,12 @@ async fn proxy_passthrough_and_capture() {
     });
 
     // 2. 启动 proxy
-    std::env::set_var("ZAP_TEST_API_KEY", "sk-test-123");
+    std::env::set_var("DAIS_TEST_API_KEY", "sk-test-123");
     let upstream = UpstreamConfig {
         api_base: format!("http://127.0.0.1:{upstream_port}"),
         auth_header: "x-api-key".into(),
         auth_prefix: String::new(),
-        api_key_env: "ZAP_TEST_API_KEY".into(),
+        api_key_env: "DAIS_TEST_API_KEY".into(),
         request_path: "/v1/messages".into(),
         response_format: ResponseFormat::AnthropicSSE,
     };
@@ -70,7 +70,7 @@ async fn proxy_passthrough_and_capture() {
     let resp = client
         .post(format!("https://127.0.0.1:{}/v1/messages", handle.port))
         .header("content-type", "application/json")
-        // 客户端自带凭据(T5 透明管道: zap 不注不剥, 原样转发)
+        // 客户端自带凭据(T5 透明管道: dais 不注不剥, 原样转发)
         .header("x-api-key", "sk-test-123")
         .body(r#"{"model":"claude-3","stream":true}"#)
         .send()

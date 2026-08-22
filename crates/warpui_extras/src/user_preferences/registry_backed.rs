@@ -9,9 +9,9 @@ use windows_result::HRESULT;
 
 pub struct RegistryBackedPreferences {
     app_key_path: String,
-    /// 缓存 `HKCU\Software\Zap\<channel>` 注册表 Key 句柄。
+    /// 缓存 `HKCU\Software\Zap\<channel>` 注册表 Key 句柄。  // zap-purge: legacy registry path, kept for compat
     ///
-    /// Zap 启动时会顺序调用 ~100 个 setting 的 `read_value`,
+    /// Dais 启动时会顺序调用 ~100 个 setting 的 `read_value`,
     /// 每次都走 `CURRENT_USER.create(...)` 打开/创建 Key 是 ~3ms 的同步系统调用,
     /// 累计 300ms+(占冷启动 `READ_USER_DEFAULTS_AND_INITIALIZE_SETTINGS` 阶段大头)。
     /// 这里把第一次成功打开的 Key 缓存下来,后续读直接复用,省掉 N-1 次系统调用。
@@ -22,7 +22,7 @@ pub struct RegistryBackedPreferences {
     cached_key: Mutex<Option<Key>>,
 }
 
-static WARP_REGISTRY_BASE_PATH: &str = "Software\\Zap\\";
+static WARP_REGISTRY_BASE_PATH: &str = "Software\\Zap\\";  // zap-purge: legacy registry base path, kept for compat
 pub const KEY_NOT_FOUND_ERR: HRESULT = HRESULT::from_win32(0x80070002);
 
 impl RegistryBackedPreferences {
@@ -43,7 +43,7 @@ impl RegistryBackedPreferences {
         }
     }
 
-    /// 用回调操作缓存的 Zap 注册表 Key。第一次会 `CURRENT_USER.create(...)`,
+    /// 用回调操作缓存的 Dais 注册表 Key。第一次会 `CURRENT_USER.create(...)`,
     /// 后续直接复用。如果 Key 锁中毒(之前 panic),fallback 到一次性 create
     /// 而不缓存 —— 行为退化但不会进一步 panic。
     fn with_warp_registry<R>(
@@ -57,7 +57,7 @@ impl RegistryBackedPreferences {
                 let key = CURRENT_USER
                     .create(self.app_key_path.clone())
                     .map_err(|e| {
-                        log::error!("unable to access Zap app key in Windows Registry: {e:#}");
+                        log::error!("unable to access Dais app key in Windows Registry: {e:#}");
                         super::Error::IoError(io::Error::from(e))
                     })?;
                 return f(&key);
@@ -68,7 +68,7 @@ impl RegistryBackedPreferences {
             let key = CURRENT_USER
                 .create(self.app_key_path.clone())
                 .map_err(|e| {
-                    log::error!("unable to access Zap app key in Windows Registry: {e:#}");
+                    log::error!("unable to access Dais app key in Windows Registry: {e:#}");
                     super::Error::IoError(io::Error::from(e))
                 })?;
             *guard = Some(key);

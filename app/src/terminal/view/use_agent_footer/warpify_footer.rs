@@ -37,7 +37,7 @@ impl WarpifyFooterView {
                 crate::t!("terminal-warpify-subshell"),
                 AgentFooterButtonTheme::new(None),
             )
-            .with_icon(Icon::Zap)
+            .with_icon(Icon::Dais)
             .with_size(button_size)
             .with_tooltip(crate::t!("terminal-warpify-subshell-tooltip"))
             .with_tooltip_alignment(TooltipAlignment::Left)

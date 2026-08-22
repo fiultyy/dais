@@ -62,19 +62,19 @@ pub trait SftpBackend: Send + Sync {
 // LiveSftpBackend — 委托给真实 SFTP 连接
 // ============================================================
 
-/// 真实 SFTP 后端，包装 zap_sftp::Sftp
+/// 真实 SFTP 后端，包装 dais_sftp::Sftp
 pub struct LiveSftpBackend {
-    sftp: zap_sftp::Sftp,
+    sftp: dais_sftp::Sftp,
 }
 
 impl LiveSftpBackend {
     /// 从 Sftp 实例创建后端
-    pub fn new(sftp: zap_sftp::Sftp) -> Self {
+    pub fn new(sftp: dais_sftp::Sftp) -> Self {
         Self { sftp }
     }
 
     /// 获取内部 Sftp 引用（用于 connect_to_server 中 realpath 调用）
-    pub fn inner(&self) -> &zap_sftp::Sftp {
+    pub fn inner(&self) -> &dais_sftp::Sftp {
         &self.sftp
     }
 }
@@ -107,10 +107,10 @@ impl SftpBackend for LiveSftpBackend {
     fn stat(&self, path: &Path) -> Result<FileEntry, SftpOpsError> {
         let metadata = self.sftp.stat(path)?;
         let file_type = match metadata.file_type {
-            zap_sftp::types::FileType::Dir => FileEntryType::Directory,
-            zap_sftp::types::FileType::File => FileEntryType::File,
-            zap_sftp::types::FileType::Symlink => FileEntryType::Symlink,
-            zap_sftp::types::FileType::Other => FileEntryType::Other,
+            dais_sftp::types::FileType::Dir => FileEntryType::Directory,
+            dais_sftp::types::FileType::File => FileEntryType::File,
+            dais_sftp::types::FileType::Symlink => FileEntryType::Symlink,
+            dais_sftp::types::FileType::Other => FileEntryType::Other,
         };
         let modified = metadata.modified.map(|t| {
             let datetime: chrono::DateTime<chrono::Local> = t.into();

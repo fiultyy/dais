@@ -3,7 +3,7 @@
 //! 与 [`crate::server::ProxyServer`](TLS 反代, GUI 拦截路径用) 平行:
 //! 入口是常驻、单端口(默认 8787)、明文 — 别名 CLI(`cc-dais`/`omp-dais`/
 //! `pi-dais`)的 base URL 指到这里。前缀即 harness 标识:
-//! - `/cc/*`  → ClaudeCode 出口(显式覆盖 ZAP_UPSTREAM_BASE > 用户
+//! - `/cc/*`  → ClaudeCode 出口(显式覆盖 DAIS_UPSTREAM_BASE / zap-purge: ZAP_UPSTREAM_BASE fallback > 用户
 //!   `~/.claude/settings.json` 的 env.ANTHROPIC_BASE_URL > 官方默认)
 //! - `/omp/*`、`/pi/*` → `UpstreamConfig::from_omp_config()`
 //!   (`~/.config/dais/omp-upstream.json`, 编排侧写, 每请求热读)
@@ -41,12 +41,15 @@ struct EntryState {
     client: reqwest::Client,
 }
 
-/// `/cc` 出口解析: 显式覆盖(env `ZAP_UPSTREAM_BASE`) > 用户 settings
+/// `/cc` 出口解析: 显式覆盖(env `DAIS_UPSTREAM_BASE`, zap-purge: `ZAP_UPSTREAM_BASE` fallback) > 用户 settings
 /// base > 官方默认。现有 [`UpstreamConfig::resolve`] 三级结构不动, 在
 /// 入口侧组合(用户 settings base 作为 explicit 传入, env 级提前短路)。
 fn resolve_cc() -> Result<UpstreamConfig> {
-    if std::env::var("ZAP_UPSTREAM_BASE").is_ok() {
-        // resolve 内部: explicit(None) → env ZAP_UPSTREAM_BASE → 默认。
+    // zap-purge: ZAP_UPSTREAM_BASE fallback for transition
+    let has_env = std::env::var("DAIS_UPSTREAM_BASE").is_ok()
+        || std::env::var("ZAP_UPSTREAM_BASE").is_ok();
+    if has_env {
+        // resolve 内部: explicit(None) → env DAIS/ZAP_UPSTREAM_BASE → 默认。
         return UpstreamConfig::resolve(HarnessType::ClaudeCode, None);
     }
     UpstreamConfig::resolve(HarnessType::ClaudeCode, user_claude_base_url().as_deref())

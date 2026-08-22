@@ -34,7 +34,7 @@ lazy_static! {
     // Regex to match <block:[block_id]> patterns
     pub static ref BLOCK_CONTEXT_ATTACHMENT_REGEX: Regex = Regex::new(r"<block:([^>]+)>")
         .expect("Block context attachment regex should be parsed");
-    // Regex to match zap drive objects inserted via at-context. Ex: <notebook:[workflow_id]>
+    // Regex to match dais drive objects inserted via at-context. Ex: <notebook:[workflow_id]>
     pub static ref DRIVE_OBJECT_ATTACHMENT_REGEX: Regex = Regex::new(r"<(workflow|notebook|plan|rule):([^>]+)>")
         .expect("Drive object attachment regex should be parsed");
     // Regex to match <change:filename:line_start-line_end> patterns

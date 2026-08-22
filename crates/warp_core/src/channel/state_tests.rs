@@ -1,6 +1,6 @@
 use super::ChannelState;
 
-// Zap Wave 5-5：`derive_http_origin_from_ws_url` 调用 + 3 个 wss/ws 路径测试随
+// Dais Wave 5-5：`derive_http_origin_from_ws_url` 调用 + 3 个 wss/ws 路径测试随
 // `ChannelState::rtc_http_url()` 一同物理删。
 
 /// `ChannelState::init()` (the static default for OSS builds) must satisfy

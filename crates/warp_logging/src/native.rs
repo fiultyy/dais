@@ -295,7 +295,7 @@ pub struct InlineFile {
 }
 
 /// 默认 zip 文件名(用于"导出到日志目录"流程,以及作为 save-file picker
-/// 的默认文件名)。形如 `zap-20260518-093000.zip`。
+/// 的默认文件名)。形如 `zap-20260518-093000.zip`。  // zap-purge: legacy log filename prefix, kept for compat
 pub fn default_log_bundle_filename() -> String {
     let logfile_name = ChannelState::logfile_name();
     let logfile_stem = logfile_name.strip_suffix(".log").unwrap_or(&logfile_name);
@@ -414,7 +414,7 @@ fn write_log_bundle_zip_inner(zip_path: &Path, extras: &LogBundleExtras) -> Resu
 /// and any older logs for the active instance, written into the active
 /// log directory. Returns the resulting zip path.
 ///
-/// 用于"打包后在文件管理器中显示"的入口(Help 菜单 → View Zap Logs)。
+/// 用于"打包后在文件管理器中显示"的入口(Help 菜单 → View Dais Logs)。
 ///
 /// `extras` 让调用方追加其它诊断产物(MCP 日志、自动更新日志、诊断摘要等);
 /// 任何不存在或无法读取的额外文件都会被跳过并通过 `log::warn!` 记录,

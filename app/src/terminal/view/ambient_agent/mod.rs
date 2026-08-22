@@ -1,5 +1,5 @@
 mod block;
-// Zap Wave 7-2:`first_time_setup` 随 ambient agent UI 物理删。
+// Dais Wave 7-2:`first_time_setup` 随 ambient agent UI 物理删。
 mod footer;
 mod harness_selector;
 #[cfg(not(target_family = "wasm"))]

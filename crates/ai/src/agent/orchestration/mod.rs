@@ -1,6 +1,6 @@
 //! Local orchestration plane — ported from Orca's TypeScript orchestration module.
 //!
-//! Adaptation layers (Orca → zap):
+//! Adaptation layers (Orca → dais):
 //! 1. **DB**: TS node:sqlite (DatabaseSync) → Diesel + SQLite migrations in `crates/persistence/`.
 //! 2. **IPC**: dual-socket NDJSON → tokio mpsc channels (single process).
 //! 3. **Agent comms**: direct DB insertion (SendMessageToAgent proto was severed).

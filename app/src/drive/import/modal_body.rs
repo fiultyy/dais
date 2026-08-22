@@ -87,7 +87,7 @@ pub enum ImportModalBodyEvent {
 pub struct ImportModalBody {
     state: ImportState,
     in_progress_handle: Option<AbortHandle>,
-    // Queue to handle requests to upload objects to zap drive.
+    // Queue to handle requests to upload objects to dais drive.
     // All updates should go through the queue rather than calling
     // UpdateManager directly.
     import_queue: ModelHandle<ImportQueue>,

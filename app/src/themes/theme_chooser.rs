@@ -215,7 +215,7 @@ pub fn init(app: &mut AppContext) {
 }
 
 fn theme_chooser_items(theme_config: &WarpThemeConfig) -> Vec<ThemeChooserItem> {
-    // Zap 去中心化:不再有 referral 概念,所有主题(包括两个原 referral-gated
+    // Dais 去中心化:不再有 referral 概念,所有主题(包括两个原 referral-gated
     // 主题)对本地用户始终可见。
     let mut theme_items: Vec<ThemeChooserItem> = theme_config
         .theme_items()

@@ -1,7 +1,7 @@
 use super::hoa_onboarding;
 use crate::auth::{AuthManager, AuthManagerEvent};
 use crate::channel::{Channel, ChannelState};
-// Zap(本地化,Phase 5):`PreferencesSyncer` 已物理删除。
+// Dais(本地化,Phase 5):`PreferencesSyncer` 已物理删除。
 use crate::settings::CodeSettings;
 use crate::terminal::general_settings::GeneralSettings;
 use settings::Setting as _;
@@ -15,8 +15,8 @@ use warpui::{Entity, ModelContext, SingletonEntity, WindowId};
 /// a modal is currently being shown and automatically triggers the modal when appropriate
 /// conditions are met (e.g., user becomes onboarded).
 pub struct OneTimeModalModel {
-    /// Whether the Zap launch modal is currently being shown.
-    is_zap_launch_modal_open: bool,
+    /// Whether the Dais launch modal is currently being shown.
+    is_dais_launch_modal_open: bool,
     /// Whether the HOA onboarding flow is currently being shown.
     is_hoa_onboarding_open: bool,
     /// The window ID where the currently open one-time modal should be displayed.
@@ -38,17 +38,17 @@ impl OneTimeModalModel {
             } else {
                 GeneralSettings::handle(ctx).update(ctx, |settings, ctx| {
                     if let Err(e) = settings
-                        .did_check_to_trigger_zap_launch_modal
+                        .did_check_to_trigger_dais_launch_modal
                         .set_value(true, ctx)
                     {
-                        log::warn!("Failed to mark Zap launch modal as dismissed: {e}");
+                        log::warn!("Failed to mark Dais launch modal as dismissed: {e}");
                     }
                 });
             }
         });
 
         Self {
-            is_zap_launch_modal_open: false,
+            is_dais_launch_modal_open: false,
             is_hoa_onboarding_open: false,
             target_window_id: None,
         }
@@ -59,13 +59,13 @@ impl OneTimeModalModel {
         self.target_window_id
     }
 
-    /// Returns whether the Zap launch modal is currently open.
-    pub fn is_zap_launch_modal_open(&self) -> bool {
-        self.is_zap_launch_modal_open && self.target_window_id.is_some()
+    /// Returns whether the Dais launch modal is currently open.
+    pub fn is_dais_launch_modal_open(&self) -> bool {
+        self.is_dais_launch_modal_open && self.target_window_id.is_some()
     }
 
-    pub fn mark_zap_launch_modal_dismissed(&mut self, ctx: &mut ModelContext<Self>) {
-        self.set_zap_launch_modal_open(false, ctx);
+    pub fn mark_dais_launch_modal_dismissed(&mut self, ctx: &mut ModelContext<Self>) {
+        self.set_dais_launch_modal_open(false, ctx);
     }
 
     /// Returns whether the HOA onboarding flow is currently open.
@@ -79,13 +79,13 @@ impl OneTimeModalModel {
 
     /// Returns true if any one-time modal is currently open.
     pub fn is_any_modal_open(&self) -> bool {
-        (self.is_zap_launch_modal_open || self.is_hoa_onboarding_open)
+        (self.is_dais_launch_modal_open || self.is_hoa_onboarding_open)
             && self.target_window_id.is_some()
     }
 
     #[cfg(debug_assertions)]
-    pub fn force_open_zap_launch_modal(&mut self, ctx: &mut ModelContext<Self>) {
-        self.set_zap_launch_modal_open(true, ctx);
+    pub fn force_open_dais_launch_modal(&mut self, ctx: &mut ModelContext<Self>) {
+        self.set_dais_launch_modal_open(true, ctx);
     }
 
     pub fn update_target_window_id(&mut self, window_id: WindowId, ctx: &mut ModelContext<Self>) {
@@ -98,13 +98,13 @@ impl OneTimeModalModel {
         }
     }
 
-    fn set_zap_launch_modal_open(
+    fn set_dais_launch_modal_open(
         &mut self,
         is_open: bool,
         ctx: &mut ModelContext<Self>,
     ) -> bool {
-        if self.is_zap_launch_modal_open != is_open {
-            self.is_zap_launch_modal_open = is_open;
+        if self.is_dais_launch_modal_open != is_open {
+            self.is_dais_launch_modal_open = is_open;
             ctx.emit(OneTimeModalEvent::VisibilityChanged { is_open });
             return true;
         }
@@ -127,7 +127,7 @@ impl OneTimeModalModel {
             }
         });
 
-        if self.check_and_trigger_zap_launch_modal(ctx) {
+        if self.check_and_trigger_dais_launch_modal(ctx) {
             return;
         }
 
@@ -163,33 +163,33 @@ impl OneTimeModalModel {
         self.set_hoa_onboarding_open(true, ctx)
     }
 
-    fn check_and_trigger_zap_launch_modal(&mut self, ctx: &mut ModelContext<Self>) -> bool {
+    fn check_and_trigger_dais_launch_modal(&mut self, ctx: &mut ModelContext<Self>) -> bool {
         // Only show if the feature flag is enabled.
         if !FeatureFlag::ZapLaunchModal.is_enabled() {
             return false;
         }
 
         let general_settings = GeneralSettings::as_ref(ctx);
-        let zap_modal_shown = *general_settings
-            .did_check_to_trigger_zap_launch_modal
+        let dais_modal_shown = *general_settings
+            .did_check_to_trigger_dais_launch_modal
             .value();
 
-        if zap_modal_shown {
+        if dais_modal_shown {
             return false;
         }
 
         GeneralSettings::handle(ctx).update(ctx, |settings, ctx| {
             if let Err(e) = settings
-                .did_check_to_trigger_zap_launch_modal
+                .did_check_to_trigger_dais_launch_modal
                 .set_value(true, ctx)
             {
-                log::warn!("Failed to mark Zap launch modal as dismissed: {e}");
+                log::warn!("Failed to mark Dais launch modal as dismissed: {e}");
             }
         });
 
-        let should_show_zap_modal = !matches!(ChannelState::channel(), Channel::Integration);
-        self.set_zap_launch_modal_open(should_show_zap_modal, ctx);
-        should_show_zap_modal
+        let should_show_dais_modal = !matches!(ChannelState::channel(), Channel::Integration);
+        self.set_dais_launch_modal_open(should_show_dais_modal, ctx);
+        should_show_dais_modal
     }
 }
 

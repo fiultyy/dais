@@ -122,6 +122,7 @@ pub fn run_server(socket_path: &Path) -> anyhow::Result<()> {
                 .join("crash-dumps");
             std::fs::create_dir_all(&dump_dir)?;
 
+            // zap-purge: legacy filename, kept for log compat with existing crash reporters.
             let dump_path =
                 dump_dir.join(format!("zap-minidump-{}.dmp", Uuid::new_v4().simple()));
             let file = File::create(&dump_path)?;
@@ -249,7 +250,7 @@ impl MinidumpGuard {
         })
         .context("Failed to attach crash signal handler")?;
 
-        // Ensure that the crash server process can ptrace Zap.
+        // Ensure that the crash server process can ptrace Dais.
         #[cfg(target_os = "linux")]
         crash_handler.set_ptracer(Some(child.id()));
 

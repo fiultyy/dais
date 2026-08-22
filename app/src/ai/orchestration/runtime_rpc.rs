@@ -2,7 +2,7 @@
 //! headless orchestration.
 //!
 //! When the GUI (or `dais serve`) starts, it writes a small JSON metadata
-//! file (`zap-runtime.json`) into the state directory.  A background thread
+//! file (`dais-runtime.json`) into the state directory.  A background thread
 //! listens on a Unix-domain socket; CLI invocations that detect a live GUI can
 //! forward `check-status` / `check-messages` / `send-message` through the
 //! socket instead of opening a second DB connection.
@@ -26,7 +26,12 @@ use std::thread;
 // Metadata
 // ---------------------------------------------------------------------------
 
-const METADATA_FILE: &str = "zap-runtime.json";
+// zap-purge: canonical name is `dais-runtime.json`. The legacy
+// `zap-runtime.json` is still *read* once as a transitional fallback (a GUI
+// running a pre-rename build writes only the old name); writers only emit
+// the new name and delete a stale legacy file on success.
+const METADATA_FILE: &str = "dais-runtime.json";
+const LEGACY_METADATA_FILE: &str = "zap-runtime.json";
 
 /// Where the runtime metadata file lives.
 pub fn runtime_metadata_path() -> PathBuf {
@@ -57,6 +62,15 @@ pub fn write_metadata(meta: &RuntimeMetadata) {
                 log::warn!("runtime_rpc: failed to write metadata {path:?}: {e}");
             } else {
                 log::info!("runtime_rpc: metadata written to {path:?}");
+                // zap-purge: this process owns the runtime now — remove a
+                // stale legacy metadata file so a CLI fallback read can
+                // never mistake a dead pre-rename PID for a live runtime.
+                let legacy = warp_core::paths::secure_state_dir()
+                    .unwrap_or_else(warp_core::paths::state_dir)
+                    .join(LEGACY_METADATA_FILE);
+                if legacy != path {
+                    let _ = std::fs::remove_file(&legacy);
+                }
             }
         }
         Err(e) => {
@@ -65,22 +79,41 @@ pub fn write_metadata(meta: &RuntimeMetadata) {
     }
 }
 
-/// Remove the metadata file (best-effort).
+/// Remove the metadata file (best-effort). Also removes the legacy
+/// `zap-runtime.json` so a stale pre-rename file cannot linger.
 pub fn clear_metadata() {
     let path = runtime_metadata_path();
     match std::fs::remove_file(&path) {
         Ok(()) => log::info!("runtime_rpc: metadata cleared"),
         Err(e) => log::warn!("runtime_rpc: failed to clear metadata: {e}"),
     }
+    let legacy = warp_core::paths::secure_state_dir()
+        .unwrap_or_else(warp_core::paths::state_dir)
+        .join(LEGACY_METADATA_FILE);
+    if legacy != path {
+        let _ = std::fs::remove_file(&legacy);
+    }
 }
 
-/// Read and parse metadata.  Returns `None` when the file does not exist or
-/// cannot be parsed.
+/// Read and parse metadata: canonical `dais-runtime.json` first, then the
+/// legacy `zap-runtime.json` once (transitional — a still-running pre-rename
+/// GUI only writes the old name). Returns `None` when neither exists or
+/// neither parses.
 pub fn read_metadata() -> Option<RuntimeMetadata> {
-    let path = runtime_metadata_path();
-    let data = std::fs::read_to_string(&path).ok()?;
+    let dir = warp_core::paths::secure_state_dir()
+        .unwrap_or_else(warp_core::paths::state_dir);
+    let path = dir.join(METADATA_FILE);
+    let data = match std::fs::read_to_string(&path) {
+        Ok(d) => d,
+        Err(_) => {
+            // Transitional fallback (zap-purge). Keep the legacy read
+            // silent: it is the expected miss on fresh installs.
+            let legacy = dir.join(LEGACY_METADATA_FILE);
+            std::fs::read_to_string(&legacy).ok()?
+        }
+    };
     serde_json::from_str(&data)
-        .map_err(|e| {
+        .map_err(|e| => {
             log::warn!("runtime_rpc: corrupt metadata: {e}");
             e
         })
@@ -142,7 +175,7 @@ pub fn spawn_rpc_server(mode: &str) -> Result<(PathBuf, RpcServerHandle)> {
     let _ = std::fs::create_dir_all(&dir);
 
     let socket_path = dir.join(format!(
-        "zap-runtime-{}.sock",
+        "dais-runtime-{}.sock",
         std::process::id()
     ));
 
@@ -158,7 +191,7 @@ pub fn spawn_rpc_server(mode: &str) -> Result<(PathBuf, RpcServerHandle)> {
 
     let stop_clone = Arc::clone(&stop);
     let handle = thread::Builder::new()
-        .name("zap-rpc-server".into())
+        .name("dais-rpc-server".into())
         .spawn(move || {
             listener
                 .set_nonblocking(true)

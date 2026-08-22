@@ -1,4 +1,4 @@
-// Zap:telemetry 发送层与 context provider 已删除。
+// Dais:telemetry 发送层与 context provider 已删除。
 // 这里仅保留 `TelemetryEvent` 枚举及其辅助类型,作为大量 UI/模型调用点的类型壳。
 
 use std::collections::HashSet;
@@ -147,7 +147,7 @@ pub struct BlockLatencyInfo {
     pub execution_ms: u64,
 }
 
-// Compatibility metadata for local Zap Drive object event shells.
+// Compatibility metadata for local Dais Drive object event shells.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TelemetryObjectType {
     Workflow,
@@ -190,13 +190,13 @@ impl From<Space> for TelemetrySpace {
     }
 }
 
-/// Common metadata retained for local Zap Drive event call sites that act on a specific object.
+/// Common metadata retained for local Dais Drive event call sites that act on a specific object.
 /// Events that only apply to a single object type may use specific metadata like [`WorkflowTelemetryMetadata`],
 /// [`NotebookTelemetryMetadata`], or [`EnvVarTelemetryMetadata`] instead.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectTelemetryMetadata {
     pub object_type: TelemetryObjectType,
-    /// Legacy server UID slot. Zap keeps it optional while object-event call sites are being
+    /// Legacy server UID slot. Dais keeps it optional while object-event call sites are being
     /// localized.
     pub object_uid: Option<ServerId>,
     /// The space through which the user has access to the object.
@@ -356,7 +356,7 @@ impl From<rmcp::RmcpError> for MCPServerTelemetryError {
     }
 }
 
-// Zap Phase 2a: `OpenedSharingDialogEvent` + `SharingDialogSource` and
+// Dais Phase 2a: `OpenedSharingDialogEvent` + `SharingDialogSource` and
 // the corresponding `OpenedSharingDialog` `TelemetryEvent` variant removed
 // along with the sharing dialog UI.
 
@@ -401,7 +401,7 @@ pub enum PaletteSource {
     PrefixChange,
     Keybinding,
     CtrlTab { shift_pressed_initially: bool },
-    ZapDrive,
+    DaisDrive,
     QuitModal,
     LogOutModal,
     IntegrationTest,
@@ -464,7 +464,7 @@ pub enum PluginChipTelemetryKind {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NotificationAgentVariant {
-    /// Zap's built-in agent (Oz).
+    /// Dais's built-in agent (Oz).
     Oz,
     /// A CLI agent (e.g., Claude Code, Gemini CLI, etc.).
     CLIAgent(CLIAgentType),
@@ -526,7 +526,7 @@ pub enum CommandCorrectionEvent {
 pub enum CommandSearchResultType {
     History,
     Workflow,
-    ZapAI,
+    DaisAI,
     TranslateUsingWarpAI,
     Notebook,
     EnvVarCollection,
@@ -543,7 +543,7 @@ impl From<&CommandSearchItemAction> for CommandSearchResultType {
             AcceptWorkflow(_) => Self::Workflow,
             AcceptNotebook(_) => Self::Notebook,
             AcceptEnvVarCollection(_) => Self::EnvVarCollection,
-            ZapAI => Self::ZapAI,
+            DaisAI => Self::DaisAI,
             TranslateUsingWarpAI => Self::TranslateUsingWarpAI,
             AcceptAIQuery(_) | RunAIQuery(_) => Self::AIQuery,
         }
@@ -666,7 +666,7 @@ pub enum KnowledgePaneEntrypoint {
     Settings,
 
     #[serde(rename = "warp_drive")]
-    ZapDrive,
+    DaisDrive,
 
     #[serde(rename = "ai_blocklist")]
     AIBlocklist,
@@ -685,7 +685,7 @@ pub enum MCPServerCollectionPaneEntrypoint {
     Settings,
 
     #[serde(rename = "warp_drive")]
-    ZapDrive,
+    DaisDrive,
 
     #[serde(rename = "slash_command")]
     SlashCommand,
@@ -1250,7 +1250,7 @@ pub enum TelemetryEvent {
     DatabaseReadError(String),
     DatabaseWriteError(String),
     AppStartup(AppStartupInfo),
-    /// The native app was opened while logged out. Since Zap requires login,
+    /// The native app was opened while logged out. Since Dais requires login,
     /// this usually means a new user.
     LoggedOutStartup,
     /// We attempted to bootstrap an SSH session via the SSH wrapper.  The
@@ -1480,11 +1480,11 @@ pub enum TelemetryEvent {
     InitialWorkingDirectoryConfigurationChanged {
         advanced_mode_enabled: bool,
     },
-    /// Opened legacy Zap AI.
+    /// Opened legacy Dais AI.
     OpenedWarpAI {
         source: OpenedWarpAISource,
     },
-    /// Issued legacy Zap AI request.
+    /// Issued legacy Dais AI request.
     WarpAIRequestIssued {
         result: WarpAIRequestResult,
     },
@@ -1616,7 +1616,7 @@ pub enum TelemetryEvent {
         source: WarpDriveSource,
         is_code_mode_v2: bool,
     },
-    // Toggled the legacy Zap AI side panel.
+    // Toggled the legacy Dais AI side panel.
     ToggleWarpAI {
         opened: bool,
     },
@@ -1815,7 +1815,7 @@ pub enum TelemetryEvent {
     /// language auto-detection false-positive.
     AgentModePotentialAutoDetectionFalsePositive(AgentModeAutoDetectionFalsePositivePayload),
 
-    /// This is a telemetry event used to help track performance of Agent Predict in Zap,
+    /// This is a telemetry event used to help track performance of Agent Predict in Dais,
     /// by keeping track of the context given and the predictions generated.
     AgentModePrediction {
         was_suggestion_accepted: bool,
@@ -1825,7 +1825,7 @@ pub enum TelemetryEvent {
         does_actual_command_match_history_prediction: bool,
         history_prediction_likelihood: f64,
         total_history_count: usize,
-        // Zap leaves these optional; no telemetry sender consumes them.
+        // Dais leaves these optional; no telemetry sender consumes them.
         actual_next_command_run: Option<String>,
         history_based_autosuggestion_state: Option<HistoryBasedAutosuggestionState>,
         generate_ai_input_suggestions_request: Option<GenerateAIInputSuggestionsRequest>,
@@ -1839,7 +1839,7 @@ pub enum TelemetryEvent {
         block_id: Option<String>,
         view: PromptSuggestionViewType,
         /// Legacy request token from the `/passive-suggestion` request that generated this
-        /// suggestion. Zap keeps it optional for local diagnostics only.
+        /// suggestion. Dais keeps it optional for local diagnostics only.
         server_request_token: Option<String>,
     },
 
@@ -1852,7 +1852,7 @@ pub enum TelemetryEvent {
         code_exchange_id: Option<AIAgentExchangeId>,
         block_id: Option<String>,
         request_duration_ms: u64,
-        /// Legacy request token from the `/passive-suggestion` request. Zap keeps it optional
+        /// Legacy request token from the `/passive-suggestion` request. Dais keeps it optional
         /// for local diagnostics only.
         server_request_token: Option<String>,
     },
@@ -1875,7 +1875,7 @@ pub enum TelemetryEvent {
         id: String,
         block_id: String,
         static_prompt_suggestion_name: String,
-        // Zap leaves these optional; no telemetry sender consumes them.
+        // Dais leaves these optional; no telemetry sender consumes them.
         query: Option<String>,
         block_command: Option<String>,
         request_duration_ms: u64,
@@ -2367,7 +2367,7 @@ pub enum TelemetryEvent {
         block_id: BlockId,
         user_took_over: bool,
     },
-    /// Detected that Zap is running in an isolated sandbox.
+    /// Detected that Dais is running in an isolated sandbox.
     DetectedIsolationPlatform {
         platform: warp_isolation_platform::IsolationPlatformType,
     },

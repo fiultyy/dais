@@ -21,7 +21,7 @@ pub static NvOptimusEnablement: u32 = 1;
 #[used]
 pub static AmdPowerXpressRequestHighPerformance: u32 = 1;
 
-// Zap OSS 构建的入口,简单包一层 warp::run()。
+// Dais OSS 构建的入口,简单包一层 warp::run()。
 fn main() -> Result<()> {
     // ── "serve" 快路径 ──
     // `dais serve` 启动一个轻量级无头 RPC 服务器，处理
@@ -48,7 +48,7 @@ fn main() -> Result<()> {
         state = state.with_additional_features(DEBUG_FLAGS);
     }
     // 始终启用 IME marked-text 渲染:winit 的 IME 路径在 macOS / Windows 都支持,
-    // 但若不在此处显式开启,Zap 会把 preedit / 输入合成更新整体丢弃,只剩 OS 的候选窗
+    // 但若不在此处显式开启,Dais 会把 preedit / 输入合成更新整体丢弃,只剩 OS 的候选窗
     // 可见 —— 在 Windows 上对日文 / 中文 / 韩文输入都属于实质性损坏。
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
@@ -89,7 +89,7 @@ fn run_serve() -> Result<()> {
     let mut state = ChannelState::new(
         Channel::Oss,
         ChannelConfig {
-            // 与 GUI 入口保持一致(D5 改名: dev.zap.Zap → dev.dais.Dais)。
+            // 与 GUI 入口保持一致。
             app_id: AppId::new("dev", "dais", "Dais"),
             logfile_name: "dais.log".into(),
             autoupdate_config: None,
@@ -154,11 +154,11 @@ embed_plist::embed_info_plist_bytes!(r#"
     <key>CFBundleDevelopmentRegion</key>
     <string>English</string>
     <key>CFBundleDisplayName</key>
-    <string>Zap</string>
+    <string>Dais</string>
     <key>CFBundleExecutable</key>
     <string>dais</string>
     <key>CFBundleIdentifier</key>
-    <string>dev.zap.Zap</string>
+    <string>dev.zap.Dais</string> <!-- zap-purge: legacy bundle ID, kept for compat -->
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleLocalizations</key>
@@ -168,7 +168,7 @@ embed_plist::embed_info_plist_bytes!(r#"
     <string>zh-CN</string>
     </array>
     <key>CFBundleName</key>
-    <string>Zap</string>
+    <string>Dais</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -180,9 +180,9 @@ embed_plist::embed_info_plist_bytes!(r#"
     <key>UIDesignRequiresCompatibility</key>
     <true/>
     <key>CFBundleURLTypes</key>
-    <array><dict><key>CFBundleURLName</key><string>Custom App</string><key>CFBundleURLSchemes</key><array><string>zap</string></array></dict></array>
+    <array><dict><key>CFBundleURLName</key><string>Custom App</string><key>CFBundleURLSchemes</key><array><string>zap</string></array> <!-- zap-purge: legacy URL scheme, kept for compat --></dict></array>
     <key>NSHumanReadableCopyright</key>
-    <string>© 2026, Zap</string>
+    <string>© 2026, Dais</string>
     </dict>
     </plist>
 "#.as_bytes());

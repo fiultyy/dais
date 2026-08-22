@@ -11,8 +11,8 @@ use diesel::connection::{Connection, SimpleConnection};
 use diesel::{QueryDsl, RunQueryDsl};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
-use zap_sync::crypto;
-use zap_sync::{SyncDataProvider, SyncEngineError, SyncVersionStore};
+use dais_sync::crypto;
+use dais_sync::{SyncDataProvider, SyncEngineError, SyncVersionStore};
 use zeroize::Zeroizing;
 
 /// keychain 三种凭据 kind,用于 collect/apply/orphan-cleanup 时统一遍历

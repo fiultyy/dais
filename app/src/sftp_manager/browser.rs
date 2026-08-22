@@ -145,7 +145,7 @@ pub struct SftpBrowserView {
     /// 连接状态
     pub(crate) connection: ConnectionState,
     /// SFTP 会话
-    _session: Option<zap_sftp::SftpSession>,
+    _session: Option<dais_sftp::SftpSession>,
     /// SFTP 操作通道
     sftp: Option<Arc<dyn SftpBackend>>,
     // ---- 导航 ----

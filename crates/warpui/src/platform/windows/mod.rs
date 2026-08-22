@@ -73,7 +73,7 @@ fn register_aumid_in_registry(app_id: &str) -> std::io::Result<()> {
     let subkey = format!("Software\\Classes\\AppUserModelId\\{app_id}");
     let (key, _) = hkcu.create_subkey(&subkey)?;
 
-    // 从 AUMID 末段推导一个体面的展示名(e.g. dev.zap.Zap → Zap)。
+    // 从 AUMID 末段推导一个体面的展示名(e.g. dev.dais.Dais → Dais)。
     let display_name = app_id.rsplit('.').next().unwrap_or(app_id);
     key.set_value("DisplayName", &display_name.to_string())?;
     Ok(())

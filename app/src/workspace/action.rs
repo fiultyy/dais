@@ -278,15 +278,15 @@ pub enum WorkspaceAction {
         tab_index: usize,
         tab_position: RectF,
     },
-    /// Toggles the left panel. In Code Mode V1 this toggles Zap Drive.
+    /// Toggles the left panel. In Code Mode V1 this toggles Dais Drive.
     /// In Code Mode V2 this toggles the left panel which contains both the project explorer and
-    /// Zap Drive. This happens as explicit action from the user.
+    /// Dais Drive. This happens as explicit action from the user.
     ToggleLeftPanel,
-    /// Toggles directly to the Zap Drive tab of the left panel in Code Mode V2
+    /// Toggles directly to the Dais Drive tab of the left panel in Code Mode V2
     ToggleWarpDrive,
-    /// Unconditionally opens Zap Drive. This is used in the case of user lifecycle
+    /// Unconditionally opens Dais Drive. This is used in the case of user lifecycle
     /// events like new user onboarding or when the user joins a team.
-    ZapDrive,
+    DaisDrive,
     /// Toggles the Observatory panel (intercept sessions / orchestration viewer).
     #[cfg(not(target_family = "wasm"))]
     ToggleObservatory,
@@ -349,7 +349,7 @@ pub enum WorkspaceAction {
     },
     // 去中心化分支:`Reauth` / `SignupAnonymousUser` / `SignInAnonymousWebUser` 已删除。
     OpenLink(String),
-    /// On WASM, opens a given URL in the desktop Zap app (if installed) or redirects to download page.
+    /// On WASM, opens a given URL in the desktop Dais app (if installed) or redirects to download page.
     #[cfg(target_family = "wasm")]
     OpenLinkOnDesktop(url::Url),
     ReopenClosedSession,
@@ -374,7 +374,7 @@ pub enum WorkspaceAction {
     },
     TerminateApp,
     CloseWindow,
-    /// Help the user call the Zap executable with the [`crate::args::DEBUG_DUMP_FLAG`].
+    /// Help the user call the Dais executable with the [`crate::args::DEBUG_DUMP_FLAG`].
     DumpDebugInfo,
     /// Log review comment send eligibility for panes in the active tab.
     LogReviewCommentSendStatusForActiveTab,
@@ -404,7 +404,7 @@ pub enum WorkspaceAction {
     DismissWaylandCrashRecoveryBannerAndOpenLink,
     OpenAIFactCollection,
     OpenMCPServerCollection,
-    // Zap Wave 7-3:`OpenEnvironmentManagementPane` WorkspaceAction 随 ambient-agent UI
+    // Dais Wave 7-3:`OpenEnvironmentManagementPane` WorkspaceAction 随 ambient-agent UI
     // 子系统物理删。
     /// Closes any other ai document panes in the active pane group, and opens the specified document_id.
     OpenAIDocumentPane {
@@ -480,10 +480,10 @@ pub enum WorkspaceAction {
     QueuePromptForConversation {
         prompt: String,
     },
-    /// Install the Zap CLI command to /usr/local/bin
+    /// Install the Dais CLI command to /usr/local/bin
     #[cfg(target_os = "macos")]
     InstallCLI,
-    /// Uninstall the Zap CLI command from /usr/local/bin
+    /// Uninstall the Dais CLI command from /usr/local/bin
     #[cfg(target_os = "macos")]
     UninstallCLI,
     UndoRevertInCodeReviewPane {
@@ -519,12 +519,12 @@ pub enum WorkspaceAction {
     /// Reset the AWS Bedrock login banner dismissed state (for debugging).
     #[cfg(debug_assertions)]
     DebugResetAwsBedrockLoginBannerDismissed,
-    /// Open the Zap Launch Modal (for debugging)
+    /// Open the Dais Launch Modal (for debugging)
     #[cfg(debug_assertions)]
-    OpenZapLaunchModal,
-    /// Reset the Zap launch modal dismissed state (for debugging)
+    OpenDaisLaunchModal,
+    /// Reset the Dais launch modal dismissed state (for debugging)
     #[cfg(debug_assertions)]
-    ResetZapLaunchModalState,
+    ResetDaisLaunchModalState,
     /// Install the opencode-warp plugin from GitHub into the global opencode config.
     #[cfg(debug_assertions)]
     InstallOpenCodeWarpPlugin,
@@ -747,7 +747,7 @@ impl WorkspaceAction {
             | OpenInExplorer { .. }
             | DragTab { .. }
             | StartTabDrag
-            | ZapDrive
+            | DaisDrive
             | ToggleLeftPanel
             | ToggleWarpDrive
             | ClosePanel
@@ -839,8 +839,8 @@ impl WorkspaceAction {
             ToggleConversationTranscriptDetailsPanel => false,
             #[cfg(debug_assertions)]
             DebugResetAwsBedrockLoginBannerDismissed
-            | OpenZapLaunchModal
-            | ResetZapLaunchModalState
+            | OpenDaisLaunchModal
+            | ResetDaisLaunchModalState
             | InstallOpenCodeWarpPlugin
             | UseLocalOpenCodeWarpPlugin => false,
             #[cfg(not(target_family = "wasm"))]
@@ -853,7 +853,7 @@ impl WorkspaceAction {
             InstallCLI | UninstallCLI => false,
             #[cfg(feature = "local_fs")]
             FileDeleted { .. } => false, // File deletion doesn't change workspace state
-            // Zap Wave 7-3:`OpenEnvironmentManagementPane` WorkspaceAction 随 ambient-agent UI
+            // Dais Wave 7-3:`OpenEnvironmentManagementPane` WorkspaceAction 随 ambient-agent UI
             // 子系统物理删。
             #[cfg(target_os = "linux")]
             DismissWaylandCrashRecoveryBannerAndOpenLink => false,

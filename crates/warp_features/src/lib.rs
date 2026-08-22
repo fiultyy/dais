@@ -62,10 +62,10 @@ pub enum FeatureFlag {
     /// Defaults Windows builds to the high-performance GPU with Vulkan as the preferred backend.
     WindowsHighPerformanceGpuDefault,
 
-    /// Zap Agent Mode.
+    /// Dais Agent Mode.
     AgentMode,
 
-    /// Whether the user is part of the Zap Alpha Program (AI Trusted Testers).
+    /// Whether the user is part of the Dais Alpha Program (AI Trusted Testers).
     /// This is enabled automatically for local and dev builds.
     /// Collect conversation and input autodetection data for agent mode.
     /// Also collects block data for Next Command, if enabled.
@@ -84,7 +84,7 @@ pub enum FeatureFlag {
     /// Feature flag for cursor reflow fix (fixes part of the Alacritty resizing logic).
     ResizeFix,
 
-    /// Enable multiselect in Notebooks and Zap Text.
+    /// Enable multiselect in Notebooks and Dais Text.
     RichTextMultiselect,
 
     /// If enabled, the default input mode is set to waterfall for new users.
@@ -109,10 +109,10 @@ pub enum FeatureFlag {
     /// Enable dynamic enum parameter types for workflow arguments
     DynamicWorkflowEnums,
 
-    /// Enables next action prediction within Zap, powered by AI.
+    /// Enables next action prediction within Dais, powered by AI.
     AgentPredict,
 
-    /// Enables receiving shared Zap Drive objects.
+    /// Enables receiving shared Dais Drive objects.
     SharedWithMe,
 
     /// Enables workflows for use with Agent Mode.
@@ -149,7 +149,7 @@ pub enum FeatureFlag {
     /// tab.
     FullScreenZenMode,
 
-    /// Playground for reducing Zap UI clutter.
+    /// Playground for reducing Dais UI clutter.
     MinimalistUI,
 
     /// Enables support for using native shell completions to supplement our
@@ -159,7 +159,7 @@ pub enum FeatureFlag {
     /// Adds avatar to the tab bar.
     AvatarInTabBar,
 
-    /// Adds aliases for executing Zap Drive workflows.
+    /// Adds aliases for executing Dais Drive workflows.
     WorkflowAliases,
 
     SshDragAndDrop,
@@ -205,7 +205,7 @@ pub enum FeatureFlag {
     /// Enables Kitty image rendering
     KittyImages,
 
-    /// Enables support for Zap Packs.
+    /// Enables support for Dais Packs.
     WarpPacks,
 
     /// Enables auto-generated AI memories.
@@ -298,7 +298,7 @@ pub enum FeatureFlag {
     /// Enables code symbols in AI context menu
     AIContextMenuCode,
 
-    /// Enables Zap Drive objects (like workflows) as context in AI context menu
+    /// Enables Dais Drive objects (like workflows) as context in AI context menu
     DriveObjectsAsContext,
 
     /// Expands code diff edits to replace the current pane instead of opening in a new tab.
@@ -540,7 +540,7 @@ pub enum FeatureFlag {
     /// Enables conversation artifacts.
     ConversationArtifacts,
 
-    /// Enables auto-syncing ambient plans to Zap Drive.
+    /// Enables auto-syncing ambient plans to Dais Drive.
     SyncAmbientPlans,
 
     /// Enables platform skills support (--skill flag) for agent runs.
@@ -551,9 +551,9 @@ pub enum FeatureFlag {
     /// Enables loading and returning bundled skills in the SkillManager.
     BundledSkills,
 
-    /// Enables the Zap launch modal announcing Zap going open-source.
+    /// Enables the Dais launch modal.
     /// When enabled, the HOA onboarding flow is suppressed.
-    ZapLaunchModal,
+    ZapLaunchModal,  // zap-purge: legacy flag name, kept for compat
 
     /// Updated tab styling (background colors, border, close button positioning, margins).
     NewTabStyling,
@@ -572,7 +572,7 @@ pub enum FeatureFlag {
     ConversationsAsContext,
 
     /// Enables the rich input editor for CLI agents (e.g., Claude Code).
-    /// Ctrl-G intercepts the keystroke and opens Zap's input editor instead of $EDITOR.
+    /// Ctrl-G intercepts the keystroke and opens Dais's input editor instead of $EDITOR.
     CLIAgentRichInput,
 
     /// Enables incremental (diff-based) buffer updates for auto-reload instead of full replace.
@@ -608,7 +608,7 @@ pub enum FeatureFlag {
     /// adopt the configured color when their working directory matches.
     DirectoryTabColors,
 
-    /// Enables the new settings to control visibility of Zap Drive, Code Review Panel,
+    /// Enables the new settings to control visibility of Dais Drive, Code Review Panel,
     /// and Project Explorer & Global Search features.
     ZapNewSettingsModes,
 
@@ -620,21 +620,21 @@ pub enum FeatureFlag {
     HoaCodeReview,
 
     /// Enables the `--harness` flag for `oz agent run`, allowing external agent
-    /// CLIs (e.g. `claude`) to execute prompts instead of Zap's agent harness.
+    /// CLIs (e.g. `claude`) to execute prompts instead of Dais's agent harness.
     AgentHarness,
 
     /// Enables the upgraded CLI agent session tracking and notifications infrastructure.
     HOANotifications,
 
-    /// Enables the install/update chip for the OpenCode Zap plugin.
+    /// Enables the install/update chip for the OpenCode Dais plugin.
     /// Requires HOANotifications to also be enabled.
     OpenCodeNotifications,
 
-    /// Enables the install/update chip for the Codex Zap notification plugin.
+    /// Enables the install/update chip for the Codex Dais notification plugin.
     /// Requires HOANotifications to also be enabled.
     CodexNotifications,
 
-    /// Enables the install/update chip for the Gemini CLI Zap extension.
+    /// Enables the install/update chip for the Gemini CLI Dais extension.
     /// Requires HOANotifications to also be enabled.
     GeminiNotifications,
 
@@ -754,7 +754,7 @@ pub const DOGFOOD_FLAGS: &[FeatureFlag] = &[
     FeatureFlag::ServerFileBrowser,
 ];
 
-/// Features enabled for feature preview build users (e.g.: Friends of Zap).
+/// Features enabled for feature preview build users (e.g.: Friends of Dais).
 /// All PREVIEW_FLAGS are also automatically added to dogfood builds (WarpDev).
 pub const PREVIEW_FLAGS: &[FeatureFlag] = &[
     FeatureFlag::MarkdownTables,
@@ -770,7 +770,7 @@ pub const RELEASE_FLAGS: &[FeatureFlag] = &[
     FeatureFlag::CrashReporting,
     // winit 的 IME 路径在 macOS 和 Windows 都已支持 marked text。
     // Windows 必须开启该 flag 才能渲染 IME preedit / 输入合成文本,
-    // 否则只能看到 OS 的候选窗,Zap 会把 marked text 更新整体丢弃。
+    // 否则只能看到 OS 的候选窗,Dais 会把 marked text 更新整体丢弃。
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     FeatureFlag::ImeMarkedText,
     FeatureFlag::BlocklistMarkdownTableRendering,

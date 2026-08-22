@@ -45,7 +45,7 @@ const LEARN_MORE_MARKDOWN_URL: &str =
     "";
 const LEARN_MORE_CODE_URL: &str = "";
 
-/// A path to a file that can be opened in Zap, along with its type.
+/// A path to a file that can be opened in Dais, along with its type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpenablePath {
     pub path: PathBuf,
@@ -129,7 +129,7 @@ impl TerminalView {
     }
 
     /// Insert a suggestion banner for opening the file `openable_path`, originating from
-    /// `session`, in a Zap pane.
+    /// `session`, in a Dais pane.
     fn suggest_open_in_warp(
         &mut self,
         openable_path: OpenablePath,
@@ -266,7 +266,7 @@ lazy_static! {
         HashSet::from(["bat", "cat", "glow", "less", "open"]);
 }
 
-/// Examines `command` for a file openable in Zap, returning the resolved path and type if found.
+/// Examines `command` for a file openable in Dais, returning the resolved path and type if found.
 async fn check_openable_in_warp(
     command: String,
     working_directory: Option<String>,
@@ -321,7 +321,7 @@ async fn check_openable_in_warp(
                 );
 
                 if async_fs::metadata(&resolved).await.is_ok() {
-                    // We've found a file that exists and can be opened in Zap.
+                    // We've found a file that exists and can be opened in Dais.
                     return Some(OpenablePath {
                         path: resolved,
                         file_type,

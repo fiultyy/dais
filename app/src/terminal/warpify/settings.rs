@@ -63,7 +63,7 @@ maybe_define_setting!(UseSshTmuxWrapper, group: WarpifySettings, {
     description: "Whether to use a tmux-based wrapper for SSH warpification.",
 });
 
-/// Controls how Zap handles the SSH extension (remote server binary) when connecting
+/// Controls how Dais handles the SSH extension (remote server binary) when connecting
 /// to a remote host that does not already have it installed.
 #[derive(
     Default,

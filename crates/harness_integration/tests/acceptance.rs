@@ -1,6 +1,6 @@
-//! Zap 拦截体系验收测试（PR #14/#15/#16/#17）。
+//! Dais 拦截体系验收测试（PR #14/#15/#16/#17）。
 //! 输出 `RESULT <节点> <状态> :: <证据>` 行，由外部汇总为报告。
-//! G3 子进程: 环境变量 ZAP_G3_CHILD=1 时走 crasher 分支。
+//! G3 子进程: 环境变量 DAIS_G3_CHILD=1 时走 crasher 分支。
 //! B1/B2: 真实 Claude Code 经本地 TLS proxy 走 BigModel Anthropic 兼容端点。
 
 use std::process::Command;
@@ -196,7 +196,7 @@ async fn node_a() {
             RawEvent::ResponseDone { .. } => done_events += 1,
         }
     }
-    let tmp = std::env::temp_dir().join(format!("zap-acc-rawcache-{}.sqlite", std::process::id()));
+    let tmp = std::env::temp_dir().join(format!("dais-acc-rawcache-{}.sqlite", std::process::id()));
     let _ = std::fs::remove_file(&tmp);
     let cache = RawCache::open(tmp.to_str().unwrap()).unwrap();
     let blob = req_body.clone().unwrap_or_default();
@@ -280,7 +280,7 @@ async fn node_b_real() {
             "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.2"
         }
     });
-    let settings_path = std::env::temp_dir().join(format!("zap-acc-cc-settings-{}.json", std::process::id()));
+    let settings_path = std::env::temp_dir().join(format!("dais-acc-cc-settings-{}.json", std::process::id()));
     std::fs::write(&settings_path, settings.to_string()).unwrap();
 
     // 注意: std Command::output() 会阻塞 current_thread runtime (proxy 无法服务) → 死锁。
@@ -492,6 +492,7 @@ async fn node_c() {
         async move {
             client
                 .post(url)
+                .header("x-dais-hook-token", &token)
                 .header("x-zap-hook-token", &token)
                 .json(&body)
                 .send()
@@ -538,7 +539,7 @@ async fn node_c() {
         .unwrap();
     let code = resp.status().as_u16();
     record("C5", code == 401 || code == 403,
-        format!("POST with Authorization: Bearer invalid-token -> {code} (shared token 鉴权: Bearer / x-zap-hook-token / ?token= 三选一)"));
+        format!("POST with Authorization: Bearer invalid-token -> {code} (shared token 鉴权: Bearer / x-dais-hook-token(首选) / x-zap-hook-token(回落) / ?token= 四选一)"));
 }
 
 // ── Node E: Upstream 配置 ────────────────────────────────────────────────
@@ -557,7 +558,7 @@ fn node_e() {
 // ── Node F: Block 数据层 ─────────────────────────────────────────────────
 
 fn node_f() {
-    let tmp = std::env::temp_dir().join(format!("zap-acc-blocks-{}.sqlite", std::process::id()));
+    let tmp = std::env::temp_dir().join(format!("dais-acc-blocks-{}.sqlite", std::process::id()));
     let _ = std::fs::remove_file(&tmp);
     let store = BlockStore::open(tmp.to_str().unwrap()).unwrap();
     let ctx = SessionContext::new("acc-f", "claude-code");
@@ -591,7 +592,7 @@ fn node_f() {
     record("F3", strict, format!("sequences = {seqs:?}, strictly increasing: {strict}"));
 
     // F4: RawCache drain 后为空
-    let tmp_raw = std::env::temp_dir().join(format!("zap-acc-raw-{}.sqlite", std::process::id()));
+    let tmp_raw = std::env::temp_dir().join(format!("dais-acc-raw-{}.sqlite", std::process::id()));
     let _ = std::fs::remove_file(&tmp_raw);
     let cache = RawCache::open(tmp_raw.to_str().unwrap()).unwrap();
     for i in 0..3 {
@@ -656,13 +657,13 @@ async fn node_g() {
 fn node_g3() {
     // G3: 模拟 crash (SIGKILL) → 重开 raw_cache 数据保留
     let exe = std::env::current_exe().unwrap();
-    let db = std::env::temp_dir().join(format!("zap-acc-g3-{}.sqlite", std::process::id()));
+    let db = std::env::temp_dir().join(format!("dais-acc-g3-{}.sqlite", std::process::id()));
     let _ = std::fs::remove_file(&db);
 
     let mut child = Command::new(exe)
         .args(["all_nodes", "--exact", "--nocapture"])
-        .env("ZAP_G3_CHILD", "1")
-        .env("ZAP_G3_DB", &db)
+        .env("DAIS_G3_CHILD", "1")
+        .env("DAIS_G3_DB", &db)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
@@ -681,7 +682,7 @@ fn node_g3() {
 // ── 主流程 ───────────────────────────────────────────────────────────────
 
 fn g3_child_branch() -> ! {
-    let db = std::env::var("ZAP_G3_DB").unwrap();
+    let db = std::env::var("DAIS_G3_DB").unwrap();
     let cache = RawCache::open(&db).unwrap();
     for i in 0..3 {
         cache.insert_raw("g3-crash", "request", format!("crash-payload-{i}").as_bytes(), i as i64).unwrap();
@@ -694,7 +695,7 @@ fn g3_child_branch() -> ! {
 
 #[tokio::test]
 async fn all_nodes() {
-    if std::env::var("ZAP_G3_CHILD").is_ok() {
+    if std::env::var("DAIS_G3_CHILD").is_ok() {
         g3_child_branch();
     }
 

@@ -103,12 +103,12 @@ async fn real_proxy_full_session() {
         s.insert_block(&b).unwrap();
     }
 
-    std::env::set_var("ZAP_TEST_API_KEY", "sk-test-456");
+    std::env::set_var("DAIS_TEST_API_KEY", "sk-test-456");
     let upstream = UpstreamConfig {
         api_base: format!("http://127.0.0.1:{upstream_port}"),
         auth_header: "x-api-key".into(),
         auth_prefix: String::new(),
-        api_key_env: "ZAP_TEST_API_KEY".into(),
+        api_key_env: "DAIS_TEST_API_KEY".into(),
         request_path: "/v1/messages".into(),
         response_format: ResponseFormat::AnthropicSSE,
     };
@@ -239,12 +239,12 @@ async fn integration_start_proxy_and_hook_url() {
         let _ = axum::serve(listener, app).await;
     });
 
-    std::env::set_var("ZAP_TEST_API_KEY", "sk-test-789");
+    std::env::set_var("DAIS_TEST_API_KEY", "sk-test-789");
     let upstream = UpstreamConfig {
         api_base: format!("http://127.0.0.1:{upstream_port}"),
         auth_header: "x-api-key".into(),
         auth_prefix: String::new(),
-        api_key_env: "ZAP_TEST_API_KEY".into(),
+        api_key_env: "DAIS_TEST_API_KEY".into(),
         request_path: "/v1/messages".into(),
         response_format: ResponseFormat::AnthropicSSE,
     };

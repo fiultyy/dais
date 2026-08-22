@@ -24,13 +24,13 @@ use crate::{
     AppId,
 };
 
-/// The name of the directory in which to put non-global Zap-specific files.
+/// The name of the directory in which to put non-global Dais-specific files.
 ///
 /// This should be used, for example, as the base directory under which
 /// repository workflows would be stored (in "./.warp/workflows").
 pub const WARP_CONFIG_DIR: &str = ".warp";
 
-/// The name of the folder that stores Zap execution logs and network logs.
+/// The name of the folder that stores Dais execution logs and network logs.
 /// This is currently only used on Windows to maintain backwards compatibility.
 pub const WARP_LOGS_DIR: &str = "logs";
 
@@ -45,7 +45,7 @@ fn base_warp_config_dir_name() -> String {
         Channel::Local => format!("{WARP_CONFIG_DIR}-local"),
     }
 }
-/// Returns the home-relative Zap config directory name for the current channel and data profile.
+/// Returns the home-relative Dais config directory name for the current channel and data profile.
 ///
 /// This preserves the historical `.warp*` directory shape while still isolating dev, local,
 /// integration, oss, and optional development profiles.
@@ -59,10 +59,10 @@ pub fn warp_home_config_dir_name() -> String {
     }
 }
 
-/// Returns the home-relative Zap config directory for the current channel and data profile.
+/// Returns the home-relative Dais config directory for the current channel and data profile.
 ///
 /// Unlike [`data_dir`] and [`config_local_dir`] on non-macOS platforms, this intentionally keeps
-/// Zap-authored, user-facing config under a `.warp*` directory in the home directory instead of
+/// Dais-authored, user-facing config under a `.warp*` directory in the home directory instead of
 /// using the platform XDG/AppData project directories.
 pub fn warp_home_config_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|home_dir| home_dir.join(warp_home_config_dir_name()))
@@ -140,7 +140,7 @@ pub fn base_config_dir() -> PathBuf {
 ///
 /// This is the appropriate home for files like our sqlite database, which
 /// contains durable but non-critical and non-portable data like what windows
-/// the user had open and cached state of known Zap Drive objects.
+/// the user had open and cached state of known Dais Drive objects.
 pub fn state_dir() -> PathBuf {
     let Some(project_dirs) = project_dirs() else {
         return PathBuf::new();
@@ -166,7 +166,7 @@ pub fn secure_state_dir() -> Option<PathBuf> {
 
     #[cfg(target_os = "macos")]
     if let Some(app_group_root) = app_group_container_path() {
-        // The macOS project_path is the bundle ID (i.e. `dev.warp.Zap-Stable`).
+        // The macOS project_path is the bundle ID (i.e. `dev.warp.Zap-Stable`).  // zap-purge: legacy bundle ID, kept for compat
         let project_dirs = project_dirs()?;
         return Some(
             app_group_root
@@ -240,8 +240,7 @@ fn project_dirs_for_app_id(
         if #[cfg(any(target_os = "linux", target_os = "freebsd"))] {
             // Adjust the base application name so that we end up with
             // a directory like "dais" matching our Linux package name
-            // (D5 改名: 数据根 zap→dais, 无存量包袱直接改;
-            //  Dais/Dais* 走同一归一, 旧 Zap bundle/profile 名也折叠回 dais)。
+            // zap-purge: legacy app name compat mapping
             let base_app_name = match app_id.application_name() {
                 "Zap" | "Dais" => "dais".to_owned(),
                 other if other.starts_with("Zap") => other.replace("Zap", "dais-"),
@@ -296,13 +295,13 @@ pub fn app_group_container_path() -> Option<PathBuf> {
     LazyLock::force(&CONTAINER_PATH).clone()
 }
 
-/// Returns the path to resources included in the Zap distribution.
+/// Returns the path to resources included in the Dais distribution.
 ///
 /// Unlike [`warpui::AssetProvider`] assets, which are generally embedded in the binary, these are
-/// stored on the filesystem alongside the rest of Zap.
+/// stored on the filesystem alongside the rest of Dais.
 ///
 /// ## macOS
-/// The resources directory is `$APP_DIR/Contents/Resources` (e.g. `/Applications/Zap.app/Contents/Resources`).
+/// The resources directory is `$APP_DIR/Contents/Resources` (e.g. `/Applications/Dais.app/Contents/Resources`).
 ///
 /// ## Linux
 /// The resources directory is `$INSTALL_DIR/resources`, where `$INSTALL_DIR` depends on the
@@ -310,7 +309,7 @@ pub fn app_group_container_path() -> Option<PathBuf> {
 ///
 /// ## Windows
 /// The resources directory is `$INSTALL_DIR/resources`, where `$INSTALL_DIR` is the directory
-/// containing the Zap executable (e.g. `C:\Program Files\WarpDev\resources`).
+/// containing the Dais executable (e.g. `C:\Program Files\WarpDev\resources`).
 pub fn bundled_resources_dir() -> Option<PathBuf> {
     cfg_if::cfg_if! {
         if #[cfg(target_os = "macos")] {

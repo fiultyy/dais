@@ -31,13 +31,13 @@ const VERTICAL_TEXT_MARGIN: f32 = 16.;
 
 #[derive(Debug, Clone)]
 pub enum WarpifySuccessBlockEvent {
-    ZapifySettings,
+    DaisifySettings,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum WarpifySuccessBlockAction {
     ClearAutoWarpifySnippet,
-    ZapifySettings,
+    DaisifySettings,
     OpenUrl(String),
 }
 
@@ -157,7 +157,7 @@ impl WarpifySuccessBlock {
     pub fn render_title_ui(&self, theme: &WarpTheme, appearance: &Appearance) -> Box<dyn Element> {
         let header_contents = render::build_header_row(
             "Session Warpified",
-            Icon::new(UiIcon::Zap.into(), theme.active_ui_detail()),
+            Icon::new(UiIcon::Dais.into(), theme.active_ui_detail()),
             theme,
             appearance,
         )
@@ -346,8 +346,8 @@ impl TypedActionView for WarpifySuccessBlock {
 
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
         match action {
-            WarpifySuccessBlockAction::ZapifySettings => {
-                ctx.emit(WarpifySuccessBlockEvent::ZapifySettings);
+            WarpifySuccessBlockAction::DaisifySettings => {
+                ctx.emit(WarpifySuccessBlockEvent::DaisifySettings);
             }
             WarpifySuccessBlockAction::OpenUrl(url) => {
                 ctx.open_url(url);

@@ -239,9 +239,9 @@ where
 /// Returns whether "Open in Dais" should be offered for the given file path.
 ///
 /// This checks:
-/// - Whether Zap is already the default editor (skip if so)
-/// - Whether this file is openable in Zap (skips binary files and directories)
-/// - Whether Zap is an OS-level default editor (skips Markdown files)
+/// - Whether Dais is already the default editor (skip if so)
+/// - Whether this file is openable in Dais (skips binary files and directories)
+/// - Whether Dais is an OS-level default editor (skips Markdown files)
 #[cfg(feature = "local_fs")]
 pub fn should_show_open_in_warp_link(path: &Path, app: &AppContext) -> bool {
     use crate::{
@@ -253,7 +253,7 @@ pub fn should_show_open_in_warp_link(path: &Path, app: &AppContext) -> bool {
 
     let settings = EditorSettings::as_ref(app);
 
-    if matches!(*settings.open_file_editor, EditorChoice::Zap) {
+    if matches!(*settings.open_file_editor, EditorChoice::Dais) {
         return false;
     }
 

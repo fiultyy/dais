@@ -91,7 +91,7 @@ impl ChannelState {
     /// Returns a profile name for isolating user data. This should be used to
     /// sandbox how user data is stored.
     ///
-    /// This is a debugging tool for isolating development instances of Zap, and is not
+    /// This is a debugging tool for isolating development instances of Dais, and is not
     /// supported in release builds.
     pub fn data_profile() -> Option<String> {
         if cfg!(debug_assertions) {
@@ -247,12 +247,12 @@ impl ChannelState {
             // Dummy value--integration tests shouldn't support URL schemes.
             Channel::Integration => "warpintegration",
             Channel::Local => "warplocal",
-            Channel::Oss => "zap",
+            Channel::Oss => "zap",  // zap-purge: legacy channel logfile prefix, kept for compat
         }
     }
 }
 
-/// Zap Wave 5-5：`derive_http_origin_from_ws_url` 随 `rtc_http_url()` 一同物理删。
+/// Dais Wave 5-5：`derive_http_origin_from_ws_url` 随 `rtc_http_url()` 一同物理删。
 
 #[cfg(all(test, not(feature = "test-util")))]
 #[path = "state_tests.rs"]

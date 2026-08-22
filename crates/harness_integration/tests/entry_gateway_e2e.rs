@@ -152,7 +152,7 @@ async fn openai_upstream(tag: &'static str, req: Request<Body>) -> Response {
     let model = v
         .get("model")
         .and_then(|m| m.as_str())
-        .unwrap_or("zap/glm-5.2")
+        .unwrap_or("dais/glm-5.2")
         .to_string();
     let json = serde_json::json!({
         "id": "chatcmpl-t4", "object": "chat.completion", "model": model,
@@ -202,7 +202,7 @@ fn anthropic_body(p: &str) -> serde_json::Value {
 
 fn openai_body(p: &str) -> serde_json::Value {
     serde_json::json!({
-        "model": "zap/glm-5.2",
+        "model": "dais/glm-5.2",
         "messages": [
             {"role": "system", "content": "t4-openai-system"},
             {"role": "user", "content": format!("t4-openai-user-{p}")}
@@ -215,9 +215,10 @@ async fn t4_full_chain_rewrite_transparent_auth_sessions_and_paired_blocks() {
     // ── 环境隔离: HOME→临时目录; cc 走 ZAP_UPSTREAM_BASE 显式覆盖 ──────
     let tmp = tempfile::tempdir().unwrap();
     let orig_home = std::env::var("HOME").ok();
-    let orig_upstream = std::env::var("ZAP_UPSTREAM_BASE").ok();
-    let orig_omp_key = std::env::var("ZAP_OMP_KEY").ok();
+    let orig_upstream = std::env::var("DAIS_UPSTREAM_BASE").or_else(|_| std::env::var("ZAP_UPSTREAM_BASE")).ok();
+    let orig_omp_key = std::env::var("DAIS_OMP_KEY").or_else(|_| std::env::var("ZAP_OMP_KEY")).ok();
     std::env::set_var("HOME", tmp.path());
+    std::env::remove_var("DAIS_UPSTREAM_BASE");
     std::env::remove_var("ZAP_UPSTREAM_BASE");
 
     let cc_port = spawn_recording_upstream("cc").await;
@@ -227,11 +228,11 @@ async fn t4_full_chain_rewrite_transparent_auth_sessions_and_paired_blocks() {
     // api_key_env 指向已装载的 env — 用于证明"不注"(透明管道零注入)。
     std::fs::create_dir_all(tmp.path().join(".config/dais")).unwrap();
     let omp_cfg = format!(
-        r#"{{"api_base":"http://127.0.0.1:{omppi_port}","api_key_env":"ZAP_OMP_KEY","response_format":"anthropic"}}"#
+        r#"{{\"api_base\":\"http://127.0.0.1:{omppi_port}\",\"api_key_env\":\"DAIS_OMP_KEY\",\"response_format\":\"anthropic\"}}"#
     );
     std::fs::write(tmp.path().join(".config/dais/omp-upstream.json"), omp_cfg).unwrap();
-    std::env::set_var("ZAP_UPSTREAM_BASE", format!("http://127.0.0.1:{cc_port}"));
-    std::env::set_var("ZAP_OMP_KEY", "t4-side-loaded-key");
+    std::env::set_var("DAIS_UPSTREAM_BASE", format!("http://127.0.0.1:{cc_port}"));
+    std::env::set_var("DAIS_OMP_KEY", "t4-side-loaded-key");
 
     let blocks_db = tmp.path().join("blocks.db");
     let raw_db = tmp.path().join("raw.db");
@@ -393,7 +394,7 @@ async fn t4_full_chain_rewrite_transparent_auth_sessions_and_paired_blocks() {
                 .find(|b| b.content == b"t4-openai-system".to_vec())
                 .unwrap();
             assert_eq!(oai_sys.metadata["source"], "openai_request");
-            assert_eq!(oai_sys.metadata["model"], "zap/glm-5.2");
+            assert_eq!(oai_sys.metadata["model"], "dais/glm-5.2");
 
             // UserPrompt 成对: anthropic 用户消息 + openai 用户消息,
             // 来源各自按形标注。/omp 另收零凭据请求 → 多一条。
@@ -437,7 +438,7 @@ async fn t4_full_chain_rewrite_transparent_auth_sessions_and_paired_blocks() {
                 })
                 .collect();
             let mut expected_models =
-                vec![format!("t4-anthropic-model-{p}"), "zap/glm-5.2".to_string()];
+                vec![format!("t4-anthropic-model-{p}"), "dais/glm-5.2".to_string()];
             if p == "omp" {
                 expected_models.push("t4-noauth".to_string());
             }
@@ -463,7 +464,7 @@ async fn t4_full_chain_rewrite_transparent_auth_sessions_and_paired_blocks() {
             let oai_resp = blocks
                 .iter()
                 .find(|b| b.block_type == BlockType::Response
-                    && b.metadata["model"] == "zap/glm-5.2")
+                    && b.metadata["model"] == "dais/glm-5.2")
                 .unwrap();
             assert_eq!(oai_resp.metadata["source"], "openai_response");
             assert_eq!(
@@ -517,12 +518,12 @@ async fn t4_full_chain_rewrite_transparent_auth_sessions_and_paired_blocks() {
         None => std::env::remove_var("HOME"),
     }
     match orig_upstream {
-        Some(v) => std::env::set_var("ZAP_UPSTREAM_BASE", v),
-        None => std::env::remove_var("ZAP_UPSTREAM_BASE"),
+        Some(v) => { std::env::set_var("DAIS_UPSTREAM_BASE", &v); std::env::set_var("ZAP_UPSTREAM_BASE", &v); }
+        None => { std::env::remove_var("DAIS_UPSTREAM_BASE"); std::env::remove_var("ZAP_UPSTREAM_BASE"); }
     }
     match orig_omp_key {
-        Some(v) => std::env::set_var("ZAP_OMP_KEY", v),
-        None => std::env::remove_var("ZAP_OMP_KEY"),
+        Some(v) => { std::env::set_var("DAIS_OMP_KEY", &v); std::env::set_var("ZAP_OMP_KEY", &v); }
+        None => { std::env::remove_var("DAIS_OMP_KEY"); std::env::remove_var("ZAP_OMP_KEY"); }
     }
     result
 }

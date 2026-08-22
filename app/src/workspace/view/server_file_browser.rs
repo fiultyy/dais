@@ -67,7 +67,7 @@ const TRANSFER_CHUNK_BYTES: u64 = 1024 * 1024;
 const UPLOAD_PROGRESS_POLL_MS: u64 = 100;
 const UPLOAD_PROGRESS_PANEL_TOP_OFFSET: f32 = 46.0;
 const UPLOAD_PROGRESS_PANEL_MAX_HEIGHT: f32 = 240.0;
-const UPLOAD_STAGING_DIR_NAME: &str = ".zap-upload-staging";
+const UPLOAD_STAGING_DIR_NAME: &str = ".dais-upload-staging";
 
 #[derive(Clone, Debug)]
 pub enum ServerFileBrowserAction {

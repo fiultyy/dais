@@ -6,7 +6,7 @@ use command::r#async::Command;
 
 use crate::{IsolationPlatformError, WorkloadToken};
 
-const ZAP_WORKLOAD_AUDIENCE: &str = "http://192.0.2.0:9";
+const ZAP_WORKLOAD_AUDIENCE: &str = "http://192.0.2.0:9"; // zap-purge: legacy OIDC audience, kept for compat
 
 /// Detect whether or not we are running in a Namespace instance.
 pub fn is_in_namespace_instance() -> bool {

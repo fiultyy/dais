@@ -1,9 +1,9 @@
-//! # Zap 本地化说明(Phase 2d-4b,2026-05-11 修订)
+//! # Dais 本地化说明(Phase 2d-4b,2026-05-11 修订)
 //!
-//! 本模块在上游 Zap 中承担 "云对象" 抽象,统一描述 Notebook / Workflow / EnvVar /
+//! 本模块在上游 Dais 中承担 "云对象" 抽象,统一描述 Notebook / Workflow / EnvVar /
 //! Fact / MCP / ExecutionProfile / AIDocument 等需要在多设备间同步的对象类型。
 //!
-//! 在 Zap 中云端同步链路(RTC / UpdateManager / SyncQueue / ServerApiProvider)
+//! 在 Dais 中云端同步链路(RTC / UpdateManager / SyncQueue / ServerApiProvider)
 //! 已被剥离(详见 `docs/zap-cloud-removal-plan.md`),本模块**变为纯本地对象抽象**:
 //!
 //! - `StoredObject` trait → 实际语义是 "本地领域对象 trait",承载 metadata / permissions /
@@ -28,7 +28,7 @@ use crate::{
     auth::UserUid,
     channel::ChannelState,
     drive::{
-        items::WarpDriveItem, ObjectTypeAndId, ZapDriveObjectArgs, ZapDriveObjectSettings,
+        items::WarpDriveItem, ObjectTypeAndId, DaisDriveObjectArgs, DaisDriveObjectSettings,
     },
     persistence::ModelEvent,
     server::ids::{ClientId, HashableId, HashedSqliteId, ObjectUid, ServerId, SyncId, ToServerId},
@@ -62,7 +62,7 @@ pub use server_types::*;
 
 /// 包装一个 model 序列化后字符串的 newtype。
 ///
-/// Zap(Wave 4):原定义在 `crate::server::sync_queue`,SyncQueue 整删后
+/// Dais(Wave 4):原定义在 `crate::server::sync_queue`,SyncQueue 整删后
 /// 迁到这里。多个 model 的 `serialized()` 仍然返回它(本地写 sqlite 时使用)。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SerializedModel(String);
@@ -183,7 +183,7 @@ pub trait StoredObject: Debug {
     // Returns the name of the object.
     fn display_name(&self) -> String;
 
-    /// Returns whether this model type should render as a zap drive item.
+    /// Returns whether this model type should render as a dais drive item.
     fn renders_in_warp_drive(&self) -> bool;
 
     /// Returns whether this model type should show update toasts in the UI.
@@ -191,8 +191,8 @@ pub trait StoredObject: Debug {
         true
     }
 
-    /// Creates a new Zap Drive item for this object.  Returns None if this
-    /// object is not rendered in Zap Drive.
+    /// Creates a new Dais Drive item for this object.  Returns None if this
+    /// object is not rendered in Dais Drive.
     fn to_warp_drive_item(&self, appearance: &Appearance) -> Option<Box<dyn WarpDriveItem>>;
 
     /// Returns the web link of this object. Will return none if we do not support web links
@@ -463,7 +463,7 @@ pub trait StoredObjectModel: Debug + Clone + Send + Sync {
     /// Returns the ObjectType for this model.
     fn object_type(&self) -> ObjectType;
 
-    /// Returns whether this model type should render as a zap drive item.
+    /// Returns whether this model type should render as a dais drive item.
     fn renders_in_warp_drive(&self) -> bool;
 
     /// Returns whether this model type should show update toasts in the UI.
@@ -477,8 +477,8 @@ pub trait StoredObjectModel: Debug + Clone + Send + Sync {
         true
     }
 
-    /// Creates a new zap drive item for this model type. Returns None
-    /// if this object does not render in Zap Drive.
+    /// Creates a new dais drive item for this model type. Returns None
+    /// if this object does not render in Dais Drive.
     fn to_warp_drive_item(
         &self,
         id: SyncId,
@@ -486,10 +486,10 @@ pub trait StoredObjectModel: Debug + Clone + Send + Sync {
         object: &Self::StoredObjectType,
     ) -> Option<Box<dyn WarpDriveItem>>;
 
-    /// Returns the display name for this model (e.g. to show in the Zap Drive index)
+    /// Returns the display name for this model (e.g. to show in the Dais Drive index)
     fn display_name(&self) -> String;
 
-    /// Sets the display name to show in the Zap Drive Index.  Setting the name
+    /// Sets the display name to show in the Dais Drive Index.  Setting the name
     /// is not currently supported by all object types, hence the default empty
     /// implementation.
     fn set_display_name(&mut self, _name: &str) {}
@@ -822,11 +822,11 @@ where
 }
 
 /// Extracts the server id and object type from a (caller validated) Drive link.
-/// Intended use is deriving metadata from links such that Zap objects
-/// can be opened natively in Zap with no web interaction.
+/// Intended use is deriving metadata from links such that Dais objects
+/// can be opened natively in Dais with no web interaction.
 pub fn extract_server_id_and_object_type_from_warp_drive_link(
     url: &Url,
-) -> Option<ZapDriveObjectArgs> {
+) -> Option<DaisDriveObjectArgs> {
     let server_id = url
         .path_segments()
         .and_then(|mut segments| segments.next_back())
@@ -849,13 +849,13 @@ pub fn extract_server_id_and_object_type_from_warp_drive_link(
 
     let invitee_email: Option<String> = query_string.get("invitee_email").map(|s| s.to_string());
 
-    Some(ZapDriveObjectArgs {
+    Some(DaisDriveObjectArgs {
         object_type,
         server_id: match server_id {
             Some(server_id) => server_id.try_into().ok()?,
             _ => return None,
         },
-        settings: ZapDriveObjectSettings {
+        settings: DaisDriveObjectSettings {
             focused_folder_id,
             invitee_email,
         },
@@ -1065,7 +1065,7 @@ impl Space {
     }
 }
 
-/// Enum for specifying the location of a zap drive object.
+/// Enum for specifying the location of a dais drive object.
 /// Objects can live in top level spaces, or a specific folder.
 #[derive(Eq, PartialEq, Copy, Clone, Debug, Hash)]
 pub enum StoredObjectLocation {

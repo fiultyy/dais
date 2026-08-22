@@ -43,7 +43,7 @@ fn version_compat_client_tagged_server_untagged() {
 
 #[test]
 fn version_compat_client_untagged_server_tagged() {
-    // **关键场景**:Zap 客户端无 tag(cargo build),
+    // **关键场景**:Dais 客户端无 tag(cargo build),
     // 服务器是从官方 CDN 下来的 release(带 tag)。原 helper 判定
     // 不兼容,会触发 `remove_remote_server_binary` → 死循环。
     // 这个 test 仅记录 `version_is_compatible` 自身的行为不变,
@@ -57,7 +57,7 @@ fn version_compat_client_untagged_server_tagged() {
 
 #[test]
 fn enforce_version_check_skipped_on_oss() {
-    // Zap 临时复用官方 release 二进制时,客户端与服务端版本
+    // Dais 临时复用官方 release 二进制时,客户端与服务端版本
     // 永远不一致,必须跳过严格校验。
     assert!(!should_enforce_remote_version_check(Channel::Oss));
 }

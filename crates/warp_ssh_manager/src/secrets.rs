@@ -7,7 +7,7 @@
 use thiserror::Error;
 use zeroize::Zeroizing;
 
-const SERVICE: &str = "zap.ssh";
+const SERVICE: &str = "zap.ssh"; // zap-purge: legacy keychain service name, kept for compat
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SecretKind {

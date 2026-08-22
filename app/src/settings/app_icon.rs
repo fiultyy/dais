@@ -7,7 +7,7 @@ use warp_core::{
 
 /// The app icon to use (mac-only).
 ///
-/// IMPORTANT NOTE: If you add a new icon, you will need to update the logic in ZapDockTilePlugin.m
+/// IMPORTANT NOTE: If you add a new icon, you will need to update the logic in DaisDockTilePlugin.m
 /// to read the new icon and also add the icon to app/DockTilePlugin/Resources.
 #[derive(
     Default,
@@ -40,7 +40,7 @@ pub enum AppIcon {
     Classic3,
     #[schemars(description = "Comets")]
     Comets,
-    /// Cow icon, for Code on Zap launch.
+    /// Cow icon, for Code on Dais launch.
     #[schemars(description = "Cow")]
     Cow,
     #[schemars(description = "Glass Sky")]

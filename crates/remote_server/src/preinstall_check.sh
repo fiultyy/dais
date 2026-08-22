@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Zap remote-server 二进制的预安装检查。
+# Dais remote-server 二进制的预安装检查。
 #
 # stdout 输出结构化 key=value 摘要。退出码 0 表示探测完成;
 # 非 0 表示探测过程失败,客户端会按 `status=unknown` 处理并 fail open。
 #
-# 重要:Zap Linux remote-server 现在由 zap_release.yml 以
-# `x86_64-unknown-linux-musl` 目标静态链接构建(static-musl)。产物不依赖
+# 重要:Dais Linux remote-server 现在由 zap_release.yml 以
+# `x86_64-unknown-linux-musl` 目标静态链接构建(static-musl)。产物不依赖  # zap-purge: zap_release.yml is a CI filename, kept as historical reference
 # 宿主的动态 libc,因此可以在任意 Linux x86_64 主机上运行 —— 包括旧 glibc
 # 发行版(CentOS 7 = 2.17、Amazon Linux 2 = 2.26、Ubuntu 20.04 / Debian 11
 # = 2.31)以及 musl 发行版(Alpine 等)。

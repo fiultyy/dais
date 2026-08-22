@@ -28,12 +28,15 @@ pub struct UpstreamConfig {
 }
 
 impl UpstreamConfig {
-    /// 三级优先: 显式 base > 探测 (ZAP_UPSTREAM_BASE env) > harness 默认。
+    /// 三级优先: 显式 base > 探测 (DAIS_UPSTREAM_BASE env, zap-purge: ZAP_UPSTREAM_BASE fallback) > harness 默认。
     pub fn resolve(harness: HarnessType, explicit: Option<&str>) -> Result<Self> {
         if let Some(base) = explicit {
             return Ok(Self::with_base(harness, base));
         }
-        if let Ok(base) = std::env::var("ZAP_UPSTREAM_BASE") {
+        // zap-purge: ZAP_UPSTREAM_BASE fallback for transition
+        let base = std::env::var("DAIS_UPSTREAM_BASE")
+            .or_else(|_| std::env::var("ZAP_UPSTREAM_BASE"));
+        if let Ok(base) = base {
             return Ok(Self::with_base(harness, &base));
         }
         Ok(match harness {
@@ -44,7 +47,7 @@ impl UpstreamConfig {
                 api_base: String::new(),
                 auth_header: "authorization".into(),
                 auth_prefix: "Bearer ".into(),
-                api_key_env: "ZAP_API_KEY".into(),
+                api_key_env: "DAIS_API_KEY".into(), // zap-purge: was ZAP_API_KEY
                 request_path: "/".into(),
                 response_format: ResponseFormat::Generic,
             },
@@ -59,7 +62,7 @@ impl UpstreamConfig {
                 api_base: String::new(),
                 auth_header: "authorization".into(),
                 auth_prefix: "Bearer ".into(),
-                api_key_env: "ZAP_API_KEY".into(),
+                api_key_env: "DAIS_API_KEY".into(), // zap-purge: was ZAP_API_KEY
                 request_path: "/".into(),
                 response_format: ResponseFormat::Generic,
             },
@@ -102,7 +105,7 @@ impl UpstreamConfig {
             response_format: String,
         }
         fn default_key_env() -> String {
-            "ZAP_API_KEY".to_string()
+            "DAIS_API_KEY".to_string() // zap-purge: was ZAP_API_KEY
         }
 
         let path = std::env::var("HOME").map(std::path::PathBuf::from).map(|h| {

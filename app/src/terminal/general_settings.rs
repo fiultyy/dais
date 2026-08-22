@@ -100,10 +100,10 @@ define_settings_group!(GeneralSettings, settings: [
         sync_to_cloud: SyncToCloud::Never,
         private: true,
     },
-    // One-time flag tracking whether the Zap launch modal has already been
+    // One-time flag tracking whether the Dais launch modal has already been
     // shown to the user. Not user-visible; modeled as a setting so it's only
     // shown once per user regardless of the number of devices they use.
-    did_check_to_trigger_zap_launch_modal: DidShowZapLaunchModal {
+    did_check_to_trigger_dais_launch_modal: DidShowDaisLaunchModal {
         type: bool,
         default: false,
         supported_platforms: SupportedPlatforms::ALL,

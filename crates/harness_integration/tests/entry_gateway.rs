@@ -19,6 +19,7 @@ use parking_lot::Mutex as PlMutex;
 static SEEN: PlMutex<Vec<(String, String)>> = PlMutex::new(Vec::new());
 
 /// HOME/ZAP_UPSTREAM_BASE 是进程级全局 — 改动它们的测试串行。
+/// zap-purge: legacy env var name, kept for compat read
 static ENV_LOCK: PlMutex<()> = PlMutex::new(());
 
 async fn mock_upstream(tag: &'static str, req: Request<Body>) -> Response {
@@ -68,8 +69,9 @@ async fn entry_gateway_prefix_routing_capture_and_transparent_auth() {
     // ── 环境隔离(HOME 指向临时目录; /cc 走 ZAP_UPSTREAM_BASE 显式覆盖) ──
     let tmp = tempfile::tempdir().unwrap();
     let orig_home = std::env::var("HOME").ok();
-    let orig_upstream = std::env::var("ZAP_UPSTREAM_BASE").ok();
+    let orig_upstream = std::env::var("DAIS_UPSTREAM_BASE").or_else(|_| std::env::var("ZAP_UPSTREAM_BASE")).ok();
     std::env::set_var("HOME", tmp.path());
+    std::env::remove_var("DAIS_UPSTREAM_BASE");
     std::env::remove_var("ZAP_UPSTREAM_BASE");
 
     let cc_port = spawn_fake_upstream("cc").await;
@@ -78,11 +80,11 @@ async fn entry_gateway_prefix_routing_capture_and_transparent_auth() {
     // /omp、/pi 出口: ~/.config/dais/omp-upstream.json(orchestration 侧写入口径)
     std::fs::create_dir_all(tmp.path().join(".config/dais")).unwrap();
     let omp_cfg = format!(
-        r#"{{"api_base":"http://127.0.0.1:{omp_port}","api_key_env":"ZAP_OMP_KEY","response_format":"anthropic"}}"#
+        r#"{{"api_base":"http://127.0.0.1:{omp_port}","api_key_env":"DAIS_OMP_KEY","response_format":"anthropic"}}"#
     );
     std::fs::write(tmp.path().join(".config/dais/omp-upstream.json"), omp_cfg).unwrap();
     // /cc 出口: 显式覆盖优先
-    std::env::set_var("ZAP_UPSTREAM_BASE", format!("http://127.0.0.1:{cc_port}"));
+    std::env::set_var("DAIS_UPSTREAM_BASE", format!("http://127.0.0.1:{cc_port}"));
 
     let blocks_db = tmp.path().join("blocks.db");
     let raw_db = tmp.path().join("raw.db");
@@ -127,7 +129,7 @@ async fn entry_gateway_prefix_routing_capture_and_transparent_auth() {
             .unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 
-        // 4. 透明 auth: 客户端凭据原样到上游(zap 不注不剥)。
+        // 4. 透明 auth: 客户端凭据原样到上游(dais 不注不剥)。
         {
             let seen = SEEN.lock();
             assert!(seen.contains(&("cc".to_string(), "sk-cc-client-key".to_string())));
@@ -181,8 +183,8 @@ async fn entry_gateway_prefix_routing_capture_and_transparent_auth() {
         None => std::env::remove_var("HOME"),
     }
     match orig_upstream {
-        Some(v) => std::env::set_var("ZAP_UPSTREAM_BASE", v),
-        None => std::env::remove_var("ZAP_UPSTREAM_BASE"),
+        Some(v) => std::env::set_var("DAIS_UPSTREAM_BASE", v),
+        None => { std::env::remove_var("DAIS_UPSTREAM_BASE"); std::env::remove_var("ZAP_UPSTREAM_BASE"); }
     }
     result
 }
@@ -213,8 +215,12 @@ async fn entry_gateway_stop_aborts_on_hanging_upstream() {
     let _env = ENV_LOCK.lock();
     let tmp = tempfile::tempdir().unwrap();
     let orig_home = std::env::var("HOME").ok();
-    let orig_upstream = std::env::var("ZAP_UPSTREAM_BASE").ok();
+    let orig_upstream = std::env::var("DAIS_UPSTREAM_BASE").or_else(|_| std::env::var("ZAP_UPSTREAM_BASE")).ok();
     std::env::set_var("HOME", tmp.path());
+    std::env::set_var(
+        "DAIS_UPSTREAM_BASE",
+        format!("http://127.0.0.1:{bh_port}"),
+    );
     std::env::set_var(
         "ZAP_UPSTREAM_BASE",
         format!("http://127.0.0.1:{bh_port}"),
@@ -269,8 +275,8 @@ async fn entry_gateway_stop_aborts_on_hanging_upstream() {
         None => std::env::remove_var("HOME"),
     }
     match orig_upstream {
-        Some(v) => std::env::set_var("ZAP_UPSTREAM_BASE", v),
-        None => std::env::remove_var("ZAP_UPSTREAM_BASE"),
+        Some(v) => { std::env::set_var("DAIS_UPSTREAM_BASE", &v); std::env::set_var("ZAP_UPSTREAM_BASE", &v); }
+        None => { std::env::remove_var("DAIS_UPSTREAM_BASE"); std::env::remove_var("ZAP_UPSTREAM_BASE"); }
     }
     result
 }

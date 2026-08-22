@@ -24,7 +24,7 @@ use crate::warp_managed_paths_watcher::warp_managed_skill_dirs;
 /// 优先级规则(同名 skill 多份时):
 ///
 /// 1. **provider rank 小者胜**:依 [`SKILL_PROVIDER_DEFINITIONS`] 顺序(index 0 = 最高优先级),
-///    例如 `Agents > Zap > Claude > …`。
+///    例如 `Agents > Dais > Claude > …`。
 /// 2. **同 rank 时 reference 路径短者胜**:取为稳定 tiebreak。
 ///
 /// 该实现覆盖了三种场景:
@@ -147,7 +147,7 @@ pub fn icon_override_for_skill_name(name: &str) -> Option<Icon> {
 
 pub fn skill_path_from_file_path(file_path: &Path) -> Option<PathBuf> {
     for definition in SKILL_PROVIDER_DEFINITIONS.iter() {
-        let home_skill_dirs = if definition.provider == SkillProvider::Zap {
+        let home_skill_dirs = if definition.provider == SkillProvider::Dais {
             warp_managed_skill_dirs()
         } else {
             home_skills_path(definition.provider).into_iter().collect()

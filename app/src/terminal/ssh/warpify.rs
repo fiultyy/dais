@@ -66,7 +66,7 @@ impl Entity for SshWarpifyBlock {
 
 impl SshWarpifyBlock {
     fn render_title_ui(&self, theme: &WarpTheme, appearance: &Appearance) -> Box<dyn Element> {
-        let icon = Icon::new(UiIcon::Zap.into(), theme.active_ui_detail());
+        let icon = Icon::new(UiIcon::Dais.into(), theme.active_ui_detail());
         warpify::render::header_row("Warpifying SSH Session...", icon, theme, appearance)
     }
 }

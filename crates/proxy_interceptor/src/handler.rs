@@ -24,12 +24,13 @@ const MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
 /// `x-zap-instance` 是改名前铸的同一标记(D4 兼容): 只剥不读 — 升级后
 /// 未重 bootstrap 的旧 shell 旧别名仍发旧头, 剥掉保证内部信号不进上游,
 /// 键控回落默认 session(T5 行为)。
+// zap-purge: legacy wire headers, kept for compat
 const SKIPPED_REQUEST_HEADERS: [&str; 5] = [
     "host",
     "content-length",
     "connection",
     "x-dais-instance",
-    "x-zap-instance",
+    "x-zap-instance", // zap-purge: legacy header from pre-rename shell aliases
 ];
 /// 透传响应时跳过的 hop-by-hop / 由 axum 重写的头。
 const SKIPPED_RESPONSE_HEADERS: [&str; 3] =
