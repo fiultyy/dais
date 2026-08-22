@@ -118,6 +118,8 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| CLIAgentSessionsModel::new());
     // issue #13: Input 构造 InterceptConfigBar 需要该单例。
     app.add_singleton_model(crate::terminal::intercept_sessions::InterceptSessionsModel::new);
+    // cockpit-instant:TerminalView 事件泵推送 TerminalActivityModel;未注册 panic。
+    app.add_singleton_model(crate::terminal::terminal_activity::TerminalActivityModel::new);
     app.add_singleton_model(AgentConversationsModel::new);
     // Zap:以下单例在生产 app 启动(lib.rs)注册,workspace/AI 构造链订阅;
     // 缺注册会在 App::test 里 panic "never registered"。
@@ -2645,6 +2647,96 @@ fn cockpit_refresh_timing_probe() {
         assert!(
             p95 < 50_000,
             "cockpit refresh regressed: p95={p95}µs (baseline ~350µs)"
+        );
+    });
+}
+
+/// cockpit-instant:非 agent 终端事件 → cockpit 刷新的完整路径。
+/// 覆盖:面板开 → hub 开(StateChanged 即时刷新/OutputChanged 合并窗)、
+/// 面板关 → hub 关(事件不再触发刷新)。
+#[test]
+fn test_cockpit_terminal_activity_event_refresh() {
+    use crate::terminal::terminal_activity::{
+        TerminalActivityEvent, TerminalActivityModel,
+    };
+
+    App::test((), |mut app| async move {
+        initialize_app(&mut app);
+        app.add_singleton_model(crate::ai::cockpit::model::CockpitModel::new);
+        let workspace = mock_workspace(&mut app);
+
+        workspace.update(&mut app, |ws, ctx| {
+            ws.add_terminal_tab(false, ctx);
+            ws.add_terminal_tab(false, ctx);
+        });
+
+        let cockpit = crate::ai::cockpit::model::CockpitModel::handle(&mut app);
+        let hub = TerminalActivityModel::handle(&mut app);
+
+        // 关态:hub 禁用,直接 publish 不应被生产端走到(短路闸在调用方),
+        // 但若被调用,订阅也不刷新(面板关 → panel_open gate)。
+        let id = terminal_view_id_of(&workspace, 0, &mut app);
+        let before = warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count());
+        hub.update(&mut app, |m, ctx| {
+            m.publish(id, TerminalActivityEvent::StateChanged { terminal_view_id: id }, ctx)
+        });
+        assert_eq!(
+            warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count()),
+            before,
+            "closed panel must not refresh on hub events"
+        );
+
+        // 开面板:ToggleCockpit 建 view(挂订阅)+ set_panel_open(true)
+        // → hub enabled。首刷由 toggle 自带。
+        workspace.update(&mut app, |ws, ctx| {
+            ws.handle_action(&WorkspaceAction::ToggleCockpit, ctx);
+        });
+        assert!(warpui::ReadModel::read_model(&app, &hub, |m: &crate::terminal::terminal_activity::TerminalActivityModel, _| m.is_enabled()), "panel open must enable hub");
+        assert!(
+            warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count()) > before,
+            "toggle itself refreshes"
+        );
+
+        // StateChanged → 订阅回调同步 refresh(零延迟路径)。
+        let before = warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count());
+        hub.update(&mut app, |m, ctx| {
+            m.publish(id, TerminalActivityEvent::StateChanged { terminal_view_id: id }, ctx)
+        });
+        assert_eq!(
+            warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count()),
+            before + 1,
+            "StateChanged must refresh immediately"
+        );
+
+        // OutputChanged → 150ms 合并窗,窗未到不刷新;同一窗口多次事件
+        // 合并为一次(计数在窗到后只 +1)。窗到由测试 runtime 的时钟推进
+        // 驱动——App::test 的 Timer 在无 await 推进时不会触发,这里只断言
+        // 窗口吸收语义:连发 3 个事件,refresh 计数不变。
+        let before = warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count());
+        for _ in 0..3 {
+            hub.update(&mut app, |m, ctx| {
+                m.publish(id, TerminalActivityEvent::OutputChanged { terminal_view_id: id }, ctx)
+            });
+        }
+        assert_eq!(
+            warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count()),
+            before,
+            "OutputChanged must be coalesced (window not elapsed)"
+        );
+
+        // 关面板 → hub 关 + 后续事件不再刷新。
+        workspace.update(&mut app, |ws, ctx| {
+            ws.handle_action(&WorkspaceAction::ToggleCockpit, ctx);
+        });
+        assert!(!warpui::ReadModel::read_model(&app, &hub, |m: &crate::terminal::terminal_activity::TerminalActivityModel, _| m.is_enabled()), "panel close must disable hub");
+        let before = warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count());
+        hub.update(&mut app, |m, ctx| {
+            m.publish(id, TerminalActivityEvent::StateChanged { terminal_view_id: id }, ctx)
+        });
+        assert_eq!(
+            warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count()),
+            before,
+            "events after close must not refresh"
         );
     });
 }

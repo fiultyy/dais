@@ -75,6 +75,10 @@ const PATH_MAX_CHARS: usize = 42;
 /// 让终端状态最长 10s 不可见。压到 2s:每秒成本 ~0.2ms(9 卡),可忽略;
 /// observatory 为 5s,cockpit 作为交互操作面板取更紧的 2s。
 const COCKPIT_RECONCILE_INTERVAL_MS: u64 = 2_000;
+/// OutputChanged 合并窗(ms)。preview 尾行/分支随输出增长的刷新合并:
+/// 窗内事件吸收,窗到单次 refresh(风暴上限 ~6.7 刷新/s,单事件延迟上界
+/// 150ms——人眼对 preview 文本的感知粒度足够)。StateChanged 不进此窗。
+const OUTPUT_COALESCE_WINDOW_MS: u64 = 150;
 /// 多选勾选框边长。
 const CHECKBOX_SIZE: f32 = 14.;
 /// 注入确认对话框宽度。
@@ -132,6 +136,9 @@ pub struct CockpitPanelView {
     inject_input: ViewHandle<SubmittableTextInput>,
     /// 低频对账 timer 句柄,Drop 时中止。
     reconcile_timer_handle: Option<SpawnedFutureHandle>,
+    /// OutputChanged 合并窗 timer 句柄(在跑 = 窗口开启,新事件被吸收;
+    /// 窗到即单次刷新。Drop 时中止,防泄漏)。
+    output_coalesce_handle: Option<SpawnedFutureHandle>,
     /// 卡片悬停句柄(渲染缓存,数量对齐卡片数)。
     card_handles: RefCell<Vec<MouseStateHandle>>,
     /// 勾选框悬停句柄(渲染缓存,数量对齐卡片数)。
@@ -267,6 +274,32 @@ impl CockpitPanelView {
             }
         });
 
+        // cockpit-instant:非 agent 终端事件订阅(per-view 事件经全局
+        // TerminalActivityModel 聚合推来)。StateChanged(Busy/Idle 转移)
+        // 零延迟即时刷;OutputChanged(输出增长,高频)进 150ms 合并窗。
+        // 订阅随本 view 生命周期:pane 关闭 → view Drop → 自动退订(防泄漏)。
+        #[cfg(not(target_family = "wasm"))]
+        ctx.subscribe_to_model(
+            &crate::terminal::terminal_activity::TerminalActivityModel::handle(ctx),
+            |me, _h, event, ctx| {
+                if !CockpitModel::handle(ctx).as_ref(ctx).panel_open() {
+                    return;
+                }
+                match event {
+                    crate::terminal::terminal_activity::TerminalActivityEvent::StateChanged {
+                        ..
+                    } => {
+                        CockpitModel::handle(ctx).update(ctx, |m, ctx| m.refresh(ctx));
+                    }
+                    crate::terminal::terminal_activity::TerminalActivityEvent::OutputChanged {
+                        ..
+                    } => {
+                        me.schedule_output_coalesced_refresh(ctx);
+                    }
+                }
+            },
+        );
+
         let mut me = Self {
             model,
             refresh_button,
@@ -280,6 +313,7 @@ impl CockpitPanelView {
             filter_input,
             inject_input,
             reconcile_timer_handle: None,
+            output_coalesce_handle: None,
             card_handles: RefCell::new(Vec::new()),
             checkbox_handles: RefCell::new(Vec::new()),
             card_grid_scroll: ClippedScrollStateHandle::default(),
@@ -332,6 +366,31 @@ impl CockpitPanelView {
             },
         );
         self.reconcile_timer_handle = Some(handle);
+    }
+
+    /// cockpit-instant:OutputChanged 合并窗。窗口已开(计时器在跑)时
+    /// 吸收事件不做事;窗口关闭时开一个 150ms 一次性计时器,窗到即单次
+    /// refresh。固定窗(不做 trailing 重置)保证:事件风暴下刷新频率
+    /// 上限 ~6.7 次/s,单事件延迟上界 150ms。
+    fn schedule_output_coalesced_refresh(&mut self, ctx: &mut ViewContext<Self>) {
+        if self.output_coalesce_handle.is_some() {
+            return;
+        }
+        let handle = ctx.spawn(
+            async move {
+                Timer::after(std::time::Duration::from_millis(
+                    OUTPUT_COALESCE_WINDOW_MS,
+                ))
+                .await;
+            },
+            |me, _unit, ctx| {
+                me.output_coalesce_handle = None;
+                if CockpitModel::handle(ctx).as_ref(ctx).panel_open() {
+                    CockpitModel::handle(ctx).update(ctx, |m, ctx| m.refresh(ctx));
+                }
+            },
+        );
+        self.output_coalesce_handle = Some(handle);
     }
 
     /// 聚焦筛选输入框(pane `focus_contents` 入口,observatory focus_search 同款)。

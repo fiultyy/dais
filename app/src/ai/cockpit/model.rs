@@ -252,6 +252,8 @@ pub struct CockpitModel {
     group_by: CockpitGroupBy,
     /// 批量注入待确认状态(Some = 确认对话框打开)。
     pending_injection: Option<CockpitPendingInjection>,
+    /// refresh 调用计数(事件→刷新路径测试观测;非 UI 契约)。
+    refresh_count: u64,
 }
 
 impl Entity for CockpitModel {
@@ -275,6 +277,7 @@ impl CockpitModel {
             sort: CockpitSort::default(),
             group_by: CockpitGroupBy::default(),
             pending_injection: None,
+            refresh_count: 0,
         }
     }
 
@@ -335,8 +338,19 @@ impl CockpitModel {
         self.all_cards.len()
     }
 
+    /// refresh 调用计数(事件驱动刷新路径的测试观测点)。
+    pub fn refresh_count(&self) -> u64 {
+        self.refresh_count
+    }
+
     pub fn set_panel_open(&mut self, open: bool, ctx: &mut ModelContext<Self>) {
         self.panel_open = open;
+        // cockpit-instant:面板开合同步活动 hub 开关(生产端热路径短路闸)。
+        #[cfg(not(target_family = "wasm"))]
+        crate::terminal::terminal_activity::TerminalActivityModel::handle(ctx).update(
+            ctx,
+            |hub, ctx| hub.set_enabled(open, ctx),
+        );
         ctx.emit(CockpitEvent::SnapshotUpdated);
     }
 
@@ -489,8 +503,10 @@ impl CockpitModel {
     ///
     /// P1:事件驱动(`CLIAgentSessionsModelEvent` 订阅,见 view.rs)+ 10s
     pub fn refresh(&mut self, ctx: &mut ModelContext<Self>) {
+        self.refresh_count += 1;
         let mut window_count = 0usize;
         let mut all_cards = Vec::new();
+
 
         for (_window_id, workspace) in WorkspaceRegistry::as_ref(ctx).all_workspaces(ctx) {
             window_count += 1;

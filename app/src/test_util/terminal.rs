@@ -81,6 +81,9 @@ pub fn initialize_app_for_terminal_view(app: &mut App) {
     app.add_singleton_model(|_| CLIAgentSessionsModel::new());
     // issue #13: Input 构造 InterceptConfigBar 需要该单例。
     app.add_singleton_model(crate::terminal::intercept_sessions::InterceptSessionsModel::new);
+    // cockpit-instant:TerminalView 事件泵会推送 TerminalActivityModel;
+    // 未注册时 .handle() panic。
+    app.add_singleton_model(crate::terminal::terminal_activity::TerminalActivityModel::new);
     app.add_singleton_model(BlocklistAIPermissions::new);
     app.add_singleton_model(UndoCloseStack::new);
 

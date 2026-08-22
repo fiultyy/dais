@@ -1743,6 +1743,9 @@ fn initialize_app(
     // 驾驶舱面板单例 model (Cockpit)。
     #[cfg(not(target_family = "wasm"))]
     ctx.add_singleton_model(ai::cockpit::model::CockpitModel::new);
+    // 终端活动聚合单例(cockpit-instant):per-view 终端事件 → 全局订阅。
+    #[cfg(not(target_family = "wasm"))]
+    ctx.add_singleton_model(terminal::terminal_activity::TerminalActivityModel::new);
     ctx.add_singleton_model(BlocklistAIPermissions::new);
     // 通知中心单例 model:必须排在 BlocklistAIHistoryModel
     // 和 CLIAgentSessionsModel 之后注册,因为构造时会订阅这两个 model。

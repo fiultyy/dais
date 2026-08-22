@@ -444,6 +444,7 @@ use crate::terminal::find::{BlockGridMatch, BlockListMatch, TerminalFindModel};
 use crate::terminal::input::{InputState, MenuPositioning, MenuPositioningProvider};
 use crate::terminal::keys::TerminalKeybindings;
 use crate::terminal::model::block::{AgentInteractionMetadata, BlockMetadata};
+use crate::terminal::terminal_activity::{TerminalActivityEvent, TerminalActivityModel};
 use crate::terminal::model::block::{Block, BlockId};
 use crate::terminal::model::blocks::{BlockFilter, BlockList};
 use crate::terminal::model::blocks::{BlockHeight, BlockHeightItem, BlockHeightSummary, Gap};
@@ -7685,6 +7686,18 @@ impl TerminalView {
         }
     }
 
+    /// cockpit-instant:向全局活动 hub 广播本终端的事件。关态一次 atomic
+    /// load 短路,开态才进 model update(热路径安全)。
+    fn publish_terminal_activity(event: TerminalActivityEvent, ctx: &mut ViewContext<Self>) {
+        let hub = TerminalActivityModel::handle(ctx);
+        if !hub.as_ref(ctx).is_enabled() {
+            return;
+        }
+        let (TerminalActivityEvent::StateChanged { terminal_view_id }
+        | TerminalActivityEvent::OutputChanged { terminal_view_id }) = event;
+        hub.update(ctx, |hub, ctx| hub.publish(terminal_view_id, event, ctx));
+    }
+
     /// This function is invoked every time there is some form of view event
     /// such as a state change or terminal wakeup to update the view context.
     fn handle_terminal_wakeup(&mut self, _: (), ctx: &mut ViewContext<Self>) {
@@ -7729,6 +7742,15 @@ impl TerminalView {
         self.use_agent_footer.update(ctx, |footer, ctx| {
             footer.notify_and_notify_children(ctx);
         });
+
+        // cockpit-instant:输出增长(preview 尾行/分支随输出更新)。高频,
+        // OutputChanged 语义——消费者(cockpit)150ms 合并窗处理。
+        Self::publish_terminal_activity(
+            TerminalActivityEvent::OutputChanged {
+                terminal_view_id: self.id(),
+            },
+            ctx,
+        );
 
         // Need to re-render both the alt screen and the blocklist on keypresses.
         ctx.notify();
@@ -9313,6 +9335,13 @@ impl TerminalView {
         }
 
         self.did_notify_long_running = true;
+        // cockpit-instant:Idle→Busy 翻转点,零延迟广播(关态短路,开态才走)。
+        Self::publish_terminal_activity(
+            TerminalActivityEvent::StateChanged {
+                terminal_view_id: self.id(),
+            },
+            ctx,
+        );
         ctx.emit(Event::TerminalViewStateChanged);
         self.update_pane_configuration(ctx);
 
@@ -9705,6 +9734,14 @@ impl TerminalView {
                 }
             }
             ModelEvent::BlockCompleted(block_completed_event) => {
+                // cockpit-instant:Busy→Idle 转移 + 最终 preview 尾行,
+                // 零延迟广播(合并窗不允许)。
+                Self::publish_terminal_activity(
+                    TerminalActivityEvent::StateChanged {
+                        terminal_view_id: self.id(),
+                    },
+                    ctx,
+                );
                 record_trace_event!("command_execution:block_completed");
                 end_trace_after_next!("window:redraw:end");
                 let block_completed_event_clone = block_completed_event.clone();
@@ -10729,6 +10766,14 @@ impl TerminalView {
                 );
             }
             ModelEvent::PromptUpdated => {
+                // cockpit-instant:cwd/prompt(OSC7)更新 → cwd 字段。低频但
+                // 归输出类,走消费侧合并窗。
+                Self::publish_terminal_activity(
+                    TerminalActivityEvent::OutputChanged {
+                        terminal_view_id: self.id(),
+                    },
+                    ctx,
+                );
                 self.input.update(ctx, |input, ctx| {
                     input.notify_and_notify_children(ctx);
                 });
