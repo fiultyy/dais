@@ -129,6 +129,8 @@ impl ShellEventBridge {
             crate::ai::orchestration::ViewRegistry::handle(cx)
                 .read(cx, |registry, _| registry.register(&mailbox, weak));
             ::ai::agent::orchestration::delivery::register_dispatch(&mailbox);
+            #[cfg(unix)]
+            crate::ai::orchestration::runtime_rpc::note_session_mailbox(&mailbox);
             log::info!("orchestration: session mailbox {mailbox} registered");
         }
     }

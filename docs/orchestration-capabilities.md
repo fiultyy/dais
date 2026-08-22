@@ -16,7 +16,7 @@
 dais orchestration <subcommand> [args]
 ```
 
-- CLI 枚举: `crates/warp_cli/src/orchestration.rs:11`(`OrchestrationCommand`,18 个变体)
+- CLI 枚举: `crates/warp_cli/src/orchestration.rs:11`(`OrchestrationCommand`,26 个变体)
 - 挂载: `crates/warp_cli/src/lib.rs:340`(`CliCommand::Orchestration`)
 - 执行体: `app/src/ai/agent_sdk/orchestration.rs:52`(`execute_command`,CLI 与 GUI 转发共用同一份语义)
 - 入口二进制: `app/src/bin/dais.rs`(zap 时代为 `bin/zap_oss.rs`,e6404d60 改名)
@@ -27,7 +27,7 @@ dais orchestration <subcommand> [args]
 1. `check-messages --wait` —— waiter claim 生命周期必须与本次调用同寿(`agent_sdk/orchestration.rs:422`)
 2. `check-messages` 拉取 `orchestrator` 邮箱且 GUI 存活 —— 直接拒绝(单消费者守卫,GUI 的 router 线程独占该邮箱,`agent_sdk/orchestration.rs:412-420`)
 
-## 2. CLI 面: 18 个子命令全表
+## 2. CLI 面: 26 个子命令全表
 
 ### 2.1 编排生命周期(run/task/dispatch,6 个,zap 期 df0c3679 引入)
 | 命令 | 签名 | 功能 | 输出 | 状态 | 锚点 |
@@ -79,6 +79,21 @@ dais orchestration <subcommand> [args]
 
 - `send_task_dispatch`(dispatch_send.rs:125): 由 task spec 构建派发前导词(build_dispatch_preamble,prompt_injection.rs:335)注入 worker。**无 CLI 入口,无生产调用方** —— 预建未接线。
 - `deliveries` 表(migration `2026-08-13-000000`): 联邦投递的预留端口(4b87c0fb),当前消息投递合同不经过它。
+
+### 2.7 管理三件套 + 实例回收(orch-caps-v2 + v2-fix-13,2026-08-23)
+
+| 命令 | 签名 | 功能 | 输出 | 状态 | 锚点 |
+|---|---|---|---|---|---|
+| `project-add` | `<abs_path>` | 写 projects 表(存在校验+幂等);GUI 内经 ProjectManagementModel(DB+ProjectEvent,rail 事件驱动刷新);headless 直连 SQLite | `project added/exists: <path>` | 新增 | projects_cli.rs |
+| `project-remove` | `<abs_path> [--force]` | 无 force: 有关联 tab 拒绝(报明细);--force: **连 tab 全回收**(中断+PTY shutdown→关 tab→session 邮箱自然 retire;竞态新到 tab 一并清扫;cwd 驻留进程 SIGTERM→SIGKILL 兜底)后删行,最后 ProjectEvent::Removed | `project removed: <path> (N tab(s) closed)` | 新增 | projects_cli.rs |
+| `project-list` | — | 全部项目 TSV | `path\tadded\tlast_opened` 行 | 新增 | projects_cli.rs |
+| `worktree-create` | `<project> <name>` | git worktree add 兄弟目录 `<repo>-<name>`(新分支)+ 自动 project-add | worktree 路径 | 新增 | worktrees.rs |
+| `worktree-list` | `[project]` | porcelain 包装;无参数=全部已注册 git 项目(按 git-dir 去重) | worktree 路径行 | 新增 | worktrees.rs |
+| `worktree-remove` | `<path> [--force]` | 终端守卫同上;--force 同全回收语义;git 定位经 `.git` gitfile 回溯主仓(任意命令顺序幂等,票2b);再 `git worktree remove --force` + 项目行清理 | `worktree removed: ...` | 新增 | worktrees.rs |
+| `new-terminal` | `<project> [--cwd <dir>]` | GUI 动作(L2 转发):switch_project+建 tab(与 GUI 新建同路径);CLI 端轮询 L1 `latest-session`(shell_event_bridge 注册邮箱的权威打点)12s 窗口;**harness 启动交给调用方**(别名已武装在每个新 shell bootstrap,注入即可) | stdout: `session_<sid>`;超时 stderr 指引查 GUI log | 新增(--alias 已撤,v2-fix-13 票2) | new_terminal.rs |
+| `close-terminal` | `<session_sid> [--force]` | 关单个实例 tab;--force 先 Ctrl-C+PTY shutdown;邮箱经 shell exit 自然 retire | `closed <sid> (tab#N)` | 新增(票3) | new_terminal.rs |
+
+**别名透明代理(alias-transparent)**: `omp-dais` ≡ `omp` + zhipu-coding-plan 流量过 8787;别名体只带 env `ZHIPU_CODING_PLAN_BASE_URL`(omp 上游 catalog 按 MOONSHOT_BASE_URL 同款约定),零 `--model` 篡改;models.yml 对内置 provider 传输覆盖(凭据+x-dais-instance 头)。pi 无 env 面(baseUrl 不插值 `${VAR}`),env 暂 no-op 待上游跟进(external_capture_rt.rs 模块 doc)。
 
 ## 3. 消息面: session mailbox 机制
 
@@ -135,7 +150,7 @@ Idle/Working/Permission 三态: gemini 显式标记、claude `✳ claude` 前缀
 
 - 元数据: `~/.local/state/dais/dais-runtime.json`,含 `{socket_path, pid, mode: app|serve}`;CLI 以 `is_pid_alive` 判活(runtime_rpc.rs)。过渡期读侧回退旧名 `zap-runtime.json` 一次(见 §5.3)。
 - socket: `~/.local/state/dais/dais-runtime-<pid>.sock`,NDJSON 单请求单响应。
-- L1 方法: `status`/`echo` 真实;`send-message`/`check-messages`/`check-status` 返回 fallback stub(runtime_rpc.rs:283-296)。
+- L1 方法: `status`/`echo`/`latest-session`(new-terminal 的 bootstrap 探测,注册点打点)真实;`send-message`/`check-messages`/`check-status` 返回 fallback stub(runtime_rpc.rs:283-296)。
 - L2 方法: `orchestration` —— 整条 `OrchestrationCommand` JSON 反序列化后在 GPUI 主线程经**同一份 execute_command** 执行,stdout 捕获回传 `{"output": "..."}`(runtime_rpc.rs:462 / RpcDispatcher:689)。
 - GUI 进程独占路由/push 线程(单写者原则);CLI 进程永不启动 router(lib.rs:1170)。
 

@@ -119,13 +119,14 @@ pub fn worktree_list(project_path: Option<&str>) -> anyhow::Result<String> {
     Ok(lines.join("\n"))
 }
 
-/// `worktree-remove` body: terminal guard → detach → `git worktree remove`.
+/// `worktree-remove` body: guard → (force: close tabs) → `git worktree remove`.
+///
+/// v2-fix-13: ①git 定位链 — target 自身 rev-parse 失败(如 tab 清理后的
+/// 边缘态)时, 读 `.git` 文件(gitdir: <main>/.git/worktrees/<name>)回退到
+/// 主仓执行; ②--force 语义与 project-remove 一致: 连 tab 全回收(中断+
+/// PTY 关+关 tab+邮箱自然 retire), 再 `git worktree remove --force`。
 pub fn worktree_remove(path: &str, force: bool, cx: &mut warpui::AppContext) -> anyhow::Result<String> {
     let target = super::projects_cli::canonical_project_path(path)?;
-    // Validate it IS a worktree and find its repo root (the main checkout
-    // administers `git worktree remove` — running it from any linked
-    // worktree of the same repo works too; we use the target itself).
-    git(&target, &["rev-parse", "--git-dir"])?;
 
     // Terminal guard: tabs whose project is this worktree.
     let mut conn: SqliteConnection = open_db()?;
@@ -141,19 +142,51 @@ pub fn worktree_remove(path: &str, force: bool, cx: &mut warpui::AppContext) -> 
                 .join(", ")
         );
     }
-    let detached = detach_tabs_db(&refs, &mut conn)?;
 
-    let remove_args = if force {
-        vec!["worktree", "remove", "--force"]
-    } else {
-        vec!["worktree", "remove"]
-    };
-    let target_str = target.to_string_lossy().to_string();
-    let mut args = remove_args;
-    args.push(&target_str);
-    // Run from the worktree's parent (valid even if the worktree dir is the
-    // git cwd being removed).
-    git(target.parent().unwrap_or(Path::new("/")), &args)
+    // force: 全回收 tabs(含竞态新到), 不留孤儿; headless 行 detach。
+    let mut closed_tabs = 0usize;
+    if force {
+        if in_gui(cx) {
+            closed_tabs = super::new_terminal::close_project_tabs(&target, cx);
+        } else {
+            detach_tabs_db(&refs, &mut conn)?;
+        }
+    }
+
+    // Locate the administering repo (v2-fix-13 票2b 实测修正):
+    // ①worktree 的 `.git` 是 gitfile(gitdir: <main>/.git/worktrees/<name>)
+    //   → 主仓即 `.git/worktrees/<name>` 上溯三级, 从主仓执行(最可靠,
+    //   target 处于任何边缘态都不影响);
+    // ②无 gitfile(裸 checkout)→ 从 target 自身执行(其 git 上下文知道
+    //   管理仓); 两者皆败才报错。绝不用 parent 目录假设。
+    let run_dir = (|| -> Option<PathBuf> {
+        let raw = std::fs::read_to_string(target.join(".git")).ok()?;
+        let gitdir = raw.trim().strip_prefix("gitdir:")?.trim().to_string();
+        std::path::Path::new(&gitdir)
+            .ancestors()
+            .nth(3) // <main>/.git/worktrees/<name> → <main>
+            .map(Path::to_path_buf)
+    })()
+    .unwrap_or_else(|| target.clone());
+    if git(&run_dir, &["rev-parse", "--git-dir"]).is_err() && git(&target, &["rev-parse", "--git-dir"]).is_err() {
+        anyhow::bail!(
+            "{} is not a worktree (no .git gitfile) and git cannot run in it or its recorded main repo",
+            target.display()
+        );
+    }
+    let mut args: Vec<String> = vec![
+        "worktree".into(),
+        "remove".into(),
+        if force { "--force".into() } else { String::new() },
+        target.to_string_lossy().into_owned(),
+    ];
+    args.retain(|a| !a.is_empty());
+    let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    git(&run_dir, &arg_refs)
+        .or_else(|_| {
+            // 主仓定位失败时再从 target 自身试一次(自身 git 上下文兜底)。
+            git(&target, &arg_refs)
+        })
         .map_err(|e| anyhow::anyhow!("{e} (dirty worktree? pass --force)"))?;
 
     // Drop the project entry for the removed worktree (GUI: event refresh).
@@ -165,8 +198,8 @@ pub fn worktree_remove(path: &str, force: bool, cx: &mut warpui::AppContext) -> 
     Ok(format!(
         "worktree removed: {}{}",
         target.display(),
-        if detached > 0 {
-            format!(" ({detached} tab(s) detached to no-project)")
+        if closed_tabs > 0 {
+            format!(" ({closed_tabs} tab(s) closed)")
         } else {
             String::new()
         }

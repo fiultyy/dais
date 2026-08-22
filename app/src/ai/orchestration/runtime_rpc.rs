@@ -139,6 +139,37 @@ pub fn is_pid_alive(pid: u32) -> bool {
 }
 
 // ---------------------------------------------------------------------------
+// Latest session mailbox (new-terminal 的 bootstrap 探测)
+// ---------------------------------------------------------------------------
+
+/// 最近一次 session mailbox 注册(handle + 时刻)。`new-terminal` 建 tab 后
+/// 无法在 GUI 主线程同步等 bootstrap(pending_session_id 由 DCS 握手异步
+/// 设置, 主线程任何同步等待都会冻结事件循环饿死 spawn)——CLI 端改为在
+/// 本进程轮询 L1 `latest-session`, 取注册时刻晚于调用开始的 mailbox。
+static LATEST_SESSION_MAILBOX: std::sync::Mutex<Option<(String, std::time::Instant)>> =
+    std::sync::Mutex::new(None);
+
+/// Record a freshly registered session mailbox (GUI process only; called from
+/// the shell event bridge at bootstrap).
+pub fn note_session_mailbox(handle: &str) {
+    let mut slot = LATEST_SESSION_MAILBOX.lock().unwrap();
+    *slot = Some((handle.to_string(), std::time::Instant::now()));
+}
+
+/// L1 `latest-session`: `{"handle": "session_<sid>", "elapsed_ms": n}` of the
+/// most recent registration, or `{"handle": null}` when none yet.
+fn latest_session_payload() -> serde_json::Value {
+    let slot = LATEST_SESSION_MAILBOX.lock().unwrap();
+    match slot.as_ref() {
+        Some((handle, at)) => serde_json::json!({
+            "handle": handle,
+            "elapsed_ms": at.elapsed().as_millis() as u64,
+        }),
+        None => serde_json::json!({"handle": null}),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Socket server
 // ---------------------------------------------------------------------------
 
@@ -315,6 +346,12 @@ fn dispatch_request(cmd: &str, args: &serde_json::Value) -> RpcResponse {
         },
         // L2: full-command forwarding.
         "orchestration" => dispatch_orchestration(args),
+        "latest-session" => RpcResponse {
+            ok: true,
+            executed: false,
+            result: Some(latest_session_payload()),
+            error: None,
+        },
         "send-message" | "check-messages" | "check-status" => {
             RpcResponse {
                 ok: true,

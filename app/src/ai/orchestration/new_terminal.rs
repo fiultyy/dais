@@ -12,30 +12,27 @@
 //! 2. `switch_project` + `add_tab_with_pane_layout(SingleTerminal(
 //!    NewTerminalOptions { initial_directory }))` — the same path the GUI's
 //!    own "new tab" uses, so shell/bootstrap/intercept wiring is identical.
-//! 3. Read the new tab's session id (`pending_session_id` is set at
-//!    terminal creation, before bootstrap completes — the bounded poll only
-//!    covers the spawn gap).
-//! 4. With `--alias`, type the alias command into the fresh shell via the
-//!    global PTY sender (`session_<sid>` mailbox, registered at shell
-//!    bootstrap): payload write, 500 ms, lone `\r` — the established
-//!    split-submit discipline. A fresh prompt is idle by construction, so
-//!    no title-based idle check applies.
+//! 3. `session_<sid>` cannot be awaited on the GUI main thread
+//!    (`pending_session_id` is set by the async DCS handshake; any sync wait
+//!    there freezes the event loop and starves the very spawn it waits for).
+//!    Instead the command returns after tab creation, and the **CLI process**
+//!    polls the L1 `latest-session` probe (runtime_rpc records every session
+//!    mailbox registration with a timestamp; see `note_session_mailbox`) until
+//!    a mailbox registers after the invocation, then prints it.
+//! 4. Harness launch is the caller's business: intercept aliases (omp-dais
+//!    等) are armed in every new shell's bootstrap, so the caller injects the
+//!    launch command itself (inject-prompt) after receiving `session_<sid>`
+//!    on stdout.')
 
-use std::path::PathBuf;
-use std::time::{Duration, Instant};
+
+use std::path::{Path, PathBuf};
 
 use ::ai::agent::orchestration::executor::PtyExecutor;
 use warpui::AppContext;
 use warpui::SingletonEntity as _;
 
-use crate::ai::orchestration::shell_event_bridge::ShellEventBridge;
-use crate::terminal::model::session::SessionId;
 use crate::workspace::{Workspace, WorkspaceRegistry};
-
-/// Poll budget for the session id (the L2 dispatcher timeout is 4.5 s; keep
-/// well under). 60 × 50 ms = 3 s worst case; typically zero iterations.
-const SESSION_POLL_ITERS: usize = 60;
-const SESSION_POLL_INTERVAL: Duration = Duration::from_millis(50);
+use anyhow::anyhow;
 
 /// Known intercept-style harness launch aliases (documentation surface; the
 /// injection itself types the alias string into the fresh shell — resolution
@@ -49,7 +46,6 @@ pub const KNOWN_ALIASES: &[(&str, &str)] = &[
 /// `new-terminal` body. Requires the GUI process (live workspaces).
 pub fn new_terminal(
     project_path: &str,
-    alias: Option<&str>,
     cwd: Option<&str>,
     cx: &mut AppContext,
 ) -> anyhow::Result<String> {
@@ -65,12 +61,6 @@ pub fn new_terminal(
         }
         None => project.clone(),
     };
-    if let Some(a) = alias {
-        if a.contains('\n') || a.contains('\r') || a.is_empty() {
-            anyhow::bail!("invalid alias: {a:?}");
-        }
-    }
-
     let all = WorkspaceRegistry::handle(cx).read(cx, |r, app| r.all_workspaces(app));
     let Some((window_id, workspace)) = all
         .iter()
@@ -84,7 +74,6 @@ pub fn new_terminal(
         );
     };
 
-    let mut session_id: Option<SessionId> = None;
     workspace.update(cx, |ws, ctx| {
         // Project view first (same chain as GUI selection), then the tab —
         // the tab inherits the active project for rail grouping.
@@ -103,85 +92,162 @@ pub fn new_terminal(
             ctx,
         );
         ctx.notify();
-
-        // The new tab is the active one; its pane group's active terminal is
-        // the fresh session.
-        let pg = ws.active_tab_pane_group().clone();
-        pg.update(ctx, |pg, ctx| {
-            if let Some(tv) = pg.active_session_view(ctx) {
-                tv.read(ctx, |view, _| {
-                    // pending_session_id exists from creation; the
-                    // active-block id appears after the first prompt.
-                    let sid = view
-                        .model
-                        .lock()
-                        .pending_session_id()
-                        .or_else(|| view.active_block_session_id());
-                    if let Some(sid) = sid {
-                        session_id = Some(sid);
-                    }
-                });
-            }
-        });
     });
+    // session_<sid> 由 CLI 端轮询 L1 latest-session 解析(见模块 doc 第 3 条);
+    // --alias 的注入同样由 CLI 端拿到 handle 后经 PTY 桥下发。
 
-    // Bounded poll for the spawn gap (creation → pending set). Runs on the
-    // GUI main thread; sleeps only while the id is genuinely not yet there.
-    let deadline = Instant::now() + SESSION_POLL_INTERVAL * SESSION_POLL_ITERS as u32;
-    while session_id.is_none() && Instant::now() < deadline {
-        workspace.read(cx, |ws, app| {
-            let pg = ws.active_tab_pane_group();
-            pg.read(app, |pg, ctx| {
-                if let Some(tv) = pg.active_session_view(ctx) {
-                    tv.read(ctx, |view, _| {
-                        session_id = view
-                            .model
-                            .lock()
-                            .pending_session_id()
-                            .or_else(|| view.active_block_session_id());
-                    });
-                }
-            });
-        });
-        if session_id.is_none() {
-            std::thread::sleep(SESSION_POLL_INTERVAL);
-        }
-    }
-
-    let Some(sid) = session_id else {
-        anyhow::bail!("terminal tab created but session id unavailable (bootstrap did not start?)");
-    };
-    let handle = ShellEventBridge::session_mailbox_handle(sid);
-
-    if let Some(alias) = alias {
-        // Fresh prompt: write the alias, then a lone CR after the submit
-        // delay (same discipline as inject_prompt, minus the idle check —
-        // a brand-new shell is idle by construction).
-        let sender = super::global_pty_sender().ok_or_else(|| {
-            anyhow::anyhow!(
-                "global PTY sender not initialized — is the orchestration PTY bridge running?"
-            )
-        })?;
-        sender
-            .write_to_pty(&handle, alias.as_bytes())
-            .map_err(|e| anyhow::anyhow!("alias write failed: {e}"))?;
-        let sender_clone = sender.clone();
-        let handle_owned = handle.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(
-                ::ai::agent::orchestration::prompt_injection::AGENT_PROMPT_SUBMIT_DELAY_MS,
-            ));
-            let _ = sender_clone.write_to_pty(
-                &handle_owned,
-                ::ai::agent::orchestration::prompt_injection::AGENT_PROMPT_SUBMIT,
-            );
-        });
-    }
+    // --alias 的注入由 CLI 端在解析出 session handle 后, 经既有
+    // inject-prompt L2 链路转发回 GUI 执行(PTY 写必须发生在 GUI 进程)。
 
     Ok(format!(
-        "{handle} (window {window_id:?}, project {}, cwd {}, alias {})",
+        "terminal tab created (window {window_id:?}, project {}, cwd {})",
         project.display(),
-        workdir.display(),
-        alias.unwrap_or("<none>")
+        workdir.display()
     ))
+}
+
+// ── v2-fix-13 票3: close-terminal / project --force 全回收 ─────────────
+
+/// Find the workspace tab index containing a terminal view id.
+fn find_tab_by_terminal(
+    cx: &AppContext,
+    target_id: warpui::EntityId,
+) -> Option<(warpui::ViewHandle<Workspace>, usize)> {
+    let all = WorkspaceRegistry::handle(cx).read(cx, |r, app| r.all_workspaces(app));
+    all.into_iter().find_map(|(_, ws)| {
+        let idx = ws.read(cx, |w, _| {
+            w.tabs.iter().position(|tab| {
+                tab.pane_group.read(cx, |pg, ctx| {
+                    pg.terminal_views(ctx).iter().any(|tv| tv.id() == target_id)
+                })
+            })
+        })?;
+        Some((ws, idx))
+    })
+}
+
+/// One tab's full reclaim when closing under `--force` semantics: interrupt
+/// the foreground process (Ctrl-C), shut the PTY down (the pty server's
+/// child reaper SIGHUPs + reaps the shell and its group), then close the tab.
+/// The session mailbox retires naturally on shell exit (shell_event_bridge).
+fn force_close_tab(ws: &warpui::ViewHandle<Workspace>, idx: usize, cx: &mut AppContext) {
+    // Interrupt + PTY shutdown for every terminal pane in the tab.
+    let views: Vec<warpui::ViewHandle<crate::terminal::view::TerminalView>> = ws
+        .read(cx, |w, _| {
+            w.tabs
+                .get(idx)
+                .map(|tab| {
+                    tab.pane_group.read(cx, |pg, ctx| pg.terminal_views(ctx))
+                })
+                .unwrap_or_default()
+        });
+    for tv in views {
+        tv.update(cx, |v, ctx| {
+            v.shutdown_pty(ctx);
+        });
+    }
+    ws.update(cx, |ws, ctx| {
+        ws.remove_tab_without_undo(idx, ctx);
+        ctx.notify();
+    });
+}
+
+/// SIGTERM → grace → SIGKILL sweep of processes whose cwd is inside `root`
+/// (v2-fix-13: 驻留 harness 兜底; SIGHUP 通常已覆盖, 此处是孤儿兜网)。
+/// Never signals the caller's own process.
+fn kill_cwd_sweep(root: &Path) -> usize {
+    let me = std::process::id() as i32;
+    let mut pids = Vec::new();
+    if let Ok(dir) = std::fs::read_dir("/proc") {
+        for entry in dir.flatten() {
+            let name = entry.file_name();
+            let Some(pid) = name.to_str().and_then(|n| n.parse::<i32>().ok()) else {
+                continue;
+            };
+            if pid == me {
+                continue;
+            }
+            if let Ok(cwd) = std::fs::read_link(format!("/proc/{pid}/cwd")) {
+                if cwd.starts_with(root) {
+                    pids.push(pid);
+                }
+            }
+        }
+    }
+    let mut hit = 0;
+    for &pid in &pids {
+        unsafe { libc::kill(pid, libc::SIGTERM) };
+        hit += 1;
+    }
+    if !pids.is_empty() {
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+        for &pid in &pids {
+            unsafe { libc::kill(pid, libc::SIGKILL) };
+        }
+    }
+    hit
+}
+
+/// pub wrapper for sibling modules (project --force sweep).
+pub(crate) fn kill_cwd_sweep_pub(root: &Path) -> usize {
+    kill_cwd_sweep(root)
+}
+
+/// `close-terminal` body: close the tab owning `session_<sid>` (manual
+/// single-instance reclaim). `--force` interrupts + PTY-shuts first.
+pub fn close_terminal(handle: &str, force: bool, cx: &mut AppContext) -> anyhow::Result<String> {
+    use crate::ai::orchestration::ViewRegistry;
+    use warpui::SingletonEntity as _;
+
+    if !handle.starts_with("session_") {
+        anyhow::bail!("handle must be a session mailbox (session_<sid>): {handle}");
+    }
+    let view = ViewRegistry::handle(cx)
+        .read(cx, |r, app| r.get(handle, app))
+        .ok_or_else(|| anyhow!("no terminal registered for mailbox {handle} (already closed?)"))?;
+    let target_id = view.id();
+    let (ws, idx) = find_tab_by_terminal(cx, target_id)
+        .ok_or_else(|| anyhow!("no tab owns terminal {handle} (pane closed already?)"))?;
+    if force {
+        // Ctrl-C 前台进程组(SIGHUP+reap 由 shutdown 内部完成)。
+        if let Some(sender) = super::global_pty_sender() {
+            use ::ai::agent::orchestration::executor::PtyExecutor as _;
+            let _ = sender.write_to_pty(handle, b"\x03");
+        }
+        force_close_tab(&ws, idx, cx);
+    } else {
+        ws.update(cx, |ws, ctx| {
+            ws.remove_tab_without_undo(idx, ctx);
+            ctx.notify();
+        });
+    }
+    Ok(format!(
+        "closed {handle} (tab#{idx}{})",
+        if force { ", force" } else { "" }
+    ))
+}
+
+/// project/worktree `--force` 共用: close every GUI tab whose project_path
+/// is `path` — full reclaim per tab (interrupt + PTY shutdown + close), loop
+/// until none remain (remove 期间新 bootstrap 到达的 tab 也会被后续轮次收
+/// 掉 — 竞态清扫, 见 v2-fix-13)。Returns closed count. GUI-only.
+pub(crate) fn close_project_tabs(path: &Path, cx: &mut AppContext) -> usize {
+    use warpui::SingletonEntity as _;
+    let all = WorkspaceRegistry::handle(cx).read(cx, |r, app| r.all_workspaces(app));
+    let mut closed = 0usize;
+    for (_, ws) in all {
+        loop {
+            let idx = ws.read(cx, |w, _| {
+                w.tabs.iter().position(|tab| tab.project_path.as_deref() == Some(path))
+            });
+            match idx {
+                Some(i) => {
+                    force_close_tab(&ws, i, cx);
+                    closed += 1;
+                }
+                None => break,
+            }
+        }
+    }
+    closed
 }

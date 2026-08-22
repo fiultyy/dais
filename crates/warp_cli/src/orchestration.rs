@@ -192,8 +192,9 @@ pub enum OrchestrationCommand {
     },
 
     /// Remove a project from the project list. Refuses when tabs/terminals
-    /// still reference the project (reports them) unless --force is given
-    /// (--force resets those tabs to "no project", matching GUI semantics).
+    /// still reference the project (reports them). `--force` closes those
+    /// tabs outright (interrupt harness → PTY shutdown → tab close → session
+    /// mailbox retire; late-bootstrapping tabs swept too) before removal.
     ProjectRemove {
         /// Absolute path of the project root.
         path: String,
@@ -224,8 +225,8 @@ pub enum OrchestrationCommand {
     },
 
     /// Remove a git worktree. Refuses when terminals reference it (reports
-    /// them) unless --force (detaches those tabs first, then
-    /// `git worktree remove --force`).
+    /// them). `--force` closes those tabs outright (same reclaim semantics
+    /// as project-remove --force), then `git worktree remove --force`.
     WorktreeRemove {
         /// Absolute path of the worktree to remove.
         path: String,
@@ -241,12 +242,20 @@ pub enum OrchestrationCommand {
     NewTerminal {
         /// Project path whose window/tab the terminal opens in.
         project_path: String,
-        /// Alias of an intercept-style harness TUI to launch in the shell
-        /// (e.g. omp / pi / cc). Without it a bare shell starts.
-        #[arg(long)]
-        alias: Option<String>,
         /// Working directory override (default: the project path).
         #[arg(long)]
         cwd: Option<String>,
+    },
+
+    /// Close the terminal tab owning a session mailbox (`session_<sid>`).
+    /// Reclaims the pane; the session mailbox retires naturally on shell
+    /// exit (shell_event_bridge). `--force` interrupts a lingering harness
+    /// (Ctrl-C) and shuts the PTY down before closing the tab.
+    CloseTerminal {
+        /// Session mailbox handle of the terminal to close.
+        handle: String,
+        /// Interrupt + PTY shutdown before close (harness still running).
+        #[arg(long)]
+        force: bool,
     },
 }

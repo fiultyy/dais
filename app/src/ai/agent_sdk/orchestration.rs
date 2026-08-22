@@ -29,6 +29,31 @@ pub fn run(
     // regression risk.
     #[cfg(unix)]
     if try_socket_fast_path(&command) {
+        // new-terminal: the GUI created the tab (output printed above);
+        // resolve session_<sid> by polling the L1 latest-session probe —
+        // bootstrap is async, and the GUI main thread must not wait for it.
+        #[cfg(unix)]
+        // v2-fix-13 票1: tab 已建成功(GUI 输出在上方), 此处等 bootstrap
+        // 注册 session 邮箱。权威源 = shell_event_bridge 注册点的打点
+        // (L1 latest-session), 不猜 DB/log。只开 tab 返回 sid; 启动
+        // harness 交给调用方注入(票2: 别名本就武装在每个新 shell)。
+        if let OrchestrationCommand::NewTerminal { ref project_path, .. } = command {
+            // CLI 侧预检: 路径不存在直接报错, 不进 12s bootstrap 等待
+            // (GUI 侧错误响应也会打印, 但 poll 文案会误导)。
+            let p = std::path::Path::new(project_path);
+            if !p.is_dir() {
+                anyhow::bail!("path does not exist or is not a directory: {project_path}");
+            }
+            if let Some(handle) = poll_latest_session_mailbox() {
+                println!("{handle}");
+            } else {
+                eprintln!(
+                    "tab created but bootstrap not observed within timeout — \
+                     the shell is still starting; find its handle later in the \
+                     GUI log (\"orchestration: session mailbox session_<sid> registered\")"
+                );
+            }
+        }
         // The command was handled via socket; terminate the event loop.
         cx.terminate_app(warpui::platform::TerminationMode::ForceTerminate, None);
         return Ok(());
@@ -43,6 +68,37 @@ pub fn run(
     }
     result
 }
+
+/// Poll the GUI's L1 `latest-session` probe until a session mailbox registers
+/// after this invocation began (snapshot first, then wait for a change).
+/// Runs in the CLI process — safe to sleep here. ~4 s budget.
+#[cfg(unix)]
+fn poll_latest_session_mailbox() -> Option<String> {
+    use crate::ai::orchestration::runtime_rpc;
+
+    let probe = || -> Option<String> {
+        let resp = runtime_rpc::try_socket_forward("latest-session", &serde_json::json!({})).ok()?;
+        let resp = resp?;
+        let v: serde_json::Value = serde_json::from_str(&resp).ok()?;
+        v.get("handle")?.as_str().map(String::from)
+    };
+    let before = probe();
+    // 票1: bootstrap 通常 <3s, 窗口 12s 慢机余量; 100ms 轮询。
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(12_000);
+    loop {
+        let now = probe();
+        if let Some(h) = now {
+            if before.as_deref() != Some(h.as_str()) {
+                return Some(h);
+            }
+        }
+        if std::time::Instant::now() >= deadline {
+            return None;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+
 
 /// Execute an orchestration command against the store.
 ///
@@ -433,11 +489,14 @@ pub fn execute_command(
             );
         }
 
-        OrchestrationCommand::NewTerminal {
-            project_path,
-            alias,
-            cwd,
-        } => {
+        OrchestrationCommand::CloseTerminal { handle, force } => {
+            println!(
+                "{}",
+                crate::ai::orchestration::new_terminal::close_terminal(handle, *force, cx)?
+            );
+        }
+
+        OrchestrationCommand::NewTerminal { project_path, cwd } => {
             // GUI action: the L2 fast path forwards this to the GUI process
             // (try_socket_fast_path). Landing here headless (no GUI) errors
             // inside with a clear message.
@@ -445,7 +504,6 @@ pub fn execute_command(
                 "{}",
                 crate::ai::orchestration::new_terminal::new_terminal(
                     project_path,
-                    alias.as_deref(),
                     cwd.as_deref(),
                     cx,
                 )?

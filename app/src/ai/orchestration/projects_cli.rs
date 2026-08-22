@@ -166,7 +166,21 @@ pub fn project_remove(path: &str, force: bool, cx: &mut warpui::AppContext) -> a
                 .join(", ")
         );
     }
-    let detached = detach_tabs_db(&refs, &mut conn)?;
+    // v2-fix-13 最终语义: --force = 连 tab 全回收(中断+PTY关+关tab+邮箱
+    // 自然 retire; remove 期间新到的同 project tab 也会被循环收掉)。
+    // headless 无活 tab, 行 detach 即等价。关完才删 projects 行, 最后
+    // ProjectEvent::Removed(此时无 tab 可级联)。
+    let mut closed_tabs = 0usize;
+    if !refs.is_empty() {
+        if force && in_gui_process(cx) {
+            closed_tabs = super::new_terminal::close_project_tabs(&abs, cx);
+        } else {
+            detach_tabs_db(&refs, &mut conn)?;
+        }
+    } else if force && in_gui_process(cx) {
+        // 无 DB 引用但可能有竞态新到 tab: 同样扫一轮。
+        closed_tabs = super::new_terminal::close_project_tabs(&abs, cx);
+    }
     // GUI process: route through the live model so the rail refreshes via
     // ProjectEvent (the model also deletes the DB row). Headless: plain row
     // delete above via remove_project_db.
@@ -189,11 +203,18 @@ pub fn project_remove(path: &str, force: bool, cx: &mut warpui::AppContext) -> a
     if !removed {
         return Ok(format!("project not registered: {}", abs.display()));
     }
+    // 驻留 harness 兜底: cwd 在 project 下的进程 SIGTERM→SIGKILL。
+    if force {
+        let swept = super::new_terminal::kill_cwd_sweep_pub(&abs);
+        if swept > 0 {
+            log::info!("orchestration: cwd sweep hit {swept} process(es) under {}", abs.display());
+        }
+    }
     Ok(format!(
         "project removed: {}{}",
         abs.display(),
-        if detached > 0 {
-            format!(" ({detached} tab(s) detached to no-project)")
+        if closed_tabs > 0 {
+            format!(" ({closed_tabs} tab(s) closed)")
         } else {
             String::new()
         }
