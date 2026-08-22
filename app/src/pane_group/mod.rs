@@ -4883,6 +4883,21 @@ impl PaneGroup {
         self.focus_state.update(ctx, |focus_state, ctx| {
             focus_state.set_in_split_pane(in_split_pane, ctx);
         });
+        // cockpit-instant:tab 内 pane 增删(split/关单 pane)→ 终端成员
+        // 变化,零延迟广播(cockpit 列表即时增删卡片)。任意 pane 类型都
+        // 触发——refresh 幂等全量(~350µs),偶发多余刷新可忽略。
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let hub = crate::terminal::terminal_activity::TerminalActivityModel::handle(ctx);
+            if hub.as_ref(ctx).is_enabled() {
+                hub.update(ctx, |hub, ctx| {
+                    hub.publish(
+                        crate::terminal::terminal_activity::TerminalActivityEvent::ViewMembershipChanged,
+                        ctx,
+                    )
+                });
+            }
+        }
     }
 
     // Instantiate the terminal view with the given parameters. Note that the active

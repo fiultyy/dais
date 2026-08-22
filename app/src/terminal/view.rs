@@ -7693,9 +7693,7 @@ impl TerminalView {
         if !hub.as_ref(ctx).is_enabled() {
             return;
         }
-        let (TerminalActivityEvent::StateChanged { terminal_view_id }
-        | TerminalActivityEvent::OutputChanged { terminal_view_id }) = event;
-        hub.update(ctx, |hub, ctx| hub.publish(terminal_view_id, event, ctx));
+        hub.update(ctx, |hub, ctx| hub.publish(event, ctx));
     }
 
     /// This function is invoked every time there is some form of view event

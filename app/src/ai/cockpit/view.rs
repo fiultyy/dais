@@ -275,8 +275,9 @@ impl CockpitPanelView {
         });
 
         // cockpit-instant:非 agent 终端事件订阅(per-view 事件经全局
-        // TerminalActivityModel 聚合推来)。StateChanged(Busy/Idle 转移)
-        // 零延迟即时刷;OutputChanged(输出增长,高频)进 150ms 合并窗。
+        // TerminalActivityModel 聚合推来)。StateChanged(Busy/Idle 转移)与
+        // ViewMembershipChanged(列表成员:tab/pane 增删)零延迟即时刷;
+        // OutputChanged(输出增长,高频)进 150ms 合并窗。
         // 订阅随本 view 生命周期:pane 关闭 → view Drop → 自动退订(防泄漏)。
         #[cfg(not(target_family = "wasm"))]
         ctx.subscribe_to_model(
@@ -288,7 +289,10 @@ impl CockpitPanelView {
                 match event {
                     crate::terminal::terminal_activity::TerminalActivityEvent::StateChanged {
                         ..
-                    } => {
+                    }
+                    | crate::terminal::terminal_activity::TerminalActivityEvent::ViewMembershipChanged => {
+                        // 列表成员变化(卡片出现/消失)与状态转移同级——
+                        // 零合并窗,即时全量刷新。
                         CockpitModel::handle(ctx).update(ctx, |m, ctx| m.refresh(ctx));
                     }
                     crate::terminal::terminal_activity::TerminalActivityEvent::OutputChanged {

@@ -26,13 +26,21 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use warpui::{Entity, EntityId, ModelContext, SingletonEntity};
 
-/// 聚合事件。`StateChanged` 零延迟;`OutputChanged` 高频,消费侧合并。
+/// 聚合事件。`StateChanged`/`ViewMembershipChanged` 零延迟;`OutputChanged`
+/// 高频,消费侧合并。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TerminalActivityEvent {
     /// 状态转移:块完成(Busy→Idle)或长运行检测翻转(Idle→Busy)。
     StateChanged { terminal_view_id: EntityId },
     /// 输出增长(wakeup 泵)/prompt·cwd 更新。高频,消费侧合并窗处理。
     OutputChanged { terminal_view_id: EntityId },
+    /// 终端成员变化:tab 创建/关闭、tab 内 pane 增删(列表成员变化)。
+    /// 无 id —— 消费者(cockpit)本就全量 refresh,且 tab 级变化无法归结
+    /// 到单个终端。零延迟,不进合并窗(列表出现/消失必须即时)。
+    /// 生产点:workspace tab 增删咽喉 + PaneGroup::handle_pane_count_change
+    /// (见各生产点注释;不挂在 TerminalView 构造/析构 —— 构造时 pane 尚
+    /// 未入 workspace.tabs,refresh 会漏;析构无 ctx)。
+    ViewMembershipChanged,
 }
 
 pub struct TerminalActivityModel {
@@ -40,6 +48,7 @@ pub struct TerminalActivityModel {
     /// 诊断计数(事件量级观察;非契约)。
     state_event_count: u64,
     output_event_count: u64,
+    membership_event_count: u64,
 }
 
 impl Entity for TerminalActivityModel {
@@ -54,6 +63,7 @@ impl TerminalActivityModel {
             enabled: AtomicBool::new(false),
             state_event_count: 0,
             output_event_count: 0,
+            membership_event_count: 0,
         }
     }
 
@@ -67,19 +77,14 @@ impl TerminalActivityModel {
         self.enabled.load(Ordering::Acquire)
     }
 
-    /// 生产端入口。调用方(TerminalView)已持 view ctx;先查
-    /// [`Self::is_enabled`],关态短路——本方法只在开态才应被走到。
-    pub fn publish(
-        &mut self,
-        terminal_view_id: EntityId,
-        event: TerminalActivityEvent,
-        ctx: &mut ModelContext<Self>,
-    ) {
+    /// 生产端入口。调用方已持 ctx;先查 [`Self::is_enabled`],关态短路
+    /// —— 本方法只在开态才应被走到。id 由事件自带,无需单传。
+    pub fn publish(&mut self, event: TerminalActivityEvent, ctx: &mut ModelContext<Self>) {
         match event {
             TerminalActivityEvent::StateChanged { .. } => self.state_event_count += 1,
             TerminalActivityEvent::OutputChanged { .. } => self.output_event_count += 1,
+            TerminalActivityEvent::ViewMembershipChanged => self.membership_event_count += 1,
         }
-        let _ = terminal_view_id;
         ctx.emit(event);
     }
 
@@ -89,6 +94,10 @@ impl TerminalActivityModel {
 
     pub fn output_event_count(&self) -> u64 {
         self.output_event_count
+    }
+
+    pub fn membership_event_count(&self) -> u64 {
+        self.membership_event_count
     }
 }
 
@@ -127,8 +136,9 @@ mod tests {
 
             let id = EntityId::from_usize(7);
             hub.update(&mut app, |m, ctx| {
-                m.publish(id, TerminalActivityEvent::StateChanged { terminal_view_id: id }, ctx);
-                m.publish(id, TerminalActivityEvent::OutputChanged { terminal_view_id: id }, ctx);
+                m.publish(TerminalActivityEvent::StateChanged { terminal_view_id: id }, ctx);
+                m.publish(TerminalActivityEvent::OutputChanged { terminal_view_id: id }, ctx);
+                m.publish(TerminalActivityEvent::ViewMembershipChanged, ctx);
             });
 
             let first = rx.try_recv().expect("StateChanged should arrive");
@@ -141,6 +151,8 @@ mod tests {
                 second,
                 TerminalActivityEvent::OutputChanged { terminal_view_id: id }
             );
+            let third = rx.try_recv().expect("ViewMembershipChanged should arrive");
+            assert_eq!(third, TerminalActivityEvent::ViewMembershipChanged);
             assert!(rx.try_recv().is_err(), "no further events");
         });
     }

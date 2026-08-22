@@ -4288,8 +4288,24 @@ impl Workspace {
         }
         crate::ai::cockpit::model::CockpitModel::handle(ctx).update(ctx, |m, ctx| {
             m.set_panel_open(true, ctx);
-            m.refresh(ctx);
         });
+        // cockpit-list-instant:首刷借 membership 事件走 Effect 队列:
+        // 直接 refresh(及立即执行的 typed action dispatch)都运行在
+        // workspace update 闭包内,期间本 view 被移出 window.views
+        // (update_view 的 remove/reinsert 纪律),registry 读不到本
+        // workspace → 卡片清空,等 2s 对账才回来(用户实测"面板出现后
+        // 列表 1s+ 才出来"的根因)。hub 事件在 update 结束、view 重插
+        // 后的 flush 里同步投递——零延迟且不依赖 executor tick。
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let hub = crate::terminal::terminal_activity::TerminalActivityModel::handle(ctx);
+            hub.update(ctx, |hub, ctx| {
+                hub.publish(
+                    crate::terminal::terminal_activity::TerminalActivityEvent::ViewMembershipChanged,
+                    ctx,
+                )
+            });
+        }
         self.special_view = Some(SpecialView::Cockpit);
         ctx.notify();
     }
@@ -10570,6 +10586,22 @@ impl Workspace {
             });
         }
 
+        // cockpit-instant:tab 已出 self.tabs,广播成员变化——cockpit 列表
+        // 即时移除卡片。remove_tab 是全部关闭路径的咽喉(close_tabs/
+        // remove_tab_without_undo/跨窗拖出均汇入)。
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let hub = crate::terminal::terminal_activity::TerminalActivityModel::handle(ctx);
+            if hub.as_ref(ctx).is_enabled() {
+                hub.update(ctx, |hub, ctx| {
+                    hub.publish(
+                        crate::terminal::terminal_activity::TerminalActivityEvent::ViewMembershipChanged,
+                        ctx,
+                    )
+                });
+            }
+        }
+
         match index.cmp(&self.active_tab_index) {
             Ordering::Equal => {
                 // If there's a previous tab, activate it. Otherwise, keep the active
@@ -11211,6 +11243,23 @@ impl Workspace {
                     self.tabs.insert(self.active_tab_index + 1, new_tab_data);
                     self.activate_tab_internal(self.active_tab_index + 1, ctx);
                 }
+            }
+        }
+
+        // cockpit-instant:tab 已入 self.tabs(pane group 可被发现),广播
+        // 成员变化——cockpit 列表即时出现新卡片,不等 2s 对账。零合并窗。
+        // 注意必须在此处而非 TerminalView 构造时广播:构造时 tab 尚未入
+        // workspace.tabs,cockpit refresh 会漏掉它(用户实测的 1s+ 延迟根因)。
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let hub = crate::terminal::terminal_activity::TerminalActivityModel::handle(ctx);
+            if hub.as_ref(ctx).is_enabled() {
+                hub.update(ctx, |hub, ctx| {
+                    hub.publish(
+                        crate::terminal::terminal_activity::TerminalActivityEvent::ViewMembershipChanged,
+                        ctx,
+                    )
+                });
             }
         }
 
@@ -23424,6 +23473,20 @@ impl Workspace {
         self.tabs.insert(index, tab_data);
         self.sync_active_tab_by_region();
         self.activate_tab_internal(index, ctx);
+        // cockpit-instant:跨窗移入的 tab 已入 tabs,广播成员变化(拖出方
+        // 的 remove_tab 广播另一半)。
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let hub = crate::terminal::terminal_activity::TerminalActivityModel::handle(ctx);
+            if hub.as_ref(ctx).is_enabled() {
+                hub.update(ctx, |hub, ctx| {
+                    hub.publish(
+                        crate::terminal::terminal_activity::TerminalActivityEvent::ViewMembershipChanged,
+                        ctx,
+                    )
+                });
+            }
+        }
         ctx.notify();
     }
 

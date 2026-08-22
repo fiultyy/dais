@@ -25,11 +25,23 @@ impl CockpitPane {
         let model = CockpitModel::handle(ctx);
         let cockpit_view: ViewHandle<CockpitPanelView> =
             ctx.add_typed_action_view(|ctx| CockpitPanelView::new(model.clone(), ctx));
-        // 打开为独立 tab 即面板 open(timer gate 放行)+ 立即刷新
+        // 打开为独立 tab 即面板 open(timer gate 放行)。首刷借
+        // membership 事件走 Effect 队列:update 闭包内 view 被移出
+        // window.views,直接 refresh 会把卡片清空(registry 读不到);
+        // 事件在 update 结束、重插后的 flush 里同步投递。
         CockpitModel::handle(ctx).update(ctx, |m, ctx| {
             m.set_panel_open(true, ctx);
-            m.refresh(ctx);
         });
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let hub = crate::terminal::terminal_activity::TerminalActivityModel::handle(ctx);
+            hub.update(ctx, |hub, ctx| {
+                hub.publish(
+                    crate::terminal::terminal_activity::TerminalActivityEvent::ViewMembershipChanged,
+                    ctx,
+                )
+            });
+        }
         Self::from_view(cockpit_view, ctx)
     }
 
@@ -79,9 +91,22 @@ impl PaneContent for CockpitPane {
 
         // attach 即面板 open(timer gate 放行):覆盖 UndoClosedPanes
         // 关闭→恢复路径,幂等:初次挂载时 new() 已置 true。
+        // cockpit-list-instant:refresh 借 membership 事件走 Effect
+        // 队列——闭包内 registry 读不到被移出的 views,直接 refresh 会
+        // 清空列表;事件在 update 结束后的 flush 里同步投递。
         CockpitModel::handle(ctx).update(ctx, |m, ctx| {
             m.set_panel_open(true, ctx);
         });
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let hub = crate::terminal::terminal_activity::TerminalActivityModel::handle(ctx);
+            hub.update(ctx, |hub, ctx| {
+                hub.publish(
+                    crate::terminal::terminal_activity::TerminalActivityEvent::ViewMembershipChanged,
+                    ctx,
+                )
+            });
+        }
     }
 
     fn detach(

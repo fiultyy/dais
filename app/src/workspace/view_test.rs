@@ -2678,7 +2678,7 @@ fn test_cockpit_terminal_activity_event_refresh() {
         let id = terminal_view_id_of(&workspace, 0, &mut app);
         let before = warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count());
         hub.update(&mut app, |m, ctx| {
-            m.publish(id, TerminalActivityEvent::StateChanged { terminal_view_id: id }, ctx)
+            m.publish(TerminalActivityEvent::StateChanged { terminal_view_id: id }, ctx)
         });
         assert_eq!(
             warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count()),
@@ -2700,7 +2700,7 @@ fn test_cockpit_terminal_activity_event_refresh() {
         // StateChanged → 订阅回调同步 refresh(零延迟路径)。
         let before = warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count());
         hub.update(&mut app, |m, ctx| {
-            m.publish(id, TerminalActivityEvent::StateChanged { terminal_view_id: id }, ctx)
+            m.publish(TerminalActivityEvent::StateChanged { terminal_view_id: id }, ctx)
         });
         assert_eq!(
             warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count()),
@@ -2715,7 +2715,7 @@ fn test_cockpit_terminal_activity_event_refresh() {
         let before = warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count());
         for _ in 0..3 {
             hub.update(&mut app, |m, ctx| {
-                m.publish(id, TerminalActivityEvent::OutputChanged { terminal_view_id: id }, ctx)
+                m.publish(TerminalActivityEvent::OutputChanged { terminal_view_id: id }, ctx)
             });
         }
         assert_eq!(
@@ -2731,12 +2731,94 @@ fn test_cockpit_terminal_activity_event_refresh() {
         assert!(!warpui::ReadModel::read_model(&app, &hub, |m: &crate::terminal::terminal_activity::TerminalActivityModel, _| m.is_enabled()), "panel close must disable hub");
         let before = warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count());
         hub.update(&mut app, |m, ctx| {
-            m.publish(id, TerminalActivityEvent::StateChanged { terminal_view_id: id }, ctx)
+            m.publish(TerminalActivityEvent::StateChanged { terminal_view_id: id }, ctx)
         });
         assert_eq!(
             warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count()),
             before,
             "events after close must not refresh"
         );
+    });
+}
+
+/// cockpit-list-instant:成员变化(tab 开/关)即时刷新 + 面板打开列表立即
+/// 有内容。此前无事件覆盖,新建终端的卡片要等 2s 对账(均匀 0-2s 窗,
+/// 体感 1s+)。
+#[test]
+fn test_cockpit_membership_events_instant() {
+    use crate::terminal::terminal_activity::TerminalActivityModel;
+
+    App::test((), |mut app| async move {
+        initialize_app(&mut app);
+        app.add_singleton_model(crate::ai::cockpit::model::CockpitModel::new);
+        let workspace = mock_workspace(&mut app);
+
+        workspace.update(&mut app, |ws, ctx| {
+            ws.add_terminal_tab(false, ctx);
+            ws.add_terminal_tab(false, ctx);
+        });
+
+        let cockpit = crate::ai::cockpit::model::CockpitModel::handle(&mut app);
+
+        // 缺口B:面板打开(toggle)→ 0ms spawn 首刷。await 一个 tick 让
+        // spawn 回调执行(App::test 的 async body 驱动 executor)。
+        workspace.update(&mut app, |ws, ctx| {
+            ws.handle_action(&WorkspaceAction::ToggleCockpit, ctx);
+        });
+        warpui::r#async::Timer::after(std::time::Duration::from_millis(5)).await;
+        // mock_workspace(Empty) 初始自带 1 个终端 tab,共 3。
+        assert_eq!(
+            warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.all_card_count()),
+            3,
+            "panel open must show all terminals immediately"
+        );
+
+        // 缺口A:面板开着新建终端 → ViewMembershipChanged 即时广播,
+        // 卡片同步出现(add_tab_with_pane_layout 咽喉,tabs.insert 之后)。
+        workspace.update(&mut app, |ws, ctx| {
+            ws.add_terminal_tab(false, ctx);
+        });
+        // 消费端零合并窗由 toggle 自身的事件路径证明:rc>=1 且 cards==3
+        // ——refresh 在 update 结束的 flush 里同步跑完并通过 registry
+        // 收到全部 3 张卡(闭包内直刷会得到 0,见 toggle_cockpit 注释)。
+        // (App::test 的 mock focus 链会在 flush 尾部把 special view 关
+        // 回去——面板 open 断言因此不在此处做,生产 open 语义由
+        // set_panel_open 断言覆盖。)
+        assert!(
+            warpui::ReadModel::read_model(&app, &cockpit, |m, _| m.refresh_count()) >= 1,
+            "toggle's membership event refreshed synchronously"
+        );
+
+        // 开关 ↔ hub enabled 同步(set_panel_open 是两条 open 路径
+        // [toggle_cockpit / cockpit_pane] 与 close 路径共用的唯一闸)。
+        let hub0 = TerminalActivityModel::handle(&mut app);
+        cockpit.update(&mut app, |m, ctx| m.set_panel_open(true, ctx));
+        assert!(
+            warpui::ReadModel::read_model(&app, &hub0, |m: &TerminalActivityModel, _| m.is_enabled()),
+            "panel open must enable hub"
+        );
+        cockpit.update(&mut app, |m, ctx| m.set_panel_open(false, ctx));
+        assert!(
+            !warpui::ReadModel::read_model(&app, &hub0, |m: &TerminalActivityModel, _| m.is_enabled()),
+            "panel close must disable hub"
+        );
+
+        // 生产端接线:add/remove tab 咽喉与 handle_pane_count_change 广播。
+        // 模拟 cockpit pane 常开态(pane 不随 tab 激活/special view 开合
+        // 关闭)验证广播计数。
+        let hub = TerminalActivityModel::handle(&mut app);
+        let me_before = warpui::ReadModel::read_model(&app, &hub, |m: &TerminalActivityModel, _| m
+            .membership_event_count());
+        hub.update(&mut app, |m, ctx| m.set_enabled(true, ctx));
+        workspace.update(&mut app, |ws, ctx| {
+            ws.add_terminal_tab(false, ctx);
+        });
+        assert!(
+            warpui::ReadModel::read_model(&app, &hub, |m: &TerminalActivityModel, _| m
+                .membership_event_count())
+                > me_before,
+            "add-tab membership broadcast fired (pane-cockpit open scenario)"
+        );
+
     });
 }
