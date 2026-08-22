@@ -290,3 +290,43 @@ fn test_truncate_from_beginning_preserves_char_boundaries() {
         );
     }
 }
+
+#[test]
+fn test_parse_branch_menu_item_strips_git_branch_markers() {
+    use crate::context_chips::display_menu::GenericMenuItem;
+    use super::parse_branch_menu_item;
+
+    // Plain branch: no marker, not a worktree.
+    let plain = parse_branch_menu_item("  feature-x  ");
+    assert_eq!(plain.name(), "feature-x");
+    assert_eq!(plain.action_data(), "feature-x");
+
+    // Current branch marker (`*`) — stripped defensively (CurrentPrompt
+    // normally strips it earlier).
+    let current = parse_branch_menu_item("* main");
+    assert_eq!(current.name(), "main");
+
+    // Linked-worktree marker (`+`): name is clean and the flag flips so the
+    // menu can render the worktree icon; `action_data` must NOT carry the
+    // marker — it is dispatched as `git checkout <name>`.
+    let worktree = parse_branch_menu_item("+ rebase-upstream-20260821-1845");
+    assert_eq!(worktree.name(), "rebase-upstream-20260821-1845");
+    assert_eq!(worktree.action_data(), "rebase-upstream-20260821-1845");
+}
+
+#[test]
+fn test_format_git_branch_command_strips_markers() {
+    use super::format_git_branch_command;
+
+    assert_eq!(
+        format_git_branch_command("feature-x"),
+        "git checkout feature-x"
+    );
+    // Raw `git branch` lines must not leak markers into the command —
+    // `git checkout + name` fails with "pathspec '+' did not match".
+    assert_eq!(
+        format_git_branch_command("+ rebase-upstream-20260821-1845"),
+        "git checkout rebase-upstream-20260821-1845"
+    );
+    assert_eq!(format_git_branch_command("* main"), "git checkout main");
+}

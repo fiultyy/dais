@@ -439,8 +439,14 @@ pub struct DisplayChipConfig {
     pub ambient_agent_view_model: Option<ModelHandle<AmbientAgentViewModel>>,
 }
 
+/// A branch entry in the GitBranch chip menu.
+///
+/// `is_worktree` marks branches checked out in a linked worktree (the `+`
+/// marker in `git branch` output) — rendered with a distinct icon. The raw
+/// `git branch` markers (`*`/`+`) are stripped here so both display and the
+/// `git checkout` dispatched on selection see the clean branch name.
 #[derive(Debug, Clone)]
-pub struct GitBranch(String);
+pub struct GitBranch(String, bool);
 
 impl GenericMenuItem for GitBranch {
     fn as_any(&self) -> &dyn std::any::Any {
@@ -452,12 +458,31 @@ impl GenericMenuItem for GitBranch {
     }
 
     fn icon(&self, _app: &AppContext) -> Option<Icon> {
-        Some(Icon::GitBranch)
+        Some(if self.1 {
+            Icon::Dataflow02
+        } else {
+            Icon::GitBranch
+        })
     }
 
     fn action_data(&self) -> String {
         self.0.clone()
     }
+}
+
+/// Parse a raw `git branch --no-color` line into a menu item.
+///
+/// Markers: `*` = current branch, `+` = branch checked out in a linked
+/// worktree. Both are stripped from the name (the `+` marker flips
+/// `is_worktree` for the distinct icon); the clean name is what both the
+/// menu displays and the dispatched `git checkout` receives.
+fn parse_branch_menu_item(raw: &str) -> GitBranch {
+    let raw = raw.trim_start();
+    let is_worktree = raw.starts_with('+');
+    GitBranch(
+        raw.trim_start_matches(['*', '+']).trim().to_string(),
+        is_worktree,
+    )
 }
 
 impl DisplayChip {
@@ -529,11 +554,12 @@ impl DisplayChip {
                 DisplayChipKind::AgentPlanAndTodoList { plan_and_todo_list }
             }
             ContextChipKind::ShellGitBranch => {
-                // Convert git branch strings to GitBranch items
+                // Values may still carry `git branch` markers: `+` = checked
+                // out in a linked worktree. See parse_branch_menu_item.
                 let git_branch_items: Vec<GitBranch> = chip_result
                     .on_click_values
                     .iter()
-                    .map(|branch_name| GitBranch(branch_name.clone()))
+                    .map(|raw| parse_branch_menu_item(raw))
                     .collect();
 
                 let menu_view = ctx.add_typed_action_view(move |ctx| {
@@ -1778,7 +1804,14 @@ fn format_change_directory_command(dir_name: &str) -> String {
 }
 
 pub fn format_git_branch_command(branch_name: &str) -> String {
-    format!("git checkout {branch_name}")
+    // Defensive: strip `git branch` markers (`*` current, `+` linked
+    // worktree) in case a caller passes a raw line. `git checkout + name`
+    // would fail with "pathspec '+' did not match".
+    let clean = branch_name
+        .trim()
+        .trim_start_matches(['*', '+'])
+        .trim();
+    format!("git checkout {clean}")
 }
 
 pub(crate) fn chip_container(

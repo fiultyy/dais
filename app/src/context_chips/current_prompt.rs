@@ -634,6 +634,11 @@ impl CurrentPrompt {
                 b_starts_with_star.cmp(&a_starts_with_star)
             });
 
+            // `*` (current branch) is stripped here, but `+` (branch checked
+            // out in a linked worktree) intentionally survives — it is the
+            // only carrier of worktree-ness from `git branch` output. It is
+            // parsed into GitBranch(name, is_worktree) at menu construction
+            // (display_chip) and never reaches the dispatched git command.
             trimmed
                 .into_iter()
                 .map(|s| s.trim_start_matches('*').trim().to_string())
