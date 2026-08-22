@@ -5346,25 +5346,43 @@ impl Workspace {
     }
 
     /// Focuses the given pane within the pane group.
+    ///
+    /// Jump-to-pane semantics (cockpit cards, notifications, cross-window
+    /// navigation): if the current project view filters the target tab out
+    /// (the tab belongs to another project or is ungrouped), follow the
+    /// tab's project first — otherwise the region renderer keeps showing
+    /// the old project's tabs and the jump silently lands nowhere.
     pub fn focus_pane(&mut self, pane_view_locator: PaneViewLocator, ctx: &mut ViewContext<Self>) {
-        if let Some((index, tab)) = self
+        let Some((index, tab)) = self
             .tabs
             .iter()
             .enumerate()
             .find(|(_, tab_data)| tab_data.pane_group.id() == pane_view_locator.pane_group_id)
-        {
-            // Update the pane group to focus the active pane,
-            // and then focus the pane group (tab). The order is important
-            // because if we otherwise focus the tab first and another pane
-            // was focused in the mean time, that pane will be the one that will
-            // remain focused (as opposed to the pane with pane_id) since its
-            // input would remain focused.
-            tab.pane_group.update(ctx, |view, ctx| {
-                view.focus_pane_by_id(pane_view_locator.pane_id, ctx);
-            });
-            self.activate_tab_internal(index, ctx);
-            ctx.notify();
+        else {
+            return;
+        };
+        let tab_project = tab.project_path.clone();
+        let pane_id = pane_view_locator.pane_id;
+
+        if let Some(current) = &self.active_project {
+            if tab_project.as_ref() != Some(current) {
+                self.switch_project(tab_project, ctx);
+            }
         }
+
+        // Update the pane group to focus the active pane,
+        // and then focus the pane group (tab). The order is important
+        // because if we otherwise focus the tab first and another pane
+        // was focused in the mean time, that pane will be the one that will
+        // remain focused (as opposed to the pane with pane_id) since its
+        // input would remain focused.
+        self.tabs[index]
+            .pane_group
+            .update(ctx, |view, ctx| {
+                view.focus_pane_by_id(pane_id, ctx);
+            });
+        self.activate_tab_internal(index, ctx);
+        ctx.notify();
     }
 
     /// Searches this workspace's tabs for the given terminal view and focuses it.

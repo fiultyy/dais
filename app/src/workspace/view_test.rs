@@ -2522,5 +2522,88 @@ fn test_transferred_tab_preserves_project_path() {
         });
     });
 }
+
+#[test]
+fn test_focus_terminal_follows_tab_project() {
+    use std::path::PathBuf;
+
+    App::test((), |mut app| async move {
+        initialize_app(&mut app);
+        let workspace = mock_workspace(&mut app);
+
+        workspace.update(&mut app, |workspace, ctx| {
+            workspace.add_terminal_tab(false, ctx); // tab 0 → project A
+            workspace.add_terminal_tab(false, ctx); // tab 1 → project B
+            workspace.add_terminal_tab(false, ctx); // tab 2 → ungrouped
+            let proj_a = PathBuf::from("/tmp/proj-a");
+            let proj_b = PathBuf::from("/tmp/proj-b");
+            workspace.tabs[0].project_path = Some(proj_a.clone());
+            workspace.tabs[1].project_path = Some(proj_b.clone());
+        });
+
+        let id_b = terminal_view_id_of(&workspace, 1, &mut app);
+        let id_ungrouped = terminal_view_id_of(&workspace, 2, &mut app);
+        let proj_a = PathBuf::from("/tmp/proj-a");
+        let proj_b = PathBuf::from("/tmp/proj-b");
+
+        workspace.update(&mut app, |workspace, ctx| {
+
+            // Enter project A's view, then jump to a project-B terminal from
+            // the cockpit: the view must follow the tab's project, otherwise
+            // the region renderer filters the activated tab out and the
+            // content keeps showing project A.
+            workspace.switch_project(Some(proj_a.clone()), ctx);
+            assert_eq!(workspace.active_project, Some(proj_a));
+
+            workspace.handle_action(
+                &WorkspaceAction::FocusTerminalViewInWorkspace {
+                    terminal_view_id: id_b,
+                },
+                ctx,
+            );
+            assert_eq!(
+                workspace.active_project,
+                Some(proj_b),
+                "project view must follow the focused tab's project"
+            );
+            assert_eq!(workspace.active_tab_index, 1);
+
+            // Jump to an ungrouped terminal while inside a project view:
+            // the view must widen to "All" so the tab becomes visible.
+            workspace.handle_action(
+                &WorkspaceAction::FocusTerminalViewInWorkspace {
+                    terminal_view_id: id_ungrouped,
+                },
+                ctx,
+            );
+            assert_eq!(
+                workspace.active_project, None,
+                "ungrouped tab must widen the view to All"
+            );
+            assert_eq!(workspace.active_tab_index, 2);
+        });
+    });
+}
+
+#[cfg(feature = "local_fs")]
+fn terminal_view_id_of(
+    workspace: &ViewHandle<Workspace>,
+    tab_index: usize,
+    app: &mut App,
+) -> warpui::EntityId {
+    let pane_group = workspace.read(app, |workspace, _| {
+        workspace.tabs[tab_index].pane_group.clone()
+    });
+    pane_group.read(app, |pane_group, ctx| {
+        let pane_id = pane_group
+            .terminal_pane_ids()
+            .next()
+            .expect("terminal tab should have a terminal pane");
+        pane_group
+            .terminal_view_from_pane_id(pane_id, ctx)
+            .expect("terminal pane should resolve to a view")
+            .read(ctx, |view, _| view.id())
+    })
+}
 // 已删:test_open_ambient_agent_setup_guide_action_opens_management_view_and_is_idempotent
 // agent_management_view 字段连同 agent setup guide 整片功能在 Phase 2c 已删。
