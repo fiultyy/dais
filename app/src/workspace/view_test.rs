@@ -2607,3 +2607,44 @@ fn terminal_view_id_of(
 }
 // 已删:test_open_ambient_agent_setup_guide_action_opens_management_view_and_is_idempotent
 // agent_management_view 字段连同 agent setup guide 整片功能在 Phase 2c 已删。
+
+/// [cockpit-slow] refresh 成本实测:8 终端 tab,循环 refresh 采样耗时分布。
+/// 排查卡片数据源是否慢(子进程/IPC/大遍历/锁竞争)。
+#[test]
+fn cockpit_refresh_timing_probe() {
+    App::test((), |mut app| async move {
+        initialize_app(&mut app);
+        #[cfg(not(target_family = "wasm"))]
+        app.add_singleton_model(crate::ai::cockpit::model::CockpitModel::new);
+        let workspace = mock_workspace(&mut app);
+
+        workspace.update(&mut app, |ws, ctx| {
+            for _ in 0..8 {
+                ws.add_terminal_tab(false, ctx);
+            }
+        });
+
+        let model = crate::ai::cockpit::model::CockpitModel::handle(&mut app);
+        let mut timings = Vec::new();
+        model.update(&mut app, |m, ctx| {
+            for _ in 0..20 {
+                let t0 = std::time::Instant::now();
+                m.refresh(ctx);
+                timings.push(t0.elapsed().as_micros() as u64);
+            }
+        });
+        timings.sort();
+        let p50 = timings[timings.len() / 2];
+        let p95 = timings[timings.len() * 95 / 100];
+        println!(
+            "[cockpit-probe-test] refresh p50={p50}µs p95={p95}µs (8 tabs)"
+        );
+        // 采集路径性能护栏(2026-08-22 基线:全量 ~350µs)。阈值给 CI
+        // 抖动留一个数量级余量;超阈值说明采集链路引入了阻塞调用
+        // (子进程/IO/锁竞争),cockpit 2s 对账轮询会放大成全局卡顿。
+        assert!(
+            p95 < 50_000,
+            "cockpit refresh regressed: p95={p95}µs (baseline ~350µs)"
+        );
+    });
+}

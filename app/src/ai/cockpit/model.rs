@@ -488,7 +488,6 @@ impl CockpitModel {
     /// 子进程、零文件 stat。
     ///
     /// P1:事件驱动(`CLIAgentSessionsModelEvent` 订阅,见 view.rs)+ 10s
-    /// 低频 timer 对账(终端开合无会话事件,靠对账兜底)。
     pub fn refresh(&mut self, ctx: &mut ModelContext<Self>) {
         let mut window_count = 0usize;
         let mut all_cards = Vec::new();
@@ -573,6 +572,9 @@ fn terminal_views(ctx: &AppContext) -> Vec<(EntityId, ViewHandle<TerminalView>)>
 ///
 /// TerminalModel 访问收敛到单次 FairMutex 短锁:锁内只做字符串拷贝
 /// (long_running 判定 + branch + preview 尾行),渲染在锁外(spec §5-2)。
+/// [cockpit-slow] 实测:锁等待 ~100ns、尾行提取 ~1.3µs/卡(2026-08-22
+/// 插桩),采集零瓶颈——刷新延迟来自对账轮询间隔,见 view.rs
+/// COCKPIT_RECONCILE_INTERVAL_MS。
 fn snapshot_card(view: &TerminalView, ctx: &AppContext) -> CockpitCard {
     let terminal_view_id = view.id();
     let title = view.pane_configuration().as_ref(ctx).title().to_string();
@@ -1137,3 +1139,4 @@ mod tests {
         });
     }
 }
+

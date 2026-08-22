@@ -66,8 +66,15 @@ const SMALL_FONT_SIZE: f32 = 11.;
 const RECAP_MAX_CHARS: usize = 64;
 const PATH_MAX_CHARS: usize = 42;
 /// 低频对账 timer 间隔(ms)。P1:主刷新走 `CLIAgentSessionsModelEvent`
-/// 事件订阅,本 timer 只对账事件覆盖不到的变化(终端开合等)。
-const COCKPIT_RECONCILE_INTERVAL_MS: u64 = 10_000;
+/// 事件订阅(agent 状态即时);本 timer 对账事件覆盖不到的字段:
+/// 无 agent 终端的 Busy/Idle、preview_tail、git branch、cwd。
+///
+/// [cockpit-slow] 2026-08-22 排查定论:采集路径零瓶颈(8 终端全量
+/// refresh 实测 ~350µs,单卡 FairMutex 等待 ~100ns、尾行提取 ~1.3µs,
+/// 见 model.rs snapshot_card 注释),感知延迟全部来自本间隔——原 10s
+/// 让终端状态最长 10s 不可见。压到 2s:每秒成本 ~0.2ms(9 卡),可忽略;
+/// observatory 为 5s,cockpit 作为交互操作面板取更紧的 2s。
+const COCKPIT_RECONCILE_INTERVAL_MS: u64 = 2_000;
 /// 多选勾选框边长。
 const CHECKBOX_SIZE: f32 = 14.;
 /// 注入确认对话框宽度。
