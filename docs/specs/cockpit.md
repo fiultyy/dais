@@ -1,4 +1,4 @@
-# dais Cockpit 设计文档(dais-cockpit-spec)
+# dais Cockpit 设计文档
 
 日期:2026-08-17 ｜ 分支:`fiultyy/hub-cockpit`(本 worktree)
 目标:把 hub-tui(/home/yy/.orca/hub-tui,ratatui 外置 TUI)的"多 agent 驾驶舱"设计模式移植为 **dais 原生 pane**。本票产出 = 本设计文档 + P0 PoC 骨架(`app/src/ai/cockpit/` + `app/src/pane_group/pane/cockpit_pane.rs`),不要求全功能。

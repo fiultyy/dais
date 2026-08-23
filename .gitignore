@@ -89,3 +89,17 @@ review.json
 
 # GUI 结构索引快照(本地核对用, 随代码演进过期)
 dais-gui-structure.html
+
+# 会话交接/个人编排工作流产物(本地保留, 不进库)
+HANDOFF.md
+.handoff/
+.dsh/
+maestro-flows/
+.q/
+CLAUDE.local.md
+
+# 凭据与本机环境残留
+.envrc
+.direnv/
+*.pem
+*.key
