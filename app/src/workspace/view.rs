@@ -297,6 +297,7 @@ use crate::themes::theme_creator_modal::{ThemeCreatorModal, ThemeCreatorModalEve
 use crate::themes::theme_deletion_modal::{ThemeDeletionModal, ThemeDeletionModalEvent};
 use crate::tips::{TipsEvent, TipsView};
 use crate::ui_components::buttons::{combo_inner_button, icon_button_with_color};
+use warpui::ui_components::button::ButtonTooltipPosition;
 use crate::undo_close::UndoCloseStack;
 #[cfg(feature = "local_fs")]
 use crate::user_config::{
@@ -18577,20 +18578,38 @@ impl Workspace {
     }
 
     fn render_settings_button(&self, appearance: &Appearance) -> Box<dyn Element> {
-        Align::new(
-            self.render_tab_bar_icon_button(
-                appearance,
-                icons::Icon::Gear,
-                &self.mouse_states.settings_icon,
-                WorkspaceAction::ShowSettings,
-                crate::t!("settings-title"),
-                self.cached_keybindings[SHOW_SETTINGS_KEYBINDING_NAME].clone(),
-                false,
-                false,
-            )
-            .finish(),
+        let theme = appearance.theme();
+        let icon_color = theme.sub_text_color(theme.background());
+        // 该按钮位于左栏 rail footer 最底行(顶栏 tab bar 也会用):tooltip 必须向上弹出。
+        // ButtonTooltipPosition 默认 Below(Bottom→Top+8 向下),按钮贴窗口底时
+        // WindowByPosition 把 tooltip 钳回窗口内直接盖住按钮 —— 光标落入 tooltip
+        // hit-rect 致 Hoverable 失 hover,tooltip 消失后 hover 恢复,循环闪烁。
+        let button = icon_button_with_color(
+            appearance,
+            icons::Icon::Gear,
+            false,
+            self.mouse_states.settings_icon.clone(),
+            icon_color,
         )
-        .finish()
+        .with_hovered_styles(UiComponentStyles {
+            font_color: Some(icon_color.into()),
+            background: Some(theme.surface_2().into()),
+            ..UiComponentStyles::default()
+        })
+        .with_clicked_styles(UiComponentStyles {
+            font_color: Some(icon_color.into()),
+            background: Some(theme.background().into()),
+            ..UiComponentStyles::default()
+        })
+        .with_tooltip(self.render_tab_bar_icon_button_tooltip(
+            appearance,
+            crate::t!("settings-title"),
+            self.cached_keybindings[SHOW_SETTINGS_KEYBINDING_NAME].clone(),
+        ))
+        .with_tooltip_position(ButtonTooltipPosition::Above)
+        .build()
+        .on_click(|ctx, _, _| ctx.dispatch_typed_action(WorkspaceAction::ShowSettings));
+        Align::new(button.finish()).finish()
     }
 
     fn render_offline_button(&self, appearance: &Appearance) -> Box<dyn Element> {
