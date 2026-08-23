@@ -21,6 +21,7 @@ common-confirm = Confirm
 common-close = Close
 common-reset = Reset
 common-back = Back
+code-review-title = Code Review
 common-next = Next
 common-yes = Yes
 common-no = No

@@ -47,6 +47,8 @@ pub(super) struct WorkspaceMouseStates {
     pub(super) cockpit_icon: MouseStateHandle,
     /// 独立层级视图(设置/观测台/编排器)标题栏 X 关闭按钮。
     pub(super) special_view_close_button: MouseStateHandle,
+    /// 独立层级视图标题栏 ← 返回按钮(2026-08-23 次页面导航统一)。
+    pub(super) special_view_back_button: MouseStateHandle,
     pub(super) notifications_mailbox: MouseStateHandle,
     pub(super) session_config_tab_config_chip_close: MouseStateHandle,
     pub(super) tools_panel_icon: MouseStateHandle,

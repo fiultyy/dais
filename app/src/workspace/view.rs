@@ -16109,6 +16109,12 @@ impl Workspace {
     }
 
     fn show_settings(&mut self, ctx: &mut ViewContext<Self>) {
+        // Toggle 语义(2026-08-23 次页面导航统一): 再次点击设置齿轮关闭设置页,
+        // 与 toggle_observatory/toggle_cockpit 的入口行为对齐。
+        if self.special_view == Some(SpecialView::Settings) {
+            self.close_special_view(ctx);
+            return;
+        }
         self.show_settings_with_section(None, ctx);
     }
 
@@ -18095,31 +18101,63 @@ impl Workspace {
         })
         .finish();
 
+        // 返回图标(2026-08-23 次页面导航统一): 标题左侧 ←,点击关闭次页面返回主视图。
+        let ui_builder = appearance.ui_builder().clone();
+        let back_button = icon_button_with_color(
+            appearance,
+            crate::ui_components::icons::Icon::ChevronLeft,
+            false,
+            self.mouse_states.special_view_back_button.clone(),
+            theme.sub_text_color(theme.background()),
+        )
+        .with_tooltip(move || ui_builder.tool_tip(crate::t!("common-back")).build().finish())
+        .build()
+        .on_click(|ctx, _, _| {
+            ctx.dispatch_typed_action(WorkspaceAction::CloseSpecialView);
+        })
+        .finish();
+
+        // 右上关闭按钮与窗口控制互斥:存在浮层 traffic lights(Linux 无边框/
+        // Windows,锚定同一右上角)时不再渲染 X —— 返回图标承担关闭,右上角
+        // 完全让位给窗口控制,消除两组合按钮重叠抢点击。
+        let has_floating_traffic_lights =
+            traffic_light_data(app, self.window_id).is_some();
         let title_row = Flex::row()
             .with_main_axis_size(MainAxisSize::Max)
             .with_main_axis_alignment(MainAxisAlignment::SpaceBetween)
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
             .with_child(
-                Container::new(title_text)
-                    .with_padding_left(TAB_BAR_PADDING_LEFT + 4.)
+                Flex::row()
+                    .with_cross_axis_alignment(CrossAxisAlignment::Center)
+                    .with_child(
+                        Container::new(back_button)
+                            .with_padding_left(TAB_BAR_PADDING_LEFT)
+                            .finish(),
+                    )
+                    .with_child(
+                        Container::new(title_text)
+                            .with_padding_left(4.)
+                            .finish(),
+                    )
                     .finish(),
+            );
+        let title_row = if has_floating_traffic_lights {
+            // 为窗口控制预留右侧空间(traffic light 宽度),避免标题行内容伸入。
+            let zoom_factor = WindowSettings::as_ref(app).zoom_level.as_zoom_factor();
+            let reserve = traffic_light_data(app, self.window_id)
+                .map(|data| data.width(zoom_factor))
+                .unwrap_or(0.);
+            title_row.with_child(
+                ConstrainedBox::new(Empty::new().finish()).with_width(reserve).finish(),
             )
-            .with_child(
+        } else {
+            title_row.with_child(
                 Container::new(close_button)
                     .with_padding_right(TAB_BAR_PADDING_RIGHT)
                     .finish(),
             )
-            .finish();
-        let header = ConstrainedBox::new(
-            Container::new(title_row)
-                .with_border(
-                    Border::bottom(TAB_BAR_BORDER_HEIGHT).with_border_fill(theme.outline()),
-                )
-                .finish(),
-        )
-        .with_height(TAB_BAR_HEIGHT)
-        .finish();
-
+        };
+        let title_row = title_row.finish();
         let content: Box<dyn Element> = match view {
             SpecialView::Settings => ChildView::new(&self.settings_pane).finish(),
             #[cfg(not(target_family = "wasm"))]
@@ -18133,6 +18171,16 @@ impl Workspace {
                 None => Empty::new().finish(),
             },
         };
+
+        let header = ConstrainedBox::new(
+            Container::new(title_row)
+                .with_border(
+                    Border::bottom(TAB_BAR_BORDER_HEIGHT).with_border_fill(theme.outline()),
+                )
+                .finish(),
+        )
+        .with_height(TAB_BAR_HEIGHT)
+        .finish();
 
         let mut column = Flex::column().with_cross_axis_alignment(CrossAxisAlignment::Stretch);
         column.add_child(header);

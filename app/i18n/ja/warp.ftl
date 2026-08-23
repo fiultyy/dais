@@ -21,6 +21,7 @@ common-confirm = 確認
 common-close = 閉じる
 common-reset = リセット
 common-back = 戻る
+code-review-title = コードレビュー
 common-next = 次へ
 common-yes = はい
 common-no = いいえ

@@ -325,6 +325,8 @@ pub enum RightPanelEvent {
 pub struct RightPanelView {
     resizable_state_handle: ResizableStateHandle,
     close_button_mouse_state: MouseStateHandle,
+    /// 返回 ← 按钮句柄(2026-08-23 次页面导航统一)。
+    back_button_mouse_state: MouseStateHandle,
     file_navigation_button_mouse_state: MouseStateHandle,
     #[cfg(feature = "local_fs")]
     open_repository_button: ViewHandle<ActionButton>,
@@ -424,6 +426,7 @@ impl RightPanelView {
         Self {
             resizable_state_handle,
             close_button_mouse_state: Default::default(),
+            back_button_mouse_state: Default::default(),
             file_navigation_button_mouse_state: Default::default(),
             #[cfg(feature = "local_fs")]
             open_repository_button,
@@ -745,13 +748,42 @@ impl RightPanelView {
         .finish()
     }
 
-    fn render_simple_header(&self, close_button: Box<dyn Element>) -> Box<dyn Element> {
-        let left_spacer = Box::new(Shrinkable::new(1.0, Empty::new().finish()));
+    fn render_simple_header(
+        &self,
+        close_button: Box<dyn Element>,
+        appearance: &Appearance,
+    ) -> Box<dyn Element> {
+        // 2026-08-23 次页面导航统一:左侧返回 ←(关闭面板,同 SpecialView 返回语义)
+        // + 标题文字;右侧保留 X。原实现是纯 spacer+X。
+        let ui_builder = appearance.ui_builder().clone();
+        let theme = appearance.theme();
+        let back_button = icon_button_with_color(
+            appearance,
+            icons::Icon::ChevronLeft,
+            false,
+            self.back_button_mouse_state.clone(),
+            theme.sub_text_color(theme.background()),
+        )
+        .with_tooltip(move || ui_builder.tool_tip(crate::t!("common-back")).build().finish())
+        .build()
+        .on_click(|ctx, _, _| {
+            ctx.dispatch_typed_action(WorkspaceAction::ToggleRightPanel);
+        })
+        .finish();
+        let title = Text::new_inline(
+            crate::t!("code-review-title"),
+            appearance.ui_font_family(),
+            12.,
+        )
+        .with_color(theme.main_text_color(theme.background()).into())
+        .finish();
         Container::new(
             ConstrainedBox::new(
                 Flex::row()
-                    .with_child(left_spacer)
-                    .with_children(vec![close_button])
+                    .with_child(back_button)
+                    .with_child(Container::new(title).with_padding_left(4.).finish())
+                    .with_child(close_button)
+                    .with_main_axis_size(MainAxisSize::Max)
                     .with_main_axis_alignment(MainAxisAlignment::SpaceBetween)
                     .with_cross_axis_alignment(CrossAxisAlignment::Center)
                     .finish(),
@@ -759,7 +791,6 @@ impl RightPanelView {
             .with_height(PANE_HEADER_HEIGHT)
             .finish(),
         )
-        .with_padding_left(16.)
         .with_padding_right(HEADER_EDGE_PADDING)
         .finish()
     }
@@ -769,7 +800,7 @@ impl RightPanelView {
         let close_button = self.close_button(appearance, app);
 
         let Some(state) = &self.code_review_state else {
-            let simple_header = self.render_simple_header(close_button);
+            let simple_header = self.render_simple_header(close_button, appearance);
             return Flex::column()
                 .with_child(simple_header)
                 .with_child(
@@ -784,7 +815,7 @@ impl RightPanelView {
             .filter(|repo_path| state.available_repos.contains(repo_path));
 
         let Some(selected_repo_path) = selected_repo_path else {
-            let simple_header = self.render_simple_header(close_button);
+            let simple_header = self.render_simple_header(close_button, appearance);
 
             #[cfg(feature = "local_fs")]
             let no_repo_body = {
@@ -832,7 +863,7 @@ impl RightPanelView {
                 .with_child(code_review_content)
                 .finish()
         } else {
-            let simple_header = self.render_simple_header(close_button);
+            let simple_header = self.render_simple_header(close_button, appearance);
             Flex::column()
                 .with_child(simple_header)
                 .with_child(

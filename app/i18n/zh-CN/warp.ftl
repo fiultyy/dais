@@ -18,6 +18,7 @@ common-confirm = 确认
 common-close = 关闭
 common-reset = 重置
 common-back = 返回
+code-review-title = 代码评审
 common-next = 下一步
 common-yes = 是
 common-no = 否
