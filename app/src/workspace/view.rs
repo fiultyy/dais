@@ -18556,10 +18556,10 @@ impl Workspace {
                             .build()
                             .finish(),
                         OffsetPositioning::offset_from_parent(
-                            vec2f(0., 4.),
+                            vec2f(0., -4.),
                             ParentOffsetBounds::WindowByPosition,
-                            ParentAnchor::BottomMiddle,
-                            ChildAnchor::TopMiddle,
+                            ParentAnchor::TopMiddle,
+                            ChildAnchor::BottomMiddle,
                         ),
                     );
                 }
@@ -18617,10 +18617,10 @@ impl Workspace {
                 stack.add_positioned_overlay_child(
                     tool_tip.build().finish(),
                     OffsetPositioning::offset_from_parent(
-                        vec2f(0., 4.),
+                        vec2f(0., -4.),
                         ParentOffsetBounds::WindowByPosition,
-                        ParentAnchor::BottomMiddle,
-                        ChildAnchor::TopMiddle,
+                        ParentAnchor::TopMiddle,
+                        ChildAnchor::BottomMiddle,
                     ),
                 );
             }
