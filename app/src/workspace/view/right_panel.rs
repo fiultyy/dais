@@ -23,6 +23,8 @@ use crate::view_components::action_button::{ActionButton, PaneHeaderTheme};
 use crate::view_components::action_button::{NakedTheme, TooltipAlignment};
 use crate::view_components::{Dropdown, DropdownItem};
 use crate::workspace::view::TOGGLE_RIGHT_PANEL_BINDING_NAME;
+use crate::util::traffic_lights::traffic_light_data;
+use crate::window_settings::WindowSettings;
 use crate::workspace::WorkspaceAction;
 use crate::{
     appearance::Appearance,
@@ -748,13 +750,48 @@ impl RightPanelView {
         .finish()
     }
 
+    /// 右面板头部右侧控制与浮层窗口控制互斥(2026-08-23 次页面导航统一 round2):
+    /// 存在浮层 traffic lights(Linux 无边框/Windows,锚定窗口 TopRight——恰是
+    /// 右面板头部右上角)时不渲染面板自己的 maximize/close,改为等宽占位,
+    /// 布局稳定且消除两组按钮重叠抢点击;无浮层平台(macOS/tiling WM)保留。
+    fn header_right_section(
+        &self,
+        repo_dropdown: Option<Box<dyn Element>>,
+        maximize_button: Box<dyn Element>,
+        close_button: Box<dyn Element>,
+        app: &AppContext,
+    ) -> Vec<Box<dyn Element>> {
+        let mut right_section = Vec::new();
+        let traffic_light = app
+            .windows()
+            .active_window()
+            .and_then(|window_id| traffic_light_data(app, window_id));
+        if let Some(repo_dropdown) = repo_dropdown {
+            right_section.push(repo_dropdown);
+        }
+        if let Some(data) = traffic_light {
+            let zoom_factor = WindowSettings::as_ref(app).zoom_level.as_zoom_factor();
+            right_section.push(
+                ConstrainedBox::new(Empty::new().finish())
+                    .with_width(data.width(zoom_factor))
+                    .finish(),
+            );
+        } else {
+            right_section.push(maximize_button);
+            right_section.push(close_button);
+        }
+        right_section
+    }
+
+
     fn render_simple_header(
         &self,
         close_button: Box<dyn Element>,
         appearance: &Appearance,
+        app: &AppContext,
     ) -> Box<dyn Element> {
         // 2026-08-23 次页面导航统一:左侧返回 ←(关闭面板,同 SpecialView 返回语义)
-        // + 标题文字;右侧保留 X。原实现是纯 spacer+X。
+        // + 标题;右侧控制走 header_right_section 互斥(有浮层 traffic lights 时让位)。
         let ui_builder = appearance.ui_builder().clone();
         let theme = appearance.theme();
         let back_button = icon_button_with_color(
@@ -777,15 +814,18 @@ impl RightPanelView {
         )
         .with_color(theme.main_text_color(theme.background()).into())
         .finish();
+        // simple header 无 maximize;用占位保持签名一致(空 Element 被互斥分支丢弃)。
+        let right_section =
+            self.header_right_section(None, Empty::new().finish(), close_button, app);
         Container::new(
             ConstrainedBox::new(
                 Flex::row()
                     .with_child(back_button)
                     .with_child(Container::new(title).with_padding_left(4.).finish())
-                    .with_child(close_button)
                     .with_main_axis_size(MainAxisSize::Max)
                     .with_main_axis_alignment(MainAxisAlignment::SpaceBetween)
                     .with_cross_axis_alignment(CrossAxisAlignment::Center)
+                    .with_children(right_section)
                     .finish(),
             )
             .with_height(PANE_HEADER_HEIGHT)
@@ -800,7 +840,7 @@ impl RightPanelView {
         let close_button = self.close_button(appearance, app);
 
         let Some(state) = &self.code_review_state else {
-            let simple_header = self.render_simple_header(close_button, appearance);
+            let simple_header = self.render_simple_header(close_button, appearance, app);
             return Flex::column()
                 .with_child(simple_header)
                 .with_child(
@@ -815,7 +855,7 @@ impl RightPanelView {
             .filter(|repo_path| state.available_repos.contains(repo_path));
 
         let Some(selected_repo_path) = selected_repo_path else {
-            let simple_header = self.render_simple_header(close_button, appearance);
+            let simple_header = self.render_simple_header(close_button, appearance, app);
 
             #[cfg(feature = "local_fs")]
             let no_repo_body = {
@@ -863,7 +903,7 @@ impl RightPanelView {
                 .with_child(code_review_content)
                 .finish()
         } else {
-            let simple_header = self.render_simple_header(close_button, appearance);
+            let simple_header = self.render_simple_header(close_button, appearance, app);
             Flex::column()
                 .with_child(simple_header)
                 .with_child(
@@ -945,12 +985,12 @@ impl RightPanelView {
             left_section.add_child(stats);
         }
 
-        let mut right_section = Vec::new();
-        if let Some(repo_dropdown) = self.render_repo_dropdown() {
-            right_section.push(repo_dropdown);
-        }
-        right_section.push(self.render_maximize_pane_button());
-        right_section.push(close_button);
+        let right_section = self.header_right_section(
+            self.render_repo_dropdown(),
+            self.render_maximize_pane_button(),
+            self.close_button(appearance, app),
+            app,
+        );
 
         Container::new(
             ConstrainedBox::new(
@@ -1038,12 +1078,12 @@ impl RightPanelView {
         }
         left_section.add_child(title);
 
-        let mut right_section = Vec::new();
-        if let Some(repo_dropdown) = self.render_repo_dropdown() {
-            right_section.push(repo_dropdown);
-        }
-        right_section.push(self.render_maximize_pane_button());
-        right_section.push(close_button);
+        let right_section = self.header_right_section(
+            self.render_repo_dropdown(),
+            self.render_maximize_pane_button(),
+            close_button,
+            app,
+        );
 
         let left_padding = if has_nav_button { 12. } else { 16. };
 
