@@ -20277,6 +20277,13 @@ impl TypedActionView for Workspace {
                     .set(!collapsed);
                 ctx.notify();
             }
+            ToggleUngroupedCollapsed => {
+                let collapsed = self.vertical_tabs_panel.ungrouped_collapsed.get();
+                self.vertical_tabs_panel
+                    .ungrouped_collapsed
+                    .set(!collapsed);
+                ctx.notify();
+            }
             OpenAddProjectPicker => self.open_add_project_picker(ctx),
             ActivateTabByNumber(num) => self.activate_tab(num.saturating_sub(1), ctx),
             ActivatePrevTab => self.activate_prev_tab(ctx),

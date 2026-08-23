@@ -613,6 +613,10 @@ pub(super) struct VerticalTabsPanelState {
     /// Project rail: "全部"行 chevron click state (dedicated — sharing with
     /// the '+' button would let the two Hoverable instances steal clicks).
     all_collapse_mouse_state: MouseStateHandle,
+    /// Project rail: 「未分组」组折叠(无项目实例子行隐藏)。
+    pub(super) ungrouped_collapsed: std::cell::Cell<bool>,
+    /// Project rail: 「未分组」组 chevron click state。
+    ungrouped_collapse_mouse_state: MouseStateHandle,
     pub(super) show_settings_popup: bool,
 }
 
@@ -656,6 +660,8 @@ impl Default for VerticalTabsPanelState {
             project_collapse_mouse_states: RefCell::default(),
             project_add_button_mouse_state: Default::default(),
             all_collapse_mouse_state: Default::default(),
+            ungrouped_collapsed: std::cell::Cell::new(false),
+            ungrouped_collapse_mouse_state: Default::default(),
             show_settings_popup: false,
         }
     }
@@ -1365,13 +1371,17 @@ fn render_settings_button(
                     .build()
                     .finish();
                 let mut stack = Stack::new().with_child(button_container);
+                // 按钮位于左栏最底部:tooltip 必须向上弹出(ActionButton AboveInputBox 同款
+                // Top→Bottom/-4 约定)。若向下锚定,WindowByPosition 会把超出窗口底部的
+                // tooltip 钳回窗口内,直接盖住按钮自身 —— 高层 hit rect 使 Hoverable 丢失
+                // hover(tooltip 闪烁循环)且点击被 tooltip 层拦截(按钮点击失效)。
                 stack.add_positioned_overlay_child(
                     tooltip,
                     OffsetPositioning::offset_from_parent(
-                        vec2f(0., 4.),
+                        vec2f(0., -4.),
                         ParentOffsetBounds::WindowByPosition,
-                        ParentAnchor::BottomMiddle,
-                        ChildAnchor::TopMiddle,
+                        ParentAnchor::TopMiddle,
+                        ChildAnchor::BottomMiddle,
                     ),
                 );
                 stack.finish()
@@ -1683,16 +1693,6 @@ fn render_project_section(
         ));
     }
 
-    // Separator between project rail and tab area.
-    let separator = ConstrainedBox::new(
-        Rect::new()
-            .with_background(theme.foreground_button_color().with_opacity(20))
-            .finish(),
-    )
-    .with_height(1.)
-    .with_width(0.) // 0 = unconstrained; stretch via parent
-    .finish();
-
     if show_separator {
         // Separator between project rail and tab area.
         let separator = ConstrainedBox::new(
@@ -1724,6 +1724,101 @@ fn render_project_section(
         section.finish()
     }
 }
+/// 「未分组」可折叠组:收纳 project_path 为 None 的实例(快速终端等)。
+/// 头行 = chevron + 计数标签;展开时嵌入 tab 子行(与项目卡子树同款缩进)。
+fn render_ungrouped_group(
+    state: &VerticalTabsPanelState,
+    workspace: &Workspace,
+    app: &AppContext,
+) -> Box<dyn Element> {
+    let appearance = Appearance::as_ref(app);
+    let theme = appearance.theme();
+    let sub_text = theme.sub_text_color(theme.background());
+
+    let ungrouped_tabs: Vec<usize> = workspace
+        .tabs
+        .iter()
+        .enumerate()
+        .filter(|(_, tab)| tab.project_path.is_none())
+        .map(|(index, _)| index)
+        .collect();
+
+    let collapsed = state.ungrouped_collapsed.get();
+    let chevron = if collapsed {
+        UiIcon::ChevronRight
+    } else {
+        UiIcon::ChevronDown
+    };
+    let toggle_button = combo_inner_button(
+        appearance,
+        chevron,
+        false,
+        state.ungrouped_collapse_mouse_state.clone(),
+    )
+    .with_style(
+        UiComponentStyles::default()
+            .set_border_radius(CornerRadius::with_all(CONTROL_BAR_BUTTON_RADIUS))
+            .set_font_color(sub_text.into()),
+    )
+    .build()
+    .on_click(|ctx, _, _| {
+        ctx.dispatch_typed_action(WorkspaceAction::ToggleUngroupedCollapsed);
+    })
+    .finish();
+
+    let label = Text::new_inline(
+        format!(
+            "{}  ×{}",
+            crate::t!("project-rail-ungrouped-instances"),
+            ungrouped_tabs.len()
+        ),
+        appearance.ui_font_family(),
+        10.5,
+    )
+    .with_color(sub_text.into())
+    .finish();
+
+    let header = Container::new(
+        Flex::row()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_cross_axis_alignment(CrossAxisAlignment::Center)
+            .with_child(toggle_button)
+            .with_child(Shrinkable::new(1., label).finish())
+            .finish(),
+    )
+    .with_padding(
+        Padding::uniform(GROUP_ITEM_SPACING)
+            .with_left(GROUP_HORIZONTAL_PADDING)
+            .with_right(GROUP_HORIZONTAL_PADDING),
+    )
+    .finish();
+
+    let mut column = Flex::column()
+        .with_main_axis_size(MainAxisSize::Min)
+        .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
+        .with_child(header);
+
+    if !collapsed {
+        for tab_index in ungrouped_tabs {
+            column.add_child(render_tab_group(
+                state,
+                workspace,
+                tab_index,
+                &workspace.tabs[tab_index],
+                None,
+                TabGroupDragState {
+                    is_any_pane_dragging: false,
+                    insert_before_index: 0,
+                    insert_after_index: None,
+                },
+                app,
+            ));
+        }
+    }
+
+    column.finish()
+}
+
 
 #[allow(clippy::too_many_arguments)]
 fn render_project_card(
@@ -2123,13 +2218,10 @@ fn render_vertical_tabs_panel(
     // embedded subtree. Hide it (and the separator) so each tab appears once
     // per surface; the "All" view keeps the full vertical list.
     let panel_content = if workspace.active_project.is_some() {
-        let ungrouped_tabs: Vec<usize> = workspace
+        let has_ungrouped = workspace
             .tabs
             .iter()
-            .enumerate()
-            .filter(|(_, tab)| tab.project_path.is_none())
-            .map(|(index, _)| index)
-            .collect();
+            .any(|tab| tab.project_path.is_none());
         let mut project_view = Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
@@ -2141,49 +2233,13 @@ fn render_vertical_tabs_panel(
                 /* show_separator */ false,
             ));
         // 无项目实例:项目过滤保留它们,但项目卡子树只嵌 project_path
-        // =Some 的 tab——不单独列出会从大纲消失。
-        if !ungrouped_tabs.is_empty() {
-            let mut ungrouped_list = Flex::column()
-                .with_main_axis_size(MainAxisSize::Min)
-                .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
-                .with_spacing(GROUP_ITEM_SPACING);
-            ungrouped_list.add_child(
-                Container::new(
-                    Text::new_inline(
-                        crate::t!("project-rail-ungrouped-instances"),
-                        appearance.ui_font_family(),
-                        10.5,
-                    )
-                    .with_color(theme.sub_text_color(theme.background()).into())
-                    .finish(),
-                )
-                .with_padding(
-                    Padding::uniform(GROUP_ITEM_SPACING)
-                        .with_left(GROUP_HORIZONTAL_PADDING)
-                        .with_right(GROUP_HORIZONTAL_PADDING),
-                )
-                .finish(),
-            );
-            for tab_index in ungrouped_tabs {
-                ungrouped_list.add_child(render_tab_group(
-                    state,
-                    workspace,
-                    tab_index,
-                    &workspace.tabs[tab_index],
-                    None,
-                    TabGroupDragState {
-                        is_any_pane_dragging: false,
-                        insert_before_index: 0,
-                        insert_after_index: None,
-                    },
-                    app,
-                ));
-            }
+        // =Some 的 tab——不单独列出会从大纲消失。收纳进「未分组」可折叠组。
+        if has_ungrouped {
             project_view = project_view.with_child(Box::new(Expanded::new(
                 1.,
                 ClippedScrollable::vertical(
                     state.scroll_state.clone(),
-                    ungrouped_list.finish(),
+                    render_ungrouped_group(state, workspace, app),
                     ScrollbarWidth::Custom(4.),
                     theme.nonactive_ui_detail().into(),
                     theme.active_ui_detail().into(),
@@ -2436,14 +2492,20 @@ fn render_groups(
         groups = groups.with_spacing(TABS_MODE_ITEM_SPACING);
     }
 
-    for (visible_tab_index, (tab_index, filtered_pane_ids)) in visible_tabs.iter().enumerate() {
+    // 分段:无项目 tab 收进「未分组」组(可折叠),项目 tab 保持原序在前。
+    // 仅在「全部」视图生效(项目视图走 render_ungrouped_group 独立路径)。
+    let (project_owned, ungrouped): (Vec<_>, Vec<_>) = visible_tabs
+        .iter()
+        .partition(|(tab_index, _)| workspace.tabs[*tab_index].project_path.is_some());
+
+    for (visible_tab_index, (tab_index, filtered_pane_ids)) in project_owned.iter().enumerate() {
         // Insert ghost slot before this tab group if the drop would land here.
         if ghost_insertion_index == Some(*tab_index) {
             groups.add_child(render_ghost_vertical_tab_slot(workspace, app));
         }
         let insert_before_index = *tab_index;
         let insert_after_index =
-            (visible_tab_index == visible_tabs.len() - 1).then_some(tab_index + 1);
+            (visible_tab_index == project_owned.len() - 1).then_some(tab_index + 1);
         groups.add_child(render_tab_group(
             state,
             workspace,
@@ -2457,6 +2519,76 @@ fn render_groups(
             },
             app,
         ));
+    }
+
+    // 「未分组」段:头行 + 展开时的 tab 子行。
+    if !ungrouped.is_empty() {
+        let collapsed = state.ungrouped_collapsed.get();
+        let chevron = if collapsed {
+            UiIcon::ChevronRight
+        } else {
+            UiIcon::ChevronDown
+        };
+        let toggle_button = combo_inner_button(
+            appearance,
+            chevron,
+            false,
+            state.ungrouped_collapse_mouse_state.clone(),
+        )
+        .with_style(
+            UiComponentStyles::default()
+                .set_border_radius(CornerRadius::with_all(CONTROL_BAR_BUTTON_RADIUS))
+                .set_font_color(theme.sub_text_color(theme.background()).into()),
+        )
+        .build()
+        .on_click(|ctx, _, _| {
+            ctx.dispatch_typed_action(WorkspaceAction::ToggleUngroupedCollapsed);
+        })
+        .finish();
+        let label = Text::new_inline(
+            format!(
+                "{}  ×{}",
+                crate::t!("project-rail-ungrouped-instances"),
+                ungrouped.len()
+            ),
+            appearance.ui_font_family(),
+            10.5,
+        )
+        .with_color(theme.sub_text_color(theme.background()).into())
+        .finish();
+        groups.add_child(
+            Container::new(
+                Flex::row()
+                    .with_main_axis_size(MainAxisSize::Max)
+                    .with_cross_axis_alignment(CrossAxisAlignment::Center)
+                    .with_child(toggle_button)
+                    .with_child(Shrinkable::new(1., label).finish())
+                    .finish(),
+            )
+            .with_padding(
+                Padding::uniform(GROUP_ITEM_SPACING)
+                    .with_left(GROUP_HORIZONTAL_PADDING)
+                    .with_right(GROUP_HORIZONTAL_PADDING),
+            )
+            .finish(),
+        );
+        if !collapsed {
+            for (tab_index, filtered_pane_ids) in &ungrouped {
+                groups.add_child(render_tab_group(
+                    state,
+                    workspace,
+                    *tab_index,
+                    &workspace.tabs[*tab_index],
+                    filtered_pane_ids.as_deref(),
+                    TabGroupDragState {
+                        is_any_pane_dragging,
+                        insert_before_index: *tab_index,
+                        insert_after_index: None,
+                    },
+                    app,
+                ));
+            }
+        }
     }
     // Ghost after all tab groups (fencepost).
     if ghost_insertion_index == Some(workspace.tabs.len()) {

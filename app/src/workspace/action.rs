@@ -153,6 +153,8 @@ pub enum WorkspaceAction {
     OpenAddProjectPicker,
     /// 项目栏: "全部"行折叠/展开其 tab 子行。
     ToggleAllProjectsCollapsed,
+    /// 项目栏: 「未分组」组折叠/展开 — 收纳无项目归属的实例。
+    ToggleUngroupedCollapsed,
     /// 在当前 tab 中央开新 terminal pane,执行 `ssh user@host`(openWarp 独有)。
     /// 由 SshServerView 的 Connect 按钮 / SshManagerPanel 右键"连接" 触发。
     OpenSshTerminal {
@@ -683,6 +685,7 @@ impl WorkspaceAction {
             | CloseWindow
             | ScrollToSettingsWidget { .. }
             | ToggleAllProjectsCollapsed
+            | ToggleUngroupedCollapsed
             | NewPaneInAgentMode { .. }
             | OpenNotebook { .. }
             | RunWorkflow { .. }
