@@ -18,7 +18,7 @@ use diesel::dsl::sql;
 use diesel::sql_types::Integer;
 
 use persistence::schema::{
-    decision_gates, dispatch_contexts, messages, orchestration_waiters, runs, tasks,
+    decision_gates, deliveries, dispatch_contexts, messages, orchestration_waiters, runs, tasks,
     worker_dispatches, worker_terminal_archives,
 };
 
@@ -550,6 +550,58 @@ impl DieselOrchestrationStore {
         })
     }
 
+    // ── Dispatch assignment persistence (D-04) ────────────────────────
+
+    /// Persist a dispatch → worker-terminal assignment (D-04: the assign
+    /// path previously updated only in-memory registries, so the
+    /// `dispatch_contexts` row's `assignee_*` columns stayed NULL).
+    ///
+    /// Stamps `dispatched_at` on first assignment. The `status` column is
+    /// owned by the state machine (`mark_worker_dispatch_ready` requires
+    /// `pending`; bumping it here would break the lifecycle), so it is
+    /// deliberately left untouched.
+    pub fn set_dispatch_assignee(
+        &self,
+        dispatch_id: &str,
+        assignee_handle: &str,
+        assignee_pane_key: &str,
+    ) -> OrchestrationResult<()> {
+        let mut conn = self.lock();
+        conn.transaction::<_, OrchestrationError, _>(|conn| {
+            let ctx = Self::get_dispatch_context_by_id_tx(conn, dispatch_id)?
+                .ok_or_else(|| {
+                    OrchestrationError::NotFound(format!("dispatch context {dispatch_id}"))
+                })?;
+            diesel::update(dispatch_contexts::table.filter(dispatch_contexts::id.eq(dispatch_id)))
+                .set((
+                    dispatch_contexts::assignee_handle.eq(assignee_handle),
+                    dispatch_contexts::assignee_pane_key.eq(assignee_pane_key),
+                    dispatch_contexts::dispatched_at
+                        .eq(ctx.dispatched_at.unwrap_or_else(|| Utc::now().naive_utc())),
+                ))
+                .execute(conn)?;
+            Ok(())
+        })
+    }
+
+    /// Clear the assignment columns (unassign). Lifecycle columns (status,
+    /// dispatched_at) are owned by the state machine and left untouched.
+    pub fn clear_dispatch_assignee(&self, dispatch_id: &str) -> OrchestrationResult<()> {
+        let mut conn = self.lock();
+        let n = diesel::update(dispatch_contexts::table.filter(dispatch_contexts::id.eq(dispatch_id)))
+            .set((
+                dispatch_contexts::assignee_handle.eq::<Option<String>>(None),
+                dispatch_contexts::assignee_pane_key.eq::<Option<String>>(None),
+            ))
+            .execute(&mut *conn)?;
+        if n == 0 {
+            return Err(OrchestrationError::NotFound(format!(
+                "dispatch context {dispatch_id}"
+            )));
+        }
+        Ok(())
+    }
+
     // ── Decision Gates ────────────────────────────────────────────────
 
     /// Create a gate for a task, blocking it until resolved.
@@ -707,6 +759,65 @@ impl DieselOrchestrationStore {
             .order(runs::created_at.desc())
             .load(&mut *conn)
             .map_err(Into::into)
+    }
+
+    /// Garbage-collect finished runs older than the cutoff (D-05: the runs
+    /// registry previously grew without bound — observed 167→262 with no
+    /// archival). A run is *finished* when none of its tasks is in a live
+    /// state (`pending`/`ready`/`dispatched`/`blocked`); age is measured
+    /// from `created_at`. Deletes all child rows (messages, deliveries,
+    /// decision gates, dispatch contexts + worker dispatches, tasks) and the
+    /// run itself in one transaction. `dry_run` selects without deleting.
+    /// Returns the collected run ids.
+    pub fn gc_runs(
+        &self,
+        max_age: chrono::Duration,
+        dry_run: bool,
+    ) -> OrchestrationResult<Vec<String>> {
+        let cutoff = (Utc::now() - max_age).naive_utc();
+        let live_task_runs = tasks::table
+            .filter(
+                tasks::status
+                    .eq("pending")
+                    .or(tasks::status.eq("ready"))
+                    .or(tasks::status.eq("dispatched"))
+                    .or(tasks::status.eq("blocked")),
+            )
+            .select(tasks::run_id);
+        let mut conn = self.lock();
+        conn.transaction::<_, OrchestrationError, _>(|conn| {
+            let victims = runs::table
+                .filter(runs::created_at.lt(cutoff))
+                .filter(runs::id.ne_all(live_task_runs))
+                .select(runs::id)
+                .load::<String>(conn)?;
+            if dry_run {
+                return Ok(victims);
+            }
+            for run_id in &victims {
+                let ctx_ids = dispatch_contexts::table
+                    .filter(dispatch_contexts::run_id.eq(run_id))
+                    .select(dispatch_contexts::id)
+                    .load::<String>(conn)?;
+                diesel::delete(
+                    worker_dispatches::table.filter(worker_dispatches::dispatch_id.eq_any(&ctx_ids)),
+                )
+                .execute(conn)?;
+                diesel::delete(
+                    dispatch_contexts::table.filter(dispatch_contexts::run_id.eq(run_id)),
+                )
+                .execute(conn)?;
+                diesel::delete(messages::table.filter(messages::run_id.eq(run_id)))
+                    .execute(conn)?;
+                diesel::delete(deliveries::table.filter(deliveries::run_id.eq(run_id)))
+                    .execute(conn)?;
+                diesel::delete(decision_gates::table.filter(decision_gates::run_id.eq(run_id)))
+                    .execute(conn)?;
+                diesel::delete(tasks::table.filter(tasks::run_id.eq(run_id))).execute(conn)?;
+                diesel::delete(runs::table.filter(runs::id.eq(run_id))).execute(conn)?;
+            }
+            Ok(victims)
+        })
     }
 
     // ── Task DAG ──────────────────────────────────────────────────────
@@ -1778,5 +1889,98 @@ mod tests {
             store.get_task(&failing_task).unwrap().unwrap().status,
             "failed"
         );
+    }
+
+    /// D-04: assignment persistence — set/clear round-trip on the
+    /// `dispatch_contexts` row (previously the assign path never wrote it).
+    #[test]
+    fn test_set_and_clear_dispatch_assignee() {
+        let store = setup();
+        let run_id = store.create_run("assignee run").unwrap();
+        let task_id = store.create_task(&run_id, "work", &[]).unwrap();
+        let dispatch_id = store.create_dispatch(&run_id, &task_id, "{}").unwrap();
+
+        // Fresh dispatch: unassigned, pending.
+        let ctx = store.get_dispatch_context_by_id(&dispatch_id).unwrap().unwrap();
+        assert_eq!(ctx.status, "pending");
+        assert!(ctx.assignee_handle.is_none());
+        assert!(ctx.assignee_pane_key.is_none());
+
+        // Assign → columns persist, ts stamped. Status is the state
+        // machine's column (mark_ready requires `pending`) — assignment
+        // must not touch it.
+        store
+            .set_dispatch_assignee(&dispatch_id, "session_42", "view_7")
+            .unwrap();
+        let ctx = store.get_dispatch_context_by_id(&dispatch_id).unwrap().unwrap();
+        assert_eq!(ctx.assignee_handle.as_deref(), Some("session_42"));
+        assert_eq!(ctx.assignee_pane_key.as_deref(), Some("view_7"));
+        assert_eq!(ctx.status, "pending");
+        assert!(ctx.dispatched_at.is_some());
+
+        // Assignment before mark_ready must not break the lifecycle.
+        store.promote_ready_tasks(&run_id).unwrap();
+        store.mark_worker_dispatch_ready(&dispatch_id, None).unwrap();
+        store
+            .set_dispatch_assignee(&dispatch_id, "session_99", "view_8")
+            .unwrap();
+        let ctx = store.get_dispatch_context_by_id(&dispatch_id).unwrap().unwrap();
+        assert_eq!(ctx.assignee_handle.as_deref(), Some("session_99"));
+        assert_eq!(ctx.status, "dispatched");
+
+        // Clear → columns NULL, lifecycle columns untouched.
+        store.clear_dispatch_assignee(&dispatch_id).unwrap();
+        let ctx = store.get_dispatch_context_by_id(&dispatch_id).unwrap().unwrap();
+        assert!(ctx.assignee_handle.is_none());
+        assert!(ctx.assignee_pane_key.is_none());
+        assert_eq!(ctx.status, "dispatched");
+        assert!(ctx.dispatched_at.is_some());
+
+        // Unknown dispatch → NotFound, not a silent no-op.
+        assert!(store.set_dispatch_assignee("ctx_nope", "h", "p").is_err());
+        assert!(store.clear_dispatch_assignee("ctx_nope").is_err());
+    }
+
+    /// D-05: finished-run GC — old finished runs are deleted with their
+    /// children; young runs and runs with live tasks survive.
+    #[test]
+    fn test_gc_runs() {
+        let store = setup();
+
+        // Old finished run: root task completed directly (no dispatch).
+        let old_done = store.create_run("old finished").unwrap();
+        let t1 = store.create_task(&old_done, "done long ago", &[]).unwrap();
+        store.promote_ready_tasks(&old_done).unwrap();
+        {
+            let mut conn = store.lock();
+            diesel::update(tasks::table.filter(tasks::id.eq(&t1)))
+                .set(tasks::status.eq("completed"))
+                .execute(&mut *conn)
+                .unwrap();
+        }
+
+        // Old run with a live (pending) task — must survive.
+        let old_live = store.create_run("old but live").unwrap();
+        store.create_task(&old_live, "still pending", &[]).unwrap();
+
+        // Young run — must survive.
+        let young = store.create_run("young").unwrap();
+        let t3 = store.create_task(&young, "fresh", &[]).unwrap();
+        store.create_dispatch(&young, &t3, "{}").unwrap();
+
+        // Dry-run selects without deleting.
+        let would = store.gc_runs(chrono::Duration::zero(), true).unwrap();
+        assert_eq!(would, vec![old_done.clone()]);
+        assert!(store.list_runs().unwrap().iter().any(|r| r.id == old_done));
+
+        // Age out everything created "now" by GC'ing with zero max age.
+        let deleted = store.gc_runs(chrono::Duration::zero(), false).unwrap();
+        assert_eq!(deleted, vec![old_done.clone()]);
+        assert!(store.get_task(&t1).unwrap().is_none());
+        assert!(store.list_runs().unwrap().iter().any(|r| r.id == old_live));
+        assert!(store.list_runs().unwrap().iter().any(|r| r.id == young));
+        // Children of the deleted run are gone too (dispatch context).
+        let t2 = store.create_task(&old_live, "child of survivor", &[]).unwrap();
+        assert!(store.get_task(&t2).unwrap().is_some());
     }
 }

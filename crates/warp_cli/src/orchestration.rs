@@ -36,6 +36,14 @@ pub enum OrchestrationCommand {
         /// is settled automatically (block-driven settlement).
         #[arg(long)]
         command: Option<String>,
+        /// Session mailbox handle (`session_<sid>`, as printed by
+        /// new-terminal) of the terminal this worker should own. Binds the
+        /// dispatch to that pane and persists the assignment (D-04); a
+        /// binding failure is an error (explicit target). Without it the
+        /// dispatch binds to the active pane when one exists (best effort).
+        #[arg(long)]
+        #[serde(default)]
+        session: Option<String>,
     },
 
     /// Send a message between agents.
@@ -210,11 +218,40 @@ pub enum OrchestrationCommand {
     /// Create a git worktree for a project at `<project>/../<repo>-<name>`
     /// (new branch `<name>` from HEAD) and register it as a project.
     /// Prints the worktree path.
+    ///
+    /// `--agent`/`--prompt` (Orca-parity one-shot spawn): after the worktree
+    /// is created, opens a terminal tab in it, waits for its session, then
+    /// types the agent launch command and pastes the prompt. Requires the
+    /// GUI runtime (a terminal tab is a GUI resource).
     WorktreeCreate {
         /// Existing project path (main checkout) to create the worktree from.
         project_path: String,
         /// Worktree name: suffix for the sibling directory and the new branch.
         name: String,
+        /// Agent launch command typed into the fresh terminal (e.g. `omp`,
+        /// `pi`, `cc` or any shell command). Submitted as its own line.
+        #[arg(long)]
+        #[serde(default)]
+        agent: Option<String>,
+        /// Prompt text handed to the agent after it starts (bracketed paste
+        /// + submit, after a short settle delay). Implies `--agent`'s
+        /// terminal when given alone (pastes into a bare shell).
+        #[arg(long)]
+        #[serde(default)]
+        prompt: Option<String>,
+    },
+
+    /// Garbage-collect finished orchestration runs older than the cutoff
+    /// (D-05: the runs registry previously grew without bound). A run is
+    /// finished when none of its tasks is pending/ready/dispatched/blocked.
+    /// Prints each deleted run id.
+    GcRuns {
+        /// Age cutoff in days.
+        #[arg(long, default_value_t = 7)]
+        days: i64,
+        /// Report what would be deleted without deleting.
+        #[arg(long)]
+        dry_run: bool,
     },
 
     /// List git worktrees (porcelain `git worktree list` wrapped). Without a

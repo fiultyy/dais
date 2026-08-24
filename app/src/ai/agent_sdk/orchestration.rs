@@ -24,11 +24,13 @@ pub fn run(
 ) -> anyhow::Result<()> {
     // ── Socket fast path ──
     // When a GUI runtime owns the orchestration plane, forward the command
-    // through its Unix-domain RPC socket. On failure (no runtime, timeout,
-    // serve-mode stub) degrade to the existing direct-DB path — zero
-    // regression risk.
+    // through its Unix-domain RPC socket. A forwarded *execution* error
+    // (or a refused invocation) propagates as Err → stderr + exit 1 (D-03:
+    // previously both printed to stdout with exit 0). Transport-level
+    // failures (no runtime, timeout, serve-mode stub) degrade to the
+    // existing direct-DB path — zero regression risk.
     #[cfg(unix)]
-    if try_socket_fast_path(&command) {
+    if try_socket_fast_path(&command)? {
         // new-terminal: the GUI created the tab (output printed above);
         // resolve session_<sid> by polling the L1 latest-session probe —
         // bootstrap is async, and the GUI main thread must not wait for it.
@@ -52,6 +54,42 @@ pub fn run(
                      the shell is still starting; find its handle later in the \
                      GUI log (\"orchestration: session mailbox session_<sid> registered\")"
                 );
+            }
+        }
+        // worktree-create --agent/--prompt: the GUI created the worktree +
+        // a terminal tab in it (output printed above); resolve the session
+        // and run the one-shot spawn from here (the CLI process may sleep;
+        // the GUI main thread must not).
+        #[cfg(unix)]
+        if let OrchestrationCommand::WorktreeCreate {
+            ref agent,
+            ref prompt,
+            ..
+        } = command
+        {
+            if agent.is_some() || prompt.is_some() {
+                let handle = poll_latest_session_mailbox().ok_or_else(|| {
+                    anyhow!(
+                        "worktree + terminal created but session bootstrap not observed \
+                         within timeout — inject manually into the new tab"
+                    )
+                })?;
+                println!("{handle}");
+                if let Some(agent_cmd) = agent {
+                    forward_session_inject(&handle, agent_cmd, false)?;
+                }
+                if let Some(prompt_text) = prompt {
+                    if agent.is_some() {
+                        // Give the agent TUI a beat to take over the TTY
+                        // before handing it the prompt.
+                        std::thread::sleep(std::time::Duration::from_millis(
+                            WORKTREE_AGENT_SETTLE_MS,
+                        ));
+                    }
+                    // We just launched the agent ourselves — force past the
+                    // idle check (its title is not settled yet).
+                    forward_session_inject(&handle, prompt_text, true)?;
+                }
             }
         }
         // The command was handled via socket; terminate the event loop.
@@ -136,7 +174,11 @@ pub fn execute_command(
             println!("{id}");
         }
 
-        OrchestrationCommand::StartWorker { task_id, command } => {
+        OrchestrationCommand::StartWorker {
+            task_id,
+            command,
+            session,
+        } => {
             // Look up the task to get its run_id, then create a linked
             // dispatch_context + worker_dispatch pair.
             let task = store
@@ -154,6 +196,37 @@ pub fn execute_command(
                 .create_dispatch(&task.run_id, &task_id, &start_options)
                 .map_err(|e| anyhow!("{e}"))?;
             println!("{dispatch_id}");
+
+            // D-04: auto-bind the dispatch to a worker terminal. Explicit
+            // `--session session_<sid>` is the DAG path — bind exactly that
+            // pane (failure is an error, the caller asked for it). Without
+            // it, bind the active pane when one exists (best effort —
+            // headless dispatch creation stays legal).
+            match session {
+                Some(handle) => {
+                    let summary =
+                        crate::ai::orchestration::dispatch_assign::assign_to_session(
+                            &dispatch_id,
+                            handle,
+                            cx,
+                        )
+                        .map_err(|e| {
+                            anyhow!("dispatch {dispatch_id} created but session binding failed: {e:#}")
+                        })?;
+                    println!("{summary}");
+                }
+                None => {
+                    match crate::ai::orchestration::dispatch_assign::assign_to_active_pane(
+                        &dispatch_id, cx,
+                    ) {
+                        Ok(summary) => println!("{summary}"),
+                        Err(e) => eprintln!(
+                            "note: dispatch {dispatch_id} not bound to a pane ({e:#}); \
+                             re-run with --session session_<sid> to bind explicitly"
+                        ),
+                    }
+                }
+            }
         }
 
         OrchestrationCommand::SendMessage {
@@ -466,11 +539,44 @@ pub fn execute_command(
             }
         }
 
-        OrchestrationCommand::WorktreeCreate { project_path, name } => {
-            println!(
-                "{}",
-                crate::ai::orchestration::worktrees::worktree_create(project_path, name, cx)?
-            );
+        OrchestrationCommand::WorktreeCreate {
+            project_path,
+            name,
+            agent,
+            prompt,
+        } => {
+            let path =
+                crate::ai::orchestration::worktrees::worktree_create(project_path, name, cx)?;
+            println!("{path}");
+            // One-shot spawn (Orca parity): open a terminal in the fresh
+            // worktree here (GUI action); the CLI process then resolves the
+            // session handle and injects agent/prompt (see `run`).
+            if agent.is_some() || prompt.is_some() {
+                let tab =
+                    crate::ai::orchestration::new_terminal::new_terminal(&path, None, cx)?;
+                println!("{tab}");
+            }
+        }
+
+        OrchestrationCommand::GcRuns { days, dry_run } => {
+            let victims = store
+                .gc_runs(chrono::Duration::days(*days), *dry_run)
+                .map_err(|e| anyhow!("{e}"))?;
+            if victims.is_empty() {
+                if *dry_run {
+                    println!("no runs older than {days}d to collect");
+                } else {
+                    println!("no runs collected");
+                }
+            } else {
+                for id in &victims {
+                    if *dry_run {
+                        println!("would delete {id}");
+                    } else {
+                        println!("deleted {id}");
+                    }
+                }
+            }
         }
 
         OrchestrationCommand::WorktreeList { project_path } => {
@@ -515,13 +621,17 @@ pub fn execute_command(
 }
 
 /// Attempt to forward an orchestration command to a running GUI via the
-/// runtime RPC socket (L2).
+/// runtime RPC socket (L2). Returns `Ok(true)` when the command was handled
+/// on the GUI side, `Ok(false)` when the caller should degrade to the
+/// direct-DB path, and `Err` when the invocation *failed* (refused, or the
+/// GUI executed it and reported an error — D-03: both previously printed to
+/// stdout with exit 0; errors now surface as stderr + exit 1).
 ///
 /// Blocking commands (`check-messages --wait`) are never forwarded — the
 /// waiter loop belongs in this process (its waiter claim must live exactly
 /// as long as this invocation); a GUI-side wait would also pin the GPUI
 /// main thread against the dispatcher timeout.
-fn try_socket_fast_path(command: &OrchestrationCommand) -> bool {
+fn try_socket_fast_path(command: &OrchestrationCommand) -> anyhow::Result<bool> {
     use crate::ai::orchestration::runtime_rpc;
 
     // Single-consumer guard: when a GUI runtime is alive, its message-router
@@ -530,16 +640,15 @@ fn try_socket_fast_path(command: &OrchestrationCommand) -> bool {
     // invocation outright; headless (no runtime) pulls stay legal.
     if let OrchestrationCommand::CheckMessages { ref handle, .. } = command {
         if handle == "orchestrator" && runtime_rpc::runtime_alive() {
-            eprintln!(
+            anyhow::bail!(
                 "refused: the orchestrator mailbox is consumed by the running \
                  GUI's message router"
             );
-            return true;
         }
     }
 
     if let OrchestrationCommand::CheckMessages { wait: true, .. } = command {
-        return false;
+        return Ok(false);
     }
 
     match runtime_rpc::try_socket_forward("orchestration", &serde_json::to_value(command).unwrap_or(serde_json::Value::Null)) {
@@ -547,38 +656,149 @@ fn try_socket_fast_path(command: &OrchestrationCommand) -> bool {
             // The GUI executed the command; the response JSON carries the
             // captured stdout under "output". Print it verbatim (strip the
             // JSON wrapper) so the caller sees exactly what a local CLI
-            // invocation would print.
-            print_forwarded_output(&response);
-            true
+            // invocation would print — unless the envelope reports an
+            // execution error, which becomes Err (D-03).
+            match classify_forwarded_response(&response) {
+                ForwardedOutcome::Failed(err) => Err(anyhow!("{err}")),
+                ForwardedOutcome::Output(v) => {
+                    print_forwarded_value(&v);
+                    Ok(true)
+                }
+                ForwardedOutcome::Raw(raw) => {
+                    print!("{raw}");
+                    use std::io::Write as _;
+                    let _ = std::io::stdout().flush();
+                    Ok(true)
+                }
+            }
         }
         Ok(None) => {
             // No GUI / fallback stub / timeout — degrade to direct DB.
-            false
+            Ok(false)
         }
         Err(e) => {
             // RPC error — log but degrade to direct DB.
             log::warn!("runtime_rpc socket error, degrading to direct DB: {e:#}");
-            false
+            Ok(false)
         }
+    }
+}
+
+/// How to surface a forwarded command's response envelope.
+#[derive(Debug, PartialEq)]
+enum ForwardedOutcome {
+    /// Success: the pretty-printed `result` JSON carrying `"output"`.
+    Output(serde_json::Value),
+    /// Error: `{"error": ..., "executed": true}` — the command ran (or timed
+    /// out) on the GUI thread and failed. Never printable as stdout + exit 0
+    /// (D-03). Recognized by a top-level `"error"` without `"output"` (a
+    /// successful result always carries `"output"`).
+    Failed(String),
+    /// Unrecognized shape — print raw rather than losing information.
+    Raw(String),
+}
+
+fn classify_forwarded_response(response: &str) -> ForwardedOutcome {
+    match serde_json::from_str::<serde_json::Value>(response) {
+        Ok(v) => {
+            if v.get("output").is_none() {
+                if let Some(err) = v.get("error").and_then(|e| e.as_str()) {
+                    return ForwardedOutcome::Failed(err.to_string());
+                }
+            }
+            ForwardedOutcome::Output(v)
+        }
+        Err(_) => ForwardedOutcome::Raw(response.to_string()),
     }
 }
 
 /// Print the captured output of a forwarded command.
 ///
-/// `response` is the pretty-printed `result` JSON (`{"output": "..."}`);
-/// failure to parse simply prints it raw rather than losing information.
+/// `value` is the parsed `result` JSON (`{"output": "..."}`); anything else
+/// is printed pretty rather than losing information.
 #[cfg(unix)]
-fn print_forwarded_output(response: &str) {
-    match serde_json::from_str::<serde_json::Value>(response) {
-        Ok(v) => {
-            if let Some(output) = v.get("output").and_then(|o| o.as_str()) {
-                print!("{output}");
-            } else {
-                print!("{response}");
-            }
-        }
-        Err(_) => print!("{response}"),
+fn print_forwarded_value(value: &serde_json::Value) {
+    if let Some(output) = value.get("output").and_then(|o| o.as_str()) {
+        print!("{output}");
+    } else {
+        print!("{}", serde_json::to_string_pretty(value).unwrap_or_default());
     }
     use std::io::Write as _;
     let _ = std::io::stdout().flush();
+}
+
+/// Settle delay between typing the agent launch command and pasting the
+/// prompt into it (worktree-create --agent + --prompt one-shot spawn).
+#[cfg(unix)]
+const WORKTREE_AGENT_SETTLE_MS: u64 = 6_000;
+
+/// Forward an inject-prompt for a session handle to the running GUI (used by
+/// the worktree-create --agent/--prompt flow; PTY writes must happen in the
+/// GUI process). Error envelopes surface as Err (D-03).
+#[cfg(unix)]
+fn forward_session_inject(handle: &str, text: &str, force: bool) -> anyhow::Result<()> {
+    use crate::ai::orchestration::runtime_rpc;
+
+    let cmd = OrchestrationCommand::InjectPrompt {
+        dispatch_id: handle.to_string(),
+        text: text.to_string(),
+        force,
+    };
+    let response = runtime_rpc::try_socket_forward(
+        "orchestration",
+        &serde_json::to_value(&cmd)?,
+    )?
+    .ok_or_else(|| anyhow!("inject into {handle}: no GUI runtime (it went away?)"))?;
+    match classify_forwarded_response(&response) {
+        ForwardedOutcome::Failed(err) => Err(anyhow!("inject into {handle} failed: {err}")),
+        ForwardedOutcome::Output(v) => {
+            print_forwarded_value(&v);
+            Ok(())
+        }
+        ForwardedOutcome::Raw(raw) => {
+            print!("{raw}");
+            use std::io::Write as _;
+            let _ = std::io::stdout().flush();
+            Ok(())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// D-03: error envelopes must classify as Failed — never as printable
+    /// output (the bug: exit 0 + `{"error":...}` on stdout).
+    #[test]
+    fn forwarded_error_envelope_classifies_failed() {
+        let resp = r#"{
+  "error": "no GUI window is running",
+  "executed": true
+}"#;
+        assert_eq!(
+            classify_forwarded_response(resp),
+            ForwardedOutcome::Failed("no GUI window is running".to_string())
+        );
+    }
+
+    /// Success envelopes (carry "output") classify as Output even when the
+    /// output text itself mentions errors.
+    #[test]
+    fn forwarded_success_envelope_classifies_output() {
+        let resp = r#"{"output": "ctx_abc123\nnote: error-like text inside output"}"#;
+        assert!(matches!(
+            classify_forwarded_response(resp),
+            ForwardedOutcome::Output(_)
+        ));
+    }
+
+    /// Non-JSON shapes stay raw (printed, not treated as success or error).
+    #[test]
+    fn forwarded_non_json_classifies_raw() {
+        assert_eq!(
+            classify_forwarded_response("not json at all"),
+            ForwardedOutcome::Raw("not json at all".to_string())
+        );
+    }
 }

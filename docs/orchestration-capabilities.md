@@ -27,14 +27,14 @@ dais orchestration <subcommand> [args]
 1. `check-messages --wait` —— waiter claim 生命周期必须与本次调用同寿(`agent_sdk/orchestration.rs:422`)
 2. `check-messages` 拉取 `orchestrator` 邮箱且 GUI 存活 —— 直接拒绝(单消费者守卫,GUI 的 router 线程独占该邮箱,`agent_sdk/orchestration.rs:412-420`)
 
-## 2. CLI 面: 26 个子命令全表
+## 2. CLI 面: 27 个子命令全表
 
 ### 2.1 编排生命周期(run/task/dispatch,6 个,zap 期 df0c3679 引入)
 | 命令 | 签名 | 功能 | 输出 | 状态 | 锚点 |
 |---|---|---|---|---|---|
 | `create-run` | `--objective <text>` | 创建 run | stdout: `run_<id>` | zap 期不变 | orchestration.rs:12 / agent_sdk:58 |
 | `create-task` | `<run_id> <spec> [--dep <tid>]...` | 创建任务(DAG 依赖) | stderr(若晋级): `promoted <id> -> ready`;stdout: `task_<id>`。无依赖任务自动 pending→ready | zap 期不变 | agent_sdk:63-81 |
-| `start-worker` | `<task_id> [--command <cmd>]` | 为任务建 dispatch(worker_dispatch + dispatch_context 联动) | stdout: `ctx_<id>`(dispatch_id) | zap 期不变;`--command`(block 驱动结算)为 6f08df11 加 | agent_sdk:83-101 |
+| `start-worker` | `<task_id> [--command <cmd>] [--session <session_sid>]` | 为任务建 dispatch(worker_dispatch + dispatch_context 联动)+ **自动绑 pane(D-04)**:`--session` 显式绑定该 session 的 pane(失败=错误);无 `--session` 时 best-effort 绑当前活跃 pane(失败仅 stderr 提示) | stdout: `ctx_<id>`(首行,兼容);绑定成功再加 `ctx_<id> assigned to session_<sid> (pane view <vid>)` | zap 期不变;`--command`(block 驱动结算)为 6f08df11 加;`--session` 自动绑定 + assignee 落库为 D-04 修 | agent_sdk / dispatch_assign.rs |
 | `check-status` | `[--run-id <rid>]` | 列 runs 或某 run 的 tasks | 人类可读列表(60 字符 spec 预览) | zap 期不变 | agent_sdk:119-140 |
 | `transition-worker` | `<dispatch_id> <state>` | worker 9 态机迁移 | `transitioned <id> -> <state>` | zap 期不变 | agent_sdk:142-152 |
 | `promote-tasks` | `<run_id>` | deps 全 completed 的 pending → ready | 每行 `promoted <id> -> ready` 或 `no tasks promoted` | zap 期不变 | agent_sdk:154-165 |
@@ -73,7 +73,9 @@ dais orchestration <subcommand> [args]
 
 | 命令 | 签名 | 功能 | 输出 | 状态 | 锚点 |
 |---|---|---|---|---|---|
-| `assign` | `<dispatch_id>` | 把 dispatch 绑到**当前活跃终端 pane**: 注册 ViewRegistry(dispatch→TerminalView)+ SessionDispatchMap(session→dispatch)+ push delivery 注册 | `<id> assigned to session <sid> (pane view <vid>)` | zap 期不变 | dispatch_assign.rs |
+| `assign` | `<dispatch_id>` | 把 dispatch 绑到**当前活跃终端 pane**: 注册 ViewRegistry(dispatch→TerminalView)+ SessionDispatchMap(session→dispatch)+ push delivery 注册 + **assignee 落库**(D-04:`dispatch_contexts.assignee_handle=session_<sid>`, `assignee_pane_key=view_<vid>`;status 归状态机管,不动) | `<id> assigned to session_<sid> (pane view <vid>)` | zap 期不变;落库为 D-04 修 | dispatch_assign.rs |
+
+DAG 编排用 `start-worker --session`(§2.1)而非 `assign`——"活跃 pane"是人最后聚焦的面板,多 worker DAG 下不是正确目标;按 session 绑定才是。
 
 ### 2.6 未暴露的已建能力
 
@@ -87,13 +89,26 @@ dais orchestration <subcommand> [args]
 | `project-add` | `<abs_path>` | 写 projects 表(存在校验+幂等);GUI 内经 ProjectManagementModel(DB+ProjectEvent,rail 事件驱动刷新);headless 直连 SQLite | `project added/exists: <path>` | 新增 | projects_cli.rs |
 | `project-remove` | `<abs_path> [--force]` | 无 force: 有关联 tab 拒绝(报明细);--force: **连 tab 全回收**(中断+PTY shutdown→关 tab→session 邮箱自然 retire;竞态新到 tab 一并清扫;cwd 驻留进程 SIGTERM→SIGKILL 兜底)后删行,最后 ProjectEvent::Removed | `project removed: <path> (N tab(s) closed)` | 新增 | projects_cli.rs |
 | `project-list` | — | 全部项目 TSV | `path\tadded\tlast_opened` 行 | 新增 | projects_cli.rs |
-| `worktree-create` | `<project> <name>` | git worktree add 兄弟目录 `<repo>-<name>`(新分支)+ 自动 project-add | worktree 路径 | 新增 | worktrees.rs |
+| `worktree-create` | `<project> <name> [--agent <cmd>] [--prompt <text>]` | git worktree add 兄弟目录 `<repo>-<name>`(新分支)+ 自动 project-add;**`--agent`/`--prompt` 一步到位 spawn(Orca 对齐,D-缺注入面修)**: GUI 侧建 tab → CLI 端解析 session → 注入 agent 启动行(回车)→ 6s 稳定窗 → 粘贴 prompt(force)。需 GUI 运行 | worktree 路径;带注入时再加 tab 行 + `session_<sid>` + 注入摘要 | 新增;`--agent/--prompt` 为 LB-002 修 | worktrees.rs / agent_sdk |
+| `gc-runs` | `[--days N=7] [--dry-run]` | 回收**已完成**(无 pending/ready/dispatched/blocked 任务)且早于 N 天的 run 及全部子行(messages/deliveries/gates/contexts/workers/tasks),单事务(D-05) | 每行 `deleted <run_id>` / `would delete <run_id>`;无目标: `no runs ...` | 新增(D-05 修) | store.rs `gc_runs` |
 | `worktree-list` | `[project]` | porcelain 包装;无参数=全部已注册 git 项目(按 git-dir 去重) | worktree 路径行 | 新增 | worktrees.rs |
 | `worktree-remove` | `<path> [--force]` | 终端守卫同上;--force 同全回收语义;git 定位经 `.git` gitfile 回溯主仓(任意命令顺序幂等,票2b);再 `git worktree remove --force` + 项目行清理 | `worktree removed: ...` | 新增 | worktrees.rs |
 | `new-terminal` | `<project> [--cwd <dir>]` | GUI 动作(L2 转发):switch_project+建 tab(与 GUI 新建同路径);CLI 端轮询 L1 `latest-session`(shell_event_bridge 注册邮箱的权威打点)12s 窗口;**harness 启动交给调用方**(别名已武装在每个新 shell bootstrap,注入即可) | stdout: `session_<sid>`;超时 stderr 指引查 GUI log | 新增(--alias 已撤,v2-fix-13 票2) | new_terminal.rs |
 | `close-terminal` | `<session_sid> [--force]` | 关单个实例 tab;--force 先 Ctrl-C+PTY shutdown;邮箱经 shell exit 自然 retire | `closed <sid> (tab#N)` | 新增(票3) | new_terminal.rs |
 
 **别名透明代理(alias-transparent)**: `omp-dais` ≡ `omp` + zhipu-coding-plan 流量过 8787;别名体只带 env `ZHIPU_CODING_PLAN_BASE_URL`(omp 上游 catalog 按 MOONSHOT_BASE_URL 同款约定),零 `--model` 篡改;models.yml 对内置 provider 传输覆盖(凭据+x-dais-instance 头)。pi 无 env 面(baseUrl 不插值 `${VAR}`),env 暂 no-op 待上游跟进(external_capture_rt.rs 模块 doc)。
+
+### 2.8 错误契约(D-03,2026-08-24 定型,跨重建守恒)
+
+所有 `dais orchestration` 子命令统一错误形制:
+
+| 通道 | 成功 | 失败 |
+|---|---|---|
+| 本地直连(无 GUI,直接落库) | 结果 → **stdout**,exit 0 | 错误链(`{err:#}`)→ **stderr**,exit **1** |
+| L2 转发(GUI 在跑,经 runtime RPC) | GUI 捕获的 stdout 原样回放 → stdout,exit 0 | 错误信封 `{"error","executed":true}` → **stderr**,exit **1** |
+| 拒绝(如 GUI 在跑时拉 `orchestrator` 邮箱) | — | 拒绝原因 → stderr,exit **1** |
+
+修复前的漂移:转发道把 GUI 执行错误当成功回放(exit 0 + `{"error":...}` 打到 stdout)——消费侧按 exit code 判错会漏。判定器:`classify_forwarded_response`(顶层无 `output` 键而有 `error` 键 = 失败;成功信封恒带 `output`)。`~/.local/bin/dais-build` 的构建报告含 read-worker 错误形制快照,与本节互为基线。半成功面(worktree 建好但 tab/inject 失败)如实 exit 1,错误信息带已完成的副作用说明。
 
 ## 3. 消息面: session mailbox 机制
 
