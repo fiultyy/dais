@@ -1156,6 +1156,9 @@ impl OrchestrationStore for DieselOrchestrationStore {
         let seq: i32 = diesel::select(sql::<Integer>("last_insert_rowid()"))
             .get_result(&mut *conn)?;
 
+        // P5: 单一挂点——成功落库即通知 router(先于 Ok 返回;Err 路径不 notify)。
+        // 覆盖 send-message 转发面与 block_settle worker_done 自动入队面。
+        super::arrival::notify_message_arrived();
         Ok(seq)
     }
 

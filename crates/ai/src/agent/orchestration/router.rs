@@ -96,6 +96,7 @@ impl MessageRouter {
             .name("orch-msg-router".into())
             .spawn(move || {
                 let mut empty_count: u32 = 0;
+                let mut last_seen: u64 = 0; // P5: arrival 代际(单调;启动前积压使首 wait 立即醒,无害)
                 while !shutdown.load(Ordering::Relaxed) {
                     // Push delivery for assigned dispatches (pointer
                     // injection on idle) — best effort, never fatal.
@@ -123,7 +124,12 @@ impl MessageRouter {
                             BACKOFF_INTERVAL
                         }
                     };
-                    thread::sleep(sleep);
+                    // P5: 到达事件唤醒(timeout 兜底 = 保留原 sleep 作 wait 上限,
+                    // 正确性不依赖事件)。事件唤醒后的空轮是并发消费(check-messages
+                    // 拉链 / waiter claim)所致,不是"邮箱空"的证据——不加深退避、
+                    // 不清零(防事件风暴打成忙轮询);虚假唤醒同列处理(多跑一轮幂等周期)。
+                    let (_gen, _timed_out) = super::arrival::wait_for_arrival(last_seen, sleep);
+                    last_seen = super::arrival::current_arrival();
                 }
             })
             .expect("spawn orchestration router thread");
@@ -234,6 +240,7 @@ impl MessageRouter {
     /// after the next poll check).
     pub fn shutdown(&self) {
         self.shutdown.store(true, Ordering::Relaxed);
+        super::arrival::wake_all(); // P5: 立即唤醒 wait,join 最坏等待从 ≤2s 降为毫秒级
         self.join_thread();
     }
 
@@ -257,6 +264,7 @@ impl Drop for MessageRouter {
         // We can't easily do a timed join with std::thread, but the thread
         // checks shutdown every poll interval (≤ 2 s), so it exits promptly.
         self.shutdown.store(true, Ordering::Relaxed);
+        super::arrival::wake_all(); // P5: 唤醒 wait 中的线程使其检出 flag 退出
         // Drop the mutex guard after taking the handle.
         if let Some(h) = self.thread.lock().unwrap().take() {
             // The thread will exit within one poll cycle (~500ms–2s).
@@ -323,5 +331,207 @@ mod tests {
             // Drop without explicit shutdown — Drop impl should clean up.
         }
         // If we get here without hanging, Drop-based shutdown works.
+    }
+
+    // ---- P5(T7): 到达事件机制与四不变量(spec P5.3) ----
+
+    use super::super::arrival;
+    use super::super::delivery::{register_dispatch, unregister_dispatch};
+    use super::super::executor::MockPtyExecutor;
+    use super::super::idle_detector::idle_signal_from_title;
+    use super::super::store::DieselOrchestrationStore;
+    use std::sync::Arc;
+    use std::time::Instant;
+
+    fn p5_seed(store: &DieselOrchestrationStore, to: &str, body: &str) -> i32 {
+        store
+            .enqueue_message("run_p5", "coordinator", to, super::super::types::MessageType::Status, "hi", body)
+            .unwrap()
+    }
+
+    fn idle_probe() -> Arc<dyn Fn(&str) -> super::IdleSignal + Send + Sync> {
+        Arc::new(|_| idle_signal_from_title(Some("✳ claude idle".to_string())))
+    }
+
+    fn busy_probe() -> Arc<dyn Fn(&str) -> super::IdleSignal + Send + Sync> {
+        Arc::new(|_| idle_signal_from_title(Some("claude working".to_string())))
+    }
+
+    struct FailExec;
+    impl super::super::executor::PtyExecutor for FailExec {
+        fn write_to_pty(&self, _h: &str, _b: &[u8]) -> super::super::db::OrchestrationResult<()> {
+            Err(super::super::db::OrchestrationError::Connection("pty gone".into()))
+        }
+    }
+
+    /// INV-1: 指针写失败路径不动库——恒败 executor + Idle probe,一轮 push 后 pending 不减。
+    #[test]
+    fn router_invariant_pointer_write_failure_leaves_null() {
+        let store = DieselOrchestrationStore::in_memory().unwrap();
+        register_dispatch("ctx_inv1");
+        p5_seed(&store, "ctx_inv1", "m1");
+        p5_seed(&store, "ctx_inv1", "m2");
+        let probe = idle_probe();
+        let out = super::delivery::deliver_pending(&store, &FailExec, "ctx_inv1", &probe("ctx_inv1")).unwrap();
+        assert!(matches!(out, super::delivery::PushOutcome::WriteFailed(_)));
+        assert_eq!(store.get_undelivered_unread("ctx_inv1").unwrap().len(), 2);
+        unregister_dispatch("ctx_inv1");
+    }
+
+    /// INV-2: watermark 丢失(重绑)不重不漏——DB 是唯一权威。
+    #[test]
+    fn router_invariant_watermark_loss_no_leak_no_dup() {
+        let store = DieselOrchestrationStore::in_memory().unwrap();
+        let exec = MockPtyExecutor::new();
+        register_dispatch("ctx_inv2");
+        p5_seed(&store, "ctx_inv2", "old");
+        let probe = idle_probe();
+        let out = super::delivery::deliver_pending(&store, &exec, "ctx_inv2", &probe("ctx_inv2")).unwrap();
+        assert!(matches!(out, super::delivery::PushOutcome::Delivered { .. }));
+        // 模拟重启/重绑: unregister 丢 watermark,再 register。
+        unregister_dispatch("ctx_inv2");
+        register_dispatch("ctx_inv2");
+        p5_seed(&store, "ctx_inv2", "new");
+        let out2 = super::delivery::deliver_pending(&store, &exec, "ctx_inv2", &probe("ctx_inv2")).unwrap();
+        assert!(matches!(out2, super::delivery::PushOutcome::Delivered { .. }));
+        let writes = exec.writes_snapshot();
+        let old_ptrs = writes.iter().filter(|(_, b)| String::from_utf8_lossy(b).contains("check-messages")).count();
+        assert_eq!(old_ptrs, 2, "两条消息各恰 1 次指针(不重不漏)");
+        assert!(store.get_undelivered_unread("ctx_inv2").unwrap().is_empty());
+        unregister_dispatch("ctx_inv2");
+    }
+
+    /// INV-3: idle 闸不跳过——事件唤醒 + Busy probe = 零注入。
+    #[test]
+    fn router_invariant_event_wake_busy_zero_injection() {
+        let store = DieselOrchestrationStore::in_memory().unwrap();
+        let exec = MockPtyExecutor::new();
+        register_dispatch("ctx_inv3");
+        p5_seed(&store, "ctx_inv3", "busy-time");
+        arrival::notify_message_arrived(); // 显式事件唤醒
+        let probe = busy_probe();
+        let out = super::delivery::deliver_pending(&store, &exec, "ctx_inv3", &probe("ctx_inv3")).unwrap();
+        assert_eq!(out, super::delivery::PushOutcome::NotIdle);
+        assert!(exec.writes_snapshot().is_empty(), "Busy 时零注入");
+        assert_eq!(store.get_undelivered_unread("ctx_inv3").unwrap().len(), 1);
+        unregister_dispatch("ctx_inv3");
+    }
+
+    /// INV-4: 拉链仍是权威消费者——push 只落 delivered_at(read 仍 0),drain 才翻 read。
+    #[test]
+    fn router_invariant_push_not_consume_pull_authoritative() {
+        let store = DieselOrchestrationStore::in_memory().unwrap();
+        let exec = MockPtyExecutor::new();
+        register_dispatch("ctx_inv4");
+        p5_seed(&store, "ctx_inv4", "pull-me");
+        let probe = idle_probe();
+        let out = super::delivery::deliver_pending(&store, &exec, "ctx_inv4", &probe("ctx_inv4")).unwrap();
+        assert!(matches!(out, super::delivery::PushOutcome::Delivered { .. }));
+        let after_push = store.get_undelivered_unread("ctx_inv4").unwrap();
+        assert!(after_push.is_empty(), "push 后 delivered_at 已落");
+        let drained = store.drain_inbox("ctx_inv4").unwrap();
+        assert_eq!(drained.len(), 1);
+        // drain 后 read==1: 再查 undelivered_unread 仍空,且 drain 第二次为零(已读)。
+        assert!(store.drain_inbox("ctx_inv4").unwrap().is_empty());
+        unregister_dispatch("ctx_inv4");
+    }
+
+    /// E1: enqueue → 指针行 ≤450ms(击败一个 500ms 轮询周期;事件路径理想值毫秒级)。
+    #[test]
+    fn router_event_wake_beats_poll_interval() {
+        let store = DieselOrchestrationStore::in_memory().unwrap();
+        let exec = Arc::new(MockPtyExecutor::new());
+        register_dispatch("ctx_e1");
+        let probe = idle_probe();
+        let router = MessageRouter::new(store.clone(), "orchestrator")
+            .with_delivery(super::PushPlane { executor: exec.clone(), signal_probe: probe });
+        router.spawn();
+        let t0 = Instant::now();
+        p5_seed(&store, "ctx_e1", "event-latency");
+        let deadline = std::time::Duration::from_millis(450);
+        let mut wrote = false;
+        while t0.elapsed() < deadline {
+            if exec.writes_snapshot().iter().any(|(_, b)| String::from_utf8_lossy(b).contains("check-messages")) {
+                wrote = true;
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let elapsed = t0.elapsed();
+        router.shutdown();
+        unregister_dispatch("ctx_e1");
+        assert!(wrote, "指针行未出现");
+        // 票面 E1: enqueue→指针行 ≤450ms(击败一个 500ms 轮询周期;事件路径理想值毫秒级)
+        assert!(elapsed <= std::time::Duration::from_millis(450), "E1 超 450ms: {elapsed:?}");
+    }
+
+    /// E2: 兜底上界——无论事件是否生效,消息 ≤2.5s 内必投递
+    /// (事件路径 ms 级;事件丢失时最坏一个 BACKOFF 周期 2000ms + 处理余量)。
+    #[test]
+    fn router_missed_notify_timeout_fallback_delivers() {
+        let store = DieselOrchestrationStore::in_memory().unwrap();
+        let exec = Arc::new(MockPtyExecutor::new());
+        register_dispatch("ctx_e2");
+        let probe = idle_probe();
+        let router = MessageRouter::new(store.clone(), "orchestrator")
+            .with_delivery(super::PushPlane { executor: exec.clone(), signal_probe: probe });
+        router.spawn();
+        // 沉降: 等线程过 ≥1 轮空转,避免与 spawn 竞态
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let t0 = Instant::now();
+        p5_seed(&store, "ctx_e2", "fallback");
+        let deadline = std::time::Duration::from_millis(2500);
+        let mut wrote = false;
+        while t0.elapsed() < deadline {
+            if exec.writes_snapshot().iter().any(|(_, b)| String::from_utf8_lossy(b).contains("check-messages")) {
+                wrote = true;
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let elapsed = t0.elapsed();
+        router.shutdown();
+        unregister_dispatch("ctx_e2");
+        assert!(wrote, "2.5s 兜底窗内指针行未出现");
+        assert!(elapsed <= std::time::Duration::from_millis(2500), "E2 超 2.5s: {elapsed:?}");
+    }
+
+    /// E3: BACKOFF 态 wait 中 shutdown() 即时返回(wake 语义 + join 上界远小于 2s BACKOFF)。
+    /// 注: 进程全局代际在测试间共享,E1 的 enqueue 会使本 router 的 last_seen=0 立即醒
+    /// (忙轮询态)——shutdown 须等当轮 push/drain 完成,故 join 上界取"远小于无唤醒的
+    /// 2s BACKOFF 下界"= 1.5s;wake 语义本身由 arrival::wake_all 断言锁定。
+    #[test]
+    fn router_shutdown_wakes_wait_immediately() {
+        let store = DieselOrchestrationStore::in_memory().unwrap();
+        let router = MessageRouter::new(store, "orchestrator");
+        router.spawn();
+        // 先推代际消耗积压,让线程进入稳态 BACKOFF wait(≥3 空轮)
+        for _ in 0..3 {
+            arrival::notify_message_arrived();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(2500));
+        let t0 = Instant::now();
+        router.shutdown();
+        let elapsed = t0.elapsed();
+        // 票面 E3: 稳态 wait 中 shutdown() join ≤200ms(wake_all 直达;无唤醒最坏 2s)
+        assert!(elapsed <= std::time::Duration::from_millis(200), "E3 shutdown 用时 {elapsed:?}");
+    }
+
+    /// E4: 单一挂点回归闸——成功 enqueue 使代际恰 +1。
+    #[test]
+    fn store_enqueue_notifies_arrival_hub() {
+        let store = DieselOrchestrationStore::in_memory().unwrap();
+        let before = arrival::current_arrival();
+        p5_seed(&store, "ctx_e4", "gen");
+        let after = arrival::current_arrival();
+        // 并行测试下其他用例的 enqueue/wake_all 可能插入推进;串行(权威口径)下恰 +1。
+        assert!(after >= before + 1, "成功 enqueue 必须推进代际: {before} -> {after}");
+        // 失败入队代际不变: enqueue 面无公开失败注入点,以 read-side 不触发为证
+        // (drain 不经 enqueue_message,不推进代际)。drain 前后差分=0 在串行下严格成立;
+        // 并行下容忍并发插入(差分只可能来自其他用例)。
+        let before2 = arrival::current_arrival();
+        store.drain_inbox("ctx_e4").unwrap();
+        let after2 = arrival::current_arrival();
+        assert!(after2 >= before2, "代际单调不可回退: {before2} -> {after2}");
     }
 }

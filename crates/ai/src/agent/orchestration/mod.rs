@@ -22,6 +22,7 @@ pub mod idle_detector;
 pub mod output;
 pub mod prompt_injection;
 pub mod reconciliation;
+pub mod arrival;
 pub mod store;
 pub mod types;
 pub mod router;
