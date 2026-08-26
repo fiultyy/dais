@@ -164,6 +164,7 @@ Idle/Working/Permission 三态: gemini 显式标记、claude `✳ claude` 前缀
 ### 4.1 runtime RPC socket(L1/L2)
 
 - 元数据: `~/.local/state/dais/dais-runtime.json`,含 `{socket_path, pid, mode: app|serve}`;CLI 以 `is_pid_alive` 判活(runtime_rpc.rs)。过渡期读侧回退旧名 `zap-runtime.json` 一次(见 §5.3)。
+- **元数据自愈**: GUI/serve 启动时写一次,此后 RPC server 线程每 2s 复查 —— 文件被外部删除或残留已死 pid 的陈旧声明时自动重写本进程声明;指向存活同侪(serve 与 GUI 共存)时不抢写,避免乒乓。修复运行期文件被删导致 CLI 永久降级 headless 的缺口。
 - socket: `~/.local/state/dais/dais-runtime-<pid>.sock`,NDJSON 单请求单响应。
 - L1 方法: `status`/`echo`/`latest-session`(new-terminal 的 bootstrap 探测,注册点打点)真实;`send-message`/`check-messages`/`check-status` 返回 fallback stub(runtime_rpc.rs:283-296)。
 - L2 方法: `orchestration` —— 整条 `OrchestrationCommand` JSON 反序列化后在 GPUI 主线程经**同一份 execute_command** 执行,stdout 捕获回传 `{"output": "..."}`(runtime_rpc.rs:462 / RpcDispatcher:689)。

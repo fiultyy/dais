@@ -33,6 +33,11 @@ use std::thread;
 const METADATA_FILE: &str = "dais-runtime.json";
 const LEGACY_METADATA_FILE: &str = "zap-runtime.json";
 
+// 元数据自愈周期:RPC server 线程周期性检查磁盘元数据是否仍然指向
+// 本进程,缺失或指向已死 pid 时重写。曾经只在启动时写一次 —— 文件在
+// 运行期被外部删除后 CLI 会永久降级 headless(不再恢复)。
+const METADATA_REASSERT_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
+
 /// Where the runtime metadata file lives.
 pub fn runtime_metadata_path() -> PathBuf {
     warp_core::paths::secure_state_dir()
@@ -119,6 +124,17 @@ pub fn read_metadata() -> Option<RuntimeMetadata> {
         })
         .ok()
 }
+/// 自愈重写判定:磁盘元数据缺失、或指向已死进程(陈旧声明)时需要
+/// 重写本进程的声明;指向存活同侪(如 serve 与 GUI 共存时对方写入的)
+/// 时不抢写,避免两个进程互相覆盖造成元数据乒乓。
+fn metadata_needs_reassert(disk: Option<&RuntimeMetadata>, mine: &RuntimeMetadata) -> bool {
+    match disk {
+        None => true,
+        Some(m) if m.socket_path == mine.socket_path && m.pid == mine.pid => false,
+        Some(m) => !is_pid_alive(m.pid),
+    }
+}
+
 /// Whether a GUI runtime is currently alive per the metadata file. Used by
 /// the CLI to refuse commands that would race the GUI's in-process router
 /// (the single consumer of the "orchestrator" mailbox). **Serve mode does
@@ -221,6 +237,12 @@ pub fn spawn_rpc_server(mode: &str) -> Result<(PathBuf, RpcServerHandle)> {
     let socket_path_for_cleanup = socket_path_str.clone();
 
     let stop_clone = Arc::clone(&stop);
+    // 本进程的元数据声明,由 RPC server 线程周期性自愈重写(见上)。
+    let reassert_meta = RuntimeMetadata {
+        socket_path: socket_path_str.clone(),
+        pid: std::process::id(),
+        mode: mode.to_string(),
+    };
     let handle = thread::Builder::new()
         .name("dais-rpc-server".into())
         .spawn(move || {
@@ -228,9 +250,18 @@ pub fn spawn_rpc_server(mode: &str) -> Result<(PathBuf, RpcServerHandle)> {
                 .set_nonblocking(true)
                 .expect("set_nonblocking on UnixListener");
             log::info!("runtime_rpc: listening on {socket_path_for_cleanup}");
+            let mut last_reassert = std::time::Instant::now();
             loop {
                 if stop_clone.load(Ordering::Relaxed) {
                     break;
+                }
+                // 周期性自愈:元数据被外部删除或残留陈旧声明时重写,
+                // 让 CLI 的 socket 快路径在数秒内恢复。
+                if last_reassert.elapsed() >= METADATA_REASSERT_INTERVAL {
+                    last_reassert = std::time::Instant::now();
+                    if metadata_needs_reassert(read_metadata().as_ref(), &reassert_meta) {
+                        write_metadata(&reassert_meta);
+                    }
                 }
                 match listener.accept() {
                     Ok((stream, _addr)) => {
@@ -261,7 +292,6 @@ pub fn spawn_rpc_server(mode: &str) -> Result<(PathBuf, RpcServerHandle)> {
         socket_path: Arc::new(Mutex::new(Some(socket_path_str))),
     };
 
-    let _ = mode; // used in L2 for mode-specific dispatch
     Ok((socket_path, rpc_handle))
 }
 
@@ -738,6 +768,65 @@ mod tests {
     fn test_dispatch_unknown() {
         let resp = dispatch_request("nope", &serde_json::Value::Null);
         assert!(!resp.ok);
+    }
+
+    #[test]
+    fn test_metadata_needs_reassert_when_missing() {
+        // 15:44 场景:GUI 运行期元数据被外部删除 → 必须重写。
+        let mine = RuntimeMetadata {
+            socket_path: "/tmp/mine.sock".into(),
+            pid: std::process::id(),
+            mode: "app".into(),
+        };
+        assert!(metadata_needs_reassert(None, &mine));
+    }
+
+    #[test]
+    fn test_metadata_needs_reassert_not_when_own() {
+        // 磁盘声明就是本进程 → 无需重写(常态,周期检查应为 no-op)。
+        let mine = RuntimeMetadata {
+            socket_path: "/tmp/mine.sock".into(),
+            pid: std::process::id(),
+            mode: "app".into(),
+        };
+        assert!(!metadata_needs_reassert(Some(&mine), &mine));
+    }
+
+    #[test]
+    fn test_metadata_needs_reassert_when_stale_peer() {
+        // 磁盘声明指向已死进程(前一次运行的残留)→ 重写。
+        let mut child = std::process::Command::new("true").spawn().unwrap();
+        let dead_pid = child.id();
+        child.wait().unwrap();
+        assert!(!is_pid_alive(dead_pid));
+
+        let mine = RuntimeMetadata {
+            socket_path: "/tmp/mine.sock".into(),
+            pid: std::process::id(),
+            mode: "app".into(),
+        };
+        let stale = RuntimeMetadata {
+            socket_path: "/tmp/other.sock".into(),
+            pid: dead_pid,
+            mode: "serve".into(),
+        };
+        assert!(metadata_needs_reassert(Some(&stale), &mine));
+    }
+
+    #[test]
+    fn test_metadata_needs_reassert_not_when_live_peer() {
+        // 磁盘声明指向另一个存活进程(serve 与 GUI 共存)→ 不抢写。
+        let mine = RuntimeMetadata {
+            socket_path: "/tmp/mine.sock".into(),
+            pid: std::process::id(),
+            mode: "app".into(),
+        };
+        let peer = RuntimeMetadata {
+            socket_path: "/tmp/other.sock".into(),
+            pid: std::process::id(),
+            mode: "serve".into(),
+        };
+        assert!(!metadata_needs_reassert(Some(&peer), &mine));
     }
 }
 
