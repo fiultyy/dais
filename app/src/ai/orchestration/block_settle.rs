@@ -99,10 +99,17 @@ pub fn try_settle_from_block(
 
     // 5. Enqueue a worker_done message to keep the message bus semantically complete.
     // enqueue_message already mirrors the payload into the message row.
+    // D-18 companion: to_handle is the per-dispatch mailbox (ctx_<id>) —
+    // the consumer contract (check-messages ctx_<id>, same face as the
+    // manual send-message reinject). The shared 'orchestrator' mailbox is
+    // consumed by the GUI's message router (single-consumer guard), so a
+    // daemon-settled worker_done landing there never reaches the CLI
+    // consumer, and concurrent DAG pulls of a shared mailbox would race on
+    // drain (read = consume).
     if let Err(e) = store.enqueue_message(
         &ctx.run_id,
         &format!("worker_{}", dispatch_id),
-        "orchestrator",
+        dispatch_id,
         MessageType::WorkerDone,
         "worker_done",
         &result_json,
@@ -306,5 +313,18 @@ mod tests {
         assert!(settled, "settle must succeed once dispatched");
         let task = store.get_task(&task_id).unwrap().unwrap();
         assert_eq!(task.status, "completed");
+
+        // D-18 companion: the worker_done lands in the per-dispatch mailbox
+        // (consumer contract: check-messages ctx_<id>), never the shared
+        // 'orchestrator' mailbox (owned by the GUI router; a shared face
+        // would race concurrent DAG pulls).
+        let inbox = store.drain_inbox(&dispatch_id).unwrap();
+        assert_eq!(inbox.len(), 1, "worker_done must sit in ctx_<id> mailbox");
+        assert_eq!(inbox[0].message_type, "worker_done");
+        assert_eq!(inbox[0].from_handle, format!("worker_{dispatch_id}"));
+        assert!(
+            store.drain_inbox("orchestrator").unwrap().is_empty(),
+            "orchestrator mailbox must stay untouched"
+        );
     }
 }

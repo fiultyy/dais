@@ -157,7 +157,7 @@ Idle/Working/Permission 三态: gemini 显式标记、claude `✳ claude` 前缀
 ### 3.5 事件入口(GUI 内,非 CLI 但属于编排闭环)
 
 - **OSC 133 shell 事件桥**(shell_event_bridge.rs): Precmd/Preexec/块完成 → DcsHookEvent → worker 状态迁移;shell 退出 → 邮箱/dispatch 注销 + retire。
-- **block 驱动结算**(block_settle.rs): `start-worker --command <cmd>` 后,shell 块以**精确匹配**(trim 后全等,可存 wrapper 形式)该命令结束时,自动 enqueue `worker_done`(outcome 按 exit code: 0=succeeded,非 0=failed)—— 无需协调者轮询任务完成。
+- **block 驱动结算**(block_settle.rs): `start-worker --command <cmd>` 后,shell 块以**精确匹配**(trim 后全等,可存 wrapper 形式)该命令结束时,自动 enqueue `worker_done`(outcome 按 exit code: 0=succeeded,非 0=failed)—— 无需协调者轮询任务完成。worker_done 落**派发邮箱 `ctx_<id>`**(from=`worker_<ctx_id>`,消费契约 = `check-messages ctx_<id>`,与 send-message 手工回投同构;D-18 配套修,此前落共享 `orchestrator` 邮箱——GUI router 单消费持有,CLI 拉不到,并发 DAG 互抢)。结算前置: task+dispatch 双 `dispatched`(`start-worker` 绑定成功自动 mark-ready 满足;不满足时 InactiveDispatch 拒绝,debug 日志留痕)。
 
 ## 4. 其他对外面
 
