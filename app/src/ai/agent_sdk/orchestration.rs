@@ -202,6 +202,7 @@ pub fn execute_command(
             // pane (failure is an error, the caller asked for it). Without
             // it, bind the active pane when one exists (best effort —
             // headless dispatch creation stays legal).
+            let mut bound = false;
             match session {
                 Some(handle) => {
                     let summary =
@@ -214,17 +215,40 @@ pub fn execute_command(
                             anyhow!("dispatch {dispatch_id} created but session binding failed: {e:#}")
                         })?;
                     println!("{summary}");
+                    bound = true;
                 }
                 None => {
                     match crate::ai::orchestration::dispatch_assign::assign_to_active_pane(
                         &dispatch_id, cx,
                     ) {
-                        Ok(summary) => println!("{summary}"),
+                        Ok(summary) => {
+                            println!("{summary}");
+                            bound = true;
+                        }
                         Err(e) => eprintln!(
                             "note: dispatch {dispatch_id} not bound to a pane ({e:#}); \
                              re-run with --session session_<sid> to bind explicitly"
                         ),
                     }
+                }
+            }
+
+            // D-18: a bound dispatch means the worker terminal is in place —
+            // advance the state machine (worker starting→ready, dispatch
+            // pending→dispatched, task ready→dispatched). Without this the
+            // block-driven settlement rejects every matching block with
+            // InactiveDispatch (settle requires task+dispatch `dispatched`)
+            // and the task strands in `ready` with no log trace (the
+            // rejection path was silent). Orca semantics: the coordinator
+            // calls markWorkerDispatchReady once the worker is up; here the
+            // binding is that signal.
+            if bound {
+                match store.mark_worker_dispatch_ready(&dispatch_id, None) {
+                    Ok(()) => println!("{dispatch_id} ready (dispatch + task -> dispatched)"),
+                    Err(e) => eprintln!(
+                        "note: dispatch {dispatch_id} bound but not marked ready ({e}); \
+                         block settlement requires mark-ready first"
+                    ),
                 }
             }
         }

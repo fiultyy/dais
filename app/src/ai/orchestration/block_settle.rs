@@ -86,8 +86,15 @@ pub fn try_settle_from_block(
 
     let settled = match store.settle_worker_report(task_id, dispatch_id, outcome, &result_json) {
         Ok(WorkerReportSettlement::Settled { duplicate: false, .. }) => true,
-        // Already settled (duplicate), rejected, or error → no-op
-        _ => return false,
+        // Already settled, rejected, or error → no-op (D-18: log the reason
+        // — a silent rejection here strands the task with no trace).
+        other => {
+            log::debug!(
+                "orchestration: block_settle no-op for {dispatch_id} (cmd={command_text:?} \
+                 vs expected={expected_command:?}, exit={exit_code}): {other:?}"
+            );
+            return false;
+        }
     };
 
     // 5. Enqueue a worker_done message to keep the message bus semantically complete.
@@ -269,5 +276,35 @@ mod tests {
         // Second settle → should return false (already settled, settle returns duplicate)
         let settled2 = try_settle_from_block(&dispatch_id, "make test", 0, &store);
         assert!(!settled2, "second settle should return false (duplicate)");
+    }
+
+    /// D-18 regression: without mark-ready (task `ready`, dispatch `pending`)
+    /// the settlement is rejected with InactiveDispatch and the task strands
+    /// in `ready` — start-worker's auto-bind now marks ready itself; this
+    /// test pins the settle-side invariant it relies on.
+    #[test]
+    fn test_block_settle_without_mark_ready_rejected() {
+        let store = DieselOrchestrationStore::in_memory().unwrap();
+        let run_id = store.create_run("d-18 repro").unwrap();
+        let task_id = store.create_task(&run_id, "do thing", &[]).unwrap();
+        store.promote_ready_tasks(&run_id).unwrap();
+        let start_options = serde_json::json!({"command": "echo X"}).to_string();
+        let dispatch_id = store.create_dispatch(&run_id, &task_id, &start_options).unwrap();
+        // NOTE: no mark_worker_dispatch_ready — the exact LB-002-B live shape.
+
+        let settled = try_settle_from_block(&dispatch_id, "echo X", 0, &store);
+        assert!(!settled, "settle must reject (task ready / dispatch pending)");
+
+        // Task strands in ready — the documented D-18 symptom.
+        let task = store.get_task(&task_id).unwrap().unwrap();
+        assert_eq!(task.status, "ready");
+
+        // After mark-ready (what start-worker's auto-bind now does), the
+        // same block settles.
+        store.mark_worker_dispatch_ready(&dispatch_id, None).unwrap();
+        let settled = try_settle_from_block(&dispatch_id, "echo X", 0, &store);
+        assert!(settled, "settle must succeed once dispatched");
+        let task = store.get_task(&task_id).unwrap().unwrap();
+        assert_eq!(task.status, "completed");
     }
 }
