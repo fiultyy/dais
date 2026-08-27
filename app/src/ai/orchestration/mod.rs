@@ -244,3 +244,4 @@ pub mod runtime_rpc;
 pub mod projects_cli;
 pub mod worktrees;
 pub mod new_terminal;
+pub mod left_rail_unread;

@@ -12,6 +12,7 @@ mod startup_directory;
 #[cfg(test)]
 #[path = "view_test.rs"]
 mod tests;
+pub(crate) mod left_rail_status;
 mod vertical_tabs;
 #[cfg(target_family = "wasm")]
 mod wasm_view;
@@ -2802,6 +2803,19 @@ impl Workspace {
                 ctx.notify();
             },
         );
+        // 左栏状态聚合: 五态/进度/未读变化时刷新垂直 tab 面板。
+        ctx.subscribe_to_model(
+            &crate::workspace::view::left_rail_status::LeftRailStatusModel::handle(ctx),
+            |_, _, event, ctx| {
+                use crate::workspace::view::left_rail_status::LeftRailStatusEvent;
+                match event {
+                    LeftRailStatusEvent::SessionStateChanged
+                    | LeftRailStatusEvent::SessionProgressChanged
+                    | LeftRailStatusEvent::UnreadChanged => ctx.notify(),
+                }
+            },
+        );
+
 
         ctx.subscribe_to_model(
             &SessionSettings::handle(ctx),

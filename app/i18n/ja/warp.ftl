@@ -3628,3 +3628,15 @@ cockpit-badge-readonly = 読み取り専用
 project-rail-all-projects = すべて
 project-rail-ungrouped-instances = 未分组のインスタンス
 project-rail-section-title = プロジェクト
+
+
+# =============================================================================
+# SECTION: left-rail-status (Owner: AB-render)
+# Files: app/src/workspace/view/vertical_tabs.rs
+# =============================================================================
+
+left-rail-state-working = 実行中
+left-rail-state-waiting-input = 入力待ち
+left-rail-state-done = 完了
+left-rail-state-error = エラー
+left-rail-state-idle = アイドル

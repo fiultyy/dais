@@ -506,6 +506,16 @@ pub fn active_gui_intercepts() -> Vec<ActiveInterceptGui> {
         .collect()
 }
 
+/// GUI 拦截会话映射（terminal_view_id → session_id）——左栏状态派生
+/// (observatory::run_state)的 pane↔session 数据源。进程内存态,重启丢失。
+pub fn gui_intercept_session_map() -> std::collections::HashMap<String, String> {
+    GUI_INTERCEPT
+        .lock()
+        .iter()
+        .map(|(vid, g)| (vid.clone(), g.session.session_id().to_string()))
+        .collect()
+}
+
 /// 活跃拦截会话的观测台行。
 #[derive(Clone, Debug)]
 pub struct ActiveInterceptGui {

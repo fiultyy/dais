@@ -985,6 +985,31 @@ impl DieselOrchestrationStore {
             .optional()
             .map_err(Into::into)
     }
+    // ── Left-rail 未读 peek ──────────────────────────────────────────
+
+    /// 纯 peek: 统计所有邮箱中 read=0 的消息数。
+    /// 不标记 read/delivered,可被任意频率调用。
+    /// SQL: `SELECT COUNT(*) FROM messages WHERE read = 0`
+    pub fn count_unread_all(&self) -> OrchestrationResult<u32> {
+        let mut conn = self.lock();
+        let count: i64 = messages::table
+            .filter(messages::read.eq(0))
+            .select(sql::<diesel::sql_types::BigInt>("COUNT(*)"))
+            .first(&mut *conn)?;
+        Ok(count as u32)
+    }
+
+    /// 纯 peek: 按项目分组统计未读数。
+    ///
+    /// messages 表无 workspace 路径字段,runs 表也只有 home_database(SQLite 文件
+    /// 路径,非工作区)。因此 **by_project 始终返回空 map**——后续若 schema 演进
+    /// 加入 workspace_path 列,可 JOIN runs 在此实现。
+    pub fn count_unread_by_project(
+        &self,
+    ) -> OrchestrationResult<std::collections::HashMap<std::path::PathBuf, u32>> {
+        // schema 无 workspace 路径 → 空分组。保留接口供未来扩展。
+        Ok(std::collections::HashMap::new())
+    }
 }
 
 // ─── OrchestrationStore trait impl ────────────────────────────────────────

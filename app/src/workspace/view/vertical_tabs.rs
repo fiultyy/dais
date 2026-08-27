@@ -48,6 +48,9 @@ use crate::workspace::tab_settings::{
     VerticalTabsPrimaryInfo, VerticalTabsTabItemMode, VerticalTabsViewMode,
 };
 use crate::projects::ProjectManagementModel;
+use crate::workspace::view::left_rail_status::{
+    HarnessRunState, LeftRailStatusModel, SessionRunStatus,
+};
 use crate::workspace::{
     PaneViewLocator, TabBarLocation, TabContextMenuAnchor, VerticalTabsPaneContextMenuTarget,
     VerticalTabsPaneDropTargetData, Workspace,
@@ -76,7 +79,7 @@ use warpui::elements::{
     ResizableStateHandle, SavePosition, ScrollTarget, ScrollToPositionMode, ScrollbarWidth,
     Shrinkable, Stack, Text, Rect,
 };
-use warpui::fonts::{Properties, Weight};
+use warpui::fonts::{FamilyId, Properties, Weight};
 use warpui::platform::Cursor;
 use warpui::prelude::Align;
 use warpui::text_layout::ClipConfig;
@@ -1650,6 +1653,15 @@ fn render_project_section(
 
     // "All" card: clears the project filter.
     let all_tab_count = workspace.tabs.len();
+    // 左栏聚合(全部项目)。
+    let all_pane_ids: Vec<PaneId> = workspace
+        .tabs
+        .iter()
+        .flat_map(|tab| tab.pane_group.as_ref(app).visible_pane_ids())
+        .collect();
+    let all_aggregate =
+        LeftRailStatusModel::handle(app).read(app, |m, _| m.aggregate(&all_pane_ids));
+
     section.add_child(render_project_card(
         &crate::t!("project-rail-all-projects"),
         workspace.active_project.is_none(),
@@ -1663,6 +1675,7 @@ fn render_project_section(
         main_text,
         appearance,
         app,
+        &all_aggregate,
     ));
 
     for project in &projects {
@@ -1677,6 +1690,17 @@ fn render_project_section(
             .count();
         let is_selected = workspace.active_project.as_ref() == Some(project);
         let is_collapsed = state.project_collapsed.borrow().contains(project);
+        // 左栏聚合(单项目)。
+        let project_pane_ids: Vec<PaneId> = workspace
+            .tabs
+            .iter()
+            .filter(|tab| tab.project_path.as_ref() == Some(project))
+            .flat_map(|tab| tab.pane_group.as_ref(app).visible_pane_ids())
+            .collect();
+        let project_aggregate = LeftRailStatusModel::handle(app).read(app, |m, _| {
+            m.aggregate(&project_pane_ids)
+        });
+
         section.add_child(render_project_card(
             &name,
             is_selected,
@@ -1690,6 +1714,7 @@ fn render_project_section(
             main_text,
             appearance,
             app,
+        &project_aggregate,
         ));
     }
 
@@ -1734,6 +1759,9 @@ fn render_ungrouped_group(
     let appearance = Appearance::as_ref(app);
     let theme = appearance.theme();
     let sub_text = theme.sub_text_color(theme.background());
+    // 全局未读编排回调数。
+    let global_unread = LeftRailStatusModel::handle(app).read(app, |m, _| m.unread_callbacks());
+
 
     // 孤儿 tab(project_path 指向已移除的项目)与 None 同等归入未分组。
     let known_projects: std::collections::HashSet<PathBuf> =
@@ -1790,13 +1818,17 @@ fn render_ungrouped_group(
     .with_color(sub_text.into())
     .finish();
 
+    let mut header_row = Flex::row()
+        .with_main_axis_size(MainAxisSize::Max)
+        .with_cross_axis_alignment(CrossAxisAlignment::Center)
+        .with_child(toggle_button)
+        .with_child(Shrinkable::new(1., label).finish());
+    // 未读角标(全局)。
+    if let Some(pill) = render_unread_pill(global_unread, theme, appearance.ui_font_family()) {
+        header_row = header_row.with_child(pill);
+    }
     let header = Container::new(
-        Flex::row()
-            .with_main_axis_size(MainAxisSize::Max)
-            .with_cross_axis_alignment(CrossAxisAlignment::Center)
-            .with_child(toggle_button)
-            .with_child(Shrinkable::new(1., label).finish())
-            .finish(),
+        header_row.finish(),
     )
     .with_padding(
         Padding::uniform(GROUP_ITEM_SPACING)
@@ -1804,7 +1836,6 @@ fn render_ungrouped_group(
             .with_right(GROUP_HORIZONTAL_PADDING),
     )
     .finish();
-
     let mut column = Flex::column()
         .with_main_axis_size(MainAxisSize::Min)
         .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
@@ -1846,6 +1877,7 @@ fn render_project_card(
     main_text: ThemeFill,
     appearance: &Appearance,
     app: &AppContext,
+    aggregate: &crate::workspace::view::left_rail_status::ProjectAggregate,
 ) -> Box<dyn Element> {
     let (mouse_state, close_mouse_state) = match project.as_ref() {
         Some(path) => {
@@ -1977,7 +2009,24 @@ fn render_project_card(
         );
         row = row.with_child(dot);
     }
+    // 左栏聚合 needs_attention 黄点(卡头左侧)。
+    if aggregate.needs_attention() {
+        let attn_dot = ConstrainedBox::new(
+            WarpIcon::CircleFilled
+                .to_warpui_icon(WarpThemeFill::Solid(WarpThemeFill::warn().into_solid()))
+                .finish(),
+        )
+        .with_width(4.)
+        .with_height(4.)
+        .finish();
+        row = row.with_child(attn_dot);
+    }
     row = row.with_child(Shrinkable::new(1., card).finish());
+
+    // 左栏聚合标签(working/waiting/unread 计数)。
+    if let Some(badges) = render_project_aggregate_badges(aggregate, theme, appearance.ui_font_family()) {
+        row = row.with_child(badges);
+    }
 
     if let Some(project) = project.clone() {
         if is_selected {
@@ -2550,6 +2599,9 @@ fn render_groups(
 
     // 「未分组」段:头行 + 展开时的 tab 子行。
     if !ungrouped.is_empty() {
+        // 全局未读编排回调数(「全部」视图未分组头)。
+        let global_unread = LeftRailStatusModel::handle(app).read(app, |m, _| m.unread_callbacks());
+
         let collapsed = state.ungrouped_collapsed.get();
         let chevron = if collapsed {
             UiIcon::ChevronRight
@@ -2583,14 +2635,18 @@ fn render_groups(
         )
         .with_color(theme.sub_text_color(theme.background()).into())
         .finish();
+        let mut ungrouped_header_row = Flex::row()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_cross_axis_alignment(CrossAxisAlignment::Center)
+            .with_child(toggle_button)
+            .with_child(Shrinkable::new(1., label).finish());
+        // 未读角标(全局)。
+        if let Some(pill) = render_unread_pill(global_unread, theme, appearance.ui_font_family()) {
+            ungrouped_header_row = ungrouped_header_row.with_child(pill);
+        }
         groups.add_child(
             Container::new(
-                Flex::row()
-                    .with_main_axis_size(MainAxisSize::Max)
-                    .with_cross_axis_alignment(CrossAxisAlignment::Center)
-                    .with_child(toggle_button)
-                    .with_child(Shrinkable::new(1., label).finish())
-                    .finish(),
+                ungrouped_header_row.finish(),
             )
             .with_padding(
                 Padding::uniform(GROUP_ITEM_SPACING)
@@ -3359,6 +3415,165 @@ fn has_unread_activity(_typed: &TypedPane<'_>, _app: &AppContext) -> bool {
 }
 
 const INDICATOR_DOT_SIZE: f32 = 8.;
+
+/// 左栏 harness 五态圆点直径(6px)。
+const LEFT_RAIL_STATUS_DOT_SIZE: f32 = 6.;
+/// halt 描边环宽度。
+const LEFT_RAIL_HALT_STROKE_WIDTH: f32 = 1.5;
+
+/// 五态 → 主题色。
+fn harness_state_color(state: HarnessRunState, theme: &WarpTheme) -> ColorU {
+    match state {
+        HarnessRunState::Working => theme.accent().into_solid(),
+        HarnessRunState::WaitingInput => WarpThemeFill::warn().into_solid(),
+        HarnessRunState::Done => WarpThemeFill::success().into_solid(),
+        HarnessRunState::Error => theme.ui_error_color(),
+        HarnessRunState::Idle => theme.nonactive_ui_text_color().into_solid(),
+    }
+}
+
+/// 五态 → i18n key。
+fn harness_state_i18n_key(state: HarnessRunState) -> &'static str {
+    match state {
+        HarnessRunState::Working => "left-rail-state-working",
+        HarnessRunState::WaitingInput => "left-rail-state-waiting-input",
+        HarnessRunState::Done => "left-rail-state-done",
+        HarnessRunState::Error => "left-rail-state-error",
+        HarnessRunState::Idle => "left-rail-state-idle",
+    }
+}
+
+/// 渲染 6px 状态圆点(行尾)。halt_requested 时加红色描边圈。
+/// 返回 None 表示不需要渲染(pane 无会话)。
+fn render_left_rail_status_dot(
+    status: &SessionRunStatus,
+    theme: &WarpTheme,
+) -> Option<Box<dyn Element>> {
+    let state = status.state?;
+    let fill_color = harness_state_color(state, theme);
+    let dot = ConstrainedBox::new(
+        WarpIcon::CircleFilled
+            .to_warpui_icon(WarpThemeFill::Solid(fill_color))
+            .finish(),
+    )
+    .with_width(LEFT_RAIL_STATUS_DOT_SIZE)
+    .with_height(LEFT_RAIL_STATUS_DOT_SIZE)
+    .finish();
+
+    let dot = if status.halt_requested {
+        // 红色描边环：Stack 叠空心圆在下。
+        let ring_size = LEFT_RAIL_STATUS_DOT_SIZE + 2. * LEFT_RAIL_HALT_STROKE_WIDTH;
+        let ring = ConstrainedBox::new(
+            Rect::new()
+                .with_background(ElementFill::Solid(theme.ui_error_color()))
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(ring_size / 2.)))
+                .finish(),
+        )
+        .with_width(ring_size)
+        .with_height(ring_size)
+        .finish();
+        let mut stack = Stack::new().with_child(ring);
+        stack.add_positioned_child(
+            dot,
+            OffsetPositioning::offset_from_parent(
+                Vector2F::zero(),
+                ParentOffsetBounds::ParentByPosition,
+                ParentAnchor::Center,
+                ChildAnchor::Center,
+            ),
+        );
+        stack.finish()
+    } else {
+        dot
+    };
+
+    Some(dot)
+}
+
+/// 项目卡聚合标签: working/waiting/unread 计数小元素。
+fn render_project_aggregate_badges(
+    agg: &crate::workspace::view::left_rail_status::ProjectAggregate,
+    theme: &WarpTheme,
+    font_family: FamilyId,
+) -> Option<Box<dyn Element>> {
+    // 聚合全 0 → 不渲染。
+    if agg.working == 0
+        && agg.waiting_input == 0
+        && agg.unread_callbacks == 0
+    {
+        return None;
+    }
+
+    let mut row = Flex::row()
+        .with_main_axis_size(MainAxisSize::Min)
+        .with_cross_axis_alignment(CrossAxisAlignment::Center)
+        .with_spacing(4.);
+
+    if agg.working > 0 {
+        let label = Text::new_inline(
+            format!("●{}", agg.working),
+            font_family,
+            9.,
+        )
+        .with_color(theme.accent().into())
+        .finish();
+        row = row.with_child(label);
+    }
+    if agg.waiting_input > 0 {
+        let label = Text::new_inline(
+            format!("▲{}", agg.waiting_input),
+            font_family,
+            9.,
+        )
+        .with_color(WarpThemeFill::warn().into_solid())
+        .finish();
+        row = row.with_child(label);
+    }
+    if agg.unread_callbacks > 0 {
+        // 红底白字 pill。
+        let pill_text = Text::new_inline(
+            agg.unread_callbacks.to_string(),
+            font_family,
+            8.5,
+        )
+        .with_color(ColorU::new(255, 255, 255, 255))
+        .finish();
+        let pill = Container::new(pill_text)
+            .with_background(ElementFill::Solid(theme.ui_error_color()))
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(6.)))
+            .with_padding(Padding::uniform(0.).with_left(4.).with_right(4.))
+            .finish();
+        row = row.with_child(pill);
+    }
+
+    Some(row.finish())
+}
+
+/// 未读数红底白字 pill(组头用)。
+fn render_unread_pill(
+    count: u32,
+    theme: &WarpTheme,
+    font_family: FamilyId,
+) -> Option<Box<dyn Element>> {
+    if count == 0 {
+        return None;
+    }
+    let text = Text::new_inline(
+        count.to_string(),
+        font_family,
+        8.5,
+    )
+    .with_color(ColorU::new(255, 255, 255, 255))
+    .finish();
+    Some(
+        Container::new(text)
+            .with_background(ElementFill::Solid(theme.ui_error_color()))
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(6.)))
+            .with_padding(Padding::uniform(0.).with_left(4.).with_right(4.))
+            .finish(),
+    )
+}
+
 
 fn render_title_indicator(theme: &WarpTheme) -> Box<dyn Element> {
     ConstrainedBox::new(
@@ -6847,13 +7062,22 @@ fn render_minimal_pane_row(props: PaneProps<'_>, app: &AppContext) -> Box<dyn El
         );
     }
 
-    let content = Flex::row()
+    // 读取 harness 五态圆点(行尾)。
+    let status_dot = LeftRailStatusModel::handle(app).read(app, |m, _| {
+        m.pane_status(props.pane_id)
+            .and_then(|s| render_left_rail_status_dot(s, theme))
+    });
+
+    let mut content = Flex::row()
         .with_main_axis_size(MainAxisSize::Max)
         .with_cross_axis_alignment(CrossAxisAlignment::Center)
         .with_spacing(ICON_WITH_STATUS_GAP)
         .with_child(icon)
-        .with_child(Shrinkable::new(1., label_row.finish()).finish())
-        .finish();
+        .with_child(Shrinkable::new(1., label_row.finish()).finish());
+    if let Some(dot) = status_dot {
+        content = content.with_child(dot);
+    }
+    let content = content.finish();
 
     render_pane_row_element(props, Padding::uniform(4.), true, content, theme)
 }
@@ -7047,13 +7271,22 @@ fn render_compact_pane_row(props: PaneProps<'_>, app: &AppContext) -> Box<dyn El
         text_col.add_child(subtitle);
     }
 
-    let content = Flex::row()
+    // 读取 harness 五态圆点(行尾)。
+    let status_dot = LeftRailStatusModel::handle(app).read(app, |m, _| {
+        m.pane_status(props.pane_id)
+            .and_then(|s| render_left_rail_status_dot(s, theme))
+    });
+
+    let mut content = Flex::row()
         .with_main_axis_size(MainAxisSize::Max)
         .with_cross_axis_alignment(icon_alignment)
         .with_spacing(ICON_WITH_STATUS_GAP)
         .with_child(icon)
-        .with_child(Shrinkable::new(1., text_col.finish()).finish())
-        .finish();
+        .with_child(Shrinkable::new(1., text_col.finish()).finish());
+    if let Some(dot) = status_dot {
+        content = content.with_child(dot);
+    }
+    let content = content.finish();
 
     render_pane_row_element(props, Padding::uniform(8.), true, content, theme)
 }

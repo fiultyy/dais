@@ -3707,3 +3707,15 @@ cockpit-badge-readonly = 只读
 project-rail-all-projects = 全部
 project-rail-ungrouped-instances = 未分组实例
 project-rail-section-title = 项目
+
+
+# =============================================================================
+# SECTION: left-rail-status (Owner: AB-render)
+# Files: app/src/workspace/view/vertical_tabs.rs
+# =============================================================================
+
+left-rail-state-working = 运行中
+left-rail-state-waiting-input = 等待输入
+left-rail-state-done = 已完成
+left-rail-state-error = 错误
+left-rail-state-idle = 空闲

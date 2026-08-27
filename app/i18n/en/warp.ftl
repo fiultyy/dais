@@ -3793,3 +3793,15 @@ cockpit-badge-readonly = read-only
 project-rail-all-projects = All
 project-rail-ungrouped-instances = Ungrouped instances
 project-rail-section-title = Projects
+
+
+# =============================================================================
+# SECTION: left-rail-status (Owner: AB-render)
+# Files: app/src/workspace/view/vertical_tabs.rs
+# =============================================================================
+
+left-rail-state-working = Working
+left-rail-state-waiting-input = Waiting for input
+left-rail-state-done = Done
+left-rail-state-error = Error
+left-rail-state-idle = Idle

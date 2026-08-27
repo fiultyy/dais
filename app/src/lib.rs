@@ -1215,6 +1215,17 @@ fn initialize_app(
                 );
             }
         }
+        // 左栏未读轮询:后台线程 peek messages 表,GPU 单例消费 channel 写入
+        // LeftRailStatusModel。与 router 同条件(GUI + feature flag)。
+        if FeatureFlag::Orchestration.is_enabled() && !is_cli_mode {
+            use crate::ai::orchestration::left_rail_unread::UnreadPollConsumer;
+            use warpui::SingletonEntity as _;
+            ctx.add_singleton_model(|ctx| UnreadPollConsumer::new(ctx));
+            let (_shutdown, _handle) =
+                crate::ai::orchestration::left_rail_unread::spawn_unread_poller();
+            std::mem::forget((_shutdown, _handle));
+            log::info!("orchestration unread poller started");
+        }
     }
 
     let persistence_writer = PersistenceWriter::new(writer_handles);
@@ -1737,6 +1748,10 @@ fn initialize_app(
     // 拦截会话配置单例 (issue #13):InterceptMode / Upstream 覆盖 / block 计数。
     #[cfg(not(target_family = "wasm"))]
     ctx.add_singleton_model(terminal::intercept_sessions::InterceptSessionsModel::new);
+    // 左栏状态聚合单例(五态/进度/未读):vertical_tabs 渲染与 observatory
+    // run_state 派生、编排未读轮询共享。
+    #[cfg(not(target_family = "wasm"))]
+    ctx.add_singleton_model(|_| workspace::view::left_rail_status::LeftRailStatusModel::default());
     // 观测台面板单例 model (Observatory)。
     #[cfg(not(target_family = "wasm"))]
     ctx.add_singleton_model(ai::observatory::model::ObservatoryModel::new);

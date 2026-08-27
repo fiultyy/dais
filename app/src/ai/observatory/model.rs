@@ -717,6 +717,9 @@ impl ObservatoryModel {
         // 4. Worker 终端输出归档（orchestration tab）
         self.snapshot.archives = Self::load_archives();
 
+        // 5. 五态派生（左栏状态点数据源）
+        super::run_state::derive_run_states(ctx);
+
         ctx.emit(ObservatoryEvent::SnapshotUpdated);
     }
 

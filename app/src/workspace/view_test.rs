@@ -98,6 +98,8 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(AppearanceManager::new);
     app.add_singleton_model(|_| DisplayCount::mock());
     app.add_singleton_model(PrivacySettings::mock);
+    // 左栏状态聚合单例(vertical_tabs 渲染依赖)。
+    app.add_singleton_model(|_| crate::workspace::view::left_rail_status::LeftRailStatusModel::default());
     app.add_singleton_model(|_| KeybindingChangedNotifier::new());
     app.add_singleton_model(|_ctx| RelaunchModel::new());
     app.add_singleton_model(|_| ChangelogModel::new(Arc::new(http_client::Client::new())));
