@@ -2192,9 +2192,10 @@ fn render_rail_footer(workspace: &Workspace, app: &AppContext) -> Box<dyn Elemen
         .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
         .with_spacing(4.);
 
+    // 单行: [离线指示][CodeReview/通知等 right_items]…[头像/设置](右对齐)。
     let mut row = Flex::row()
+        .with_main_axis_size(MainAxisSize::Max)
         .with_cross_axis_alignment(CrossAxisAlignment::Center)
-        .with_main_axis_size(MainAxisSize::Min)
         .with_spacing(2.);
 
     let is_online = crate::network::NetworkStatus::as_ref(app).is_online();
@@ -2206,28 +2207,17 @@ fn render_rail_footer(workspace: &Workspace, app: &AppContext) -> Box<dyn Elemen
             row.add_child(button);
         }
     }
+
+    // 头像/设置推到行尾(与评审/通知同一行)。
+    row.add_child(Shrinkable::new(1., Empty::new().finish()).finish());
+    if crate::FeatureFlag::AvatarInTabBar.is_enabled() {
+        row.add_child(workspace.render_avatar_button(appearance, app));
+    } else {
+        row.add_child(workspace.render_settings_button(appearance));
+    }
+
     column.add_child(
         Container::new(row.finish())
-            .with_padding(
-                Padding::uniform(0.)
-                    .with_left(GROUP_HORIZONTAL_PADDING)
-                    .with_right(GROUP_HORIZONTAL_PADDING),
-            )
-            .finish(),
-    );
-
-    // 头像/设置放在最底部一行。
-    let mut account_row = Flex::row()
-        .with_cross_axis_alignment(CrossAxisAlignment::Center)
-        .with_main_axis_size(MainAxisSize::Min)
-        .with_spacing(2.);
-    if crate::FeatureFlag::AvatarInTabBar.is_enabled() {
-        account_row.add_child(workspace.render_avatar_button(appearance, app));
-    } else {
-        account_row.add_child(workspace.render_settings_button(appearance));
-    }
-    column.add_child(
-        Container::new(account_row.finish())
             .with_padding(
                 Padding::uniform(0.)
                     .with_left(GROUP_HORIZONTAL_PADDING)
@@ -3448,10 +3438,11 @@ fn harness_state_i18n_key(state: HarnessRunState) -> &'static str {
 fn render_left_rail_status_dot(
     status: &SessionRunStatus,
     theme: &WarpTheme,
+    appearance: &Appearance,
 ) -> Option<Box<dyn Element>> {
     let state = status.state?;
     let fill_color = harness_state_color(state, theme);
-    let dot = ConstrainedBox::new(
+    let mut dot = ConstrainedBox::new(
         WarpIcon::CircleFilled
             .to_warpui_icon(WarpThemeFill::Solid(fill_color))
             .finish(),
@@ -3460,8 +3451,30 @@ fn render_left_rail_status_dot(
     .with_height(LEFT_RAIL_STATUS_DOT_SIZE)
     .finish();
 
-    let dot = if status.halt_requested {
-        // 红色描边环：Stack 叠空心圆在下。
+    // E 补齐: 有 marker/todo 进度时点旁内联 "done/total" 小字。
+    // (dot 是无 hover 态的纯元素;tooltip 需 MouseStateHandle,由调用方
+    // render_compact/minimal_pane_row 决定是否叠加。)
+    let mut content_flex = Flex::row()
+        .with_main_axis_size(MainAxisSize::Min)
+        .with_cross_axis_alignment(CrossAxisAlignment::Center)
+        .with_spacing(3.)
+        .with_child(dot);
+    if let Some((done, total)) = status.progress {
+        if total > 0 {
+            let label = Text::new_inline(
+                format!("{done}/{total}"),
+                appearance.monospace_font_family(),
+                8.5,
+            )
+            .with_color(fill_color)
+            .finish();
+            content_flex = content_flex.with_child(label);
+        }
+    }
+    let content = content_flex.finish();
+
+    // halt 请求: 红色描边环包住整个 content(点+进度)。
+    if status.halt_requested {
         let ring_size = LEFT_RAIL_STATUS_DOT_SIZE + 2. * LEFT_RAIL_HALT_STROKE_WIDTH;
         let ring = ConstrainedBox::new(
             Rect::new()
@@ -3474,7 +3487,7 @@ fn render_left_rail_status_dot(
         .finish();
         let mut stack = Stack::new().with_child(ring);
         stack.add_positioned_child(
-            dot,
+            content,
             OffsetPositioning::offset_from_parent(
                 Vector2F::zero(),
                 ParentOffsetBounds::ParentByPosition,
@@ -3482,12 +3495,10 @@ fn render_left_rail_status_dot(
                 ChildAnchor::Center,
             ),
         );
-        stack.finish()
-    } else {
-        dot
-    };
+        return Some(stack.finish());
+    }
 
-    Some(dot)
+    Some(content)
 }
 
 /// 项目卡聚合标签: working/waiting/unread 计数小元素。
@@ -7065,7 +7076,7 @@ fn render_minimal_pane_row(props: PaneProps<'_>, app: &AppContext) -> Box<dyn El
     // 读取 harness 五态圆点(行尾)。
     let status_dot = LeftRailStatusModel::handle(app).read(app, |m, _| {
         m.pane_status(props.pane_id)
-            .and_then(|s| render_left_rail_status_dot(s, theme))
+            .and_then(|s| render_left_rail_status_dot(s, theme, appearance))
     });
 
     let mut content = Flex::row()
@@ -7274,7 +7285,7 @@ fn render_compact_pane_row(props: PaneProps<'_>, app: &AppContext) -> Box<dyn El
     // 读取 harness 五态圆点(行尾)。
     let status_dot = LeftRailStatusModel::handle(app).read(app, |m, _| {
         m.pane_status(props.pane_id)
-            .and_then(|s| render_left_rail_status_dot(s, theme))
+            .and_then(|s| render_left_rail_status_dot(s, theme, appearance))
     });
 
     let mut content = Flex::row()

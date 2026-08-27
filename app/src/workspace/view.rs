@@ -17118,6 +17118,7 @@ impl Workspace {
                         keybinding_name_to_display_string(keybinding_name, ctx),
                         is_active,
                         false,
+                        ButtonTooltipPosition::Below,
                     )
                     .finish(),
                 )
@@ -17179,6 +17180,7 @@ impl Workspace {
                         keybinding_name_to_display_string("workspace:toggle_left_panel", ctx),
                         is_active,
                         false,
+                        ButtonTooltipPosition::Below,
                     )
                     .finish(),
                 )
@@ -17324,6 +17326,7 @@ impl Workspace {
                     crate::t!("workspace-code-review-panel-tooltip"),
                     keybinding_name_to_display_string("workspace:toggle_right_panel", ctx),
                 ))
+                .with_tooltip_position(ButtonTooltipPosition::Above)
                 .build()
                 .on_click(move |ctx, _, _| {
                     ctx.dispatch_typed_action(WorkspaceAction::ToggleRightPanel);
@@ -17766,6 +17769,7 @@ impl Workspace {
                 keybinding_name_to_display_string(TOGGLE_NOTIFICATION_MAILBOX_BINDING_NAME, ctx),
                 is_inbox_active,
                 false,
+                ButtonTooltipPosition::Above,
             )
             .finish();
 
@@ -18428,6 +18432,7 @@ impl Workspace {
                     new_tab_tool_tip_sublabel_text,
                     false,
                     false,
+                    ButtonTooltipPosition::Below,
                 )
                 .on_right_click(move |ctx, _, position| {
                     ctx.dispatch_typed_action(WorkspaceAction::ToggleNewSessionMenu {
@@ -18728,6 +18733,7 @@ impl Workspace {
                 self.cached_keybindings[ASK_AI_ASSISTANT_KEYBINDING_NAME].clone(),
                 false,
                 false,
+                ButtonTooltipPosition::Above,
             )
             .finish(),
         )
@@ -18765,6 +18771,7 @@ impl Workspace {
         tool_tip_sublabel_text: Option<String>,
         is_active: bool,
         disable: bool,
+        tooltip_position: ButtonTooltipPosition,
     ) -> Hoverable {
         let theme = appearance.theme();
         let icon_color = if is_active {
@@ -18811,6 +18818,7 @@ impl Workspace {
                     tool_tip_label_text,
                     tool_tip_sublabel_text,
                 ))
+                .with_tooltip_position(tooltip_position)
                 .build()
                 .on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone()))
         }
