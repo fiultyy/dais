@@ -1735,11 +1735,23 @@ fn render_ungrouped_group(
     let theme = appearance.theme();
     let sub_text = theme.sub_text_color(theme.background());
 
+    // 孤儿 tab(project_path 指向已移除的项目)与 None 同等归入未分组。
+    let known_projects: std::collections::HashSet<PathBuf> =
+        ProjectManagementModel::handle(app).read(app, |projects: &ProjectManagementModel, _| {
+            projects
+                .all_projects()
+                .map(|project| PathBuf::from(&project.path))
+                .collect()
+        });
     let ungrouped_tabs: Vec<usize> = workspace
         .tabs
         .iter()
         .enumerate()
-        .filter(|(_, tab)| tab.project_path.is_none())
+        .filter(|(_, tab)| {
+            tab.project_path
+                .as_ref()
+                .is_none_or(|path| !known_projects.contains(path))
+        })
         .map(|(index, _)| index)
         .collect();
 
@@ -2494,9 +2506,24 @@ fn render_groups(
 
     // 分段:无项目 tab 收进「未分组」组(可折叠),项目 tab 保持原序在前。
     // 仅在「全部」视图生效(项目视图走 render_ungrouped_group 独立路径)。
-    let (project_owned, ungrouped): (Vec<_>, Vec<_>) = visible_tabs
-        .iter()
-        .partition(|(tab_index, _)| workspace.tabs[*tab_index].project_path.is_some());
+    // 孤儿 tab(project_path 指向已从 projects 表移除的项目)同样归入
+    // 未分组——否则它们落入 project_owned 平铺段却无对应项目卡可挂靠,
+    // 在「全部」视图里变成无组头的游离行(2026-08-27 分组 debug)。
+    let known_projects: std::collections::HashSet<PathBuf> =
+        ProjectManagementModel::handle(app).read(app, |projects: &ProjectManagementModel, _| {
+            projects
+                .all_projects()
+                .map(|project| PathBuf::from(&project.path))
+                .collect()
+        });
+    let (project_owned, ungrouped): (Vec<_>, Vec<_>) = visible_tabs.iter().partition(
+        |(tab_index, _)| {
+            workspace.tabs[*tab_index]
+                .project_path
+                .as_ref()
+                .is_some_and(|path| known_projects.contains(path))
+        },
+    );
 
     for (visible_tab_index, (tab_index, filtered_pane_ids)) in project_owned.iter().enumerate() {
         // Insert ghost slot before this tab group if the drop would land here.
