@@ -42,6 +42,7 @@ handlebars = { path = "crates/handlebars" }
 http_client = { path = "crates/http_client" }
 http_server = { path = "crates/http_server" }
 input_classifier = { path = "crates/input_classifier" }
+i18n = { path = "crates/i18n" }
 integration = { path = "crates/integration" }
 harness_blocks = { path = "crates/harness_blocks" }
 harness_integration = { path = "crates/harness_integration" }

@@ -1,0 +1,9 @@
+# i18n-embed 在本 crate 内查找 i18n.toml 决定 fallback / locale 目录。
+# domain 必须与 app(i18n ftl 的权威源, pkg name = warp) 一致: fl!() 的
+# compile-time 校验按 <fallback>/<domain>.ftl 找文件 (en/warp.ftl)。
+# ftl 资源由 script/sync-i18n-ftl.sh 幂等同步。
+fallback_language = "en"
+
+[fluent]
+assets_dir = "i18n"
+domain = "warp"

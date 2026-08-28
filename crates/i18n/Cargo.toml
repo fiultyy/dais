@@ -1,0 +1,17 @@
+[package]
+name = "i18n"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+i18n-embed = { workspace = true, features = ["fluent-system", "desktop-requester"] }
+i18n-embed-fl.workspace = true
+rust-embed = { workspace = true, features = ["debug-embed"] }
+unic-langid.workspace = true
+log.workspace = true
+warpui.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc.workspace = true

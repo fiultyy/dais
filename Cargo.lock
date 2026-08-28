@@ -6595,6 +6595,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "i18n"
+version = "0.1.0"
+dependencies = [
+ "i18n-embed",
+ "i18n-embed-fl",
+ "log",
+ "objc",
+ "rust-embed 8.11.0",
+ "unic-langid",
+ "warpui",
+]
+
+[[package]]
 name = "i18n-config"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15009,6 +15022,7 @@ dependencies = [
  "http_client",
  "http_server",
  "hyper 1.10.1",
+ "i18n",
  "i18n-embed",
  "i18n-embed-fl",
  "image",

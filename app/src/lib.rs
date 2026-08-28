@@ -42,6 +42,11 @@ mod font_fallback;
 mod global_resource_handles;
 mod gpu_state;
 pub mod i18n;
+
+// `#[macro_export]` 宏在 crate 根命名空间: `crate::t!`/`crate::t_static!` 的
+// 调用点 (~3200 处) 解析到 app 根。i18n 下沉为独立 crate 后, 根重导出维持
+// 旧路径。模块内 `pub use` 不影响根命名空间, 必须写在这里。
+pub use crate::i18n::{t, t_static};
 mod input_classifier;
 mod interval_timer;
 mod linear;

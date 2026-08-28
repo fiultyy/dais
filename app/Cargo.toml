@@ -151,6 +151,7 @@ i18n-embed.workspace = true
 i18n-embed-fl.workspace = true
 fluent.workspace = true
 unic-langid.workspace = true
+i18n.workspace = true
 sys-locale.workspace = true
 inventory = "0.3"
 schemars = { version = "1", features = ["uuid1"] }
