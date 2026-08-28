@@ -29,6 +29,7 @@ use crate::pane_group::focus_state::PaneGroupFocusEvent;
 use crate::pane_group::pane::get_started_pane::GetStartedPane;
 use crate::pane_group::pane::welcome_pane::WelcomePane;
 use crate::pane_group::pane::ActionOrigin;
+pub use crate::pane_group::pane::PaneIdConstruct;
 use crate::quit_warning::UnsavedStateSummary;
 use crate::settings::{AISettings, DefaultSessionMode, PaneSettings};
 use crate::settings_view::SettingsSection;
@@ -6306,7 +6307,7 @@ impl View for PaneGroup {
         }
 
         let main_content = if self.is_focused_pane_maximized(app) {
-            self.focused_pane_id(app).render(app)
+            crate::pane_group::pane::render_pane_id(&self.focused_pane_id(app), app)
         } else {
             EventHandler::new(self.panes.render(appearance.theme(), app))
                 .on_mouse_dragged(move |ctx, _, position| {

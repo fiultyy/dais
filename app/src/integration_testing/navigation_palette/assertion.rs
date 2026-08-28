@@ -1,3 +1,4 @@
+use crate::pane_group::pane::PaneIdConstruct;
 use warpui::integration::AssertionCallback;
 use warpui::{async_assert, integration::AssertionOutcome, App, ViewHandle, WindowId};
 

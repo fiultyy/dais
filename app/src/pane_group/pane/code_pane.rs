@@ -1,3 +1,4 @@
+use crate::pane_group::pane::PaneIdConstruct;
 use warp_util::path::LineAndColumnArg;
 use warpui::{AppContext, ModelHandle, SingletonEntity, View, ViewContext, ViewHandle};
 

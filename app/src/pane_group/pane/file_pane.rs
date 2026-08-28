@@ -1,3 +1,4 @@
+use crate::pane_group::pane::PaneIdConstruct;
 use std::{path::PathBuf, sync::Arc};
 
 use warpui::{AppContext, ModelHandle, SingletonEntity, View, ViewContext, ViewHandle};

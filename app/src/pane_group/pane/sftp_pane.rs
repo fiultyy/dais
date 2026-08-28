@@ -6,6 +6,7 @@
 //! author: logic
 //! date: 2026-05-26
 
+use crate::pane_group::pane::PaneIdConstruct;
 use warpui::{AppContext, ModelHandle, View, ViewContext, ViewHandle};
 
 use crate::pane_group::{

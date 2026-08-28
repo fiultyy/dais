@@ -494,7 +494,7 @@ impl PaneData {
 
     pub fn render(&self, theme: &WarpTheme, app: &AppContext) -> Box<dyn Element> {
         match &self.root {
-            PaneNode::Leaf(pane) => pane.render(app),
+            PaneNode::Leaf(pane) => crate::pane_group::pane::render_pane_id(&pane, app),
             PaneNode::Branch(node) => node.render(theme, &self.hidden_panes, app),
         }
     }
@@ -532,10 +532,10 @@ impl PaneData {
         if let FindPaneByDirectionResult::Found(ids) =
             self.root.panes_by_direction(pane_id, direction)
         {
-            if let Some(current_rect) = ctx.element_position_by_id(pane_id.position_id()) {
+            if let Some(current_rect) = ctx.element_position_by_id(crate::pane_group::pane::pane_position_id(&pane_id)) {
                 ids.into_iter()
                     .filter(|id| {
-                        match ctx.element_position_by_id(id.position_id()) {
+                        match ctx.element_position_by_id(crate::pane_group::pane::pane_position_id(&id)) {
                             Some(candidate_rect) => PaneData::are_rects_overlapping(
                                 &current_rect,
                                 &candidate_rect,
@@ -701,7 +701,7 @@ impl PaneNode {
         match self {
             PaneNode::Leaf(view) => {
                 let view = *view;
-                EventHandler::new(view.render(app))
+                EventHandler::new(crate::pane_group::pane::render_pane_id(&view, app))
                     .on_left_mouse_down(move |ctx, _, _| {
                         ctx.dispatch_typed_action(PaneGroupAction::Activate(
                             view,
@@ -718,7 +718,7 @@ impl PaneNode {
     pub fn pane_size(&self, ctx: &mut ViewContext<PaneGroup>) -> Vector2F {
         match self {
             PaneNode::Leaf(pane) => ctx
-                .element_position_by_id(pane.position_id())
+                .element_position_by_id(crate::pane_group::pane::pane_position_id(&pane))
                 .map_or(Vector2F::zero(), |rect| rect.size()),
             PaneNode::Branch(branch) => branch.size(ctx),
         }

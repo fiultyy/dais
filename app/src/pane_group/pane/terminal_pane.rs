@@ -1,5 +1,6 @@
 //! Implementation of terminal panes.
 #[cfg(feature = "local_fs")]
+use crate::pane_group::pane::PaneIdConstruct;
 use crate::pane_group::CodeSource;
 use std::sync::mpsc::SyncSender;
 

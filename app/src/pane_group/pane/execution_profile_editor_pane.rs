@@ -1,3 +1,4 @@
+use crate::pane_group::pane::PaneIdConstruct;
 use super::{
     view::PaneView, DetachType, PaneConfiguration, PaneContent, PaneGroup, PaneId, ShareableLink,
     ShareableLinkError,

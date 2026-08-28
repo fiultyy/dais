@@ -4,6 +4,7 @@
 //! 持久化(`LeafContents::SshServer { .. }` 在 `is_persisted()` 返回 false),
 //! 业务数据(host/user/port/...)走 `warp_ssh_manager::SshRepository` 操作 SQLite。
 
+use crate::pane_group::pane::PaneIdConstruct;
 use warpui::{AppContext, ModelHandle, View, ViewContext, ViewHandle};
 
 use crate::{

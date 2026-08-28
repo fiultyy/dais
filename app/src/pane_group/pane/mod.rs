@@ -83,12 +83,10 @@ pub(super) fn init(app: &mut AppContext) {
     get_started_view::init(app);
 }
 
-/// The opaque identifier for an arbitrary pane. Consumers
-/// should not be concerned with the internal IDs that are used;
-/// instead, consumers should use the [`PaneGroup`] APIs to get
-/// panes of concrete types from a pane ID.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct PaneId(IPaneId);
+// Pane id 层已下沉 crates/pane_tree (布局拆分 v1 步骤3): id 类型是
+// left_rail_status (v1 迁 nav crate) 的唯一 app 依赖, 下沉后 nav 闭合。
+// IPaneType 变体/Display 与原版逐字一致 (pane_tree round-trip 测试锁定)。
+pub use pane_tree::{IPaneType, PaneId, TerminalPaneId};
 
 #[derive(Debug, Clone, Copy)]
 pub enum ActionOrigin {
@@ -97,279 +95,178 @@ pub enum ActionOrigin {
     Pane,
 }
 
-/// A [`PaneId`] that is known to belong to a terminal pane.
-/// Generally, prefer [`PaneId`], except for logic/features that will only
-/// ever apply to terminal sessions (like synced inputs and the block-sharing modal).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct TerminalPaneId(EntityId);
 
-impl From<TerminalPaneId> for PaneId {
-    fn from(terminal_pane: TerminalPaneId) -> Self {
-        PaneId(IPaneId {
-            pane_type: IPaneType::Terminal,
-            pane_view_id: terminal_pane.0,
-        })
-    }
-}
+/// app 侧 pane id 构造扩展 (trait 本地 → orphan rule 允许; v2 pane_tree
+/// 树结构就位后此 trait 整体迁 pane_tree)。
+pub trait PaneIdConstruct: Sized {
+    fn pane_type(&self) -> IPaneType;
+    fn pane_view_id(&self) -> EntityId;
 
-impl TerminalPaneId {
-    /// Creates a [`TerminalPaneId`] for a dummy terminal pane.
-    #[cfg(test)]
-    pub fn dummy_terminal_pane_id() -> Self {
-        Self(EntityId::new())
-    }
-}
 
-/// An internal representation of a pane ID. Specifically, we don't want to allow
-/// consumers to derive the underlying view ID from a pane ID. Instead, consumers
-/// should use the relevant [`crate::PaneGroup`] APIs to access pane content (which
-/// can provide the underlying view).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-struct IPaneId {
-    /// The type of pane. Needs to match the BackingView.
-    pane_type: IPaneType,
-
-    /// The entity id of the PaneView<BackingView>.
-    pane_view_id: EntityId,
-}
-
-impl Display for IPaneId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Pane {} ({})", self.pane_type, self.pane_view_id)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub(crate) enum IPaneType {
-    Terminal,
-    Notebook,
-    File,
-    ImageViewer,
-    Code,
-    CodeDiff,
-    EnvVarCollection,
-    // Dais Wave 7-3:`EnvironmentManagement` IPaneType 随 ambient-agent UI 子系统
-    // 物理删。
-    Workflow,
-    Settings,
-    AIFact,
-    AIDocument,
-    ExecutionProfileEditor,
-    SshServer,
-    Sftp,
-    Observatory,
-    GetStarted,
-    /// 多 agent 终端驾驶舱 pane(hub-tui 原生移植;cfg 门控同 Observatory:
-    /// 变体本身不 cfg,PaneId 构造/render 臂 cfg)。
-    Cockpit,
-    Welcome,
-    DeferredPlaceholder,
-    /// A pane type only for tests.
-    #[cfg(test)]
-    Dummy,
-}
-
-impl Display for IPaneType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            IPaneType::Terminal => write!(f, "Terminal"),
-            IPaneType::Notebook => write!(f, "Notebook"),
-            IPaneType::File => write!(f, "File"),
-            IPaneType::ImageViewer => write!(f, "Image Viewer"),
-            IPaneType::Code => write!(f, "Code"),
-            IPaneType::CodeDiff => write!(f, "Code Diff"),
-            IPaneType::EnvVarCollection => write!(f, "Environment Variable Collection"),
-            // Dais Wave 7-3:`EnvironmentManagement` Display arm 随 variant 物理删。
-            IPaneType::Workflow => write!(f, "Workflow"),
-            IPaneType::Settings => write!(f, "Settings"),
-            IPaneType::AIFact => write!(f, "AI Fact"),
-            IPaneType::AIDocument => write!(f, "AI Document"),
-            IPaneType::ExecutionProfileEditor => write!(f, "Execution Profile Editor"),
-            IPaneType::GetStarted => write!(f, "GetStarted"),
-            IPaneType::SshServer => write!(f, "SSH Server"),
-            IPaneType::Sftp => write!(f, "SFTP"),
-            IPaneType::Observatory => write!(f, "Observatory"),
-            IPaneType::Welcome => write!(f, "Welcome"),
-            #[cfg(not(target_family = "wasm"))]
-            IPaneType::Cockpit => write!(f, "Cockpit"),
-            IPaneType::DeferredPlaceholder => write!(f, "Placeholder"),
-            #[cfg(test)]
-            IPaneType::Dummy => write!(f, "Dummy"),
-        }
-    }
-}
-
-impl PaneId {
-    fn new<T: BackingView>(pane_type: IPaneType, pane_view: &ViewHandle<PaneView<T>>) -> Self {
-        Self(IPaneId {
-            pane_type,
-            pane_view_id: pane_view.id(),
-        })
+    fn new<T: BackingView>(pane_type: IPaneType, pane_view: &ViewHandle<PaneView<T>>) -> PaneId {
+        PaneId::new(pane_type, pane_view.id())
     }
 
-    fn new_from_ctx<T: BackingView>(pane_type: IPaneType, ctx: &ViewContext<PaneView<T>>) -> Self {
-        Self(IPaneId {
-            pane_type,
-            pane_view_id: ctx.view_id(),
-        })
+    fn new_from_ctx<T: BackingView>(pane_type: IPaneType, ctx: &ViewContext<PaneView<T>>) -> PaneId {
+        PaneId::new(pane_type, ctx.view_id())
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<TerminalView>>`]
-    pub fn from_terminal_pane_ctx(ctx: &ViewContext<terminal_pane::TerminalPaneView>) -> Self {
-        Self::new_from_ctx(IPaneType::Terminal, ctx)
+    fn from_terminal_pane_ctx(ctx: &ViewContext<terminal_pane::TerminalPaneView>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::Terminal, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<FileNotebookView>>`]
-    pub fn from_file_pane_ctx(ctx: &ViewContext<PaneView<FileNotebookView>>) -> Self {
-        Self::new_from_ctx(IPaneType::File, ctx)
+    fn from_file_pane_ctx(ctx: &ViewContext<PaneView<FileNotebookView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::File, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<ImageViewerView>>`]
-    pub fn from_image_pane_ctx(ctx: &ViewContext<PaneView<ImageViewerView>>) -> Self {
-        Self::new_from_ctx(IPaneType::ImageViewer, ctx)
+    fn from_image_pane_ctx(ctx: &ViewContext<PaneView<ImageViewerView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::ImageViewer, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<NotebookView>>`]
-    pub fn from_notebook_pane_ctx(ctx: &ViewContext<PaneView<NotebookView>>) -> Self {
-        Self::new_from_ctx(IPaneType::Notebook, ctx)
+    fn from_notebook_pane_ctx(ctx: &ViewContext<PaneView<NotebookView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::Notebook, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<EnvVarCollectionView>>`]
-    pub fn from_env_var_collection_pane_ctx(
+    fn from_env_var_collection_pane_ctx(
         ctx: &ViewContext<PaneView<EnvVarCollectionView>>,
-    ) -> Self {
-        Self::new_from_ctx(IPaneType::EnvVarCollection, ctx)
+    ) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::EnvVarCollection, ctx)
     }
 
     // Dais Wave 7-3:`from_environment_management_pane_ctx` 随 ambient-agent UI 子系统
     // 物理删。
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<WorkflowView>>`]
-    pub fn from_workflow_pane_ctx(ctx: &ViewContext<PaneView<WorkflowView>>) -> Self {
-        Self::new_from_ctx(IPaneType::Workflow, ctx)
+    fn from_workflow_pane_ctx(ctx: &ViewContext<PaneView<WorkflowView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::Workflow, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<TextView>>`]
-    pub fn from_code_pane_ctx(ctx: &ViewContext<PaneView<CodeView>>) -> Self {
-        Self::new_from_ctx(IPaneType::Code, ctx)
+    fn from_code_pane_ctx(ctx: &ViewContext<PaneView<CodeView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::Code, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<CodeDiffView>>`]
-    pub fn from_code_diff_pane_ctx(ctx: &ViewContext<PaneView<CodeDiffView>>) -> Self {
-        Self::new_from_ctx(IPaneType::CodeDiff, ctx)
+    fn from_code_diff_pane_ctx(ctx: &ViewContext<PaneView<CodeDiffView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::CodeDiff, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<SettingsView>>`]
-    pub fn from_settings_pane_ctx(ctx: &ViewContext<PaneView<SettingsView>>) -> Self {
-        Self::new_from_ctx(IPaneType::Settings, ctx)
+    fn from_settings_pane_ctx(ctx: &ViewContext<PaneView<SettingsView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::Settings, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<ObservatoryPanelView>>`]
     #[cfg(not(target_family = "wasm"))]
-    pub fn from_observatory_pane_ctx(
+    fn from_observatory_pane_ctx(
         ctx: &ViewContext<PaneView<crate::ai::observatory::view::ObservatoryPanelView>>,
-    ) -> Self {
-        Self::new_from_ctx(IPaneType::Observatory, ctx)
+    ) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::Observatory, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewHandle<PaneView<ObservatoryPanelView>>`]
     #[cfg(not(target_family = "wasm"))]
-    pub fn from_observatory_pane_view(
+    fn from_observatory_pane_view(
         pane_view: &ViewHandle<PaneView<crate::ai::observatory::view::ObservatoryPanelView>>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(IPaneType::Observatory, pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<CockpitPanelView>>`]
     #[cfg(not(target_family = "wasm"))]
-    pub fn from_cockpit_pane_ctx(
+    fn from_cockpit_pane_ctx(
         ctx: &ViewContext<PaneView<crate::ai::cockpit::view::CockpitPanelView>>,
-    ) -> Self {
-        Self::new_from_ctx(IPaneType::Cockpit, ctx)
+    ) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::Cockpit, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewHandle<PaneView<CockpitPanelView>>`]
     #[cfg(not(target_family = "wasm"))]
-    pub fn from_cockpit_pane_view(
+    fn from_cockpit_pane_view(
         pane_view: &ViewHandle<PaneView<crate::ai::cockpit::view::CockpitPanelView>>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(IPaneType::Cockpit, pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<AIFactView>>`]
-    pub fn from_ai_fact_pane_ctx(ctx: &ViewContext<PaneView<AIFactView>>) -> Self {
-        Self::new_from_ctx(IPaneType::AIFact, ctx)
+    fn from_ai_fact_pane_ctx(ctx: &ViewContext<PaneView<AIFactView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::AIFact, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<AIDocumentView>>`]
-    pub fn from_ai_document_pane_ctx(ctx: &ViewContext<PaneView<AIDocumentView>>) -> Self {
-        Self::new_from_ctx(IPaneType::AIDocument, ctx)
+    fn from_ai_document_pane_ctx(ctx: &ViewContext<PaneView<AIDocumentView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::AIDocument, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<ExecutionProfileEditorView>>`]
-    pub fn from_execution_profile_editor_pane_ctx(
+    fn from_execution_profile_editor_pane_ctx(
         ctx: &ViewContext<PaneView<ExecutionProfileEditorView>>,
-    ) -> Self {
-        Self::new_from_ctx(IPaneType::ExecutionProfileEditor, ctx)
+    ) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::ExecutionProfileEditor, ctx)
     }
 
-    pub fn from_welcome_pane_ctx(ctx: &ViewContext<PaneView<WelcomeView>>) -> Self {
-        Self::new_from_ctx(IPaneType::Welcome, ctx)
+    fn from_welcome_pane_ctx(ctx: &ViewContext<PaneView<WelcomeView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::Welcome, ctx)
     }
 
-    pub fn from_get_started_pane_ctx(ctx: &ViewContext<PaneView<GetStartedView>>) -> Self {
-        Self::new_from_ctx(IPaneType::GetStarted, ctx)
+    fn from_get_started_pane_ctx(ctx: &ViewContext<PaneView<GetStartedView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::GetStarted, ctx)
     }
 
-    pub fn from_ssh_server_pane_ctx(ctx: &ViewContext<PaneView<SshServerView>>) -> Self {
-        Self::new_from_ctx(IPaneType::SshServer, ctx)
+    fn from_ssh_server_pane_ctx(ctx: &ViewContext<PaneView<SshServerView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::SshServer, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<SftpBrowserView>>`]
-    pub fn from_sftp_pane_ctx(ctx: &ViewContext<PaneView<SftpBrowserView>>) -> Self {
-        Self::new_from_ctx(IPaneType::Sftp, ctx)
+    fn from_sftp_pane_ctx(ctx: &ViewContext<PaneView<SftpBrowserView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::Sftp, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<TerminalView>`] entity ID.
-    pub fn from_terminal_pane_view(
+    fn from_terminal_pane_view(
         terminal_pane_view: &ViewHandle<terminal_pane::TerminalPaneView>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(IPaneType::Terminal, terminal_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<NotebookView>`] entity ID.
-    pub fn from_notebook_pane_view(
+    fn from_notebook_pane_view(
         notebook_pane_view: &ViewHandle<PaneView<NotebookView>>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(IPaneType::Notebook, notebook_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<FileNotebookView>`] entity ID.
-    pub fn from_file_pane_view(file_pane_view: &ViewHandle<PaneView<FileNotebookView>>) -> Self {
+    fn from_file_pane_view(file_pane_view: &ViewHandle<PaneView<FileNotebookView>>) -> PaneId {
         Self::new(IPaneType::File, file_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<ImageViewerView>`] entity ID.
-    pub fn from_image_pane_view(image_pane_view: &ViewHandle<PaneView<ImageViewerView>>) -> Self {
+    fn from_image_pane_view(image_pane_view: &ViewHandle<PaneView<ImageViewerView>>) -> PaneId {
         Self::new(IPaneType::ImageViewer, image_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<TextView>`] entity ID.
-    pub fn from_code_pane_view(code_pane_view: &ViewHandle<PaneView<CodeView>>) -> Self {
+    fn from_code_pane_view(code_pane_view: &ViewHandle<PaneView<CodeView>>) -> PaneId {
         Self::new(IPaneType::Code, code_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<CodeDiffView>`] entity ID.
-    pub fn from_code_diff_pane_view(
+    fn from_code_diff_pane_view(
         code_diff_pane_view: &ViewHandle<PaneView<CodeDiffView>>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(IPaneType::CodeDiff, code_diff_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<EnvVarCollection>`] entity ID.
-    pub fn from_env_var_collection_view(
+    fn from_env_var_collection_view(
         env_var_collection_view: &ViewHandle<PaneView<EnvVarCollectionView>>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(IPaneType::EnvVarCollection, env_var_collection_view)
     }
 
@@ -377,241 +274,87 @@ impl PaneId {
     // 物理删。
 
     /// Creates a [`PaneId`] from a [`PaneView<WorkflowView>`] entity ID.
-    pub fn from_workflow_pane_view(
+    fn from_workflow_pane_view(
         workflow_pane_view: &ViewHandle<PaneView<WorkflowView>>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(IPaneType::Workflow, workflow_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<SettingsView>`] entity ID.
-    pub fn from_settings_pane_view(
+    fn from_settings_pane_view(
         settings_pane_view: &ViewHandle<PaneView<SettingsView>>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(IPaneType::Settings, settings_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<AIFactView>`] entity ID.
-    pub fn from_ai_fact_pane_view(ai_fact_pane_view: &ViewHandle<PaneView<AIFactView>>) -> Self {
+    fn from_ai_fact_pane_view(ai_fact_pane_view: &ViewHandle<PaneView<AIFactView>>) -> PaneId {
         Self::new(IPaneType::AIFact, ai_fact_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<AIDocumentView>`] entity ID.
-    pub fn from_ai_document_pane_view(
+    fn from_ai_document_pane_view(
         ai_document_pane_view: &ViewHandle<PaneView<AIDocumentView>>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(IPaneType::AIDocument, ai_document_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<ExecutionProfileEditorView>`] entity ID.
-    pub fn from_execution_profile_editor_pane_view(
+    fn from_execution_profile_editor_pane_view(
         execution_profile_editor_pane_view: &ViewHandle<PaneView<ExecutionProfileEditorView>>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(
             IPaneType::ExecutionProfileEditor,
             execution_profile_editor_pane_view,
         )
     }
 
-    pub fn from_get_started_pane_view(
+    fn from_get_started_pane_view(
         get_started_pane_view: &ViewHandle<PaneView<GetStartedView>>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(IPaneType::GetStarted, get_started_pane_view)
     }
 
-    pub fn from_ssh_server_pane_view(
+    fn from_ssh_server_pane_view(
         ssh_server_pane_view: &ViewHandle<PaneView<SshServerView>>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(IPaneType::SshServer, ssh_server_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<SftpBrowserView>`] entity ID.
-    pub fn from_sftp_pane_view(
+    fn from_sftp_pane_view(
         sftp_pane_view: &ViewHandle<PaneView<SftpBrowserView>>,
-    ) -> Self {
+    ) -> PaneId {
         Self::new(IPaneType::Sftp, sftp_pane_view)
     }
 
-    pub fn from_welcome_pane_view(welcome_pane_view: &ViewHandle<PaneView<WelcomeView>>) -> Self {
+    fn from_welcome_pane_view(welcome_pane_view: &ViewHandle<PaneView<WelcomeView>>) -> PaneId {
         Self::new(IPaneType::Welcome, welcome_pane_view)
     }
 
     #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
-    pub(super) fn deferred_placeholder_pane_id() -> Self {
-        Self(IPaneId {
-            pane_type: IPaneType::DeferredPlaceholder,
-            pane_view_id: warpui::EntityId::new(),
-        })
+    fn deferred_placeholder_pane_id() -> PaneId {
+        PaneId::new(IPaneType::DeferredPlaceholder, warpui::EntityId::new())
     }
 
     /// Creates a [`PaneId`] for a dummy pane.
     #[cfg(test)]
-    pub fn dummy_pane_id() -> Self {
-        Self(IPaneId {
-            pane_type: IPaneType::Dummy,
-            pane_view_id: warpui::EntityId::new(),
-        })
-    }
-
-    /// Returns a [`TerminalPaneId`] for the pane, if this is a terminal pane ID.
-    pub fn as_terminal_pane_id(&self) -> Option<TerminalPaneId> {
-        if matches!(self.0.pane_type, IPaneType::Terminal) {
-            Some(TerminalPaneId(self.0.pane_view_id))
-        } else {
-            None
-        }
-    }
-
-    pub(crate) fn pane_type(&self) -> IPaneType {
-        self.0.pane_type
-    }
-
-    pub(crate) fn creation_order_id(&self) -> EntityId {
-        self.0.pane_view_id
-    }
-
-    pub fn is_terminal_pane(&self) -> bool {
-        matches!(self.0.pane_type, IPaneType::Terminal)
-    }
-
-    pub fn is_notebook_pane(&self) -> bool {
-        matches!(self.0.pane_type, IPaneType::Notebook)
-    }
-
-    pub fn is_code_pane(&self) -> bool {
-        matches!(self.0.pane_type, IPaneType::Code)
-    }
-
-    pub fn is_file_pane(&self) -> bool {
-        matches!(self.0.pane_type, IPaneType::File)
-    }
-
-    pub fn is_code_diff_pane(&self) -> bool {
-        matches!(self.0.pane_type, IPaneType::CodeDiff)
-    }
-
-    pub fn is_environment_management_pane(&self) -> bool {
-        // Dais Wave 7-3:ambient-agent UI 子系统物理删,任意 pane 都不是
-        // environment management pane。调用者为渐进式清理保留、返回 false。
-        false
+    fn dummy_pane_id() -> PaneId {
+        PaneId::new(IPaneType::Dummy, warpui::EntityId::new())
     }
 
     /// Returns true if this pane contains a Dais Drive object (notebook, workflow, etc.).
-    pub fn is_warp_drive_object_pane(&self) -> bool {
+    fn is_warp_drive_object_pane(&self) -> bool {
         matches!(
-            self.0.pane_type,
+            self.pane_type(),
             IPaneType::Notebook
                 | IPaneType::Workflow
                 | IPaneType::EnvVarCollection
                 | IPaneType::AIFact
         )
     }
-
-    /// Renders the child view backing this pane.
-    pub fn render(self, app: &AppContext) -> Box<dyn Element> {
-        let mut element = match self.0.pane_type {
-            IPaneType::Terminal => {
-                ChildView::<PaneView<TerminalView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::Notebook => {
-                ChildView::<PaneView<NotebookView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::File => {
-                ChildView::<PaneView<FileNotebookView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::ImageViewer => {
-                ChildView::<PaneView<ImageViewerView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::Code => {
-                ChildView::<PaneView<CodeView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::CodeDiff => {
-                ChildView::<PaneView<CodeDiffView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::EnvVarCollection => {
-                ChildView::<PaneView<EnvVarCollectionView>>::with_id(self.0.pane_view_id).finish()
-            }
-            // Dais Wave 7-3:`EnvironmentManagement` render arm 随 variant 物理删。
-            IPaneType::Workflow => {
-                ChildView::<PaneView<WorkflowView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::Settings => {
-                ChildView::<PaneView<SettingsView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::AIFact => {
-                ChildView::<PaneView<AIFactView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::AIDocument => {
-                ChildView::<PaneView<AIDocumentView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::ExecutionProfileEditor => {
-                ChildView::<PaneView<ExecutionProfileEditorView>>::with_id(self.0.pane_view_id)
-                    .finish()
-            }
-            IPaneType::GetStarted => {
-                ChildView::<PaneView<GetStartedView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::SshServer => {
-                ChildView::<PaneView<SshServerView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::Sftp => {
-                ChildView::<PaneView<SftpBrowserView>>::with_id(self.0.pane_view_id).finish()
-            }
-            #[cfg(not(target_family = "wasm"))]
-            IPaneType::Observatory => {
-                ChildView::<PaneView<crate::ai::observatory::view::ObservatoryPanelView>>::with_id(
-                    self.0.pane_view_id,
-                )
-                .finish()
-            }
-            #[cfg(not(target_family = "wasm"))]
-            IPaneType::Cockpit => {
-                ChildView::<PaneView<crate::ai::cockpit::view::CockpitPanelView>>::with_id(
-                    self.0.pane_view_id,
-                )
-                .finish()
-            }
-            IPaneType::Welcome => {
-                ChildView::<PaneView<WelcomeView>>::with_id(self.0.pane_view_id).finish()
-            }
-            IPaneType::DeferredPlaceholder => warpui::elements::Empty::new().finish(),
-            #[cfg(test)]
-            IPaneType::Dummy => warpui::elements::Empty::new().finish(),
-        };
-        if *PaneSettings::as_ref(app).focus_panes_on_hover {
-            element = EventHandler::new(element)
-                .on_mouse_in(
-                    move |ctx, _, _| {
-                        ctx.dispatch_typed_action(PaneGroupAction::Activate(
-                            self,
-                            ActivationReason::Hover,
-                        ));
-                        DispatchEventResult::PropagateToParent
-                    },
-                    Some(MouseInBehavior {
-                        // Don't fire on synthetic events because we don't want to steal focus
-                        // when a user creates a new pane.
-                        fire_on_synthetic_events: false,
-
-                        // Don't fire when covered because we don't want to steal focus when
-                        // modals are open on top of panes.
-                        fire_when_covered: false,
-                    }),
-                )
-                .finish();
-        }
-        element
-    }
-
-    pub fn position_id(&self) -> String {
-        self.to_string()
-    }
 }
 
-impl Display for PaneId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Pane {}", self.0)
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum DetachType {
@@ -623,6 +366,116 @@ pub enum DetachType {
 
     // Pane detached during a move.
     Moved,
+}
+
+pub(crate) fn render_pane_id(pane: &PaneId, app: &AppContext) -> Box<dyn Element> {
+    // PaneId: Copy — hover 闭包 'static 捕获需要所有权副本。
+    let pane = *pane;
+    let mut element = match pane.pane_type() {
+        IPaneType::Terminal => {
+            ChildView::<PaneView<TerminalView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::Notebook => {
+            ChildView::<PaneView<NotebookView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::File => {
+            ChildView::<PaneView<FileNotebookView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::ImageViewer => {
+            ChildView::<PaneView<ImageViewerView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::Code => {
+            ChildView::<PaneView<CodeView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::CodeDiff => {
+            ChildView::<PaneView<CodeDiffView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::EnvVarCollection => {
+            ChildView::<PaneView<EnvVarCollectionView>>::with_id(pane.pane_view_id()).finish()
+        }
+        // Dais Wave 7-3:`EnvironmentManagement` render arm 随 variant 物理删。
+        IPaneType::Workflow => {
+            ChildView::<PaneView<WorkflowView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::Settings => {
+            ChildView::<PaneView<SettingsView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::AIFact => {
+            ChildView::<PaneView<AIFactView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::AIDocument => {
+            ChildView::<PaneView<AIDocumentView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::ExecutionProfileEditor => {
+            ChildView::<PaneView<ExecutionProfileEditorView>>::with_id(pane.pane_view_id())
+                .finish()
+        }
+        IPaneType::GetStarted => {
+            ChildView::<PaneView<GetStartedView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::SshServer => {
+            ChildView::<PaneView<SshServerView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::Sftp => {
+            ChildView::<PaneView<SftpBrowserView>>::with_id(pane.pane_view_id()).finish()
+        }
+        #[cfg(not(target_family = "wasm"))]
+        IPaneType::Observatory => {
+            ChildView::<PaneView<crate::ai::observatory::view::ObservatoryPanelView>>::with_id(
+                pane.pane_view_id(),
+            )
+            .finish()
+        }
+        #[cfg(not(target_family = "wasm"))]
+        IPaneType::Cockpit => {
+            ChildView::<PaneView<crate::ai::cockpit::view::CockpitPanelView>>::with_id(
+                pane.pane_view_id(),
+            )
+            .finish()
+        }
+        IPaneType::Welcome => {
+            ChildView::<PaneView<WelcomeView>>::with_id(pane.pane_view_id()).finish()
+        }
+        IPaneType::DeferredPlaceholder => warpui::elements::Empty::new().finish(),
+        #[cfg(test)]
+        IPaneType::Dummy => warpui::elements::Empty::new().finish(),
+    };
+    if *PaneSettings::as_ref(app).focus_panes_on_hover {
+        element = EventHandler::new(element)
+            .on_mouse_in(
+                move |ctx, _, _| {
+                    ctx.dispatch_typed_action(PaneGroupAction::Activate(
+                        pane,
+                        ActivationReason::Hover,
+                    ));
+                    DispatchEventResult::PropagateToParent
+                },
+                Some(MouseInBehavior {
+                    // Don't fire on synthetic events because we don't want to steal focus
+                    // when a user creates a new pane.
+                    fire_on_synthetic_events: false,
+
+                    // Don't fire when covered because we don't want to steal focus when
+                    // modals are open on top of panes.
+                    fire_when_covered: false,
+                }),
+            )
+            .finish();
+    }
+    element
+}
+
+pub(crate) fn pane_position_id(pane: &PaneId) -> String {
+    pane.to_string()
+}
+
+impl PaneIdConstruct for PaneId {
+    fn pane_type(&self) -> IPaneType {
+        pane_tree::PaneId::pane_type(self)
+    }
+    fn pane_view_id(&self) -> EntityId {
+        pane_tree::PaneId::pane_view_id(self)
+    }
 }
 
 pub enum ShareableLink {

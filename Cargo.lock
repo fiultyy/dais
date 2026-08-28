@@ -9817,6 +9817,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pane_tree"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "warpui",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15082,6 +15091,7 @@ dependencies = [
  "ordered-float 3.9.2",
  "os_info",
  "palette",
+ "pane_tree",
  "parking_lot",
  "paste",
  "pathfinder_color",

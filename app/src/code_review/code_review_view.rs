@@ -1317,7 +1317,7 @@ impl CodeReviewView {
         self.file_sidebar_expanded = true;
         if let Some(containing_pane_id) = self.containing_pane_id {
             if let Some(pane_width) = ctx
-                .element_position_by_id(containing_pane_id.position_id())
+                .element_position_by_id(crate::pane_group::pane::pane_position_id(&containing_pane_id))
                 .map(|rect| rect.width())
             {
                 if let Ok(mut state) = self.ui_state_handles.sidebar_resizable_state.lock() {

@@ -4,6 +4,7 @@
 //! 本 pane 只是把面板 view 装进 pane 体系（标题、焦点、关闭）。
 //! 不持久化：重启后从工具条重新打开。
 
+use crate::pane_group::pane::PaneIdConstruct;
 use warpui::{AppContext, ModelHandle, SingletonEntity, ViewContext, ViewHandle};
 
 use crate::ai::observatory::model::ObservatoryModel;

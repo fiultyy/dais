@@ -1,3 +1,4 @@
+use crate::pane_group::pane::PaneIdConstruct;
 use warpui::{AppContext, ModelHandle, SingletonEntity, ViewContext, ViewHandle};
 
 use crate::{
