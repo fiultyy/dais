@@ -4975,21 +4975,41 @@ impl Workspace {
         terminal_view_id: EntityId,
         ctx: &mut ViewContext<Self>,
     ) {
+        // 先扫描后行动: 命中 (tab index, pane id) 后再借 &mut self 激活,
+        // 避免迭代 self.tabs 的不可变借用与 activate 的可变借用冲突。
+        let mut hit: Option<(usize, PaneId)> = None;
         for (index, tab) in self.tabs.iter().enumerate() {
             let pane_group = tab.pane_group.as_ref(ctx);
-            let hit = pane_group
+            if let Some(pane_id) = pane_group
                 .terminal_pane_ids()
-                .any(|pane_id| {
+                .find(|pane_id| {
                     pane_group
-                        .terminal_view_from_pane_id(pane_id, ctx)
+                        .terminal_view_from_pane_id(*pane_id, ctx)
                         .is_some_and(|view| view.as_ref(ctx).id() == terminal_view_id)
-                });
-            if hit {
-                self.activate_tab_internal(index, ctx);
-                ctx.notify();
-                return;
+                })
+            {
+                hit = Some((index, pane_id));
+                break;
             }
         }
+        if let Some((index, pane_id)) = hit {
+            self.activate_tab_internal(index, ctx);
+            // tab 内 split 多 pane 时,还需把焦点切到卡对应的 pane——
+            // 否则右侧显示的是该 tab 的既有焦点 pane,"选中后右侧不显示"。
+            if let Some(tab) = self.tabs.get(index) {
+                tab.pane_group.update(ctx, |pg, ctx| {
+                    pg.focus_pane_by_id(pane_id, ctx);
+                });
+            }
+            ctx.notify();
+            return;
+        }
+        // 未命中: 卡属于其它窗口的 workspace(cockpit 卡片是全局快照),
+        // 本窗口无法跟随切换。日志留痕便于定位"点了没反应"的反馈缺口。
+        log::info!(
+            "cockpit nav: terminal_view {:?} not in this workspace; no tab switch",
+            terminal_view_id
+        );
     }
 
     /// This function is meant to be used by other actions to perform the logic to update the

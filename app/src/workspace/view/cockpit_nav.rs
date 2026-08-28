@@ -435,6 +435,13 @@ impl CockpitNavView {
         let font_family = appearance.ui_font_family();
         let title = truncate_str(&card.title, TITLE_MAX_CHARS);
         let agent_label = card.agent_name.unwrap_or("Shell");
+        // 卡片 ID(EntityId 稳定哈希 4-hex,照抄 cockpit card_tag):身份辨识,
+        // 与日志/编排器侧 tag 对账。TODO(i18n): # 前缀符号无需 ftl。
+        let id_label = {
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            std::hash::Hash::hash(&card.terminal_view_id, &mut hasher);
+            format!("#{:04x}", (std::hash::Hasher::finish(&hasher) & 0xffff) as u16)
+        };
         let dot_key = card.status.dot_key().map(str::to_owned);
         let border_color = if selected {
             theme.accent()
@@ -443,10 +450,10 @@ impl CockpitNavView {
         };
         let card_id = card.terminal_view_id;
 
-        // 行2 辅助段:branch(有则 ▸branch)+ cwd 末段(有则)+ recap 截断
-        // (有则)。全空 → None,卡片退回单行。
+        // 行2 辅助段:ID(恒有)+branch(有则 ▸branch)+ cwd 末段(有则)+
+        // recap 截断(有则)。
         // TODO(i18n): 辅助分隔符为符号,无需 ftl。
-        let mut aux_parts: Vec<String> = Vec::new();
+        let mut aux_parts: Vec<String> = vec![id_label];
         if let Some(branch) = card.branch.as_deref().filter(|b| !b.trim().is_empty()) {
             aux_parts.push(format!("▸{branch}"));
         }
