@@ -476,7 +476,10 @@ impl CockpitNavView {
                 first_line.add_child(status_dot_element(key, theme));
             }
             first_line.add_child(
-                Shrinkable::new(
+                // Expanded(Tight) 而非 Shrinkable(Loose): 长标题测量宽会
+                // 撑爆行宽把卡片推出栏缘(右缘被裁,排版错乱);Tight 钳到
+                // 分配空间,配合 soft_wrap(false) 溢出部分不绘制。
+                Expanded::new(
                     1.,
                     Text::new(title.clone(), font_family, FONT_SIZE)
                         .with_color(theme.main_text_color(theme.background()).into())
@@ -499,7 +502,8 @@ impl CockpitNavView {
             body.add_child(first_line.finish());
             if let Some(aux) = &aux_label {
                 body.add_child(
-                    Shrinkable::new(
+                    // 同上: Tight 钳宽,防长 recap 撑爆卡行(ellipsis 负责截断显示)。
+                    Expanded::new(
                         1.,
                         Text::new(aux.clone(), font_family, SMALL_FONT_SIZE)
                             .with_color(theme.sub_text_color(theme.background()).into())
