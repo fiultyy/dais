@@ -36,6 +36,7 @@ use crate::terminal::resizable_data::{ModalType, ResizableData};
 use crate::terminal::TerminalView;
 use crate::themes::theme::Fill as ThemeFill;
 use crate::ui_components::buttons::combo_inner_button;
+use warpui::ui_components::button::ButtonTooltipPosition;
 use warpui::ui_components::button::ButtonVariant;
 use crate::ui_components::icons::Icon as UiIcon;
 use crate::util::bindings::keybinding_name_to_display_string;
@@ -48,6 +49,7 @@ use crate::workspace::tab_settings::{
     VerticalTabsPrimaryInfo, VerticalTabsTabItemMode, VerticalTabsViewMode,
 };
 use crate::projects::ProjectManagementModel;
+use crate::workspace::view::left_panel::ToolPanelView;
 use crate::workspace::view::left_rail_status::{
     HarnessRunState, LeftRailStatusModel, SessionRunStatus,
 };
@@ -108,6 +110,7 @@ const DETAIL_SIDECAR_CORNER_RADIUS: f32 = 4.;
 /// Fixed height of the metadata row (line 3 in expanded mode). Matches the passive badge height
 /// so the row doesn't resize when badges are toggled.
 const METADATA_ROW_HEIGHT: f32 = BADGE_ICON_SIZE + 2.;
+const RAIL_FOOTER_TOOLS_ICON_GAP: f32 = 4.;
 const TAB_COLOR_OPACITY: Opacity = 15;
 const TAB_COLOR_HOVER_OPACITY: Opacity = 50;
 
@@ -2207,6 +2210,16 @@ fn render_rail_footer(workspace: &Workspace, app: &AppContext) -> Box<dyn Elemen
             row.add_child(button);
         }
     }
+    // 工具箱入口(header 退役后移此,见 header_toolbar_item.rs default_left 注释):
+    // 与原 header ToolsPanel 按钮同一点击行为;可用性门控也照抄(left_panel_views
+    // 为空时不渲染)。底缘铁律:tooltip 必须 Above。
+    if !workspace.left_panel_views.is_empty() {
+        row.add_child(
+            Container::new(render_rail_footer_tools_panel_button(workspace, app))
+                .with_margin_left(RAIL_FOOTER_TOOLS_ICON_GAP)
+                .finish(),
+        );
+    }
 
     // 头像/设置推到行尾(与评审/通知同一行)。
     row.add_child(Shrinkable::new(1., Empty::new().finish()).finish());
@@ -2251,6 +2264,68 @@ fn render_rail_footer(workspace: &Workspace, app: &AppContext) -> Box<dyn Elemen
         )
         .with_child(column.finish())
         .finish()
+}
+
+/// 工具箱入口按钮(rail footer 专用):构造逻辑复制自 view.rs
+/// `render_tools_panel_button`(header ToolsPanel 按钮退役后入口移此),图标/
+/// tooltip/keybinding/点击 dispatch(ToggleLeftPanel)与原实现一致。唯一差异是
+/// tooltip 弹出方向必须 Above——本按钮位于窗口底缘,向下弹会被
+/// WindowByPosition 钳回盖住按钮造成闪烁循环(63879f21 同型根因)。
+fn render_rail_footer_tools_panel_button(
+    workspace: &Workspace,
+    app: &AppContext,
+) -> Box<dyn Element> {
+    let is_active = workspace
+        .active_tab_pane_group()
+        .as_ref(app)
+        .left_panel_open;
+
+    let appearance = Appearance::as_ref(app);
+    let tooltip_text = if workspace.left_panel_views.len() <= 1 {
+        match workspace
+            .left_panel_views
+            .first()
+            .copied()
+            .unwrap_or(ToolPanelView::DaisDrive)
+        {
+            ToolPanelView::ProjectExplorer => crate::t!("workspace-left-panel-project-explorer"),
+            ToolPanelView::GlobalSearch { .. } => crate::t!("workspace-left-panel-global-search"),
+            ToolPanelView::DaisDrive => crate::t!("workspace-left-panel-warp-drive"),
+            ToolPanelView::ConversationListView => {
+                crate::t!("workspace-left-panel-agent-conversations")
+            }
+            ToolPanelView::SshManager => crate::t!("workspace-left-panel-ssh-manager"),
+            ToolPanelView::ServerFileBrowser => {
+                crate::t!("workspace-left-panel-server-file-browser")
+            }
+            ToolPanelView::SkillManager => crate::t!("workspace-left-panel-skill-manager"),
+        }
+    } else {
+        crate::t!("workspace-tools-panel-tooltip")
+    };
+
+    SavePosition::new(
+        Container::new(
+            Align::new(
+                workspace.render_tab_bar_icon_button(
+                    appearance,
+                    UiIcon::Tool2,
+                    &workspace.mouse_states.tools_panel_icon,
+                    WorkspaceAction::ToggleLeftPanel,
+                    tooltip_text.to_string(),
+                    keybinding_name_to_display_string("workspace:toggle_left_panel", app),
+                    is_active,
+                    false,
+                    ButtonTooltipPosition::Above,
+                )
+                .finish(),
+            )
+            .finish(),
+        )
+        .finish(),
+        "workspace:toggle_left_panel",
+    )
+    .finish()
 }
 
 fn render_vertical_tabs_panel(
@@ -7309,6 +7384,13 @@ impl Workspace {
         app: &AppContext,
     ) -> Box<dyn Element> {
         render_vertical_tabs_panel(&self.vertical_tabs_panel, self, side, app)
+    }
+
+    /// 左栏(cockpit 导航)复用 vertical tabs 的窗口持久化宽度状态
+    /// (ModalType::VerticalTabsWidth): 返回已 adopt 的 handle 克隆,供
+    /// view.rs 侧构造同宽度管线的 Resizable 外壳。
+    pub(super) fn cockpit_nav_resizable_state(&self) -> ResizableStateHandle {
+        self.vertical_tabs_panel.resizable_state.clone()
     }
 
     /// Replace the vertical tabs panel's default width handle with the

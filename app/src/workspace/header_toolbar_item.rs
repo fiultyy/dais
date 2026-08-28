@@ -110,13 +110,13 @@ impl HeaderToolbarItemKind {
     }
 
     pub fn default_left() -> Vec<Self> {
+        // 2026-08 GUI 重构: header 只留观测台 + cockpit。TabsPanel(左栏收起)
+        // /ToolsPanel/AgentManagement 从默认集退役——左栏改为 cockpit 驱动的
+        // 常驻导航(不可收起),工具箱入口移至 rail footer。
         vec![
             Self::Observatory,
             #[cfg(not(target_family = "wasm"))]
             Self::Cockpit,
-            Self::TabsPanel,
-            Self::ToolsPanel,
-            Self::AgentManagement,
         ]
     }
 
@@ -125,10 +125,9 @@ impl HeaderToolbarItemKind {
     }
 
     pub fn all_items() -> Vec<Self> {
+        // 2026-08 GUI 重构: TabsPanel/ToolsPanel/AgentManagement 退役,
+        // 配置器不再提供(左栏常驻 + 工具箱移 rail footer)。
         vec![
-            Self::TabsPanel,
-            Self::ToolsPanel,
-            Self::AgentManagement,
             Self::CodeReview,
             Self::Observatory,
             #[cfg(not(target_family = "wasm"))]

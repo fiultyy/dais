@@ -546,6 +546,18 @@ define_settings_group!(TabSettings, settings: [
         private: true,
         storage_key: "CockpitToolbarMigrated",
     },
+    // Header 收敛(2026-08 GUI 重构)一次性迁移标记(设备本地,不云同步):
+    // retire_header_items_in_config 只在标记为 false 时把旧 Custom 配置里的
+    // TabsPanel/ToolsPanel/AgentManagement 清出——这三项功能退役(左栏改
+    // cockpit 常驻导航、工具箱移 rail footer),清一次即置 true。
+    header_items_retired: HeaderItemsRetired {
+        type: bool,
+        default: false,
+        supported_platforms: SupportedPlatforms::ALL,
+        sync_to_cloud: SyncToCloud::Never,
+        private: true,
+        storage_key: "HeaderItemsRetired",
+    },
     new_tab_placement: NewTabPlacement,
     workspace_decoration_visibility: WorkspaceDecorationVisibility,
     close_button_position: TabCloseButtonPosition,

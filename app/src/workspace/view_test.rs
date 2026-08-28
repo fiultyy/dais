@@ -100,6 +100,8 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(PrivacySettings::mock);
     // 左栏状态聚合单例(vertical_tabs 渲染依赖)。
     app.add_singleton_model(|_| crate::workspace::view::left_rail_status::LeftRailStatusModel::default());
+    // 左栏 cockpit 导航依赖的模型(Workspace::new 里 CockpitNavView::init 挂载)。
+    app.add_singleton_model(crate::ai::cockpit::model::CockpitModel::new);
     app.add_singleton_model(|_| KeybindingChangedNotifier::new());
     app.add_singleton_model(|_ctx| RelaunchModel::new());
     app.add_singleton_model(|_| ChangelogModel::new(Arc::new(http_client::Client::new())));
@@ -2464,8 +2466,6 @@ fn test_special_view_lifecycle() {
         initialize_app(&mut app);
         #[cfg(not(target_family = "wasm"))]
         app.add_singleton_model(crate::ai::observatory::model::ObservatoryModel::new);
-        #[cfg(not(target_family = "wasm"))]
-        app.add_singleton_model(crate::ai::cockpit::model::CockpitModel::new);
         let workspace = mock_workspace(&mut app);
         workspace.update(&mut app, |workspace, ctx| {
             workspace.add_terminal_tab(false, ctx);
@@ -2618,8 +2618,6 @@ fn terminal_view_id_of(
 fn cockpit_refresh_timing_probe() {
     App::test((), |mut app| async move {
         initialize_app(&mut app);
-        #[cfg(not(target_family = "wasm"))]
-        app.add_singleton_model(crate::ai::cockpit::model::CockpitModel::new);
         let workspace = mock_workspace(&mut app);
 
         workspace.update(&mut app, |ws, ctx| {
@@ -2664,7 +2662,6 @@ fn test_cockpit_terminal_activity_event_refresh() {
 
     App::test((), |mut app| async move {
         initialize_app(&mut app);
-        app.add_singleton_model(crate::ai::cockpit::model::CockpitModel::new);
         let workspace = mock_workspace(&mut app);
 
         workspace.update(&mut app, |ws, ctx| {
@@ -2752,7 +2749,6 @@ fn test_cockpit_membership_events_instant() {
 
     App::test((), |mut app| async move {
         initialize_app(&mut app);
-        app.add_singleton_model(crate::ai::cockpit::model::CockpitModel::new);
         let workspace = mock_workspace(&mut app);
 
         workspace.update(&mut app, |ws, ctx| {

@@ -13,6 +13,7 @@ mod startup_directory;
 #[path = "view_test.rs"]
 mod tests;
 pub(crate) mod left_rail_status;
+mod cockpit_nav;
 mod vertical_tabs;
 #[cfg(target_family = "wasm")]
 mod wasm_view;
@@ -23,6 +24,10 @@ use self::vertical_tabs::{
     render_detail_sidecar, render_settings_popup, VerticalTabsPanelState,
     VERTICAL_TABS_SETTINGS_BUTTON_POSITION_ID,
 };
+
+/// 左栏(cockpit 导航)Resizable 宽度边界(值与 vertical_tabs.rs 面板一致)。
+const COCKPIT_NAV_MIN_PANEL_WIDTH: f32 = 200.;
+const COCKPIT_NAV_MAX_PANEL_WIDTH_RATIO: f32 = 0.5;
 use crate::workspace::cross_window_tab_drag::{
     AttachTarget, CrossWindowTabDrag, DragResult, DropResult, GhostState,
 };
@@ -361,13 +366,12 @@ use warpui::clipboard::ClipboardContent;
 #[cfg(target_family = "wasm")]
 use warpui::elements::Percentage;
 use warpui::elements::{
-    CacheOption, ClippedScrollStateHandle, DispatchEventResult, DraggableState, DropTarget,
-    EventHandler, Image, MouseInBehavior, Rect,
+    CacheOption, ClippedScrollStateHandle, DispatchEventResult, DragBarSide, DraggableState,
+    DropTarget, EventHandler, Image, MouseInBehavior, Rect, Resizable,
 };
 use warpui::ui_components::button::Button;
 use warpui::windowing::{StateEvent, WindowManager};
 use warpui::{elements::MouseStateHandle, fonts::Properties};
-
 use crate::{autoupdate, channel::ChannelState};
 
 use crate::ai::blocklist::{BlocklistAIHistoryEvent, PendingQueryState, SerializedBlockListItem};
@@ -917,6 +921,8 @@ pub struct Workspace {
     pub(crate) hovered_tab_index: Option<TabBarHoverIndex>,
     tab_bar_hover_state: MouseStateHandle,
     tab_fixed_width: Option<f32>,
+    /// 左栏 cockpit 导航视图(2026-08 GUI 重构:核心导航,常驻,不持久化)。
+    cockpit_nav_view: Option<ViewHandle<crate::workspace::view::cockpit_nav::CockpitNavView>>,
     traffic_light_mouse_states: TrafficLightMouseStates,
     tab_rename_editor: ViewHandle<EditorView>,
     pane_rename_editor: ViewHandle<EditorView>,
@@ -3079,6 +3085,7 @@ impl Workspace {
             observatory_view: None,
             #[cfg(not(target_family = "wasm"))]
             cockpit_view: None,
+            cockpit_nav_view: None,
             hovered_tab_index: None,
             tab_bar_hover_state: Default::default(),
             traffic_light_mouse_states: Default::default(),
@@ -3206,6 +3213,8 @@ impl Workspace {
         ws.sync_panel_positions_from_config(ctx);
         #[cfg(not(target_family = "wasm"))]
         Self::ensure_cockpit_in_config(ctx);
+        #[cfg(not(target_family = "wasm"))]
+        Self::retire_header_items_in_config(ctx);
         ws.sync_window_button_visibility(ctx);
         ws.update_titlebar_height(ctx);
         // Seed the settings pane with the initial settings-file error (if
@@ -3218,6 +3227,19 @@ impl Workspace {
             registry.register(window_id, weak_handle);
         });
 
+        // 左栏 cockpit 导航(核心导航,常驻): 建视图 + 订阅卡片激活事件,
+        // 右侧跟随切换(EntityId→tab index 见 on_cockpit_nav_activated)。
+        let cockpit_nav = crate::workspace::view::cockpit_nav::CockpitNavView::init(ctx);
+        ctx.subscribe_to_view(&cockpit_nav, |me, _nav, event, ctx| {
+            if let crate::workspace::view::cockpit_nav::CockpitNavEvent::CardActivated {
+                terminal_view_id,
+            } = event
+            {
+                me.activate_tab_for_terminal_view(*terminal_view_id, ctx);
+            }
+        });
+        ws.cockpit_nav_view = Some(cockpit_nav);
+
         ws
     }
 
@@ -3225,7 +3247,6 @@ impl Workspace {
     pub fn command_palette_view(&self) -> ViewHandle<crate::search::command_palette::View> {
         self.palette.clone()
     }
-
     #[cfg(any(test, feature = "integration_tests"))]
     pub fn ai_fact_view(&self) -> ViewHandle<AIFactView> {
         self.ai_fact_view.clone()
@@ -3471,6 +3492,8 @@ impl Workspace {
             }
             // Cockpit 工具栏一次性迁移标记:仅由启动迁移逻辑读写,UI 无需响应。
             TabSettingsChangedEvent::CockpitToolbarMigrated { .. } => {}
+            // Header 收敛一次性迁移标记:同上,仅启动迁移读写。
+            TabSettingsChangedEvent::HeaderItemsRetired { .. } => {}
         }
     }
 
@@ -4948,8 +4971,63 @@ impl Workspace {
         ctx.notify();
     }
 
+    /// 左栏 cockpit 导航的右侧跟随切换: 定位 terminal view 所在 tab 并激活。
+    /// EntityId 不命中(跨 workspace 的卡在其它窗口)则 no-op。
+    fn activate_tab_for_terminal_view(
+        &mut self,
+        terminal_view_id: EntityId,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        for (index, tab) in self.tabs.iter().enumerate() {
+            let pane_group = tab.pane_group.as_ref(ctx);
+            let hit = pane_group
+                .terminal_pane_ids()
+                .any(|pane_id| {
+                    pane_group
+                        .terminal_view_from_pane_id(pane_id, ctx)
+                        .is_some_and(|view| view.as_ref(ctx).id() == terminal_view_id)
+                });
+            if hit {
+                self.activate_tab_internal(index, ctx);
+                ctx.notify();
+                return;
+            }
+        }
+    }
+
+    /// 左栏面板壳(cockpit 导航): 复用旧 vertical tabs 的 Resizable 宽度管线
+    /// (同一窗口持久化 handle,拖宽/恢复行为不变),内容换成 CockpitNavView。
+    fn render_cockpit_nav_panel(&self, side: PanelPosition, app: &AppContext) -> Box<dyn Element> {
+        let appearance = Appearance::as_ref(app);
+        let theme = appearance.theme();
+        let drag_side = match side {
+            PanelPosition::Left => DragBarSide::Right,
+            PanelPosition::Right => DragBarSide::Left,
+        };
+        let nav = self
+            .cockpit_nav_view
+            .as_ref()
+            .map(|view| ChildView::new(view).finish())
+            .unwrap_or_else(|| Empty::new().finish());
+        let inner = Container::new(nav)
+            .with_background(internal_colors::fg_overlay_1(theme))
+            .finish();
+        Resizable::new(self.cockpit_nav_resizable_state(), inner)
+            .with_dragbar_side(drag_side)
+            .on_resize(|ctx, _| {
+                ctx.notify();
+            })
+            .with_bounds_callback(Box::new(|window_size| {
+                let max_width = window_size.x() * COCKPIT_NAV_MAX_PANEL_WIDTH_RATIO;
+                (
+                    COCKPIT_NAV_MIN_PANEL_WIDTH,
+                    max_width.max(COCKPIT_NAV_MIN_PANEL_WIDTH),
+                )
+            }))
+            .finish()
+    }
+
     /// This function is meant to be used by other actions to perform the logic to update the
-    /// view's state. It's not meant to be invoked directly by an action.
     pub fn activate_tab_internal(&mut self, index: usize, ctx: &mut ViewContext<Self>) {
         // 终端 tab 激活即退出独立层级视图(设置/观测台/编排器)。
         self.close_special_view(ctx);
@@ -5665,6 +5743,66 @@ impl Workspace {
     fn mark_cockpit_toolbar_migrated(ctx: &mut ViewContext<Self>) {
         TabSettings::handle(ctx).update(ctx, |settings, ctx| {
             report_if_error!(settings.cockpit_toolbar_migrated.set_value(true, ctx));
+        });
+    }
+
+    /// Header 收敛迁移(2026-08 GUI 重构): 旧 Custom 配置里残留的
+    /// TabsPanel/ToolsPanel/AgentManagement 一并清出。三项功能退役——左栏
+    /// 改为 cockpit 常驻导航(不可收起,渲染不再读 vertical_tabs_panel_open),
+    /// 工具箱入口移至 rail footer。镜像 ensure_cockpit_in_config 的一次性
+    /// 标记模式,Default 配置随 default_left 收敛无需处理。
+    #[cfg(not(target_family = "wasm"))]
+    fn retire_header_items_in_config(ctx: &mut ViewContext<Self>) {
+        if *TabSettings::as_ref(ctx).header_items_retired.value() {
+            return;
+        }
+        const RETIRED: [HeaderToolbarItemKind; 3] = [
+            HeaderToolbarItemKind::TabsPanel,
+            HeaderToolbarItemKind::ToolsPanel,
+            HeaderToolbarItemKind::AgentManagement,
+        ];
+        let config = TabSettings::as_ref(ctx)
+            .header_toolbar_chip_selection
+            .clone();
+        let mut touched = false;
+        let new_left: Vec<_> = match &config {
+                HeaderToolbarChipSelection::Custom { left, .. } => left
+                    .iter()
+                    .filter(|k| !RETIRED.contains(k))
+                    .cloned()
+                    .collect(),
+            HeaderToolbarChipSelection::Default => {
+                // Default 变体随 default_left() 收敛,无需写回。
+                Self::mark_header_items_retired(ctx);
+                return;
+            }
+        };
+        let left = config.left_items();
+        if new_left.len() != left.len() {
+            touched = true;
+        }
+        if touched {
+            let right = config.right_items();
+            TabSettings::handle(ctx).update(ctx, |settings, ctx| {
+                report_if_error!(settings
+                    .header_toolbar_chip_selection
+                    .set_value(
+                        HeaderToolbarChipSelection::Custom {
+                            left: new_left,
+                            right
+                        },
+                        ctx
+                    ));
+            });
+        }
+        Self::mark_header_items_retired(ctx);
+    }
+
+    /// 置位 Header 收敛一次性迁移标记(私有设置, 不参与云同步)。
+    #[cfg(not(target_family = "wasm"))]
+    fn mark_header_items_retired(ctx: &mut ViewContext<Self>) {
+        TabSettings::handle(ctx).update(ctx, |settings, ctx| {
+            report_if_error!(settings.header_items_retired.set_value(true, ctx));
         });
     }
 
@@ -8356,11 +8494,9 @@ impl Workspace {
     }
 
     fn toggle_vertical_tabs_panel(&mut self, ctx: &mut ViewContext<Self>) {
-        self.vertical_tabs_panel_open = !self.vertical_tabs_panel_open;
-        if !self.vertical_tabs_panel_open {
-            self.close_vertical_tabs_settings_popup();
-            self.vertical_tabs_panel.clear_detail_sidecar();
-        }
+        // 2026-08 GUI 重构: 左栏常驻,收起功能退役。action 与 keybinding 保留
+        // 以兼容残留绑定,但语义退化为 no-op(强制常开)。
+        self.vertical_tabs_panel_open = true;
         self.sync_window_button_visibility(ctx);
         ctx.notify();
     }
@@ -18934,7 +19070,23 @@ impl Workspace {
                 .header_toolbar_chip_selection
                 .clone();
             let mut prev_panel_added = false;
+            // 常驻左栏(旧 TabsPanel 位): 两种 tab 模式都无条件渲染,收起退役。
+            Self::add_panel_with_separator(
+                &mut main_content,
+                &mut prev_panel_added,
+                Some(
+                    SavePosition::new(
+                        self.render_cockpit_nav_panel(Self::tabs_panel_side(&config), app),
+                        VERTICAL_TABS_PANEL_POSITION_ID,
+                    )
+                    .finish(),
+                ),
+                app,
+            );
             for item in config.left_items() {
+                if item == HeaderToolbarItemKind::TabsPanel {
+                    continue; // 已常驻,跳过配置残留。
+                }
                 Self::add_panel_with_separator(
                     &mut main_content,
                     &mut prev_panel_added,
@@ -19513,13 +19665,33 @@ impl Workspace {
 
         // In vertical tabs mode, config-driven panels are rendered here.
         // In horizontal tabs mode, they're rendered inside render_banner_and_active_tab.
+        // 2026-08 GUI 重构: 左栏(cockpit 驱动的核心导航)无条件常驻,不再走
+        // header_toolbar_chip_selection 配置——收起功能退役,配置里也清不掉。
+        // 其余 config 驱动面板(CodeReview 等)仍走配置。
         if vertical_tabs_active {
             let config = TabSettings::as_ref(app)
                 .header_toolbar_chip_selection
                 .clone();
             let pane_group = self.active_tab_pane_group().as_ref(app);
 
+            // 常驻左栏(旧 TabsPanel 位)。
+            Self::add_panel_with_separator(
+                &mut panels_view,
+                &mut prev_panel_added,
+                Some(
+                    SavePosition::new(
+                        self.render_cockpit_nav_panel(Self::tabs_panel_side(&config), app),
+                        VERTICAL_TABS_PANEL_POSITION_ID,
+                    )
+                    .finish(),
+                ),
+                app,
+            );
+
             for item in config.left_items() {
+                if item == HeaderToolbarItemKind::TabsPanel {
+                    continue; // 已常驻,跳过配置残留。
+                }
                 Self::add_panel_with_separator(
                     &mut panels_view,
                     &mut prev_panel_added,
@@ -19647,18 +19819,8 @@ impl Workspace {
             return None;
         }
         match item {
-            HeaderToolbarItemKind::TabsPanel => {
-                if !self.vertical_tabs_panel_open {
-                    return None;
-                }
-                Some(
-                    SavePosition::new(
-                        self.render_vertical_tabs_panel(Self::tabs_panel_side(config), app),
-                        VERTICAL_TABS_PANEL_POSITION_ID,
-                    )
-                    .finish(),
-                )
-            }
+            // TabsPanel: 左栏已无条件常驻(render_panels / render_banner_and_active_tab
+            // 前置渲染),不经配置面板通道——配置残留由调用侧 skip。
             HeaderToolbarItemKind::ToolsPanel => {
                 if !pane_group.left_panel_open || warpui::platform::is_mobile_device() {
                     return None;
@@ -19674,6 +19836,7 @@ impl Workspace {
                 }
                 Some(ChildView::new(&self.right_panel_view).finish())
             }
+            HeaderToolbarItemKind::TabsPanel => None,
             HeaderToolbarItemKind::AgentManagement
             | HeaderToolbarItemKind::NotificationsMailbox => None,
             HeaderToolbarItemKind::Observatory => None,
