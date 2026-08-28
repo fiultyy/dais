@@ -2930,6 +2930,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 
 [[package]]
+name = "cockpit_model"
+version = "0.1.0"
+dependencies = [
+ "warpui",
+]
+
+[[package]]
 name = "cocoa"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14963,6 +14970,7 @@ dependencies = [
  "channel_versions",
  "chrono",
  "clap",
+ "cockpit_model",
  "cocoa 0.26.0",
  "comfy-table",
  "command",

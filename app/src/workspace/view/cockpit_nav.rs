@@ -148,7 +148,7 @@ impl CockpitNavView {
                     event,
                     crate::terminal::terminal_activity::TerminalActivityEvent::ViewMembershipChanged
                 ) {
-                    CockpitModel::handle(ctx).update(ctx, |m, ctx| m.refresh(ctx));
+                    CockpitModel::handle(ctx).update(ctx, |m, ctx| crate::ai::cockpit::model::refresh_model(m, ctx));
                 }
             },
         );
@@ -156,7 +156,7 @@ impl CockpitNavView {
         model.update(ctx, |m, ctx| {
             m.set_group_by(crate::ai::cockpit::model::CockpitGroupBy::CwdProject, ctx)
         });
-        model.update(ctx, |m, ctx| m.refresh(ctx));
+        model.update(ctx, |m, ctx| crate::ai::cockpit::model::refresh_model(m, ctx));
         let mut me = Self {
             model,
             collapsed_groups: HashSet::new(),
@@ -180,7 +180,7 @@ impl CockpitNavView {
                 .await;
             },
             |me, _unit, ctx| {
-                me.model.update(ctx, |m, ctx| m.refresh(ctx));
+                me.model.update(ctx, |m, ctx| crate::ai::cockpit::model::refresh_model(m, ctx));
                 me.start_reconcile_timer(ctx);
             },
         );

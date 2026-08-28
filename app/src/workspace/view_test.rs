@@ -2631,7 +2631,7 @@ fn cockpit_refresh_timing_probe() {
         model.update(&mut app, |m, ctx| {
             for _ in 0..20 {
                 let t0 = std::time::Instant::now();
-                m.refresh(ctx);
+                crate::ai::cockpit::model::refresh_model(m, ctx);
                 timings.push(t0.elapsed().as_micros() as u64);
             }
         });
@@ -2787,17 +2787,24 @@ fn test_cockpit_membership_events_instant() {
             "toggle's membership event refreshed synchronously"
         );
 
-        // 开关 ↔ hub enabled 同步(set_panel_open 是两条 open 路径
-        // [toggle_cockpit / cockpit_pane] 与 close 路径共用的唯一闸)。
+        // 开关 ↔ hub enabled 同步:纯壳化后 hub 置位在 app 半边——
+        // open 路径 toggle_cockpit / close 路径 close_special_view
+        // (workspace/view.rs cockpit-instant 注释处),不再在 model 内。
         let hub0 = TerminalActivityModel::handle(&mut app);
-        cockpit.update(&mut app, |m, ctx| m.set_panel_open(true, ctx));
+        workspace.update(&mut app, |ws, ctx| {
+            ws.handle_action(&WorkspaceAction::ToggleCockpit, ctx);
+        });
         assert!(
-            warpui::ReadModel::read_model(&app, &hub0, |m: &TerminalActivityModel, _| m.is_enabled()),
+            warpui::ReadModel::read_model(&app, &hub0, |m: &TerminalActivityModel, _| m
+                .is_enabled()),
             "panel open must enable hub"
         );
-        cockpit.update(&mut app, |m, ctx| m.set_panel_open(false, ctx));
+        workspace.update(&mut app, |ws, ctx| {
+            ws.close_special_view(ctx);
+        });
         assert!(
-            !warpui::ReadModel::read_model(&app, &hub0, |m: &TerminalActivityModel, _| m.is_enabled()),
+            !warpui::ReadModel::read_model(&app, &hub0, |m: &TerminalActivityModel, _| m
+                .is_enabled()),
             "panel close must disable hub"
         );
 

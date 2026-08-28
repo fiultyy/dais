@@ -4331,6 +4331,11 @@ impl Workspace {
         crate::ai::cockpit::model::CockpitModel::handle(ctx).update(ctx, |m, ctx| {
             m.set_panel_open(true, ctx);
         });
+        // cockpit-instant:hub 置位原在 set_panel_open 内(纯壳化后迁出,
+        // cockpit_model 不依赖 terminal 模块)。此处等效补齐。
+        #[cfg(not(target_family = "wasm"))]
+        crate::terminal::terminal_activity::TerminalActivityModel::handle(ctx)
+            .update(ctx, |hub, ctx| hub.set_enabled(true, ctx));
         // cockpit-list-instant:首刷借 membership 事件走 Effect 队列:
         // 直接 refresh(及立即执行的 typed action dispatch)都运行在
         // workspace update 闭包内,期间本 view 被移出 window.views
@@ -4366,6 +4371,9 @@ impl Workspace {
                 crate::ai::cockpit::model::CockpitModel::handle(ctx).update(ctx, |m, ctx| {
                     m.set_panel_open(false, ctx);
                 });
+                // hub 置位迁到 toggle/close 的 app 半边 (纯壳化, 见 toggle_cockpit)。
+                crate::terminal::terminal_activity::TerminalActivityModel::handle(ctx)
+                    .update(ctx, |hub, ctx| hub.set_enabled(false, ctx));
             }
             _ => {}
         }

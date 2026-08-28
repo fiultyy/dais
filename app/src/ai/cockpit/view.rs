@@ -267,7 +267,7 @@ impl CockpitPanelView {
                 | CLIAgentSessionsModelEvent::Ended { .. }
                 | CLIAgentSessionsModelEvent::SessionUpdated { .. } => {
                     if CockpitModel::handle(ctx).as_ref(ctx).panel_open() {
-                        CockpitModel::handle(ctx).update(ctx, |m, ctx| m.refresh(ctx));
+                        CockpitModel::handle(ctx).update(ctx, |m, ctx| crate::ai::cockpit::model::refresh_model(m, ctx));
                     }
                 }
                 CLIAgentSessionsModelEvent::InputSessionChanged { .. } => {}
@@ -293,7 +293,7 @@ impl CockpitPanelView {
                     | crate::terminal::terminal_activity::TerminalActivityEvent::ViewMembershipChanged => {
                         // 列表成员变化(卡片出现/消失)与状态转移同级——
                         // 零合并窗,即时全量刷新。
-                        CockpitModel::handle(ctx).update(ctx, |m, ctx| m.refresh(ctx));
+                        CockpitModel::handle(ctx).update(ctx, |m, ctx| crate::ai::cockpit::model::refresh_model(m, ctx));
                     }
                     crate::terminal::terminal_activity::TerminalActivityEvent::OutputChanged {
                         ..
@@ -364,7 +364,7 @@ impl CockpitPanelView {
                     return;
                 }
                 CockpitModel::handle(ctx).update(ctx, |model, ctx| {
-                    model.refresh(ctx);
+                    crate::ai::cockpit::model::refresh_model(model, ctx);
                 });
                 me.start_reconcile_timer(ctx);
             },
@@ -390,7 +390,7 @@ impl CockpitPanelView {
             |me, _unit, ctx| {
                 me.output_coalesce_handle = None;
                 if CockpitModel::handle(ctx).as_ref(ctx).panel_open() {
-                    CockpitModel::handle(ctx).update(ctx, |m, ctx| m.refresh(ctx));
+                    CockpitModel::handle(ctx).update(ctx, |m, ctx| crate::ai::cockpit::model::refresh_model(m, ctx));
                 }
             },
         );
@@ -884,7 +884,7 @@ impl TypedActionView for CockpitPanelView {
         match action {
             CockpitPanelAction::Refresh => {
                 self.model.update(ctx, |model, ctx| {
-                    model.refresh(ctx);
+                    crate::ai::cockpit::model::refresh_model(model, ctx);
                 });
             }
             CockpitPanelAction::FocusCard(id) => {
@@ -946,7 +946,7 @@ impl TypedActionView for CockpitPanelView {
             }
             CockpitPanelAction::ConfirmInjection => {
                 self.model.update(ctx, |model, ctx| {
-                    model.confirm_injection(ctx);
+                    crate::ai::cockpit::model::confirm_injection_model(model, ctx);
                 });
                 // 文本已发送,清空注入输入框。
                 self.inject_input.update(ctx, |input, ctx| {
