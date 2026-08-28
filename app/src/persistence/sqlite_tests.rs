@@ -114,7 +114,7 @@ fn test_deduplicate_no_snapshots() {
     assert!(matches!(&filtered_events[0], &ModelEvent::SaveBlock(_)));
 }
 
-fn test_terminal_window_snapshot() -> WindowSnapshot {
+fn test_terminal_window_snapshot(uuid: u8) -> WindowSnapshot {
     WindowSnapshot {
         tabs: vec![TabSnapshot {
             custom_title: None,
@@ -122,7 +122,7 @@ fn test_terminal_window_snapshot() -> WindowSnapshot {
                 is_focused: true,
                 custom_vertical_tabs_title: None,
                 contents: LeafContents::Terminal(TerminalPaneSnapshot {
-                    uuid: vec![1],
+                    uuid: vec![uuid],
                     cwd: Some("/tmp".to_string()),
                     shell_launch_data: Some(ShellLaunchData::Executable {
                         executable_path: PathBuf::from("/bin/zsh"),
@@ -171,8 +171,8 @@ fn test_sqlite_round_trips_windows() {
 
     let app_state = AppState {
         windows: vec![
-            test_terminal_window_snapshot(),
-            test_terminal_window_snapshot(),
+            test_terminal_window_snapshot(1),
+            test_terminal_window_snapshot(2),
         ],
         active_window_index: Some(1),
         block_lists: Default::default(),
