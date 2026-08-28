@@ -23,6 +23,7 @@
 
 use std::cell::RefCell;
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 use crate::ui_components::buttons::combo_inner_button;
 use crate::workspace::action::WorkspaceAction;
@@ -113,11 +114,9 @@ pub struct CockpitNavView {
     /// 组头"加项目" + 按钮悬停句柄(独立于组头句柄:点击加号时鼠标
     /// 状态落在自己句柄上,组头 on_click 不触发,天然防冒泡)。
     group_add_button_mouse_state: MouseStateHandle,
-    /// 列表滚动句柄。必须是 view 字段:滚动偏移存在句柄内部,若在 render
-    /// 里每次重建句柄,高频重渲染会把列表滚回顶部(照抄 cockpit 同构做法)。
+    /// 列表滚动句柄(复用防丢滚动位)。
     list_scroll: ClippedScrollStateHandle,
 }
-
 impl CockpitNavView {
     /// 主线程挂载入口:在任意 parent view 的 ViewContext 里创建本视图
     /// (注册 typed action handler 并返回句柄,供 `subscribe_to_view`
@@ -137,6 +136,22 @@ impl CockpitNavView {
         ctx.subscribe_to_model(&model, |_me, _handle, _event, ctx| {
             ctx.notify();
         });
+
+        // 即时响应(照抄 cockpit view 的 TerminalActivityModel 订阅,但**无
+        // panel_open 门控**——左栏常驻): ViewMembershipChanged(关 tab/开
+        // tab/pane 增删)零延迟刷新,StateChanged 进 150ms 合并窗由 timer 兜底。
+        #[cfg(not(target_family = "wasm"))]
+        ctx.subscribe_to_model(
+            &crate::terminal::terminal_activity::TerminalActivityModel::handle(ctx),
+            |_me, _h, event, ctx| {
+                if matches!(
+                    event,
+                    crate::terminal::terminal_activity::TerminalActivityEvent::ViewMembershipChanged
+                ) {
+                    CockpitModel::handle(ctx).update(ctx, |m, ctx| m.refresh(ctx));
+                }
+            },
+        );
 
         model.update(ctx, |m, ctx| {
             m.set_group_by(crate::ai::cockpit::model::CockpitGroupBy::CwdProject, ctx)
@@ -217,6 +232,8 @@ impl CockpitNavView {
     }
 
     /// 组列表(纵向裁剪滚动):每组 = 组头(可折叠)+ 组内实例卡行。
+    /// 合并持久化项目(ProjectManagementModel): 已注册但当前无实例的
+    /// 项目显示为空组——关闭项目内所有 tab 后项目不从导航消失。
     fn render_group_list(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
         let theme = appearance.theme();
@@ -225,7 +242,32 @@ impl CockpitNavView {
         let selected = model.selected();
         let groups = model.groups();
 
-        Self::ensure_handles(&mut self.group_handles.borrow_mut(), groups.len());
+        // 持久化项目名集(目录名,与 cwd_group_key 同粒度);已出现在活动
+        // 组里的跳过,只补"空组"。
+        let active_keys: HashSet<&str> =
+            groups.iter().map(|g| g.key.as_str()).collect();
+        let empty_projects: Vec<String> = crate::projects::ProjectManagementModel::handle(app)
+            .read(app, |pm: &crate::projects::ProjectManagementModel, _| {
+                let mut names: Vec<String> = pm
+                    .all_projects()
+                    .map(|p: &crate::persistence::model::Project| {
+                        PathBuf::from(&p.path)
+                            .file_name()
+                            .map(|n: &std::ffi::OsStr| n.to_string_lossy().into_owned())
+                            .unwrap_or_default()
+                    })
+                    .filter(|name: &String| {
+                        !name.is_empty() && !active_keys.contains(name.as_str())
+                    })
+                    .collect();
+                names.sort();
+                names
+            });
+
+        Self::ensure_handles(
+            &mut self.group_handles.borrow_mut(),
+            groups.len() + empty_projects.len(),
+        );
         Self::ensure_handles(&mut self.card_handles.borrow_mut(), cards.len());
         let group_handles = self.group_handles.borrow().clone();
         let card_handles = self.card_handles.borrow().clone();
@@ -277,6 +319,26 @@ impl CockpitNavView {
                 }
                 col.add_child(list.finish());
             }
+        }
+
+        // 空项目组(持久化项目,无活动实例): 组头 + "无实例"占位。
+        for (ei, name) in empty_projects.iter().enumerate() {
+            let Some(handle) = group_handles.get(groups.len() + ei) else {
+                continue;
+            };
+            let empty_group = crate::ai::cockpit::model::CockpitCardGroup {
+                key: name.clone(),
+                range: 0..0,
+            };
+            col.add_child(self.render_group_header(
+                &empty_group,
+                cards,
+                handle.clone(),
+                self.group_add_button_mouse_state.clone(),
+                false,
+                appearance,
+                theme,
+            ));
         }
 
         // 必须复用 self.list_scroll 字段:滚动偏移存句柄内部,每次 render

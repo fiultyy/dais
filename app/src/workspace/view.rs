@@ -3232,7 +3232,14 @@ impl Workspace {
                 terminal_view_id,
             } = event
             {
-                me.activate_tab_for_terminal_view(*terminal_view_id, ctx);
+                // 复用 cockpit 面板同款聚焦 action: 本 tab 激活+pane 聚焦,
+                // 他窗口 show_window——单一实现覆盖全部跟随场景。
+                me.handle_action(
+                    &WorkspaceAction::FocusTerminalViewInWorkspace {
+                        terminal_view_id: *terminal_view_id,
+                    },
+                    ctx,
+                );
             }
         });
         ws.cockpit_nav_view = Some(cockpit_nav);
@@ -4966,50 +4973,6 @@ impl Workspace {
     pub fn activate_tab(&mut self, index: usize, ctx: &mut ViewContext<Self>) {
         self.activate_tab_internal(index, ctx);
         ctx.notify();
-    }
-
-    /// 左栏 cockpit 导航的右侧跟随切换: 定位 terminal view 所在 tab 并激活。
-    /// EntityId 不命中(跨 workspace 的卡在其它窗口)则 no-op。
-    fn activate_tab_for_terminal_view(
-        &mut self,
-        terminal_view_id: EntityId,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        // 先扫描后行动: 命中 (tab index, pane id) 后再借 &mut self 激活,
-        // 避免迭代 self.tabs 的不可变借用与 activate 的可变借用冲突。
-        let mut hit: Option<(usize, PaneId)> = None;
-        for (index, tab) in self.tabs.iter().enumerate() {
-            let pane_group = tab.pane_group.as_ref(ctx);
-            if let Some(pane_id) = pane_group
-                .terminal_pane_ids()
-                .find(|pane_id| {
-                    pane_group
-                        .terminal_view_from_pane_id(*pane_id, ctx)
-                        .is_some_and(|view| view.as_ref(ctx).id() == terminal_view_id)
-                })
-            {
-                hit = Some((index, pane_id));
-                break;
-            }
-        }
-        if let Some((index, pane_id)) = hit {
-            self.activate_tab_internal(index, ctx);
-            // tab 内 split 多 pane 时,还需把焦点切到卡对应的 pane——
-            // 否则右侧显示的是该 tab 的既有焦点 pane,"选中后右侧不显示"。
-            if let Some(tab) = self.tabs.get(index) {
-                tab.pane_group.update(ctx, |pg, ctx| {
-                    pg.focus_pane_by_id(pane_id, ctx);
-                });
-            }
-            ctx.notify();
-            return;
-        }
-        // 未命中: 卡属于其它窗口的 workspace(cockpit 卡片是全局快照),
-        // 本窗口无法跟随切换。日志留痕便于定位"点了没反应"的反馈缺口。
-        log::info!(
-            "cockpit nav: terminal_view {:?} not in this workspace; no tab switch",
-            terminal_view_id
-        );
     }
 
     /// This function is meant to be used by other actions to perform the logic to update the
