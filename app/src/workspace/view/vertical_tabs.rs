@@ -2338,11 +2338,6 @@ fn render_vertical_tabs_panel(
     let theme = appearance.theme();
 
 
-    // Dedup: with a project selected, the rail's classic vertical tab list
-    // below the separator shows exactly the selected project's tabs — the
-    // same set already shown by the top-bar list and the selected card's
-    // embedded subtree. Hide it (and the separator) so each tab appears once
-    // per surface; the "All" view keeps the full vertical list.
     // 2026-08 GUI 重构纠偏: 左栏主体区(项目/全部两分支同款)嵌入 cockpit
     // 导航视图(CockpitNavView);header 工具行与 rail footer 部件原样保留,
     // nav handle 缺失时退化为空元素占位。
@@ -2351,31 +2346,18 @@ fn render_vertical_tabs_panel(
         .map(|h| ChildView::new(h).finish())
         .unwrap_or_else(|| Empty::new().finish());
     let panel_content = if workspace.active_project.is_some() {
-        let mut project_view = Flex::column()
+        Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
             .with_child(render_header_toolbar_row(workspace, app))
-            .with_child(render_project_section(
-                state,
-                workspace,
-                app,
-                /* show_separator */ false,
-            ));
-        project_view = project_view.with_child(Box::new(Expanded::new(1., nav_element)));
-        project_view
+            .with_child(Box::new(Expanded::new(1., nav_element)))
             .with_child(render_rail_footer(workspace, app))
             .finish()
     } else {
         let mut all_view = Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
-            .with_child(render_header_toolbar_row(workspace, app))
-            .with_child(render_project_section(
-                state,
-                workspace,
-                app,
-                /* show_separator */ true,
-            )); // BISECT-control-bar: control bar temporarily removed
+            .with_child(render_header_toolbar_row(workspace, app));
         if !state.all_projects_collapsed.get() {
             all_view = all_view.with_child(Box::new(Expanded::new(1., nav_element)));
         } else {

@@ -24,15 +24,18 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
 
+use crate::ui_components::buttons::combo_inner_button;
+use crate::workspace::action::WorkspaceAction;
 use warp_core::ui::appearance::Appearance;
 use warp_core::ui::theme::WarpTheme;
 use warpui::elements::{
     ClippedScrollStateHandle, ClippedScrollable, Container, CornerRadius, CrossAxisAlignment,
     Empty, Expanded, Fill as ElementFill, Flex, Hoverable, MainAxisAlignment, MainAxisSize,
-    MouseStateHandle, ParentElement, ScrollbarWidth, Text,
+    MouseStateHandle, ParentElement, ScrollbarWidth, Shrinkable, Text,
 };
 use warpui::platform::Cursor;
 use warpui::scene::Radius;
+use warpui::ui_components::components::{UiComponent, UiComponentStyles};
 use warpui::{
     AppContext, Element, Entity, EntityId, ModelHandle, SingletonEntity, TypedActionView, View,
     ViewContext, ViewHandle,
@@ -47,8 +50,9 @@ use crate::ai::observatory::row::status_dot_element;
 const HEADER_PADDING: f32 = 10.;
 /// 元素间距。
 const SPACING: f32 = 6.;
-/// 卡片行间垂直间距(导航紧凑形态)。
-const CARD_GAP: f32 = 2.;
+/// 卡片行间垂直间距。≥6: 1px 边框相邻卡贴排时两条边框会在间隙里
+/// 压成一条粗线(高 DPI 下尤甚),视觉上呈"行重叠"。
+const CARD_GAP: f32 = 6.;
 /// 左栏对账刷新间隔(与 cockpit 面板 COCKPIT_RECONCILE_INTERVAL_MS 一致)。
 const COCKPIT_NAV_RECONCILE_INTERVAL_MS: u64 = 2_000;
 /// 行水平内边距。
@@ -63,6 +67,11 @@ const FONT_SIZE: f32 = 13.;
 const SMALL_FONT_SIZE: f32 = 11.;
 /// 卡片标题截断上限(字符)。
 const TITLE_MAX_CHARS: usize = 28;
+/// tree 缩进:实例行相对组头(项目行)的左缩进,表达从属关系(v1 缩进即
+/// 连接线,不画线)。
+const TREE_INDENT: f32 = 14.;
+/// 卡片行2 recap 截断上限(字符)。
+const RECAP_MAX_CHARS: usize = 48;
 
 /// 顶部标题。
 // TODO(i18n): 文案硬编码中文,主线程统一补 ftl key 后替换。
@@ -101,6 +110,9 @@ pub struct CockpitNavView {
     card_handles: RefCell<Vec<MouseStateHandle>>,
     /// 组头悬停句柄(渲染缓存,数量对齐分组数)。
     group_handles: RefCell<Vec<MouseStateHandle>>,
+    /// 组头"加项目" + 按钮悬停句柄(独立于组头句柄:点击加号时鼠标
+    /// 状态落在自己句柄上,组头 on_click 不触发,天然防冒泡)。
+    group_add_button_mouse_state: MouseStateHandle,
     /// 列表滚动句柄。必须是 view 字段:滚动偏移存在句柄内部,若在 render
     /// 里每次重建句柄,高频重渲染会把列表滚回顶部(照抄 cockpit 同构做法)。
     list_scroll: ClippedScrollStateHandle,
@@ -126,13 +138,16 @@ impl CockpitNavView {
             ctx.notify();
         });
 
-        model.update(ctx, |m, ctx| m.set_group_by(crate::ai::cockpit::model::CockpitGroupBy::CwdProject, ctx));
+        model.update(ctx, |m, ctx| {
+            m.set_group_by(crate::ai::cockpit::model::CockpitGroupBy::CwdProject, ctx)
+        });
         model.update(ctx, |m, ctx| m.refresh(ctx));
         let mut me = Self {
             model,
             collapsed_groups: HashSet::new(),
             card_handles: RefCell::new(Vec::new()),
             group_handles: RefCell::new(Vec::new()),
+            group_add_button_mouse_state: MouseStateHandle::default(),
             list_scroll: ClippedScrollStateHandle::default(),
         };
         me.start_reconcile_timer(ctx);
@@ -231,12 +246,13 @@ impl CockpitNavView {
                 .any(|idx| cards.get(idx).map(|c| c.terminal_view_id) == selected);
             col.add_child(self.render_group_header(
                 group,
+                cards,
                 group_handle.clone(),
+                self.group_add_button_mouse_state.clone(),
                 group_selected,
                 appearance,
                 theme,
             ));
-
             if !self.collapsed_groups.contains(&group.key) {
                 let mut list = Flex::column()
                     .with_main_axis_alignment(MainAxisAlignment::Start)
@@ -246,13 +262,18 @@ impl CockpitNavView {
                     let (Some(card), Some(handle)) = (cards.get(idx), card_handles.get(idx)) else {
                         continue;
                     };
-                    list.add_child(self.render_card_row(
-                        card,
-                        handle.clone(),
-                        selected == Some(card.terminal_view_id),
-                        appearance,
-                        theme,
-                    ));
+                    list.add_child(
+                        Container::new(self.render_card_row(
+                            card,
+                            handle.clone(),
+                            selected == Some(card.terminal_view_id),
+                            appearance,
+                            theme,
+                        ))
+                        // tree 型层级:实例行整体左缩进表达从属(v1 不画线)。
+                        .with_padding_left(TREE_INDENT)
+                        .finish(),
+                    );
                 }
                 col.add_child(list.finish());
             }
@@ -270,6 +291,7 @@ impl CockpitNavView {
             ElementFill::Solid(theme.active_ui_detail().into()),
             ElementFill::None,
         )
+        .with_overlayed_scrollbar()
         .finish()
     }
 
@@ -279,7 +301,9 @@ impl CockpitNavView {
     fn render_group_header(
         &self,
         group: &CockpitCardGroup,
+        cards: &[CockpitCard],
         handle: MouseStateHandle,
+        add_button_mouse_state: MouseStateHandle,
         group_selected: bool,
         appearance: &Appearance,
         theme: &WarpTheme,
@@ -294,6 +318,20 @@ impl CockpitNavView {
             group.key.clone()
         };
         let count_label = group.range.len().to_string();
+        // 组内 working 计数(项目行右侧 ●n;Blocked 也视为等待,计入)。
+        // TODO(i18n): 纯数字角标,无需 ftl。
+        let working_count = group
+            .range
+            .clone()
+            .filter_map(|idx| cards.get(idx))
+            .filter(|c| {
+                matches!(
+                    c.status,
+                    crate::ai::cockpit::model::CockpitCardStatus::Working
+                        | crate::ai::cockpit::model::CockpitCardStatus::Blocked(_)
+                )
+            })
+            .count();
         let chevron = if collapsed { "▸" } else { "▾" };
         let key_color = if group_selected {
             theme.accent().into()
@@ -323,6 +361,15 @@ impl CockpitNavView {
                     .soft_wrap(false)
                     .finish(),
             );
+            // working 计数点(组内 working/blocked > 0 时显示 ●n)。
+            if working_count > 0 {
+                row.add_child(
+                    Text::new(format!("●{working_count}"), font_family, SMALL_FONT_SIZE)
+                        .with_color(theme.ansi_fg_yellow())
+                        .soft_wrap(false)
+                        .finish(),
+                );
+            }
             row.add_child(Expanded::new(1., Empty::new().finish()).finish());
             row.add_child(
                 Text::new(count_label.clone(), font_family, SMALL_FONT_SIZE)
@@ -330,6 +377,27 @@ impl CockpitNavView {
                     .soft_wrap(false)
                     .finish(),
             );
+            // "加项目" + 按钮:独立 MouseStateHandle + combo_inner_button
+            // (照抄 vertical_tabs render_project_section 同款)。按钮是独立
+            // Hoverable,click 在子元素处理完即返回 handled,组头的
+            // on_click(折叠)不会再触发——防冒泡。
+            let add_button = combo_inner_button(
+                appearance,
+                crate::ui_components::icons::Icon::Plus,
+                false,
+                add_button_mouse_state.clone(),
+            )
+            .with_style(
+                UiComponentStyles::default()
+                    .set_border_radius(CornerRadius::with_all(Radius::Pixels(CARD_RADIUS)))
+                    .set_font_color(theme.disabled_ui_text_color().into_solid()),
+            )
+            .build()
+            .on_click(|ctx, _, _| {
+                ctx.dispatch_typed_action(WorkspaceAction::OpenAddProjectPicker);
+            })
+            .finish();
+            row.add_child(add_button);
             let mut container = Container::new(row.finish())
                 .with_horizontal_padding(CARD_PADDING)
                 .with_vertical_padding(CARD_ROW_VERTICAL_PADDING)
@@ -346,12 +414,16 @@ impl CockpitNavView {
                     key_for_action.clone(),
                 ));
             })
+            // 子元素(加号按钮)处理过 click 时跳过本 Hoverable 的 click。
+            .with_defer_events_to_children()
             .with_cursor(Cursor::PointingHand)
             .finish()
     }
 
-    /// 单行实例卡:状态点 + 标题 + 右侧 agent 名。选中/悬停高亮(照抄
-    /// render_card focused_selected 分支)。点击 → ActivateCard。
+    /// 实例卡(两行布局):行1 = 状态点 + 标题 + 右侧 agent 名;行2 =
+    /// 小号次级色辅助信息(branch ▸ + cwd 末段 + recap 截断,全空则单行)。
+    /// 选中/悬停高亮(照抄 render_card focused_selected 分支)。点击 →
+    /// ActivateCard。
     fn render_card_row(
         &self,
         card: &CockpitCard,
@@ -371,28 +443,75 @@ impl CockpitNavView {
         };
         let card_id = card.terminal_view_id;
 
+        // 行2 辅助段:branch(有则 ▸branch)+ cwd 末段(有则)+ recap 截断
+        // (有则)。全空 → None,卡片退回单行。
+        // TODO(i18n): 辅助分隔符为符号,无需 ftl。
+        let mut aux_parts: Vec<String> = Vec::new();
+        if let Some(branch) = card.branch.as_deref().filter(|b| !b.trim().is_empty()) {
+            aux_parts.push(format!("▸{branch}"));
+        }
+        if let Some(cwd) = card.cwd.as_deref().filter(|c| !c.trim().is_empty()) {
+            let tail = cwd
+                .rsplit('/')
+                .find(|seg| !seg.trim().is_empty())
+                .unwrap_or(cwd);
+            aux_parts.push(tail.to_string());
+        }
+        if let Some(recap) = card.recap.as_deref().filter(|r| !r.trim().is_empty()) {
+            aux_parts.push(truncate_str(recap, RECAP_MAX_CHARS));
+        }
+        let aux_label = if aux_parts.is_empty() {
+            None
+        } else {
+            Some(aux_parts.join("  "))
+        };
+
         let content = move |hovered: bool| {
-            let mut row = Flex::row()
+            // 行1:状态点 + 标题 + agent 名。
+            let mut first_line = Flex::row()
                 .with_main_axis_size(MainAxisSize::Max)
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                 .with_spacing(SPACING);
             if let Some(key) = &dot_key {
-                row.add_child(status_dot_element(key, theme));
+                first_line.add_child(status_dot_element(key, theme));
             }
-            row.add_child(
-                Text::new(title.clone(), font_family, FONT_SIZE)
-                    .with_color(theme.main_text_color(theme.background()).into())
-                    .soft_wrap(false)
-                    .finish(),
+            first_line.add_child(
+                Shrinkable::new(
+                    1.,
+                    Text::new(title.clone(), font_family, FONT_SIZE)
+                        .with_color(theme.main_text_color(theme.background()).into())
+                        .soft_wrap(false)
+                        .finish(),
+                )
+                .finish(),
             );
-            row.add_child(Expanded::new(1., Empty::new().finish()).finish());
-            row.add_child(
+            first_line.add_child(
                 Text::new(agent_label.to_string(), font_family, SMALL_FONT_SIZE)
                     .with_color(theme.disabled_ui_text_color().into_solid())
                     .soft_wrap(false)
                     .finish(),
             );
-            let mut container = Container::new(row.finish())
+
+            // 行2(可选):小号次级色辅助信息。
+            let mut body = Flex::column()
+                .with_main_axis_size(MainAxisSize::Min)
+                .with_cross_axis_alignment(CrossAxisAlignment::Start);
+            body.add_child(first_line.finish());
+            if let Some(aux) = &aux_label {
+                body.add_child(
+                    Shrinkable::new(
+                        1.,
+                        Text::new(aux.clone(), font_family, SMALL_FONT_SIZE)
+                            .with_color(theme.sub_text_color(theme.background()).into())
+                            .soft_wrap(false)
+                            .with_clip(warpui::text_layout::ClipConfig::ellipsis())
+                            .finish(),
+                    )
+                    .finish(),
+                );
+            }
+
+            let mut container = Container::new(body.finish())
                 .with_horizontal_padding(CARD_PADDING)
                 .with_vertical_padding(CARD_ROW_VERTICAL_PADDING)
                 .with_corner_radius(CornerRadius::with_all(Radius::Pixels(CARD_RADIUS)))
