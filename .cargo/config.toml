@@ -36,16 +36,15 @@ rustflags = ["--cfg=web_sys_unstable_apis"]
 [target.x86_64-unknown-linux-musl]
 rustflags = ["-C", "symbol-mangling-version=v0", "-C", "target-feature=+crt-static"]
 
-# Linux 桌面构建提速(2026-08-17):
-# - gold 链接器(gcc 驱动 -fuse-ld=gold): 链接大 debug 二进制比默认 bfd 快 3-5 倍;
-#   裸 rust-lld 不可行(build script 链接 host 程序时找不到 libc)。
-#   机器有 sudo 后可换 mold: linker 不变,改 rustflags "-C link-args=-fuse-ld=mold"。
-#   target-specific rustflags 整体覆盖 [build],故重新带上通用 symbol-mangling
-#   与 headerpad(非 mac 平台无害被忽略)。
-# - 配合根 Cargo.toml [profile.dev] debug="line-tables-only" 与依赖 debug=false。
+# Linux 桌面构建提速(2026-08-28):
+# - mold 2.34.1 用户级安装(~/projects/omx-scratch/mold, 无需 sudo)。
+#   本机 gcc 13 不认 -fuse-ld=<绝对路径>(仅 bfd/gold/lld 名字), rustc 1.92 的
+#   -fuse-ld=<name> 又优先走自带 gcc-ld lld shim → 唯一可靠姿势: gcc -B 目录
+#   注入, 目录里 `ld` 是指向 mold 的 symlink, collect2 查找 ld 时命中 mold。
+#   已验证 gcc -B + -Wl,-v 输出 mold 2.34.1 横幅。回退: 删本段恢复 [build] 默认 gold。
 [target.x86_64-unknown-linux-gnu]
 rustflags = [
     "-C", "symbol-mangling-version=v0",
     "-C", "link-args=-Wl,-headerpad_max_install_names",
-    "-C", "link-args=-fuse-ld=gold",
+    "-C", "link-args=-B/home/yy/projects/omx-scratch/mold/ldshim",
 ]
