@@ -3241,6 +3241,13 @@ impl Workspace {
                     ctx,
                 );
             }
+            if let crate::workspace::view::cockpit_nav::CockpitNavEvent::AddProjectRequested =
+                event
+            {
+                // 拔钉 B: nav 内原 dispatch OpenAddProjectPicker, 拆分后事件化,
+                // app 订阅转发 (唯一 picker 入口仍归 Workspace)。
+                ctx.dispatch_typed_action(&WorkspaceAction::OpenAddProjectPicker);
+            }
         });
         ws.cockpit_nav_view = Some(cockpit_nav);
 

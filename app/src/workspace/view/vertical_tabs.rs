@@ -4434,9 +4434,8 @@ impl PaneGroup {
             | IPaneType::Observatory
             | IPaneType::Cockpit
             | IPaneType::Welcome
-            | IPaneType::DeferredPlaceholder => TypedPane::Other,
-            #[cfg(test)]
-            IPaneType::Dummy => TypedPane::Other,
+            | IPaneType::DeferredPlaceholder
+            | IPaneType::Dummy => TypedPane::Other,
         }
     }
 }

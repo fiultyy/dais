@@ -48,3 +48,8 @@ rustflags = [
     "-C", "link-args=-Wl,-headerpad_max_install_names",
     "-C", "link-args=-B/home/yy/projects/omx-scratch/mold/ldshim",
 ]
+
+# 主盘空间紧张 (2026-08-29): dev profile 关增量编译,防 incremental 目录
+# 失控膨胀 (曾 36G)。代价: 增量重编退化为全量重编。
+[profile.dev]
+incremental = false

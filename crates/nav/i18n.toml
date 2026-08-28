@@ -1,0 +1,8 @@
+# fl!() compile-time 校验需要本 crate 的 i18n.toml; domain 指向 i18n crate
+# 的 warp 域 (ftl 资源在 crates/i18n/i18n/)。nav 只消费 t! 宏 (宏展开读取
+# 定义 crate 的 config), 本文件是占位满足 locate_crate_paths。
+fallback_language = "en"
+
+[fluent]
+assets_dir = "i18n"
+domain = "warp"

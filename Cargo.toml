@@ -34,6 +34,7 @@ asset_cache = { path = "crates/asset_cache" }
 asset_macro = { path = "crates/asset_macro" }
 channel_versions = { path = "crates/channel_versions", default-features = false }
 cockpit_model = { path = "crates/cockpit_model" }
+nav = { path = "crates/nav" }
 pane_tree = { path = "crates/pane_tree" }
 command = { path = "crates/command" }
 command-signatures-v2 = { path = "crates/command-signatures-v2" }

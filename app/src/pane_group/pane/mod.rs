@@ -437,7 +437,6 @@ pub(crate) fn render_pane_id(pane: &PaneId, app: &AppContext) -> Box<dyn Element
             ChildView::<PaneView<WelcomeView>>::with_id(pane.pane_view_id()).finish()
         }
         IPaneType::DeferredPlaceholder => warpui::elements::Empty::new().finish(),
-        #[cfg(test)]
         IPaneType::Dummy => warpui::elements::Empty::new().finish(),
     };
     if *PaneSettings::as_ref(app).focus_panes_on_hover {

@@ -1,0 +1,16 @@
+[package]
+name = "nav"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+cockpit_model.workspace = true
+i18n.workspace = true
+pane_tree.workspace = true
+ui_components.workspace = true
+warp_core.workspace = true
+warpui.workspace = true
+i18n-embed-fl.workspace = true
+log.workspace = true

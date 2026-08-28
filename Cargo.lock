@@ -8576,6 +8576,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nav"
+version = "0.1.0"
+dependencies = [
+ "cockpit_model",
+ "i18n",
+ "i18n-embed-fl",
+ "log",
+ "pane_tree",
+ "ui_components",
+ "warp_core",
+ "warpui",
+]
+
+[[package]]
 name = "ndarray"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15079,6 +15093,7 @@ dependencies = [
  "mockall",
  "mockito",
  "natural_language_detection",
+ "nav",
  "nix 0.26.4",
  "notify-debouncer-full",
  "num-traits",
