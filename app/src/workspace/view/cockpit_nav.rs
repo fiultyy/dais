@@ -495,14 +495,18 @@ impl CockpitNavView {
                     .finish(),
             );
 
-            // 行2(可选):小号次级色辅助信息。
+            // 行2(可选):小号次级色辅助信息。aux 行放 Expanded(Tight) 的
+            // row 里而不是 column 裸 Text: 纵向裁切实测(行2 只画 2px)来自
+            // column 直接量测 Loose 高度;Tight 行 + ellipsis 文本稳定。
             let mut body = Flex::column()
                 .with_main_axis_size(MainAxisSize::Min)
                 .with_cross_axis_alignment(CrossAxisAlignment::Start);
             body.add_child(first_line.finish());
             if let Some(aux) = &aux_label {
-                body.add_child(
-                    // 同上: Tight 钳宽,防长 recap 撑爆卡行(ellipsis 负责截断显示)。
+                let mut aux_row = Flex::row()
+                    .with_main_axis_size(MainAxisSize::Max)
+                    .with_cross_axis_alignment(CrossAxisAlignment::Center);
+                aux_row.add_child(
                     Expanded::new(
                         1.,
                         Text::new(aux.clone(), font_family, SMALL_FONT_SIZE)
@@ -513,6 +517,7 @@ impl CockpitNavView {
                     )
                     .finish(),
                 );
+                body.add_child(aux_row.finish());
             }
 
             let mut container = Container::new(body.finish())
