@@ -14,6 +14,8 @@
 //! 数据刷新:视图订阅 `CockpitEvent::SnapshotUpdated` → notify → rerender;
 //! 新鲜度自驱——挂载时首刷 + 低频对账 timer(左栏常驻,不依赖 cockpit
 //! panel_open;cockpit 面板自身的 timer 在面板关闭时空转,见其 view.rs)。
+//! 分组:nav 固定按 `CwdProject` 分组——纯内存态,不改 model 持久化偏好,
+//! 每次挂载时由本视图重设(重启后 model 回默认,由挂载路径覆盖)。
 //!
 //! 布局参照 `vertical_tabs` 紧凑导航形态,选中态样式照抄
 //! `cockpit/view.rs render_card` 的 focused_selected 分支
@@ -115,6 +117,8 @@ impl CockpitNavView {
 
     /// 构造(照抄 `CockpitPanelView::new` 形态):订阅 model 事件驱动
     /// rerender;另自驱快照新鲜度(挂载首刷 + 低频对账 timer)。
+    /// nav 固定按 `CwdProject` 分组——纯内存态,不持久化;model 的 group_by
+    /// 重启后回默认值,由本视图每次挂载重设。
 
     pub fn new(model: ModelHandle<CockpitModel>, ctx: &mut ViewContext<Self>) -> Self {
         // 订阅 model 事件(六环 #5→#6:选中态/快照更新 → notify → rerender)。
@@ -122,6 +126,7 @@ impl CockpitNavView {
             ctx.notify();
         });
 
+        model.update(ctx, |m, ctx| m.set_group_by(crate::ai::cockpit::model::CockpitGroupBy::CwdProject, ctx));
         model.update(ctx, |m, ctx| m.refresh(ctx));
         let mut me = Self {
             model,

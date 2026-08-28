@@ -73,7 +73,7 @@ use warp_core::ui::Icon as WarpIcon;
 use warpui::elements::DispatchEventResult;
 use warpui::elements::{
     resizable_state_handle, Border, ChildAnchor, Clipped, ClippedScrollStateHandle,
-    ClippedScrollable, ConstrainedBox, Container, CornerRadius, CrossAxisAlignment,
+    ClippedScrollable, ChildView, ConstrainedBox, Container, CornerRadius, CrossAxisAlignment,
     DragBarSide, Draggable, DropShadow, DropTarget, Element, Empty, EventHandler, Expanded,
     Fill as ElementFill, Flex, Hoverable, MainAxisAlignment, MainAxisSize, MouseStateHandle,
     OffsetPositioning, Padding, ParentAnchor, ParentElement, ParentOffsetBounds,
@@ -2343,11 +2343,14 @@ fn render_vertical_tabs_panel(
     // same set already shown by the top-bar list and the selected card's
     // embedded subtree. Hide it (and the separator) so each tab appears once
     // per surface; the "All" view keeps the full vertical list.
+    // 2026-08 GUI 重构纠偏: 左栏主体区(项目/全部两分支同款)嵌入 cockpit
+    // 导航视图(CockpitNavView);header 工具行与 rail footer 部件原样保留,
+    // nav handle 缺失时退化为空元素占位。
+    let nav_element = workspace
+        .cockpit_nav_handle()
+        .map(|h| ChildView::new(h).finish())
+        .unwrap_or_else(|| Empty::new().finish());
     let panel_content = if workspace.active_project.is_some() {
-        let has_ungrouped = workspace
-            .tabs
-            .iter()
-            .any(|tab| tab.project_path.is_none());
         let mut project_view = Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
@@ -2358,40 +2361,11 @@ fn render_vertical_tabs_panel(
                 app,
                 /* show_separator */ false,
             ));
-        // 无项目实例:项目过滤保留它们,但项目卡子树只嵌 project_path
-        // =Some 的 tab——不单独列出会从大纲消失。收纳进「未分组」可折叠组。
-        if has_ungrouped {
-            project_view = project_view.with_child(Box::new(Expanded::new(
-                1.,
-                ClippedScrollable::vertical(
-                    state.scroll_state.clone(),
-                    render_ungrouped_group(state, workspace, app),
-                    ScrollbarWidth::Custom(4.),
-                    theme.nonactive_ui_detail().into(),
-                    theme.active_ui_detail().into(),
-                    ElementFill::None,
-                )
-                .with_overlayed_scrollbar()
-                .finish(),
-            )));
-        } else {
-            project_view =
-                project_view.with_child(Box::new(Expanded::new(1., Empty::new().finish())));
-        }
+        project_view = project_view.with_child(Box::new(Expanded::new(1., nav_element)));
         project_view
             .with_child(render_rail_footer(workspace, app))
             .finish()
     } else {
-        let scrollable_groups = ClippedScrollable::vertical(
-            state.scroll_state.clone(),
-            render_groups(state, workspace, app),
-            ScrollbarWidth::Custom(4.),
-            theme.nonactive_ui_detail().into(),
-            theme.active_ui_detail().into(),
-            ElementFill::None,
-        )
-        .with_overlayed_scrollbar()
-        .finish();
         let mut all_view = Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
@@ -2403,7 +2377,7 @@ fn render_vertical_tabs_panel(
                 /* show_separator */ true,
             )); // BISECT-control-bar: control bar temporarily removed
         if !state.all_projects_collapsed.get() {
-            all_view = all_view.with_child(Box::new(Expanded::new(1., scrollable_groups)));
+            all_view = all_view.with_child(Box::new(Expanded::new(1., nav_element)));
         } else {
             all_view = all_view.with_child(Box::new(Expanded::new(1., Empty::new().finish())));
         }
@@ -7386,11 +7360,12 @@ impl Workspace {
         render_vertical_tabs_panel(&self.vertical_tabs_panel, self, side, app)
     }
 
-    /// 左栏(cockpit 导航)复用 vertical tabs 的窗口持久化宽度状态
-    /// (ModalType::VerticalTabsWidth): 返回已 adopt 的 handle 克隆,供
-    /// view.rs 侧构造同宽度管线的 Resizable 外壳。
-    pub(super) fn cockpit_nav_resizable_state(&self) -> ResizableStateHandle {
-        self.vertical_tabs_panel.resizable_state.clone()
+    /// 字段访问桥:cockpit_nav_view 是 view.rs 私有字段,本子模块经此
+    /// 只读借用 handle 构造 ChildView,把导航视图嵌回面板主体区。
+    pub(super) fn cockpit_nav_handle(
+        &self,
+    ) -> Option<&ViewHandle<crate::workspace::view::cockpit_nav::CockpitNavView>> {
+        self.cockpit_nav_view.as_ref()
     }
 
     /// Replace the vertical tabs panel's default width handle with the

@@ -25,9 +25,6 @@ use self::vertical_tabs::{
     VERTICAL_TABS_SETTINGS_BUTTON_POSITION_ID,
 };
 
-/// 左栏(cockpit 导航)Resizable 宽度边界(值与 vertical_tabs.rs 面板一致)。
-const COCKPIT_NAV_MIN_PANEL_WIDTH: f32 = 200.;
-const COCKPIT_NAV_MAX_PANEL_WIDTH_RATIO: f32 = 0.5;
 use crate::workspace::cross_window_tab_drag::{
     AttachTarget, CrossWindowTabDrag, DragResult, DropResult, GhostState,
 };
@@ -366,8 +363,8 @@ use warpui::clipboard::ClipboardContent;
 #[cfg(target_family = "wasm")]
 use warpui::elements::Percentage;
 use warpui::elements::{
-    CacheOption, ClippedScrollStateHandle, DispatchEventResult, DragBarSide, DraggableState,
-    DropTarget, EventHandler, Image, MouseInBehavior, Rect, Resizable,
+    CacheOption, ClippedScrollStateHandle, DispatchEventResult, DraggableState,
+    DropTarget, EventHandler, Image, MouseInBehavior, Rect,
 };
 use warpui::ui_components::button::Button;
 use warpui::windowing::{StateEvent, WindowManager};
@@ -4993,38 +4990,6 @@ impl Workspace {
                 return;
             }
         }
-    }
-
-    /// 左栏面板壳(cockpit 导航): 复用旧 vertical tabs 的 Resizable 宽度管线
-    /// (同一窗口持久化 handle,拖宽/恢复行为不变),内容换成 CockpitNavView。
-    fn render_cockpit_nav_panel(&self, side: PanelPosition, app: &AppContext) -> Box<dyn Element> {
-        let appearance = Appearance::as_ref(app);
-        let theme = appearance.theme();
-        let drag_side = match side {
-            PanelPosition::Left => DragBarSide::Right,
-            PanelPosition::Right => DragBarSide::Left,
-        };
-        let nav = self
-            .cockpit_nav_view
-            .as_ref()
-            .map(|view| ChildView::new(view).finish())
-            .unwrap_or_else(|| Empty::new().finish());
-        let inner = Container::new(nav)
-            .with_background(internal_colors::fg_overlay_1(theme))
-            .finish();
-        Resizable::new(self.cockpit_nav_resizable_state(), inner)
-            .with_dragbar_side(drag_side)
-            .on_resize(|ctx, _| {
-                ctx.notify();
-            })
-            .with_bounds_callback(Box::new(|window_size| {
-                let max_width = window_size.x() * COCKPIT_NAV_MAX_PANEL_WIDTH_RATIO;
-                (
-                    COCKPIT_NAV_MIN_PANEL_WIDTH,
-                    max_width.max(COCKPIT_NAV_MIN_PANEL_WIDTH),
-                )
-            }))
-            .finish()
     }
 
     /// This function is meant to be used by other actions to perform the logic to update the
@@ -19076,7 +19041,7 @@ impl Workspace {
                 &mut prev_panel_added,
                 Some(
                     SavePosition::new(
-                        self.render_cockpit_nav_panel(Self::tabs_panel_side(&config), app),
+                        self.render_vertical_tabs_panel(Self::tabs_panel_side(&config), app),
                         VERTICAL_TABS_PANEL_POSITION_ID,
                     )
                     .finish(),
@@ -19680,7 +19645,7 @@ impl Workspace {
                 &mut prev_panel_added,
                 Some(
                     SavePosition::new(
-                        self.render_cockpit_nav_panel(Self::tabs_panel_side(&config), app),
+                        self.render_vertical_tabs_panel(Self::tabs_panel_side(&config), app),
                         VERTICAL_TABS_PANEL_POSITION_ID,
                     )
                     .finish(),
