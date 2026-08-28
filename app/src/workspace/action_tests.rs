@@ -16,8 +16,9 @@ fn vertical_tabs_view_mode_change_does_not_save_workspace_state() {
 }
 
 #[test]
-fn vertical_tabs_panel_toggle_still_saves_workspace_state() {
-    assert!(WorkspaceAction::ToggleVerticalTabsPanel.should_save_app_state_on_action());
+fn vertical_tabs_panel_toggle_no_longer_saves_workspace_state() {
+    // v3b: 左栏常驻,toggle 退化为 no-op,不应标记需要保存。
+    assert!(!WorkspaceAction::ToggleVerticalTabsPanel.should_save_app_state_on_action());
 }
 
 #[test]

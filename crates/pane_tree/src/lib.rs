@@ -8,6 +8,9 @@
 //! 幂等测试锁定: serde round-trip (Serialize→Deserialize 恒等) / Display
 //! 稳定性 / Ord 全序(HashMap/排序依赖)。
 
+pub mod snapshot;
+pub use snapshot::{BranchSnapshot, LeafSnapshot, PaneFlex, PaneNodeSnapshot, SplitDirection};
+
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};

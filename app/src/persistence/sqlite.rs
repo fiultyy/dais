@@ -1076,7 +1076,6 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
                 voltron_width: window.voltron_width,
                 warp_drive_index_width: window.warp_drive_index_width,
                 left_panel_open: Some(window.left_panel_open),
-                vertical_tabs_panel_open: Some(window.vertical_tabs_panel_open),
                 fullscreen_state: window.fullscreen_state as i32,
                 agent_management_filters: window
                     .agent_management_filters
@@ -2785,7 +2784,6 @@ fn read_sqlite_data(
                         root,
                         custom_title: tab.custom_title,
                         project_path: tab.project_path,
-                        region_id: 0,
                         default_directory_color: None,
                         selected_color: tab
                             .color
@@ -2881,7 +2879,6 @@ fn read_sqlite_data(
                 voltron_width: window.voltron_width,
                 warp_drive_index_width: window.warp_drive_index_width,
                 left_panel_open: window_left_panel_open,
-                vertical_tabs_panel_open: window.vertical_tabs_panel_open.unwrap_or(false),
                 fullscreen_state: fullscreen_state_val,
                 left_panel_width,
                 right_panel_width,

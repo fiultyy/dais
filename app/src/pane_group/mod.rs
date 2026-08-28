@@ -1443,7 +1443,7 @@ impl PaneGroup {
                     ) {
                         Ok((child, child_focus)) => {
                             len += child.len();
-                            nodes.push((flex.into(), child.root));
+                            nodes.push((flex, child.root));
 
                             focus.merge(child_focus);
                         }
@@ -1458,7 +1458,7 @@ impl PaneGroup {
                 }
 
                 let axis = pane.direction;
-                Ok((PaneData::new_branch(axis.into(), nodes, len), focus))
+                Ok((PaneData::new_branch(axis, nodes, len), focus))
             }
         }
     }
@@ -2011,7 +2011,7 @@ impl PaneGroup {
                     .collect();
 
                 PaneNodeSnapshot::Branch(BranchSnapshot {
-                    direction: branch.axis().into(),
+                    direction: branch.axis(),
                     children,
                 })
             }

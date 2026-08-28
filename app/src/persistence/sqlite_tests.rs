@@ -114,7 +114,7 @@ fn test_deduplicate_no_snapshots() {
     assert!(matches!(&filtered_events[0], &ModelEvent::SaveBlock(_)));
 }
 
-fn test_terminal_window_snapshot(vertical_tabs_panel_open: bool) -> WindowSnapshot {
+fn test_terminal_window_snapshot() -> WindowSnapshot {
     WindowSnapshot {
         tabs: vec![TabSnapshot {
             custom_title: None,
@@ -122,7 +122,7 @@ fn test_terminal_window_snapshot(vertical_tabs_panel_open: bool) -> WindowSnapsh
                 is_focused: true,
                 custom_vertical_tabs_title: None,
                 contents: LeafContents::Terminal(TerminalPaneSnapshot {
-                    uuid: vec![u8::from(vertical_tabs_panel_open) + 1],
+                    uuid: vec![1],
                     cwd: Some("/tmp".to_string()),
                     shell_launch_data: Some(ShellLaunchData::Executable {
                         executable_path: PathBuf::from("/bin/zsh"),
@@ -140,7 +140,6 @@ fn test_terminal_window_snapshot(vertical_tabs_panel_open: bool) -> WindowSnapsh
             default_directory_color: None,
             selected_color: SelectedTabColor::default(),
             project_path: None,
-            region_id: 0,
             left_panel: None,
             right_panel: None,
         }],
@@ -153,7 +152,6 @@ fn test_terminal_window_snapshot(vertical_tabs_panel_open: bool) -> WindowSnapsh
         voltron_width: None,
         warp_drive_index_width: None,
         left_panel_open: false,
-        vertical_tabs_panel_open,
         left_panel_width: None,
         right_panel_width: None,
         agent_management_filters: None,
@@ -166,15 +164,15 @@ fn test_terminal_window_snapshot(vertical_tabs_panel_open: bool) -> WindowSnapsh
 }
 
 #[test]
-fn test_sqlite_round_trips_vertical_tabs_panel_open() {
+fn test_sqlite_round_trips_windows() {
     let tempdir = tempfile::tempdir().expect("tempdir should be created");
     let database_path = tempdir.path().join("warp.sqlite");
     let mut conn = setup_database(&database_path).expect("database should initialize");
 
     let app_state = AppState {
         windows: vec![
-            test_terminal_window_snapshot(false),
-            test_terminal_window_snapshot(true),
+            test_terminal_window_snapshot(),
+            test_terminal_window_snapshot(),
         ],
         active_window_index: Some(1),
         block_lists: Default::default(),
@@ -188,14 +186,7 @@ fn test_sqlite_round_trips_vertical_tabs_panel_open() {
         .app_state;
 
     assert_eq!(restored.active_window_index, Some(1));
-    assert_eq!(
-        restored
-            .windows
-            .iter()
-            .map(|window| window.vertical_tabs_panel_open)
-            .collect::<Vec<_>>(),
-        vec![false, true]
-    );
+    assert_eq!(restored.windows.len(), 2);
 }
 
 #[test]
@@ -230,7 +221,6 @@ fn test_sqlite_round_trips_custom_vertical_tabs_title() {
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
                 project_path: None,
-                region_id: 0,
                 left_panel: None,
                 right_panel: None,
             }],
@@ -243,7 +233,6 @@ fn test_sqlite_round_trips_custom_vertical_tabs_title() {
             voltron_width: None,
             warp_drive_index_width: None,
             left_panel_open: false,
-            vertical_tabs_panel_open: false,
             left_panel_width: None,
             right_panel_width: None,
             agent_management_filters: None,
@@ -309,7 +298,6 @@ fn test_sqlite_round_trips_tab_project_path() {
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
                 project_path: Some("/home/yy/warpdotdev/dais".to_string()),
-                region_id: 0,
                 left_panel: None,
                 right_panel: None,
             }],
@@ -322,7 +310,6 @@ fn test_sqlite_round_trips_tab_project_path() {
             voltron_width: None,
             warp_drive_index_width: None,
             left_panel_open: false,
-            vertical_tabs_panel_open: false,
             left_panel_width: None,
             right_panel_width: None,
             agent_management_filters: None,
@@ -381,7 +368,6 @@ fn test_sqlite_round_trips_window_active_project() {
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
                 project_path: None,
-                region_id: 0,
                 left_panel: None,
                 right_panel: None,
             }],
@@ -394,7 +380,6 @@ fn test_sqlite_round_trips_window_active_project() {
             voltron_width: None,
             warp_drive_index_width: None,
             left_panel_open: false,
-            vertical_tabs_panel_open: false,
             left_panel_width: None,
             right_panel_width: None,
             agent_management_filters: None,
@@ -467,7 +452,6 @@ fn test_sqlite_round_trips_window_vertical_tabs_width() {
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
                 project_path: None,
-                region_id: 0,
                 left_panel: None,
                 right_panel: None,
             }],
@@ -480,7 +464,6 @@ fn test_sqlite_round_trips_window_vertical_tabs_width() {
             voltron_width: None,
             warp_drive_index_width: None,
             left_panel_open: false,
-            vertical_tabs_panel_open: false,
             left_panel_width: None,
             right_panel_width: None,
             agent_management_filters: None,
@@ -536,7 +519,6 @@ fn test_sqlite_round_trips_code_pane_with_multiple_tabs() {
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
                 project_path: None,
-                region_id: 0,
                 left_panel: None,
                 right_panel: None,
             }],
@@ -549,7 +531,6 @@ fn test_sqlite_round_trips_code_pane_with_multiple_tabs() {
             voltron_width: None,
             warp_drive_index_width: None,
             left_panel_open: false,
-            vertical_tabs_panel_open: false,
             left_panel_width: None,
             right_panel_width: None,
             agent_management_filters: None,

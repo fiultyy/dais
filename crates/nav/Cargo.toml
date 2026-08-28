@@ -9,6 +9,10 @@ publish.workspace = true
 cockpit_model.workspace = true
 i18n.workspace = true
 pane_tree.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+settings_value = { workspace = true, features = ["derive"] }
 ui_components.workspace = true
 warp_core.workspace = true
 warpui.workspace = true

@@ -861,7 +861,6 @@ pub struct TransferredTab {
     pub color: Option<AnsiColorIdentifier>,
     pub custom_title: Option<String>,
     pub left_panel_open: bool,
-    pub vertical_tabs_panel_open: bool,
     pub right_panel_open: bool,
     pub is_right_panel_maximized: bool,
     pub draggable_state: DraggableState,
@@ -1037,7 +1036,6 @@ pub struct Workspace {
     file_upload_sessions: FileUploadSessions,
     ai_fact_view: ViewHandle<AIFactView>,
     left_panel_open: bool,
-    vertical_tabs_panel_open: bool,
     vertical_tabs_panel: VerticalTabsPanelState,
     left_panel_view: ViewHandle<LeftPanelView>,
     left_panel_views: Vec<ToolPanelView>,
@@ -2206,14 +2204,10 @@ impl Workspace {
     ) {
     }
 
-    /// Opens the vertical tabs panel if the setting was enabled.
-    /// Called from the onboarding flow before the session config modal is shown.
+    /// v3b: 曾在 onboarding 前"若启用则打开垂直面板"。面板已常驻,此函数
+    /// 退化为保留调用点时序的 no-op 通知 (root_view 两处调用)。
     pub(crate) fn open_vertical_tabs_panel_if_enabled(&mut self, ctx: &mut ViewContext<Self>) {
-        if FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(ctx).use_vertical_tabs {
-            self.vertical_tabs_panel_open = true;
-            self.sync_window_button_visibility(ctx);
-            ctx.notify();
-        }
+        ctx.notify();
     }
 
     fn show_hoa_onboarding_flow(&mut self, ctx: &mut ViewContext<Self>) {
@@ -2225,8 +2219,6 @@ impl Workspace {
         TabSettings::handle(ctx).update(ctx, |settings, ctx| {
             let _ = settings.use_vertical_tabs.set_value(true, ctx);
         });
-        self.vertical_tabs_panel_open = true;
-        self.sync_window_button_visibility(ctx);
 
         // The pinned position is captured lazily on the first step change
         // (when the user advances past the welcome banner). At that point the
@@ -3160,7 +3152,6 @@ impl Workspace {
             file_upload_sessions: Default::default(),
             ai_fact_view,
             left_panel_open: false,
-            vertical_tabs_panel_open: false,
             vertical_tabs_panel: Default::default(),
             left_panel_view,
             left_panel_views,
@@ -3417,11 +3408,6 @@ impl Workspace {
             }
             TabSettingsChangedEvent::UseVerticalTabs { .. } => {
                 let vertical_tabs_enabled = *TabSettings::as_ref(ctx).use_vertical_tabs;
-                // During HOA onboarding, keep the vertical tabs panel open
-                // regardless of the setting so the callout stays anchored.
-                if self.hoa_onboarding_flow.is_none() {
-                    self.vertical_tabs_panel_open = vertical_tabs_enabled;
-                }
 
                 if vertical_tabs_enabled {
                     Self::ensure_tabs_panel_in_config(ctx);
@@ -3441,13 +3427,9 @@ impl Workspace {
                 self.sync_window_button_visibility(ctx);
                 ctx.notify();
             }
+            // v3b: ShowVerticalTabPanelInRestoredWindows 只影响恢复窗口时的
+            // 面板开合 (僵尸布尔已删), 不再有渲染语义 — 仅保留 notify。
             TabSettingsChangedEvent::ShowVerticalTabPanelInRestoredWindows { .. } => {
-                if FeatureFlag::VerticalTabs.is_enabled()
-                    && *TabSettings::as_ref(ctx).use_vertical_tabs
-                    && *TabSettings::as_ref(ctx).show_vertical_tab_panel_in_restored_windows
-                {
-                    self.vertical_tabs_panel_open = true;
-                }
                 ctx.notify();
             }
             TabSettingsChangedEvent::ShowCodeReviewButton { .. } => {
@@ -3550,8 +3532,6 @@ impl Workspace {
         workspace_setting: NewWorkspaceSource,
         ctx: &mut ViewContext<Self>,
     ) {
-        self.vertical_tabs_panel_open =
-            Self::initial_vertical_tabs_panel_open(&workspace_setting, ctx);
         match workspace_setting {
             NewWorkspaceSource::Empty {
                 previous_active_window,
@@ -3821,49 +3801,6 @@ impl Workspace {
         self.left_panel_view.update(ctx, |left_panel, ctx| {
             left_panel.set_active_pane_group(active_pane_group, &working_directories_model, ctx);
         });
-    }
-
-    fn initial_vertical_tabs_panel_open(
-        workspace_setting: &NewWorkspaceSource,
-        ctx: &AppContext,
-    ) -> bool {
-        let should_default_open =
-            FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(ctx).use_vertical_tabs;
-
-        match workspace_setting {
-            NewWorkspaceSource::Restored {
-                window_snapshot, ..
-            } => {
-                if should_default_open
-                    && *TabSettings::as_ref(ctx).show_vertical_tab_panel_in_restored_windows
-                {
-                    true
-                } else {
-                    window_snapshot.vertical_tabs_panel_open
-                }
-            }
-            NewWorkspaceSource::TransferredTab {
-                vertical_tabs_panel_open,
-                ..
-            } => *vertical_tabs_panel_open,
-            NewWorkspaceSource::Empty { .. }
-            | NewWorkspaceSource::FromTemplate { .. }
-            | NewWorkspaceSource::Session { .. }
-            | NewWorkspaceSource::AgentSession { .. }
-            | NewWorkspaceSource::NotebookFromFilePath { .. } => should_default_open,
-            #[cfg(not(target_family = "wasm"))]
-            NewWorkspaceSource::FromCloudConversationId { .. }
-            | NewWorkspaceSource::NotebookById { .. }
-            | NewWorkspaceSource::WorkflowById { .. } => should_default_open,
-            #[cfg(target_family = "wasm")]
-            NewWorkspaceSource::FromCloudConversationId { .. }
-            | NewWorkspaceSource::NotebookById { .. }
-            | NewWorkspaceSource::WorkflowById { .. } => {
-                // Web opens these as single-purpose views without exposed multi-tab UI, so keep
-                // the tabs panel closed even though native windows still expose workspace chrome.
-                false
-            }
-        }
     }
 
     fn restore_left_panel_for_tab(
@@ -5061,10 +4998,7 @@ impl Workspace {
         }
         self.record_tab_focus_for_project(index);
 
-        if self.vertical_tabs_panel_open
-            && FeatureFlag::VerticalTabs.is_enabled()
-            && *TabSettings::as_ref(ctx).use_vertical_tabs
-        {
+        if FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(ctx).use_vertical_tabs {
             self.vertical_tabs_panel.scroll_to_tab(index);
         }
 
@@ -5711,7 +5645,7 @@ impl Workspace {
 
     /// Header 收敛迁移(2026-08 GUI 重构): 旧 Custom 配置里残留的
     /// TabsPanel/ToolsPanel/AgentManagement 一并清出。三项功能退役——左栏
-    /// 改为 cockpit 常驻导航(不可收起,渲染不再读 vertical_tabs_panel_open),
+    /// 改为 cockpit 常驻导航(不可收起,渲染无开关状态),
     /// 工具箱入口移至 rail footer。镜像 ensure_cockpit_in_config 的一次性
     /// 标记模式,Default 配置随 default_left 收敛无需处理。
     #[cfg(not(target_family = "wasm"))]
@@ -6900,10 +6834,7 @@ impl Workspace {
         }
 
         if use_vertical_tabs {
-            if !self.vertical_tabs_panel_open {
-                self.vertical_tabs_panel_open = true;
-                self.sync_window_button_visibility(ctx);
-            }
+            // v3b: 左栏常驻,无需先"打开面板"。
             self.open_tab_configs_menu(
                 Vector2F::zero(),
                 true,
@@ -8457,10 +8388,8 @@ impl Workspace {
     }
 
     fn toggle_vertical_tabs_panel(&mut self, ctx: &mut ViewContext<Self>) {
-        // 2026-08 GUI 重构: 左栏常驻,收起功能退役。action 与 keybinding 保留
-        // 以兼容残留绑定,但语义退化为 no-op(强制常开)。
-        self.vertical_tabs_panel_open = true;
-        self.sync_window_button_visibility(ctx);
+        // v3b: 左栏常驻,收起功能退役。action 与键位保留以兼容残留绑定,
+        // 语义为 no-op (面板不可关闭,无状态可翻转)。
         ctx.notify();
     }
 
@@ -10301,11 +10230,6 @@ impl Workspace {
                         .get(tab_index)
                         .and_then(|tab| tab.project_path.as_ref())
                         .map(|p| p.to_string_lossy().into_owned()),
-                    region_id: self
-                        .tabs
-                        .get(tab_index)
-                        .map(|tab| tab.region_id)
-                        .unwrap_or(0),
                     left_panel,
                     right_panel,
                 };
@@ -10439,7 +10363,6 @@ impl Workspace {
             voltron_width,
             warp_drive_index_width,
             left_panel_open: self.left_panel_open,
-            vertical_tabs_panel_open: self.vertical_tabs_panel_open,
             left_panel_width,
             right_panel_width,
             agent_management_filters: None,
@@ -12465,8 +12388,7 @@ impl Workspace {
 
         // Check if any of the menus/popups rendered relative to the tab bar are open.
         let is_vertical_tabs_active = FeatureFlag::VerticalTabs.is_enabled()
-            && *TabSettings::as_ref(app).use_vertical_tabs
-            && self.vertical_tabs_panel_open;
+            && *TabSettings::as_ref(app).use_vertical_tabs;
         let is_tab_menu_open = self.show_tab_bar_overflow_menu
             || (self.show_tab_right_click_menu.is_some() && !is_vertical_tabs_active)
             || (self.show_new_session_dropdown_menu.is_some() && !is_vertical_tabs_active)
@@ -17158,8 +17080,9 @@ impl Workspace {
 
         let (is_active, tooltip_text, action, keybinding_name, save_position_id) =
             if vertical_tabs_active {
+                // v3b: 左栏常驻,开关按钮恒为"激活态" (无收起语义)。
                 (
-                    self.vertical_tabs_panel_open,
+                    true,
                     crate::t!("workspace-tabs-panel-tooltip"),
                     WorkspaceAction::ToggleVerticalTabsPanel,
                     "workspace:toggle_vertical_tabs_panel",
@@ -17806,28 +17729,19 @@ impl Workspace {
         }
         let vertical_tabs_active =
             FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(ctx).use_vertical_tabs;
-        let inner = match item {
-            HeaderToolbarItemKind::TabsPanel => self.render_left_toggle_button(appearance, ctx),
-            HeaderToolbarItemKind::ToolsPanel => {
-                if self.left_panel_views.is_empty() {
-                    return None;
-                }
-                if vertical_tabs_active {
-                    self.render_tools_panel_button(appearance, ctx)
-                } else {
-                    self.render_left_toggle_button(appearance, ctx)
-                }
-            }
-            HeaderToolbarItemKind::AgentManagement => {
-                self.render_agent_management_view_button(appearance, ctx)
-            }
-            HeaderToolbarItemKind::CodeReview => self.render_right_panel_button(appearance, ctx),
-            HeaderToolbarItemKind::Observatory => self.render_observatory_button(appearance, ctx),
-            #[cfg(not(target_family = "wasm"))]
-            HeaderToolbarItemKind::Cockpit => self.render_cockpit_button(appearance, ctx),
-            HeaderToolbarItemKind::NotificationsMailbox => {
-                self.render_notifications_mailbox_button(appearance, ctx)
-            }
+        // v3a: 按钮工厂收敛为查表 — registry 按 kind 分发到 PanelHost 实现
+        // (Workspace), ToolsPanel 的空面板特判留在宿主方法内。
+        let registry = nav::panel_api::default_panel_registry();
+        let descriptor = registry.get(item)?;
+        let inner: Box<dyn Element> = if *item == HeaderToolbarItemKind::ToolsPanel
+            && self.left_panel_views.is_empty()
+        {
+            return None;
+        } else if *item == HeaderToolbarItemKind::ToolsPanel && !vertical_tabs_active {
+            // 旧水平模式: ToolsPanel 与左栏开关同一按钮。
+            self.render_left_toggle_button(appearance, ctx)
+        } else {
+            (descriptor.render)(self, item, appearance, ctx)
         };
         Some(
             Container::new(
@@ -19032,58 +18946,17 @@ impl Workspace {
             let config = TabSettings::as_ref(app)
                 .header_toolbar_chip_selection
                 .clone();
-            let mut prev_panel_added = false;
-            // 常驻左栏(旧 TabsPanel 位): 两种 tab 模式都无条件渲染,收起退役。
-            Self::add_panel_with_separator(
+            // v3a: 面板行布局 (常驻左栏 + config 左/右面板 + 终端区) 与
+            // render_panels 同构,收敛到共享自由函数。
+            render_panel_row_layout(
+                self,
                 &mut main_content,
-                &mut prev_panel_added,
-                Some(
-                    SavePosition::new(
-                        self.render_vertical_tabs_panel(Self::tabs_panel_side(&config), app),
-                        VERTICAL_TABS_PANEL_POSITION_ID,
-                    )
-                    .finish(),
-                ),
+                &config,
+                pane_group,
                 app,
+                Some(terminal_content),
+                is_right_maximized,
             );
-            for item in config.left_items() {
-                if item == HeaderToolbarItemKind::TabsPanel {
-                    continue; // 已常驻,跳过配置残留。
-                }
-                Self::add_panel_with_separator(
-                    &mut main_content,
-                    &mut prev_panel_added,
-                    self.render_config_panel(&item, pane_group, &config, app),
-                    app,
-                );
-            }
-
-            if !is_right_maximized {
-                if prev_panel_added {
-                    main_content.add_child(Self::render_panel_separator(app));
-                }
-                main_content =
-                    main_content.with_child(Shrinkable::new(1.0, terminal_content).finish());
-                prev_panel_added = true;
-            }
-
-            for item in config.right_items() {
-                Self::add_panel_with_separator(
-                    &mut main_content,
-                    &mut prev_panel_added,
-                    self.render_config_panel(&item, pane_group, &config, app),
-                    app,
-                );
-            }
-
-            if is_right_maximized {
-                Self::add_panel_with_separator(
-                    &mut main_content,
-                    &mut prev_panel_added,
-                    self.render_config_panel_maximized(pane_group, &config, app),
-                    app,
-                );
-            }
         } else if !is_right_maximized {
             main_content = main_content.with_child(Shrinkable::new(1.0, terminal_content).finish());
         }
@@ -19631,37 +19504,23 @@ impl Workspace {
         // 2026-08 GUI 重构: 左栏(cockpit 驱动的核心导航)无条件常驻,不再走
         // header_toolbar_chip_selection 配置——收起功能退役,配置里也清不掉。
         // 其余 config 驱动面板(CodeReview 等)仍走配置。
+
+        // v3a: 常驻左栏 + config 左面板段与 banner 侧同构,收敛到共享
+        // 自由函数; 终端区由本函数随后插入。
         if vertical_tabs_active {
             let config = TabSettings::as_ref(app)
                 .header_toolbar_chip_selection
                 .clone();
             let pane_group = self.active_tab_pane_group().as_ref(app);
-
-            // 常驻左栏(旧 TabsPanel 位)。
-            Self::add_panel_with_separator(
+            render_panel_row_layout(
+                self,
                 &mut panels_view,
-                &mut prev_panel_added,
-                Some(
-                    SavePosition::new(
-                        self.render_vertical_tabs_panel(Self::tabs_panel_side(&config), app),
-                        VERTICAL_TABS_PANEL_POSITION_ID,
-                    )
-                    .finish(),
-                ),
+                &config,
+                pane_group,
                 app,
+                None,
+                false,
             );
-
-            for item in config.left_items() {
-                if item == HeaderToolbarItemKind::TabsPanel {
-                    continue; // 已常驻,跳过配置残留。
-                }
-                Self::add_panel_with_separator(
-                    &mut panels_view,
-                    &mut prev_panel_added,
-                    self.render_config_panel(&item, pane_group, &config, app),
-                    app,
-                );
-            }
         }
 
         // Theme chooser (workspace-level, not configurable).
@@ -19679,7 +19538,6 @@ impl Workspace {
             ));
             prev_panel_added = false;
         }
-
         if prev_panel_added {
             panels_view.add_child(Self::render_panel_separator(app));
         }
@@ -19693,26 +19551,18 @@ impl Workspace {
                 .header_toolbar_chip_selection
                 .clone();
             let pane_group = self.active_tab_pane_group().as_ref(app);
-
-            for item in config.right_items() {
-                Self::add_panel_with_separator(
-                    &mut panels_view,
-                    &mut prev_panel_added,
-                    self.render_config_panel(&item, pane_group, &config, app),
-                    app,
-                );
-            }
-
-            if pane_group.right_panel_open && pane_group.is_right_panel_maximized {
-                Self::add_panel_with_separator(
-                    &mut panels_view,
-                    &mut prev_panel_added,
-                    self.render_config_panel_maximized(pane_group, &config, app),
-                    app,
-                );
-            }
+            // v3a: config 右面板 + maximized 段同样与 banner 侧同构,复用
+            // helper 的右半段 (terminal 已由上方插入,传 None)。
+            render_panel_row_layout(
+                self,
+                &mut panels_view,
+                &config,
+                pane_group,
+                app,
+                None,
+                pane_group.right_panel_open && pane_group.is_right_panel_maximized,
+            );
         }
-
         #[cfg(target_family = "wasm")]
         if !warpui::platform::wasm::is_mobile_device()
             && self
@@ -21077,7 +20927,6 @@ impl TypedActionView for Workspace {
             ToggleVerticalTabsSettingsPopup => {
                 if FeatureFlag::VerticalTabs.is_enabled()
                     && *TabSettings::as_ref(ctx).use_vertical_tabs
-                    && self.vertical_tabs_panel_open
                 {
                     self.vertical_tabs_panel.show_settings_popup =
                         !self.vertical_tabs_panel.show_settings_popup;
@@ -22550,7 +22399,6 @@ impl View for Workspace {
         if !use_simplified_wasm_tab_bar
             && FeatureFlag::VerticalTabs.is_enabled()
             && *TabSettings::as_ref(app).use_vertical_tabs
-            && self.vertical_tabs_panel_open
             && self.vertical_tabs_panel.show_settings_popup
         {
             stack.add_positioned_overlay_child(
@@ -22570,9 +22418,7 @@ impl View for Workspace {
             );
         }
 
-        if FeatureFlag::VerticalTabs.is_enabled()
-            && *TabSettings::as_ref(app).use_vertical_tabs
-            && self.vertical_tabs_panel_open
+        if FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(app).use_vertical_tabs
         {
             if let Some(vertical_tabs::DetailSidecarOverlay {
                 anchor_position_id,
@@ -22714,8 +22560,7 @@ impl View for Workspace {
 
         if let Some((tab_idx, right_click_menu_anchor)) = self.show_tab_right_click_menu {
             let is_vertical = FeatureFlag::VerticalTabs.is_enabled()
-                && *TabSettings::as_ref(app).use_vertical_tabs
-                && self.vertical_tabs_panel_open;
+                && *TabSettings::as_ref(app).use_vertical_tabs;
             if tab_bar_mode.has_tab_bar() || is_vertical {
                 let positioning = match (is_vertical, right_click_menu_anchor) {
                     (true, TabContextMenuAnchor::VerticalTabsKebab) => {
@@ -22767,8 +22612,7 @@ impl View for Workspace {
         // gate because it can also be opened from the vertical tabs panel.
         if self.show_new_session_dropdown_menu.is_some() {
             let is_vertical = FeatureFlag::VerticalTabs.is_enabled()
-                && *TabSettings::as_ref(app).use_vertical_tabs
-                && self.vertical_tabs_panel_open;
+                && *TabSettings::as_ref(app).use_vertical_tabs;
 
             if is_vertical {
                 // Anchor the menu below the vertical-tabs + button.
@@ -23036,8 +22880,7 @@ impl View for Workspace {
 
         if self.should_show_session_config_tab_config_chip() {
             let use_vertical = FeatureFlag::VerticalTabs.is_enabled()
-                && *TabSettings::as_ref(app).use_vertical_tabs
-                && self.vertical_tabs_panel_open;
+                && *TabSettings::as_ref(app).use_vertical_tabs;
             let chip =
                 self.render_session_config_tab_config_chip(use_vertical, Appearance::as_ref(app));
             if use_vertical {
@@ -23497,7 +23340,6 @@ impl View for Workspace {
         // Add workspace-wide UI event handling.
         let stack = if FeatureFlag::VerticalTabs.is_enabled()
             && *TabSettings::as_ref(app).use_vertical_tabs
-            && self.vertical_tabs_panel_open
             // The vertical-tabs detail sidecar can become stale if the pointer moves through a
             // covered region (for example, its scrollbar gutter) and the row/sidecar hoverables
             // do not observe the expected hover-out transition. Install a workspace-root
@@ -23615,7 +23457,7 @@ impl Workspace {
         let left_panel_open = pane_group.read(ctx, |pg, _| pg.left_panel_open);
         let right_panel_open = pane_group.read(ctx, |pg, _| pg.right_panel_open);
         let is_right_panel_maximized = pane_group.read(ctx, |pg, _| pg.is_right_panel_maximized);
-        let vertical_tabs_panel_open = self.vertical_tabs_panel_open;
+
         Some(TransferredTab {
             pane_group,
             color,
@@ -23624,7 +23466,6 @@ impl Workspace {
             right_panel_open,
             is_right_panel_maximized,
             draggable_state,
-            vertical_tabs_panel_open,
             project_path: tab.project_path.clone(),
         })
     }
@@ -23773,13 +23614,14 @@ impl Workspace {
         // Detect orientation from the axis with the larger spread between
         // first and last tab centers (vertical panels stack along Y).
         // With only one tab there is no spread to compare, so fall back to
-        // whether the vertical-tabs panel is open.
+        // the vertical-tabs feature being active (v3b: 面板常驻,不再有
+        // 开合状态可查)。
         let is_vertical = if visible_tabs.len() >= 2 {
             let first = visible_tabs[0].1.center();
             let last = visible_tabs.last().expect("non-empty").1.center();
             (last.y() - first.y()).abs() > (last.x() - first.x()).abs()
         } else {
-            self.vertical_tabs_panel_open
+            FeatureFlag::VerticalTabs.is_enabled() && *TabSettings::as_ref(ctx).use_vertical_tabs
         };
 
         if is_vertical {
@@ -24580,6 +24422,143 @@ impl Workspace {
         }
 
         current_index
+    }
+}
+
+/// v3a: `PanelHost` 实现 — Workspace 作为面板按钮渲染宿主。
+///
+/// nav 侧 `PanelRegistry` 查表后回调这里的对应 render 方法; 方法体是
+/// 既有按钮工厂的直接委托, 渲染逻辑不变。
+impl nav::panel_api::PanelHost for Workspace {
+    fn render_left_toggle(
+        &self,
+        appearance: &Appearance,
+        ctx: &AppContext,
+    ) -> Box<dyn Element> {
+        self.render_left_toggle_button(appearance, ctx)
+    }
+
+    fn render_tools_panel(
+        &self,
+        appearance: &Appearance,
+        ctx: &AppContext,
+    ) -> Box<dyn Element> {
+        self.render_tools_panel_button(appearance, ctx)
+    }
+
+    fn render_agent_management(
+        &self,
+        appearance: &Appearance,
+        ctx: &AppContext,
+    ) -> Box<dyn Element> {
+        self.render_agent_management_view_button(appearance, ctx)
+    }
+
+    fn render_right_panel(
+        &self,
+        appearance: &Appearance,
+        ctx: &AppContext,
+    ) -> Box<dyn Element> {
+        self.render_right_panel_button(appearance, ctx)
+    }
+
+    fn render_observatory(
+        &self,
+        appearance: &Appearance,
+        ctx: &AppContext,
+    ) -> Box<dyn Element> {
+        self.render_observatory_button(appearance, ctx)
+    }
+
+    #[cfg(not(target_family = "wasm"))]
+    fn render_cockpit(&self, appearance: &Appearance, ctx: &AppContext) -> Box<dyn Element> {
+        self.render_cockpit_button(appearance, ctx)
+    }
+
+    fn render_notifications_mailbox(
+        &self,
+        appearance: &Appearance,
+        ctx: &AppContext,
+    ) -> Box<dyn Element> {
+        self.render_notifications_mailbox_button(appearance, ctx)
+    }
+}
+
+/// v3a: 面板行布局的共享自由函数 — `render_banner_and_active_tab` 与
+/// `render_panels` 中两段 ≈ 同构的 config 面板排布收敛于此:
+///
+/// 1. 常驻左栏 (旧 TabsPanel 位, 无条件渲染);
+/// 2. config left items (跳过 TabsPanel 配置残留);
+/// 3. 终端区 (若 `terminal` 非 None — banner 侧整段一次调完, render_panels
+///    侧因 theme chooser 插在中途而拆成两次调用, 终端区自理);
+/// 4. config right items;
+/// 5. maximized 右栏 (仅 `right_maximized` 为真时)。
+///
+/// `Workspace::add_panel_with_separator` / `render_config_panel` /
+/// `render_config_panel_maximized` 仍为关联函数, 经 `Workspace::` 调用。
+#[allow(clippy::too_many_arguments)]
+fn render_panel_row_layout(
+    workspace: &Workspace,
+    row: &mut Flex,
+    config: &HeaderToolbarChipSelection,
+    pane_group: &PaneGroup,
+    app: &AppContext,
+    terminal: Option<Box<dyn Element>>,
+    right_maximized: bool,
+) {
+    let mut prev_panel_added = false;
+
+    // 常驻左栏(旧 TabsPanel 位): 两种 tab 模式都无条件渲染,收起退役。
+    Workspace::add_panel_with_separator(
+        row,
+        &mut prev_panel_added,
+        Some(
+            SavePosition::new(
+                workspace.render_vertical_tabs_panel(Workspace::tabs_panel_side(config), app),
+                VERTICAL_TABS_PANEL_POSITION_ID,
+            )
+            .finish(),
+        ),
+        app,
+    );
+    for item in config.left_items() {
+        if item == HeaderToolbarItemKind::TabsPanel {
+            continue; // 已常驻,跳过配置残留。
+        }
+        Workspace::add_panel_with_separator(
+            row,
+            &mut prev_panel_added,
+            workspace.render_config_panel(&item, pane_group, config, app),
+            app,
+        );
+    }
+
+    if let Some(terminal) = terminal {
+        if !right_maximized {
+            if prev_panel_added {
+                row.add_child(Workspace::render_panel_separator(app));
+            }
+            row.add_child(Shrinkable::new(1.0, terminal).finish());
+            prev_panel_added = true;
+        }
+    }
+
+    for item in config.right_items() {
+        Workspace::add_panel_with_separator(
+            row,
+            &mut prev_panel_added,
+            workspace.render_config_panel(&item, pane_group, config, app),
+            app,
+        );
+    }
+
+    if right_maximized {
+        Workspace::add_panel_with_separator(
+            row,
+            &mut prev_panel_added,
+            workspace.render_config_panel_maximized(pane_group, config, app),
+            app,
+        );
     }
 }
 

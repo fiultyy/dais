@@ -241,10 +241,7 @@ fn restored_workspace(
     workspace
 }
 
-fn transferred_tab_workspace(
-    app: &mut App,
-    vertical_tabs_panel_open: bool,
-) -> ViewHandle<Workspace> {
+fn transferred_tab_workspace(app: &mut App) -> ViewHandle<Workspace> {
     let global_resource_handles = GlobalResourceHandles::mock(app);
     let (_, workspace) = app.add_window(WindowStyle::NotStealFocus, |ctx| {
         Workspace::new(
@@ -254,7 +251,6 @@ fn transferred_tab_workspace(
                 tab_color: None,
                 custom_title: None,
                 left_panel_open: false,
-                vertical_tabs_panel_open,
                 right_panel_open: false,
                 is_right_panel_maximized: false,
                 is_tab_drag_preview: false,
@@ -1995,69 +1991,6 @@ fn test_left_panel_window_scoped_disabled_keeps_per_tab_state() {
 }
 
 #[test]
-fn test_vertical_tabs_panel_visibility_restores_from_window_snapshot() {
-    let _vertical_tabs_guard = FeatureFlag::VerticalTabs.override_enabled(true);
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-        app.update(|ctx| {
-            TabSettings::handle(ctx).update(ctx, |settings, ctx| {
-                report_if_error!(settings.use_vertical_tabs.set_value(true, ctx));
-            });
-        });
-
-        let workspace = mock_workspace(&mut app);
-
-        let closed_snapshot = workspace.update(&mut app, |workspace, ctx| {
-            workspace.vertical_tabs_panel_open = false;
-            workspace.snapshot(ctx.window_id(), false, ctx)
-        });
-        let open_snapshot = workspace.update(&mut app, |workspace, ctx| {
-            workspace.vertical_tabs_panel_open = true;
-            workspace.snapshot(ctx.window_id(), false, ctx)
-        });
-
-        let restored_closed = restored_workspace(&mut app, closed_snapshot);
-        let restored_open = restored_workspace(&mut app, open_snapshot);
-
-        restored_closed.read(&app, |workspace, _| {
-            assert!(!workspace.vertical_tabs_panel_open);
-        });
-        restored_open.read(&app, |workspace, _| {
-            assert!(workspace.vertical_tabs_panel_open);
-        });
-    });
-}
-
-#[test]
-fn test_vertical_tabs_panel_restored_open_when_show_in_restored_windows_enabled() {
-    let _vertical_tabs_guard = FeatureFlag::VerticalTabs.override_enabled(true);
-
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-        app.update(|ctx| {
-            TabSettings::handle(ctx).update(ctx, |settings, ctx| {
-                report_if_error!(settings.use_vertical_tabs.set_value(true, ctx));
-                report_if_error!(settings
-                    .show_vertical_tab_panel_in_restored_windows
-                    .set_value(true, ctx));
-            });
-        });
-
-        let workspace = mock_workspace(&mut app);
-
-        let closed_snapshot = workspace.update(&mut app, |workspace, ctx| {
-            workspace.vertical_tabs_panel_open = false;
-            workspace.snapshot(ctx.window_id(), false, ctx)
-        });
-
-        let restored = restored_workspace(&mut app, closed_snapshot);
-        restored.read(&app, |workspace, _| {
-            assert!(workspace.vertical_tabs_panel_open);
-        });
-    });
-}
-
-#[test]
 fn test_vertical_tabs_panel_defaults_open_for_new_window_when_vertical_tabs_enabled() {
     let _vertical_tabs_guard = FeatureFlag::VerticalTabs.override_enabled(true);
 
@@ -2069,11 +2002,7 @@ fn test_vertical_tabs_panel_defaults_open_for_new_window_when_vertical_tabs_enab
             });
         });
 
-        let workspace = mock_workspace(&mut app);
-
-        workspace.read(&app, |workspace, _| {
-            assert!(workspace.vertical_tabs_panel_open);
-        });
+        // v3b: 左栏常驻 — 任何新窗口都渲染左栏 (无布尔可断言, 布尔已删)。
     });
 }
 
@@ -2089,15 +2018,8 @@ fn test_vertical_tabs_panel_inherits_transferred_tab_source_window_state() {
             });
         });
 
-        let transferred_closed = transferred_tab_workspace(&mut app, false);
-        let transferred_open = transferred_tab_workspace(&mut app, true);
-
-        transferred_closed.read(&app, |workspace, _| {
-            assert!(!workspace.vertical_tabs_panel_open);
-        });
-        transferred_open.read(&app, |workspace, _| {
-            assert!(workspace.vertical_tabs_panel_open);
-        });
+        let _transferred = transferred_tab_workspace(&mut app);
+        // v3b: 面板常驻,无开合状态跨窗继承可言 (布尔已删)。
     });
 }
 
@@ -2110,28 +2032,16 @@ fn test_vertical_tabs_panel_auto_shows_when_setting_enabled() {
 
         let workspace = mock_workspace(&mut app);
 
-        workspace.read(&app, |workspace, _| {
-            assert!(!workspace.vertical_tabs_panel_open);
-        });
-
-        // Enabling vertical tabs should auto-open the panel.
+        // v3b: 面板常驻,设置翻转不再有开合语义。
         workspace.update(&mut app, |_, ctx| {
             TabSettings::handle(ctx).update(ctx, |settings, ctx| {
                 report_if_error!(settings.use_vertical_tabs.set_value(true, ctx));
             });
         });
-        workspace.read(&app, |workspace, _| {
-            assert!(workspace.vertical_tabs_panel_open);
-        });
-
-        // Disabling vertical tabs should auto-close the panel.
         workspace.update(&mut app, |_, ctx| {
             TabSettings::handle(ctx).update(ctx, |settings, ctx| {
                 report_if_error!(settings.use_vertical_tabs.set_value(false, ctx));
             });
-        });
-        workspace.read(&app, |workspace, _| {
-            assert!(!workspace.vertical_tabs_panel_open);
         });
     });
 }
@@ -2149,15 +2059,12 @@ fn test_toggle_tab_configs_menu_opens_vertical_tabs_panel_and_menu() {
             TabSettings::handle(ctx).update(ctx, |settings, ctx| {
                 report_if_error!(settings.use_vertical_tabs.set_value(true, ctx));
             });
-            workspace.vertical_tabs_panel_open = true;
         });
         workspace.update(&mut app, |workspace, ctx| {
-            workspace.vertical_tabs_panel_open = false;
             workspace.show_new_session_dropdown_menu = None;
 
             workspace.handle_action(&WorkspaceAction::ToggleTabConfigsMenu, ctx);
 
-            assert!(workspace.vertical_tabs_panel_open);
             assert!(workspace.show_new_session_dropdown_menu.is_some());
         });
     });
@@ -2315,12 +2222,10 @@ fn test_toggle_tab_configs_menu_does_not_change_vertical_tabs_panel_in_horizonta
             TabSettings::handle(ctx).update(ctx, |settings, ctx| {
                 report_if_error!(settings.use_vertical_tabs.set_value(false, ctx));
             });
-            workspace.vertical_tabs_panel_open = true;
             workspace.show_new_session_dropdown_menu = None;
 
             workspace.handle_action(&WorkspaceAction::ToggleTabConfigsMenu, ctx);
 
-            assert!(workspace.vertical_tabs_panel_open);
             assert!(workspace.show_new_session_dropdown_menu.is_some());
         });
     });
@@ -2424,7 +2329,6 @@ fn test_vertical_tabs_context_menu_does_not_show_hover_only_tab_bar() {
                 report_if_error!(settings.use_vertical_tabs.set_value(true, ctx));
             });
             workspace.should_show_ai_assistant_warm_welcome = false;
-            workspace.vertical_tabs_panel_open = true;
 
             workspace.show_tab_right_click_menu =
                 Some((0, TabContextMenuAnchor::Pointer(Vector2F::zero())));

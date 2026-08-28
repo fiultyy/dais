@@ -1,4 +1,3 @@
-use crate::app_state;
 use pathfinder_geometry::rect::RectF;
 use pathfinder_geometry::vector::Vector2F;
 use std::collections::HashSet;
@@ -118,20 +117,8 @@ pub enum PaneNode {
     Leaf(PaneId),
 }
 
-#[derive(Debug)]
-pub struct PaneFlex(pub f32);
-
-impl Default for PaneFlex {
-    fn default() -> Self {
-        PaneFlex(DEFAULT_FLEX_VALUE)
-    }
-}
-
-impl From<app_state::PaneFlex> for PaneFlex {
-    fn from(pane_flex: app_state::PaneFlex) -> Self {
-        PaneFlex(pane_flex.0)
-    }
-}
+// PaneFlex 真身在 pane_tree::snapshot (v2 快照骨架统一类型), 此处 re-export。
+pub use pane_tree::snapshot::PaneFlex;
 
 pub struct PaneBranch {
     axis: SplitDirection,
@@ -1486,29 +1473,8 @@ impl fmt::Debug for PaneBranch {
 
 // When pane group is split horizontally, new panes are added from left to right.
 // When pane group is split vertically, new panes are added from top to bottom.
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum SplitDirection {
-    Horizontal,
-    Vertical,
-}
-
-impl From<app_state::SplitDirection> for SplitDirection {
-    fn from(direction: app_state::SplitDirection) -> Self {
-        match direction {
-            app_state::SplitDirection::Horizontal => SplitDirection::Horizontal,
-            app_state::SplitDirection::Vertical => SplitDirection::Vertical,
-        }
-    }
-}
-
-impl From<SplitDirection> for app_state::SplitDirection {
-    fn from(direction: SplitDirection) -> Self {
-        match direction {
-            SplitDirection::Horizontal => app_state::SplitDirection::Horizontal,
-            SplitDirection::Vertical => app_state::SplitDirection::Vertical,
-        }
-    }
-}
+// SplitDirection 真身在 pane_tree::snapshot (v2 快照骨架统一类型), 此处 re-export。
+pub use pane_tree::snapshot::SplitDirection;
 
 impl From<crate::launch_configs::launch_config::SplitDirection> for SplitDirection {
     fn from(direction: crate::launch_configs::launch_config::SplitDirection) -> Self {

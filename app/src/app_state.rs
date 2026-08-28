@@ -53,7 +53,6 @@ pub struct WindowSnapshot {
     pub voltron_width: Option<f32>,
     pub warp_drive_index_width: Option<f32>,
     pub left_panel_open: bool,
-    pub vertical_tabs_panel_open: bool,
     pub left_panel_width: Option<f32>,
     pub right_panel_width: Option<f32>,
     pub agent_management_filters: Option<PersistedAgentManagementFilters>,
@@ -84,8 +83,6 @@ pub struct TabSnapshot {
     pub right_panel: Option<RightPanelSnapshot>,
     /// Owning project path for the project rail. `None` = no project (always visible).
     pub project_path: Option<String>,
-    /// Owning split region in the content area (0 = single-region layout).
-    pub region_id: u64,
 }
 
 impl TabSnapshot {
@@ -94,47 +91,10 @@ impl TabSnapshot {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-#[allow(
-    clippy::large_enum_variant,
-    reason = "LeafSnapshot is significantly larger than BranchSnapshot due to nested snapshot types."
-)]
-pub enum PaneNodeSnapshot {
-    Branch(BranchSnapshot),
-    Leaf(LeafSnapshot),
-}
-
-impl PaneNodeSnapshot {
-    pub fn has_horizontal_split(&self) -> bool {
-        match self {
-            PaneNodeSnapshot::Leaf(_) => false,
-            PaneNodeSnapshot::Branch(BranchSnapshot {
-                direction,
-                children,
-            }) => {
-                let self_has_split = *direction == SplitDirection::Horizontal && children.len() > 1;
-                self_has_split
-                    || children
-                        .iter()
-                        .any(|(_, child)| child.has_horizontal_split())
-            }
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct BranchSnapshot {
-    pub direction: SplitDirection,
-    pub children: Vec<(PaneFlex, PaneNodeSnapshot)>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct LeafSnapshot {
-    pub is_focused: bool,
-    pub custom_vertical_tabs_title: Option<String>,
-    pub contents: LeafContents,
-}
-
+/// 快照骨架类型已泛型化下沉 pane_tree::snapshot, app 侧仅绑定叶子 payload。
+pub type PaneNodeSnapshot = pane_tree::snapshot::PaneNodeSnapshot<LeafContents>;
+pub type BranchSnapshot = pane_tree::snapshot::BranchSnapshot<LeafContents>;
+pub type LeafSnapshot = pane_tree::snapshot::LeafSnapshot<LeafContents>;
 #[derive(Clone, Debug, PartialEq)]
 pub enum LeafContents {
     Terminal(TerminalPaneSnapshot),
@@ -380,15 +340,8 @@ pub struct RightPanelSnapshot {
     pub is_maximized: bool,
 }
 
-/// Copied from pane group model, which should be private to pane group.
-#[derive(Clone, Debug, PartialEq)]
-pub enum SplitDirection {
-    Horizontal,
-    Vertical,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PaneFlex(pub f32);
+/// SplitDirection/PaneFlex 真身在 pane_tree::snapshot, app 侧透传 re-export。
+pub use pane_tree::snapshot::{PaneFlex, SplitDirection};
 
 pub fn get_app_state(app: &AppContext) -> AppState {
     let active_window_id = app.windows().active_window();

@@ -100,6 +100,17 @@ pub use registry::WorkspaceRegistry;
 pub use toast_stack::ToastStack;
 
 pub fn init(app: &mut AppContext) {
+    // v3a: HeaderToolbarItemKind 迁 nav 后, 用户显隐偏好 (TabSettings /
+    // AISettings) 经钩子注入 — app 侧一次性挂接 (幂等)。
+    nav::panel_api::set_availability_hooks(nav::panel_api::AvailabilityHooks {
+        use_vertical_tabs: |app| {
+            *crate::workspace::tab_settings::TabSettings::as_ref(app).use_vertical_tabs
+        },
+        show_code_review_button: |app| {
+            *crate::workspace::tab_settings::TabSettings::as_ref(app).show_code_review_button
+        },
+        show_agent_notifications: |app| *AISettings::as_ref(app).show_agent_notifications,
+    });
     app.add_singleton_model(|_| WorkspaceRegistry::new());
     app.add_singleton_model(|_| cross_window_tab_drag::CrossWindowTabDrag::new());
     use warpui::keymap::macros::*;
@@ -669,6 +680,8 @@ pub fn init(app: &mut AppContext) {
         .with_context_predicate(id!("Workspace"))
         .with_mac_key_binding("cmd-shift-+")
         .with_linux_or_windows_key_binding("ctrl-shift-+"),
+        // v3b: 左栏常驻,该键位对应的 action 已 no-op; 保留注册以兼容
+        // 残留的用户自定义配置 (不会报未知 action)。
         EditableBinding::new(
             TOGGLE_VERTICAL_TABS_PANEL_BINDING_NAME,
             BindingDescription::new(crate::t!("keybinding-desc-workspace-toggle-vertical-tabs"))

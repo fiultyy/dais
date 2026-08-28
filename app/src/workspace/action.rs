@@ -694,8 +694,7 @@ impl WorkspaceAction {
             | ForkAIConversation { .. }
             | SummarizeAIConversation { .. }
             | OpenRepository { .. }
-            | SelectTabConfig(_)
-            | ToggleVerticalTabsPanel => true, // actions that actually change a state of the state of user's
+            | SelectTabConfig(_) => true, // actions that actually change a state of the state of user's
             // workspace would most likely require a save, so that if the app gets
             // restarted, the user can continue working
             AutoupdateFailureLink
@@ -752,6 +751,9 @@ impl WorkspaceAction {
             | StartTabDrag
             | DaisDrive
             | ToggleLeftPanel
+            // v3b: ToggleVerticalTabsPanel 已 no-op (左栏常驻),不再触发
+            // needs-save。
+            | ToggleVerticalTabsPanel
             | ToggleWarpDrive
             | ClosePanel
             | ToggleRightPanel

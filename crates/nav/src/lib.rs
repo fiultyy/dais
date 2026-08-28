@@ -12,6 +12,7 @@
 
 pub mod cockpit_nav;
 pub mod left_rail_status;
+pub mod panel_api;
 pub mod status_row;
 
 pub use cockpit_nav::{CockpitNavEvent, CockpitNavView};
@@ -19,4 +20,5 @@ pub use left_rail_status::{
     HarnessRunState, LeftRailStatusEvent, LeftRailStatusModel, ProjectAggregate,
     SessionProgressChanged, SessionRunStatus, SessionStateChanged, UnreadChanged,
 };
+pub use panel_api::{HeaderToolbarItemKind, PanelDescriptor, PanelHost, PanelRegistry};
 pub use status_row::status_dot_element;
