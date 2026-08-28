@@ -1,4 +1,5 @@
 pub mod button;
+pub mod combo_button;
 pub mod dialog;
 pub mod keyboard_shortcut;
 pub mod lightbox;

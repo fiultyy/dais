@@ -25,7 +25,7 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use crate::ui_components::buttons::combo_inner_button;
+use ui_components::combo_button::combo_inner_button;
 use crate::workspace::action::WorkspaceAction;
 use warp_core::ui::appearance::Appearance;
 use warp_core::ui::theme::WarpTheme;
@@ -444,8 +444,8 @@ impl CockpitNavView {
             // Hoverable,click 在子元素处理完即返回 handled,组头的
             // on_click(折叠)不会再触发——防冒泡。
             let add_button = combo_inner_button(
-                appearance,
-                crate::ui_components::icons::Icon::Plus,
+                theme,
+                warp_core::ui::icons::Icon::Plus,
                 false,
                 add_button_mouse_state.clone(),
             )

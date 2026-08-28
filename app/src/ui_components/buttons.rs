@@ -86,56 +86,22 @@ fn icon_button_styles(
     styles
 }
 
-fn combo_inner_button_styles(warp_theme: &WarpTheme, state: ButtonState) -> UiComponentStyles {
-    let background = match state {
-        ButtonState::Default => None,
-        ButtonState::Hover => Some(blended_colors::neutral_2(warp_theme)),
-        ButtonState::Pressed => Some(blended_colors::neutral_4(warp_theme)),
-        ButtonState::Disabled => Some(warp_theme.background().into()),
-    };
-
-    UiComponentStyles {
-        width: Some(ICON_DIMENSIONS),
-        height: Some(ICON_DIMENSIONS),
-        border_width: None,
-        padding: Some(Coords::uniform(ICON_BUTTON_PADDING - 1.)),
-        border_radius: None,
-        font_color: Some(warp_theme.foreground().into()),
-        border_color: None,
-        background: background.map(Into::into),
-        ..Default::default()
-    }
-}
-
-/// This creates an inner icon_button for the purpose of adding it into a
-/// combo button. In these cases, the icon_button should not have a border
-/// as the combo button will provide these. Note that b/c
-/// it is not needed at this time, disabled is not implemented.
-///
-/// TODO(CORE-2300): Evaluate whether or not this helper makes sense in this
-/// location, as it is only used in workspace/view.rs right now (it is here
-/// b/c of access to non-pub fields).
+// combo_inner_button 已下沉 crates/ui_components::combo_button (2026-08-28,
+// 布局拆分 v1 步骤2): 依赖闭包 = warp_core+warpui, 本 crate 已有。此处保留
+// 兼容 wrapper (签名收 &Appearance), view.rs/vertical_tabs 调用点零改动;
+// cockpit_nav (v2 迁 nav crate) 直接用 crate 路径。
 pub fn combo_inner_button(
     appearance: &Appearance,
     icon: Icon,
     active: bool,
     mouse_state_handle: MouseStateHandle,
 ) -> Button {
-    let theme = appearance.theme();
-
-    let button = Button::new(
+    ui_components::combo_button::combo_inner_button(
+        appearance.theme(),
+        icon,
+        active,
         mouse_state_handle,
-        combo_inner_button_styles(theme, ButtonState::Default),
-        Some(combo_inner_button_styles(theme, ButtonState::Hover)),
-        Some(combo_inner_button_styles(theme, ButtonState::Pressed)),
-        Some(combo_inner_button_styles(theme, ButtonState::Disabled)),
     )
-    .with_icon_label(icon.to_warpui_icon(theme.foreground()));
-
-    if active {
-        return button.active();
-    }
-    button
 }
 
 fn icon_color(warp_theme: &WarpTheme, mode: ButtonMode) -> Fill {
