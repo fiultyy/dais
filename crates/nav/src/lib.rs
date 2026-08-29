@@ -12,6 +12,7 @@
 
 pub mod cockpit_nav;
 pub mod left_rail_status;
+pub mod data_source;
 pub mod panel_api;
 pub mod status_row;
 

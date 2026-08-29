@@ -254,7 +254,7 @@ mod tests {
                     );
                     // 480×600 视口（面板默认宽 × 典型面板高）
                     let _scene = presenter.build_scene(
-                        pathfinder_geometry::vector::vec2f(480., 600.),
+                        warpui::geometry::vector::vec2f(480., 600.),
                         1.,
                         None,
                         ctx,

@@ -18,3 +18,7 @@ warp_core.workspace = true
 warpui.workspace = true
 i18n-embed-fl.workspace = true
 log.workspace = true
+
+[dev-dependencies]
+# `Appearance::mock()` (status_row 测试) 在 warp_core 的 test-util feature 下。
+warp_core = { workspace = true, features = ["test-util"] }

@@ -15,6 +15,8 @@ mod tests;
 pub(crate) mod left_rail_status;
 mod cockpit_nav;
 mod vertical_tabs;
+#[path = "vtab_projection.rs"]
+mod vtab_projection;
 #[cfg(target_family = "wasm")]
 mod wasm_view;
 pub(crate) mod dais_launch_modal;

@@ -14,11 +14,113 @@
 
 use std::path::{Path, PathBuf};
 
-use warpui::WindowId;
+use pane_tree::{IPaneType, PaneId};
+use serde::{Deserialize, Serialize};
+use warpui::{AppContext, EntityId, WindowId};
+
+/// app 侧 [`AnsiColorIdentifier`] 的 POD 枚举镜像。
+/// 变体顺序与原类型一一对应;`as_u8`/`from_u8` 提供稳定 u8 视图。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NavAnsiColor {
+    Black,
+    Red,
+    Green,
+    Yellow,
+    Blue,
+    Magenta,
+    Cyan,
+    White,
+}
+
+impl NavAnsiColor {
+    /// 稳定 u8 视图 (按变体声明顺序 0-7)。
+    pub fn as_u8(self) -> u8 {
+        self as u8
+    }
+
+    /// 从 u8 视图还原;越界返回 `None`。
+    pub fn from_u8(value: u8) -> Option<Self> {
+        Some(match value {
+            0 => Self::Black,
+            1 => Self::Red,
+            2 => Self::Green,
+            3 => Self::Yellow,
+            4 => Self::Blue,
+            5 => Self::Magenta,
+            6 => Self::Cyan,
+            7 => Self::White,
+            _ => return None,
+        })
+    }
+}
+
+/// app 侧目录色配置项 [`DirectoryTabColor`] 的 POD 镜像。
+/// `Suppressed` 条目不参与前缀匹配,但保留在快照中维持配置原貌。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NavDirectoryColor {
+    Suppressed,
+    Unassigned,
+    Color(NavAnsiColor),
+}
+
+/// 用户手动 tab 色选择 [`SelectedTabColor`] 的 POD 镜像。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NavSelectedTabColor {
+    /// 无手动覆盖 — 回落到默认目录色。
+    #[default]
+    Unset,
+    /// 用户显式清除 (覆盖任何默认)。
+    Cleared,
+    /// 用户显式选定该色。
+    Color(NavAnsiColor),
+}
+
+impl NavSelectedTabColor {
+    /// 解析生效色:手动选择优先,无覆盖时回落 `default`。
+    pub fn resolve(self, default: Option<NavAnsiColor>) -> Option<NavAnsiColor> {
+        match self {
+            Self::Color(c) => Some(c),
+            Self::Cleared => None,
+            Self::Unset => default,
+        }
+    }
+}
+
+/// [`NavDataSource::pane_dir_color_seed`] / [`color_for_directory_seed`]
+/// 消费的目录色配置快照:`(目录路径字符串, 颜色镜像)` 的保序切片。
+/// app 侧从 `TabSettings.directory_tab_colors` 投影而来。
+pub type DirectoryColorConfig = [(String, NavDirectoryColor)];
+
+/// 目录色查表 — 纯函数 (无 IO)。
+///
+/// 对 `seed` (cwd/文件路径字符串) 做最长前缀匹配:遍历 `config`,
+/// 跳过 [`NavDirectoryColor::Suppressed`] 条目,取前缀命中的最长者;
+/// 等长时取后者 (与 app 侧 `max_by_key` 语义一致)。命中
+/// [`NavDirectoryColor::Unassigned`] 视为无色 (`None`)。
+///
+/// 注意:app 侧原实现内部会对路径 `canonicalize` (IO);本纯函数不做,
+/// 需要规范化语义的调用方应在传入前自行 canonicalize。
+pub fn color_for_directory_seed(seed: &str, config: &DirectoryColorConfig) -> Option<NavAnsiColor> {
+    let seed_path = Path::new(seed);
+    config
+        .iter()
+        .filter_map(|(configured_path, color)| {
+            let configured = Path::new(configured_path);
+            match color {
+                NavDirectoryColor::Suppressed => None,
+                _ => seed_path.starts_with(configured).then_some((configured, color)),
+            }
+        })
+        .max_by_key(|(configured, _)| configured.as_os_str().len())
+        .and_then(|(_, color)| match color {
+            NavDirectoryColor::Color(c) => Some(*c),
+            NavDirectoryColor::Suppressed | NavDirectoryColor::Unassigned => None,
+        })
+}
 
 /// 单个 tab 的只读投影。`usize` 索引与宿主 `tabs` 顺序一致,由
 /// [`NavDataSource`] 按索引取投影,不暴露 `TabData` 本体。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NavTabInfo {
     /// Tab 级自定义标题 (rename-tab 流程写入);`None` = 未设置。
     pub custom_title: Option<String>,
@@ -26,6 +128,39 @@ pub struct NavTabInfo {
     pub project_path: Option<String>,
     /// 该 tab 是否被用户手动拖拽中。
     pub is_dragging: bool,
+    /// pane_group 实体 id — pane 行定位/右键菜单锚点用
+    /// (vtab `PaneViewLocator { pane_group_id, .. }` 的镜像源)。
+    pub pane_group_id: EntityId,
+    /// tab 生效显示标题 = `custom_title` 优先,否则聚焦 pane 生成的
+    /// 标题 (vtab `PaneGroup::display_title` 镜像语义);空串 = 未命名。
+    pub display_title: String,
+    /// 用户手动选定的 tab 色 (右侧色点菜单)。
+    pub selected_color: NavSelectedTabColor,
+    /// 由活动终端 cwd 派生的目录色 (vtab `sync_codebase_tab_color` 缓存)。
+    pub default_directory_color: Option<NavAnsiColor>,
+    /// 该 tab 是否为当前激活 tab。
+    pub is_focused_tab: bool,
+}
+
+/// 单个 pane 的只读投影 — vtab pane 行粒度渲染的数据面。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NavPaneInfo {
+    /// pane 标识 (pane 类型 + 底层 PaneView 实体 id 的 POD 包装)。
+    pub pane_id: PaneId,
+    /// pane 类型镜像 — `IPaneType` 本身已是纯枚举 (无 payload),直接复用。
+    pub pane_type: IPaneType,
+    /// 该 pane 是否为其所属 pane_group 的聚焦 pane。
+    pub is_focused: bool,
+    /// pane 在 tab 内的展示序 (与 `visible_pane_ids` 顺序一致)。
+    pub position_in_tab: usize,
+}
+
+impl NavPaneInfo {
+    /// pane_group 实体 id 由调用方随 [`NavTabInfo::pane_group_id`] 持有,
+    /// pane 行定位时组合 — 这里提供组合便利。
+    pub fn locator(&self, pane_group_id: EntityId) -> (EntityId, PaneId) {
+        (pane_group_id, self.pane_id)
+    }
 }
 
 /// 项目 rail 选中态下,某项目卡片的聚合信息。
@@ -58,7 +193,17 @@ pub trait NavDataSource {
     fn tab_count(&self) -> usize;
 
     /// 按 flat 索引取 tab 投影;越界返回 `None`。
-    fn tab_info(&self, index: usize) -> Option<NavTabInfo>;
+    /// `app` 由渲染端传入 — app 侧实现需读 `ViewHandle` 内容解引用。
+    fn tab_info(&self, app: &AppContext, index: usize) -> Option<NavTabInfo>;
+
+    /// 按 flat 索引取该 tab 的 pane 行投影 (vtab pane 粒度渲染数据面)。
+    /// 顺序与宿主 `visible_pane_ids` 一致;越界 tab 返回空 `Vec`。
+    fn tab_panes(&self, app: &AppContext, tab_index: usize) -> Vec<NavPaneInfo>;
+
+    /// 取 pane 的目录色种子 (terminal = cwd,code = 打开文件路径);
+    /// 非 terminal/code pane 或取不到路径返回 `None`。
+    /// 渲染端拿种子自行走 [`color_for_directory_seed`] 算色。
+    fn pane_dir_color_seed(&self, app: &AppContext, pane_id: PaneId) -> Option<String>;
 
     /// 按项目路径过滤的 tab 索引列表 (保序)。
     fn tab_indices_with_project(&self, project: &Path) -> Vec<usize>;
@@ -109,7 +254,15 @@ impl NavDataSource for () {
         0
     }
 
-    fn tab_info(&self, _index: usize) -> Option<NavTabInfo> {
+    fn tab_info(&self, _app: &AppContext, _index: usize) -> Option<NavTabInfo> {
+        None
+    }
+
+    fn tab_panes(&self, _app: &AppContext, _tab_index: usize) -> Vec<NavPaneInfo> {
+        Vec::new()
+    }
+
+    fn pane_dir_color_seed(&self, _app: &AppContext, _pane_id: PaneId) -> Option<String> {
         None
     }
 
@@ -161,6 +314,7 @@ impl NavDataSource for () {
         false
     }
 }
+
 
 /// [`NavDataSource::current_workspace_state`] 返回的互斥 UI 状态快照。
 /// 只投影 vertical_tabs 实际读取的字段,v2 迁移后按需扩充。
