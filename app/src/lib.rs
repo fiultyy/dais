@@ -268,6 +268,8 @@ use self::features::FeatureFlag;
 use crate::app_state::AppState;
 use crate::cloud_object::model::persistence::ObjectStoreModel;
 use crate::drive::ObjectTypeAndId;
+// 仅在 use_tantivy_search 下使用 (见 set_enabled 探针), 同步 cfg 避免 unused import
+#[cfg(feature = "use_tantivy_search")]
 use crate::experiments::ImprovedPaletteSearch;
 pub use crate::global_resource_handles::{GlobalResourceHandles, GlobalResourceHandlesProvider};
 use crate::notification::NotificationContext;
@@ -1026,6 +1028,9 @@ fn run_internal(mut launch_mode: LaunchMode) -> Result<()> {
             pre_init_errors,
         );
 
+        // 编译期: tantivy 可用 (use_tantivy_search) 才编译此探针;
+        // 运行期: 实验分组命中才真正启用 flag —— 两层 gate 正交
+        #[cfg(feature = "use_tantivy_search")]
         if ImprovedPaletteSearch::improved_search_enabled(ctx) {
             FeatureFlag::UseTantivySearch.set_enabled(true);
         }

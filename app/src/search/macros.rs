@@ -26,6 +26,11 @@ macro_rules! get_factor_or_default {
 pub use get_factor_or_default;
 
 /// Macro to define a search schema for a [`crate::search::searcher::SimpleFullTextSearcher`].
+///
+/// # gate 约束 (tantivy optional 化)
+/// 本宏展开后的代码深度引用 `crate::search::searcher` 与 `tantivy::schema::OwnedValue` 等类型,
+/// 只能在 `#[cfg(feature = "use_tantivy_search")]` 门控的模块内调用
+/// (现存调用点: 各 full_text_searcher mod / searcher_test, 均已 gate)。
 /// ### Parameters
 /// * `schema_name` - The name of the schema. This would be the name of the static reference of the schema.
 /// * `config_name` - The name of the generated type config corresponding to the defined schema.

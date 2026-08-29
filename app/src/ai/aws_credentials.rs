@@ -7,10 +7,15 @@ use crate::workspaces::user_workspaces::{UserWorkspaces, UserWorkspacesEvent};
 pub use ai::api_keys::AwsCredentials;
 use ai::api_keys::{ApiKeyManager, AwsCredentialsRefreshStrategy, AwsCredentialsState};
 use anyhow::Context;
+// aws_credential_types 仅在 aws-config 在场(feature)或测试构建下才被消费,
+// 缺省构建不引入, 避免 unused_import 警告。
+#[cfg(any(feature = "aws_sdk_config", test))]
 use aws_credential_types::provider::error::CredentialsError;
+#[cfg(feature = "aws_sdk_config")]
 use aws_credential_types::provider::ProvideCredentials;
 use futures::channel::oneshot::channel;
 use futures::future::BoxFuture;
+#[cfg(feature = "aws_sdk_config")]
 use tokio::sync::OnceCell;
 use vec1::vec1;
 use warp_managed_secrets::{client::IdentityTokenOptions, ManagedSecretManager};
@@ -40,6 +45,8 @@ impl std::fmt::Display for LoadAwsCredentialsError {
     }
 }
 
+// 缺省构建无 SDK 加载路径消费该辅助项, 不编译以避免 dead_code 警告。
+#[cfg(any(feature = "aws_sdk_config", test))]
 fn aws_profile_reference_for_message(profile: &str, capitalize_first_word: bool) -> String {
     let profile = profile.trim();
     if profile.is_empty() {
@@ -54,6 +61,7 @@ fn aws_profile_reference_for_message(profile: &str, capitalize_first_word: bool)
     }
 }
 
+#[cfg(any(feature = "aws_sdk_config", test))]
 fn user_facing_aws_credentials_error_message(err: &CredentialsError, profile: &str) -> String {
     match err {
         CredentialsError::CredentialsNotLoaded(_) => format!(
@@ -89,13 +97,28 @@ pub(crate) fn aws_role_session_name(run_id: &str) -> String {
     format!("Oz_Run_{run_id}")
 }
 
+// T2 依赖优化: STS 客户端按 aws_sdk_config feature 分叉。
+// - feature 在场: 原路径, aws_config::defaults 全链(环境/profile/IMDS)构造,
+//   缓存于 STS_CLIENT 跨刷新复用;
+// - 缺省构建: 返回 Err 的桩, OIDC 刷新走既有失败路径
+//   (AwsCredentialsState::Failed + 用户可见消息), 不拉入 aws-config 闭包。
+#[cfg(feature = "aws_sdk_config")]
+static STS_CLIENT: OnceCell<aws_sdk_sts::Client> = OnceCell::const_new();
+
+/// 缺省构建桩: 无法构造真实 STS 客户端, 报告明确的未启用错误。
+#[cfg(not(feature = "aws_sdk_config"))]
+async fn sts_client() -> anyhow::Result<&'static aws_sdk_sts::Client> {
+    Err(anyhow::anyhow!(
+        "AWS credential support is not enabled in this build (compile with feature `aws_sdk_config`)"
+    ))
+}
+
 /// Cached STS client for OIDC credential refreshes.
 ///
 /// `AssumeRoleWithWebIdentity` is unauthenticated (the web identity token is the
 /// credential), so we skip the default credentials chain via `no_credentials()`
 /// and reuse a single client across refreshes.
-static STS_CLIENT: OnceCell<aws_sdk_sts::Client> = OnceCell::const_new();
-
+#[cfg(feature = "aws_sdk_config")]
 async fn sts_client() -> &'static aws_sdk_sts::Client {
     STS_CLIENT
         .get_or_init(|| async {
@@ -125,37 +148,49 @@ fn aws_credentials_state_for_error(err: LoadAwsCredentialsError) -> AwsCredentia
 pub async fn load_aws_credentials_from_sdk(
     profile: &str,
 ) -> Result<AwsCredentials, LoadAwsCredentialsError> {
-    let region_provider = aws_config::meta::region::RegionProviderChain::default_provider();
-    let loader =
-        aws_config::defaults(aws_config::BehaviorVersion::latest()).region(region_provider);
-    let loader = if profile.trim().is_empty() {
-        loader // Let AWS SDK use its default behavior
-    } else {
-        loader.profile_name(profile)
-    };
-    let config = loader.load().await;
+    // 缺省构建(未启用 aws_sdk_config): 无 aws-config 全链加载器, 返回明确的
+    // "未配置"错误态, 复用既有 LoadAwsCredentialsError::NotConfigured ->
+    // AwsCredentialsState::Missing 传播链, 调用点错误处理保持不变。
+    #[cfg(not(feature = "aws_sdk_config"))]
+    {
+        let _ = profile; // 桩模式下 profile 无意义, 仅保持签名一致
+        return Err(LoadAwsCredentialsError::NotConfigured);
+    }
 
-    let provider = config
-        .credentials_provider()
-        .ok_or(LoadAwsCredentialsError::NotConfigured)?;
+    #[cfg(feature = "aws_sdk_config")]
+    {
+        let region_provider = aws_config::meta::region::RegionProviderChain::default_provider();
+        let loader =
+            aws_config::defaults(aws_config::BehaviorVersion::latest()).region(region_provider);
+        let loader = if profile.trim().is_empty() {
+            loader // 交给 AWS SDK 默认行为
+        } else {
+            loader.profile_name(profile)
+        };
+        let config = loader.load().await;
 
-    let creds = provider.provide_credentials().await.map_err(|e| {
-        let message = user_facing_aws_credentials_error_message(&e, profile);
-        log::warn!("{e}");
-        // TODO(isaiah): turn this full SDK dump back down to debug once we've resolved
-        // the current customer-facing AWS credential issue and no longer need prod-visible
-        // provider internals for support debugging.
-        log::warn!("{e:#?}");
-        log::info!("AWS credential load failure message shown to user: {message}");
-        LoadAwsCredentialsError::CredentialsLoadFailed(message)
-    })?;
+        let provider = config
+            .credentials_provider()
+            .ok_or(LoadAwsCredentialsError::NotConfigured)?;
 
-    Ok(AwsCredentials::new(
-        creds.access_key_id().to_string(),
-        creds.secret_access_key().to_string(),
-        creds.session_token().map(|s| s.to_string()),
-        creds.expiry(),
-    ))
+        let creds = provider.provide_credentials().await.map_err(|e| {
+            let message = user_facing_aws_credentials_error_message(&e, profile);
+            log::warn!("{e}");
+            // TODO(isaiah): turn this full SDK dump back down to debug once we've resolved
+            // the current customer-facing AWS credential issue and no longer need prod-visible
+            // provider internals for support debugging.
+            log::warn!("{e:#?}");
+            log::info!("AWS credential load failure message shown to user: {message}");
+            LoadAwsCredentialsError::CredentialsLoadFailed(message)
+        })?;
+
+        Ok(AwsCredentials::new(
+            creds.access_key_id().to_string(),
+            creds.secret_access_key().to_string(),
+            creds.session_token().map(|s| s.to_string()),
+            creds.expiry(),
+        ))
+    }
 }
 
 /// Extension trait for `ApiKeyManager` to handle AWS credential refresh.
@@ -337,7 +372,13 @@ fn refresh_aws_credentials_oidc(
                 .await
                 .context("Failed to mint AWS Bedrock task identity token")?;
 
+            // feature 在场: 原样取缓存客户端; 缺省构建: 桩返回 Err, 走下方
+            // 既有 STS 失败链 (Failed 状态 + 用户可见消息), 行为与 SDK 报错一致。
+            #[cfg(feature = "aws_sdk_config")]
+            let client = Ok::<&'static aws_sdk_sts::Client, anyhow::Error>(sts_client().await);
+            #[cfg(not(feature = "aws_sdk_config"))]
             let client = sts_client().await;
+            let client = client?;
             let session_name = aws_role_session_name(&task_id);
             let credentials = client
                 .assume_role_with_web_identity()

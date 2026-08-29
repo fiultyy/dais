@@ -26,6 +26,8 @@ impl CommandBindingDataSource {
         // Tantivy 默认 tokenizer 不切 CJK,会把整段中文描述当成单 token 做前缀匹配,
         // 导致 zh-CN 下搜"主题"无法命中"打开主题选择器"。
         // 同时 fuzzy 还能让英文 keyword 经子序列匹配命中 binding.name(见下方 search 实现)。
+        // (feature 缺省时 UseTantivySearch flag 无消费方, 该探针引用同步 cfg 掉)
+        #[cfg(feature = "use_tantivy_search")]
         let _ = warp_core::features::FeatureFlag::UseTantivySearch.is_enabled();
         Self::new_fuzzy(binding_source, ctx)
     }
@@ -35,7 +37,8 @@ impl CommandBindingDataSource {
         Self::new_fuzzy(binding_source, ctx)
     }
 
-    #[cfg(not(target_family = "wasm"))]
+    // gate 与 full_text_searcher mod 一致: feature 缺省时本函数与 mod 一同不存在
+    #[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
     fn new_full_text(
         binding_source: ModelHandle<BindingSource>,
         ctx: &mut ModelContext<Self>,
@@ -203,7 +206,8 @@ impl ActionSearcher for FuzzyActionSearcher {
     }
 }
 
-#[cfg(not(target_family = "wasm"))]
+// tantivy 为 optional dep: 该全文搜索 mod 仅在 use_tantivy_search feature 下编译
+#[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
 mod full_text_searcher {
     use crate::define_search_schema;
     use crate::search::action::{

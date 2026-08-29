@@ -1,4 +1,4 @@
-#![cfg(not(target_family = "wasm"))] // Tantivy is not supported for wasm target as of now.
+#![cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))] // Tantivy is not supported for wasm target as of now.
 
 use anyhow::Context;
 use futures::FutureExt as _;
@@ -1310,6 +1310,7 @@ impl<C: SearchSchemaConfig> AsyncSearcher<C> {
     }
 }
 
-#[cfg(test)]
+// 测试模块依赖 tantivy 类型, 同样受 use_tantivy_search gate 约束
+#[cfg(all(test, not(target_family = "wasm"), feature = "use_tantivy_search"))]
 #[path = "searcher_test.rs"]
 mod test;

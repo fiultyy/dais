@@ -238,9 +238,11 @@ impl SessionSearcher for FuzzySessionSearcher {
     }
 }
 
-#[cfg(not(target_family = "wasm"))]
+// re-export 必须与 mod 挂载同条件, 否则 feature 缺省时引用不存在的模块
+#[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
 pub use full_text_searcher::FullTextSessionSearcher;
-#[cfg(not(target_family = "wasm"))]
+// tantivy 为 optional dep: 该全文搜索 mod 仅在 use_tantivy_search feature 下编译
+#[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
 mod full_text_searcher {
     use crate::define_search_schema;
     use crate::pane_group::PaneId;
@@ -376,6 +378,7 @@ mod full_text_searcher {
     struct SessionSearchId(usize);
 }
 
-#[cfg(all(test, not(target_family = "wasm")))]
+// 测试引用 full_text_searcher 内部符号, gate 条件需与被测 mod 一致
+#[cfg(all(test, not(target_family = "wasm"), feature = "use_tantivy_search"))]
 #[path = "search_tests.rs"]
 mod tests;

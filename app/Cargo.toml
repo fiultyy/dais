@@ -277,7 +277,7 @@ tokio.workspace = true
 tokio-util.workspace = true
 
 # AWS SDK (loading credentials for BYO LLM)
-aws-config = { version = "1.8.12", features = ["credentials-login"] }
+aws-config = { version = "1.8.12", features = ["credentials-login"], optional = true }
 aws-credential-types = "1"
 aws-sdk-sts = "1"
 aws-types = "1"
@@ -298,7 +298,9 @@ is_executable = "1.0.1"
 gethostname = "1.1.0"
 watcher.workspace = true
 warp_files.workspace = true
-tantivy = "0.26.0"
+# Tantivy 全文搜索引擎: 改为 optional, 仅在 use_tantivy_search feature 下参与编译,
+# 缺省构建不再拉取这棵重型依赖树 (~90 个传递闭包)
+tantivy = { version = "0.26.0", optional = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 console_error_panic_hook = { version = "0.1.6" }
@@ -750,7 +752,8 @@ autoupdate_ui_revamp = []
 warp_packs = []
 suggested_rules = []
 command_correction_key = []
-use_tantivy_search = []
+# 挂载 optional 依赖 dep:tantivy; 开启后全文搜索路径参与编译, 缺省走 fuzzy 分支
+use_tantivy_search = ["dep:tantivy"]
 agent_management_popup = []
 simulate_github_unauthed = []
 reload_stale_conversation_files = []
@@ -852,6 +855,11 @@ git_operations_in_code_review = []
 hoa_remote_control = []
 codex_notifications = []
 configurable_context_window = []
+
+# T2 依赖优化: aws-config 主 crate(全链凭证加载, ~191 crates 闭包)改为可选;
+# 新 feature `aws_sdk_config` 挂回该依赖。缺省构建下 BYO AWS 凭证走
+# aws_credentials.rs 的 stub 错误态; 需要 BYO Bedrock 完整链路时启用本 feature。
+aws_sdk_config = ["dep:aws-config"]
 
 [package.metadata.bundle.bin.dais]
 category = "public.app-category.developer-tools"

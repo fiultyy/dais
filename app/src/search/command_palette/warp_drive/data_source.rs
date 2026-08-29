@@ -30,7 +30,12 @@ impl DataSource {
     #[cfg(not(target_family = "wasm"))]
     pub fn new(ctx: &mut ModelContext<Self>) -> Self {
         if warp_core::features::FeatureFlag::UseTantivySearch.is_enabled() {
-            Self::new_full_text(ctx)
+            // 编译期 gate: feature 缺省时 full_text 分支不存在, 恒走 fuzzy
+            #[cfg(feature = "use_tantivy_search")]
+            {
+                return Self::new_full_text(ctx);
+            }
+            Self::new_fuzzy(ctx)
         } else {
             Self::new_fuzzy(ctx)
         }
@@ -53,7 +58,8 @@ impl DataSource {
         DataSource { searcher }
     }
 
-    #[cfg(not(target_family = "wasm"))]
+    // gate 与 full_text_searcher mod 一致: feature 缺省时本函数与 mod 一同不存在
+    #[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
     fn new_full_text(ctx: &mut ModelContext<Self>) -> Self {
         ctx.subscribe_to_model(
             &ObjectStoreModel::handle(ctx),
@@ -518,7 +524,8 @@ impl WarpDriveSearcher for FuzzyWarpDriveSearcher {
     }
 }
 
-#[cfg(not(target_family = "wasm"))]
+// tantivy 为 optional dep: 该全文搜索 mod 仅在 use_tantivy_search feature 下编译
+#[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
 mod full_text_searcher {
     use std::sync::Arc;
 
