@@ -13,7 +13,7 @@ mod startup_directory;
 #[path = "view_test.rs"]
 mod tests;
 pub(crate) mod left_rail_status;
-mod cockpit_nav;
+pub(crate) mod cockpit_nav;
 mod vertical_tabs;
 #[path = "vtab_projection.rs"]
 mod vtab_projection;

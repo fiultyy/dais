@@ -16,7 +16,7 @@ pub mod data_source;
 pub mod panel_api;
 pub mod status_row;
 
-pub use cockpit_nav::{CockpitNavEvent, CockpitNavView};
+pub use cockpit_nav::{CockpitNavEvent, CockpitNavView, set_cockpit_refresh_hook};
 pub use left_rail_status::{
     HarnessRunState, LeftRailStatusEvent, LeftRailStatusModel, ProjectAggregate,
     SessionProgressChanged, SessionRunStatus, SessionStateChanged, UnreadChanged,

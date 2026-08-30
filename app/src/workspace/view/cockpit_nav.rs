@@ -6,4 +6,4 @@
 //! v1 新增契约: `CockpitNavEvent::AddProjectRequested` (原 OpenAddProjectPicker
 //! dispatch 事件化), app 订阅点见 view.rs。
 
-pub use nav::{CockpitNavEvent, CockpitNavView};
+pub use nav::{CockpitNavEvent, CockpitNavView, set_cockpit_refresh_hook};

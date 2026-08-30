@@ -77,6 +77,29 @@ const RECAP_MAX_CHARS: usize = 48;
 // TODO(i18n): 文案硬编码中文,主线程统一补 ftl key 后替换。
 const NAV_TITLE: &str = "导航";
 
+// ── 刷新钩子(app 半边注入)────────────────────────────────────────────────────
+
+/// app 半边全量刷新钩子(签名同 `app::ai::cockpit::model::refresh_model`)。
+/// nav 在 crate 内不能依赖 app 类型,与 panel_api::AvailabilityHooks 同模式:
+/// app 初始化时注入一次,nav 的挂载首刷与对账 timer 经此触发真实刷新。
+pub type CockpitRefreshFn = fn(
+    &mut cockpit_model::CockpitModel,
+    &mut warpui::ModelContext<cockpit_model::CockpitModel>,
+);
+
+static REFRESH_HOOK: std::sync::LazyLock<std::sync::OnceLock<CockpitRefreshFn>> =
+    std::sync::LazyLock::new(std::sync::OnceLock::new);
+
+/// app 初始化时挂接刷新钩子;幂等(首次生效)。
+pub fn set_cockpit_refresh_hook(hook: CockpitRefreshFn) {
+    let _ = REFRESH_HOOK.set(hook);
+}
+
+/// 读取刷新钩子;未注入时返回 None(此时不做任何事,避免误清数据)。
+fn refresh_hook() -> Option<CockpitRefreshFn> {
+    REFRESH_HOOK.get().copied()
+}
+
 // ── Action ────────────────────────────────────────────────────────────────────
 
 /// 导航视图 typed action:on_click 分发、`on_action` 处理(六环接线)。
@@ -145,7 +168,13 @@ impl CockpitNavView {
         model.update(ctx, |m, ctx| {
             m.set_group_by(cockpit_model::CockpitGroupBy::CwdProject, ctx)
         });
-        model.update(ctx, |m, ctx| /* app 半边 refresh 在 v1 上移 */ m.replace_snapshot(Vec::new(), m.last_window_count(), ctx));
+        // v1 修复: 挂载不再清空快照(共享单例, 清空会打掉 cockpit 面板正在
+        // 显示的卡片); 改为请求 app 半边做一次真实 refresh。
+        model.update(ctx, |m, ctx| {
+            if let Some(refresh) = refresh_hook() {
+                refresh(m, ctx);
+            }
+        });
         let mut me = Self {
             model,
             collapsed_groups: HashSet::new(),
@@ -169,7 +198,13 @@ impl CockpitNavView {
                 .await;
             },
             |me, _unit, ctx| {
-                me.model.update(ctx, |m, ctx| /* app 半边 refresh 在 v1 上移 */ m.replace_snapshot(Vec::new(), m.last_window_count(), ctx));
+                // v1 修复: 对账 = 请求 app 半边真实 refresh(原实现错误地
+                // 硬清空快照且无回填, 2s 后把共享单例打空 → 面板空白)。
+                me.model.update(ctx, |m, ctx| {
+                    if let Some(refresh) = refresh_hook() {
+                        refresh(m, ctx);
+                    }
+                });
                 me.start_reconcile_timer(ctx);
             },
         );

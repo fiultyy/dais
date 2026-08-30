@@ -1607,6 +1607,11 @@ fn initialize_app(
     #[cfg(not(target_family = "wasm"))]
     code::editor::find::view::init(ctx);
     workspace::init(ctx);
+    // v1 修复: nav 对账 timer 经钩子触发 app 半边真实刷新(原 nav 自驱
+    // 清空快照且无回填, 2s 后打空共享 CockpitModel → 面板空白)。
+    crate::workspace::view::cockpit_nav::set_cockpit_refresh_hook(
+        crate::ai::cockpit::model::refresh_model,
+    );
     pane_group::init(ctx);
     terminal::init(ctx);
     input::init(ctx);
