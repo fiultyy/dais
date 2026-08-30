@@ -18958,6 +18958,9 @@ impl Workspace {
                 app,
                 Some(terminal_content),
                 is_right_maximized,
+                true,
+                true,
+                true,
             );
         } else if !is_right_maximized {
             main_content = main_content.with_child(Shrinkable::new(1.0, terminal_content).finish());
@@ -19522,6 +19525,9 @@ impl Workspace {
                 app,
                 None,
                 false,
+                true,
+                true,
+                false,
             );
         }
 
@@ -19563,6 +19569,9 @@ impl Workspace {
                 app,
                 None,
                 pane_group.right_panel_open && pane_group.is_right_panel_maximized,
+                false,
+                false,
+                true,
             );
         }
         #[cfg(target_family = "wasm")]
@@ -24507,32 +24516,45 @@ fn render_panel_row_layout(
     app: &AppContext,
     terminal: Option<Box<dyn Element>>,
     right_maximized: bool,
+    render_pinned_panel: bool,
+    render_left_items: bool,
+    render_right_items: bool,
 ) {
     let mut prev_panel_added = false;
 
     // 常驻左栏(旧 TabsPanel 位): 两种 tab 模式都无条件渲染,收起退役。
-    Workspace::add_panel_with_separator(
-        row,
-        &mut prev_panel_added,
-        Some(
-            SavePosition::new(
-                workspace.render_vertical_tabs_panel(Workspace::tabs_panel_side(config), app),
-                VERTICAL_TABS_PANEL_POSITION_ID,
-            )
-            .finish(),
-        ),
-        app,
-    );
-    for item in config.left_items() {
-        if item == HeaderToolbarItemKind::TabsPanel {
-            continue; // 已常驻,跳过配置残留。
-        }
+    // 仅在行的"左段"渲染一次——vertical tabs 模式下本函数被
+    // render_panels 调用两次(左段+右段),右段再渲会得到第二份 nav
+    // (双挂载共享 resizable_state/MouseStateHandle,点击互抢不响应)。
+    // 左右半区(config 面板循环)同理:如 CodeReview right_panel_view
+    // 同一 ViewHandle 被 ChildView 双挂载,重复渲染且互抢点击。
+    if render_pinned_panel {
         Workspace::add_panel_with_separator(
             row,
             &mut prev_panel_added,
-            workspace.render_config_panel(&item, pane_group, config, app),
+            Some(
+                SavePosition::new(
+                    workspace
+                        .render_vertical_tabs_panel(Workspace::tabs_panel_side(config), app),
+                    VERTICAL_TABS_PANEL_POSITION_ID,
+                )
+                .finish(),
+            ),
             app,
         );
+    }
+    if render_left_items {
+        for item in config.left_items() {
+            if item == HeaderToolbarItemKind::TabsPanel {
+                continue; // 已常驻,跳过配置残留。
+            }
+            Workspace::add_panel_with_separator(
+                row,
+                &mut prev_panel_added,
+                workspace.render_config_panel(&item, pane_group, config, app),
+                app,
+            );
+        }
     }
 
     if let Some(terminal) = terminal {
@@ -24545,13 +24567,15 @@ fn render_panel_row_layout(
         }
     }
 
-    for item in config.right_items() {
-        Workspace::add_panel_with_separator(
-            row,
-            &mut prev_panel_added,
-            workspace.render_config_panel(&item, pane_group, config, app),
-            app,
-        );
+    if render_right_items {
+        for item in config.right_items() {
+            Workspace::add_panel_with_separator(
+                row,
+                &mut prev_panel_added,
+                workspace.render_config_panel(&item, pane_group, config, app),
+                app,
+            );
+        }
     }
 
     if right_maximized {
