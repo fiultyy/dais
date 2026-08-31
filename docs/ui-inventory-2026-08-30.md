@@ -41,8 +41,7 @@
 | `codex-modal` | Codex接入弹窗(CodexModal) | modal | shared-file | 仅deeplink可达的第三方接入弹窗, 非主路径, 保留价值随Codex合作策略。 |
 | `cs-ai-queries-source` | AI提问历史数据源(ai_history:) | palette | isolated | 与history源重叠的AI变体 |
 | `cs-notebooks-source` | 笔记本数据源(notebooks:) | palette | isolated | 云端笔记本检索 |
-| `cs-warp-ai-source` | 自然语言命令源(#, WarpAIDataSource) | palette | shared-file | 云端功能删除后仅剩本地写回/打开Agent两动作}
-] |
+| `cs-warp-ai-source` | 自然语言命令源(#, WarpAIDataSource) | palette | shared-file | 云端功能删除后仅剩本地写回/打开Agent两动作 |
 | `dais-launch-modal` | Dais发布宣传弹窗(DaisLaunchModal) | modal | shared-file | 一次性营销弹窗, 生命周期短, flag名zap-purge清理时应一并退役。 |
 | `directory-color-add-picker` | 目录标签色添加 Picker | picker | isolated | 功能依赖边缘的目录着色实验 flag，小众。 |
 | `drive-empty-trash-dialog` | 回收站清空确认对话框 | modal | isolated | 随 drive-index 裁(用户 drive 全家 cut) |
@@ -211,3 +210,14 @@ cut 集中在 isolated/shared-file 类, 无 hub 被裁, 六个 cross-edge 当事
 - **索引**: moderate 重建, **113,635 节点 / 441,225 边**(演进: 116,906 → 114,076 → 113,803 → 113,635)。
 - **图验证**: voice/tantivy 相关仅剩 `app/src/ai/voice/mod.rs`(7 行墓碑注释) — 已物理删+mod 声明卸载, check 复验 0 err。
 - **工作区**: HEAD=bf0229b5(R3 已 commit), R4 改动 7 删/49 改未 commit。
+
+## 悬空依赖核实 (2026-08-31e)
+
+7 域 reviewer 并行核实 R1-R4 删除面 54 符号: 40 clean, 其余命中绝大多数良性(底册历史/迁移自身/同名活符号)。**4 类真悬空已修**:
+1. `get_started_tab` default+声明 — R3-1 checkout 事故致重放遗漏(记账有实物无), 删
+2. `FeatureFlag::{WelcomeTab,GetStartedTab,HOAOnboardingFlow}` 死枚举变体, 删
+3. `crates/i18n` 三语孤儿 key -42(welcome-palette×2+wasm-nux×12 ×3 locale) — 上轮 i18n 清扫只扫 app/i18n 漏了 crates/i18n
+4. AGENTS.md 过期模块行(wasm_nux_dialog.rs)
+
+留档未动: specs/APP-3909/TECH.md 引用 FuzzyActionSearcher 旧址(过期规格指针非代码, 规格活跃性待用户定夺)。
+验证: cargo check -p warp --all-targets 0 errors, 悬空符号复扫全零。

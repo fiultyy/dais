@@ -2437,15 +2437,12 @@ rewind-dialog-cancel = 取消
 rewind-dialog-confirm = 倒回
 
 # --- ANCHOR-SUB-SEARCH-PALETTES ---
-# 搜索面板（app/src/search/command_palette/view.rs, app/src/search/welcome_palette/view.rs）
 command-palette-search-placeholder = 搜索命令
 command-palette-no-results = 未找到结果
 command-palette-toast-cannot-switch-conversations = 智能体正在监控命令时，无法切换对话。
 command-palette-toast-cannot-start-new-conversation = 智能体正在监控命令时，无法开始新对话。
 command-palette-zero-state-recent = 最近使用
 command-palette-zero-state-suggested = 推荐
-welcome-palette-search-placeholder = 编码、构建，或搜索任意内容...
-welcome-palette-no-results = 未找到结果
 search-filter-placeholder-history = 搜索历史记录
 search-filter-placeholder-workflows = 搜索工作流
 search-filter-placeholder-agent-mode-workflows = 搜索提示词
@@ -2899,19 +2896,6 @@ global-search-remote-description = 全局搜索需要访问本地工作区，远
 global-search-unsupported-session-description = 全局搜索目前不支持 Git Bash 或 WSL。
 global-search-failed = 全局搜索失败。
 
-# Wasm NUX dialog (app/src/wasm_nux_dialog.rs)
-wasm-nux-open-desktop-title = 在 Dais 桌面版中打开？
-wasm-nux-open-desktop-detail = 之后的链接会自动在桌面版中打开。
-wasm-nux-open-desktop-confirm = 在 Dais 中打开
-wasm-nux-download-title = 下载 Dais 桌面版？
-wasm-nux-download-description = Dais 是一款内置 AI 和团队知识的智能终端。
-wasm-nux-learn-more = 了解更多
-wasm-nux-download-confirm = 下载
-wasm-nux-object-kind-drive-objects = Dais Drive 对象
-wasm-nux-object-kind-warp-links = Dais 链接
-wasm-nux-always-open-on-web-title = 始终在网页中打开 { $object_kind } 吗？
-wasm-nux-always-open-on-web-detail = 你可以随时在设置中更改此项。
-wasm-nux-yes = 是
 
 # Auth override warning (app/src/auth/auth_override_warning_body.rs)
 auth-override-warning-title = 检测到新的登录

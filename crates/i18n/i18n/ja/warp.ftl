@@ -2418,15 +2418,12 @@ rewind-dialog-cancel = キャンセル
 rewind-dialog-confirm = 巻き戻し
 
 # --- ANCHOR-SUB-SEARCH-PALETTES ---
-# Search palettes (app/src/search/command_palette/view.rs, app/src/search/welcome_palette/view.rs)
 command-palette-search-placeholder = コマンドを検索
 command-palette-no-results = 該当する結果がありません
 command-palette-toast-cannot-switch-conversations = エージェントがコマンドを監視中は会話を切り替えできません。
 command-palette-toast-cannot-start-new-conversation = エージェントがコマンドを監視中は新しい会話を開始できません。
 command-palette-zero-state-recent = 最近
 command-palette-zero-state-suggested = 候補
-welcome-palette-search-placeholder = コーディング、ビルド、または何でも検索…
-welcome-palette-no-results = 該当する結果がありません
 search-filter-placeholder-history = 履歴を検索
 search-filter-placeholder-workflows = ワークフローを検索
 search-filter-placeholder-agent-mode-workflows = プロンプトを検索
@@ -2800,19 +2797,6 @@ global-search-remote-description = グローバル検索にはローカルワー
 global-search-unsupported-session-description = グローバル検索は現在 Git Bash や WSL では動作しません。
 global-search-failed = グローバル検索に失敗しました。
 
-# Wasm NUX dialog (app/src/wasm_nux_dialog.rs)
-wasm-nux-open-desktop-title = Dais デスクトップで開きますか?
-wasm-nux-open-desktop-detail = 今後のリンクは自動的にデスクトップで開きます。
-wasm-nux-open-desktop-confirm = Dais で開く
-wasm-nux-download-title = Dais デスクトップをダウンロードしますか?
-wasm-nux-download-description = Dais は AI と開発チームのナレッジを内蔵したインテリジェントなターミナルです。
-wasm-nux-learn-more = 詳しく見る
-wasm-nux-download-confirm = ダウンロード
-wasm-nux-object-kind-drive-objects = Dais Drive オブジェクト
-wasm-nux-object-kind-warp-links = Dais リンク
-wasm-nux-always-open-on-web-title = { $object_kind } を常に Web で開きますか?
-wasm-nux-always-open-on-web-detail = この設定は設定画面でいつでも変更できます。
-wasm-nux-yes = はい
 
 # Auth override warning (app/src/auth/auth_override_warning_body.rs)
 auth-override-warning-title = 新しいログインを検出しました

@@ -2511,15 +2511,12 @@ rewind-dialog-cancel = Cancel
 rewind-dialog-confirm = Rewind
 
 # --- ANCHOR-SUB-SEARCH-PALETTES ---
-# Search palettes (app/src/search/command_palette/view.rs, app/src/search/welcome_palette/view.rs)
 command-palette-search-placeholder = Search for a command
 command-palette-no-results = No results found
 command-palette-toast-cannot-switch-conversations = Cannot switch conversations while agent is monitoring a command.
 command-palette-toast-cannot-start-new-conversation = Cannot start a new conversation while agent is monitoring a command.
 command-palette-zero-state-recent = Recent
 command-palette-zero-state-suggested = Suggested
-welcome-palette-search-placeholder = Code, build, or search for anything...
-welcome-palette-no-results = No results found
 search-filter-placeholder-history = Search history
 search-filter-placeholder-workflows = Search workflows
 search-filter-placeholder-agent-mode-workflows = Search prompts
@@ -2987,19 +2984,6 @@ global-search-remote-description = Global search requires access to your local w
 global-search-unsupported-session-description = Global search doesn't currently work in Git Bash or WSL.
 global-search-failed = Global search failed.
 
-# Wasm NUX dialog (app/src/wasm_nux_dialog.rs)
-wasm-nux-open-desktop-title = Open in Dais Desktop?
-wasm-nux-open-desktop-detail = Future links will automatically open on desktop.
-wasm-nux-open-desktop-confirm = Open in Dais
-wasm-nux-download-title = Download Dais Desktop?
-wasm-nux-download-description = Dais is the intelligent terminal with AI and your dev team's knowledge built-in.
-wasm-nux-learn-more = Learn more
-wasm-nux-download-confirm = Download
-wasm-nux-object-kind-drive-objects = Dais Drive objects
-wasm-nux-object-kind-warp-links = Dais links
-wasm-nux-always-open-on-web-title = Always open { $object_kind } on the web?
-wasm-nux-always-open-on-web-detail = You can change this at any time in settings.
-wasm-nux-yes = Yes
 
 # Auth override warning (app/src/auth/auth_override_warning_body.rs)
 auth-override-warning-title = New login detected

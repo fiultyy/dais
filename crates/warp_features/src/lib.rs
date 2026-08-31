@@ -336,10 +336,8 @@ pub enum FeatureFlag {
 
     /// An entrypoint pane type to launch other pane types from a search palette. The default view
     /// when creating a tab.
-    WelcomeTab,
 
     /// A new first-time user experience which prioritizes choosing a coding repository.
-    GetStartedTab,
 
     /// Enables Projects and Project management
     Projects,
@@ -649,7 +647,6 @@ pub enum FeatureFlag {
 
     /// Guided onboarding flow for existing users introducing HOA features
     /// (vertical tabs, agent inbox, tab configs).
-    HOAOnboardingFlow,
 
     /// Enables commit, push, and create-PR actions in the code review panel.
     GitOperationsInCodeReview,

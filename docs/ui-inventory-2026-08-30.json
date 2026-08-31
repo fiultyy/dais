@@ -1,7 +1,7 @@
 {
   "generated": "2026-08-30",
   "verdicts_updated": "2026-08-31",
-  "verdict_legend": "verdict=最终生效裁决(manual/manual-adjusted/inferred 优先于 trim_verdict 原判); manual_verdict 仅记录与原判不同的人工改判; trim_verdict=清点原判",
+  "verdict_legend": "verdict=最终生效裁决(manual/manual-adjusted/inferred 优先于 trim_verdict 原判); manual_verdict 仅记录与原判不同的人工改判; trim_verdict=清点原判; status=2026-08-30 清点时点快照, 现态看 implementation/cleanup_round",
   "repo": "/home/yy/warpdotdev/dais-gui",
   "branch": "feat/gui-cockpit-nav",
   "scope": "app/src/ UI 层 + crates/warpui* 自绘框架 + app/src/ai/orchestration/ GUI 桥",
@@ -5454,7 +5454,7 @@
       "status": "needs-review",
       "invoked_by": "CommandSearchView mixer(NaturalLanguage过滤)",
       "trim_verdict": "trim",
-      "verdict_reason": "云端功能删除后仅剩本地写回/打开Agent两动作}\n]",
+      "verdict_reason": "云端功能删除后仅剩本地写回/打开Agent两动作",
       "coupling": {
         "kind": "shared-file",
         "peers": "command-search",
@@ -7679,7 +7679,7 @@
     },
     "telemetry_dead_variants": "removed",
     "legacy_pane_tables": "dropped(migration+schema+model)",
-    "drive_residual": "surgical cut only — items/workflows/sharing/settings/export are shared-model-layer consumed by kept surfaces",
+    "drive_residual": "surgical cut only(初判, R3 已深化) — 实际残留清单见 r3_drive_cloud.not_cut",
     "reindex": {
       "date": "2026-08-31",
       "mode": "moderate",
@@ -7698,7 +7698,7 @@
       "features": "205→204 (voice_input+use_tantivy_search 删)",
       "r4": "voice 砍+fuzzy 删+tantivy 转正(2026-08-31d)",
       "search_path": "tantivy 唯一(4 data_source 硬编码 full_text)",
-      "git_head": "bf0229b5(R3 commit)+R4 未提交(7删/49改)"
+      "git_head": "780e909f(R4 commit, 56文件 +131/-3218) ← bf0229b5(R3); 工作区干净, 未 push"
     },
     "cargo_features": {
       "passive_removed": [
@@ -7862,6 +7862,23 @@
           "voice/tantivy 文件": "1 命中(app/src/ai/voice/mod.rs 7行墓碑注释) — 已顺手物理删+卸载 mod 声明, 复验 check 0 err"
         }
       }
+    },
+    "dangling_audit": {
+      "date": "2026-08-31e",
+      "method": "7 域 reviewer 并行核实 54 符号(voice/fuzzy-tantivy/cloud-sync/dais-sync/legacy-panes/cut-surfaces/dead-flags)",
+      "verdicts": {
+        "clean": 40,
+        "benign_hits": "底册历史记录/迁移文件自身/同名活符号/过期注释等",
+        "真悬空": 4
+      },
+      "dangling_fixed": {
+        "get_started_tab": "Cargo.toml default+声明(R3-1 checkout 事故致重放遗漏, 记账有实物无) — 已删",
+        "FeatureFlag 死变体": "WelcomeTab/GetStartedTab/HOAOnboardingFlow(warp_features 枚举零引用) — 已删",
+        "crates/i18n 孤儿 key": "welcome-palette-*×2 + wasm-nux-*×12 三语共 -42 key(上轮 i18n 清扫只扫了 app/i18n 漏了 crates/i18n) + 过期分节注释",
+        "AGENTS.md": "wasm_nux_dialog.rs 过期模块清单行"
+      },
+      "stale_docs_noted": "specs/APP-3909/TECH.md 引用 FuzzyActionSearcher 旧址(过期规格指针, 非代码); verifier 未改待用户定夺规格是否仍活跃",
+      "verified": "cargo check -p warp --all-targets 0 errors; 悬空符号复扫全零"
     }
   }
 }
