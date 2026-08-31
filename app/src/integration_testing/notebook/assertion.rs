@@ -12,7 +12,7 @@ use crate::{
         generic_string_model::GenericStringObjectId, persistence::ObjectStoreModel,
     },
     integration_testing::{
-        cloud_object::assert_metadata_revision,
+        assertions::assert_metadata_revision,
         terminal::util::ExpectedOutput,
         view_getters::{notebook_view, terminal_view},
     },

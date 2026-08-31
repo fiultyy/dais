@@ -22,9 +22,8 @@ use warpui::{
 use crate::{
     ai::blocklist::block::secret_redaction::find_secrets_in_text_with_levels,
     cloud_object::{
-        breadcrumbs::ContainingObject,
         model::persistence::{ObjectStoreEvent, ObjectStoreModel},
-        update_manager::{FetchSingleObjectOption, UpdateManager},
+        update_manager::UpdateManager,
         Owner, StoredObjectEventEntrypoint,
     },
     drive::{items::WarpDriveItemId, sharing::ContentEditability},
@@ -45,10 +44,9 @@ use crate::{
     },
     search::external_secrets::view::ExternalSecretsMenu,
     send_telemetry_from_ctx,
-    server::ids::{ServerId, SyncId},
+    server::ids::SyncId,
     terminal::{model::secrets::SecretLevel, safe_mode_settings::get_secret_obfuscation_mode},
     ui_components::{
-        breadcrumb::{render_breadcrumbs, BreadcrumbState},
         buttons::icon_button,
         icons::Icon,
         menu_button::{
@@ -286,7 +284,6 @@ pub struct EnvVarCollectionView {
     // (the key) or a rendered secret/command button. Once a menu item
     // is selected, we set this to Some(VariableRowIndex())
     pub(super) pending_variable_row_index: Option<VariableRowIndex>,
-    pub(super) breadcrumbs: Vec<BreadcrumbState<ContainingObject>>,
     // State vars used to manage menus; pane_context_menu_offset holds
     // the offset from the parent (i.e. origin of the element saved to
     // the below view_position_id variable) on a user's right click
@@ -560,7 +557,6 @@ impl EnvVarCollectionView {
             title_editor,
             description_editor,
             variable_rows: Vec::new(),
-            breadcrumbs: Vec::new(),
             menus,
             pending_variable_row_index: None,
             pane_context_menu_offset: None,
@@ -609,8 +605,6 @@ impl EnvVarCollectionView {
                 .cloned();
             if let Some(env_var_collection) = env_var_collection {
                 me.load(env_var_collection, ctx);
-            } else if let Some(server_id) = env_var_collection_id.into_server() {
-                me.fetch_and_load_env_var_collection(server_id, window_id, ctx);
             } else {
                 ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                     toast_stack.add_ephemeral_toast_by_type(
@@ -624,34 +618,6 @@ impl EnvVarCollectionView {
         });
     }
 
-    fn fetch_and_load_env_var_collection(
-        &mut self,
-        env_var_collection_id: ServerId,
-        window_id: WindowId,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        let fetch_cloud_object_rx =
-            UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                update_manager.fetch_single_cloud_object(
-                    &env_var_collection_id,
-                    FetchSingleObjectOption::None,
-                    ctx,
-                )
-            });
-        ctx.spawn(fetch_cloud_object_rx, move |me, _, ctx| {
-            if let Some(env_var_collection) = ObjectStoreModel::as_ref(ctx)
-                .get_env_var_collection(&SyncId::ServerId(env_var_collection_id))
-                .cloned()
-            {
-                me.load(env_var_collection, ctx);
-            } else {
-                ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-                    toast_stack.add_ephemeral_toast_by_type(ToastType::StoredObjectNotFound, window_id, ctx);
-                });
-                log::warn!("Tried to open unknown env var collection {env_var_collection_id:?} after fetching");
-            }
-        });
-    }
 
     pub fn load(
         &mut self,
@@ -964,10 +930,6 @@ impl EnvVarCollectionView {
         ctx: &mut ViewContext<Self>,
     ) {
         match event {
-            ActiveEnvVarCollectionDataEvent::BreadcrumbsChanged => {
-                self.update_breadcrumbs(ctx);
-                ctx.notify()
-            }
             ActiveEnvVarCollectionDataEvent::TrashStatusChanged => {
                 self.pane_configuration.update(ctx, |pane_config, ctx| {
                     pane_config.refresh_pane_header_overflow_menu_items(ctx)
@@ -1301,32 +1263,7 @@ impl View for EnvVarCollectionView {
 
         content.extend(self.render_trash_banner(access_level, app));
 
-        content.add_child(
-            Align::new(
-                ConstrainedBox::new(
-                    Align::new(
-                        Container::new(render_breadcrumbs(
-                            self.breadcrumbs.clone(),
-                            appearance,
-                            |ctx, _, breadcrumb| {
-                                ctx.dispatch_typed_action(EnvVarCollectionAction::ViewInWarpDrive(
-                                    breadcrumb.kind.into_item_id(),
-                                ));
-                            },
-                        ))
-                        .with_horizontal_margin(CORE_HORIZONATAL_MARGIN)
-                        .with_vertical_margin(CORE_VERTICAL_MARGIN / 2.)
-                        .finish(),
-                    )
-                    .top_left()
-                    .finish(),
-                )
-                .with_max_width(CORE_MAX_WIDTH)
-                .finish(),
-            )
-            .top_center()
-            .finish(),
-        );
+        // Dais(W3-d8): 面包屑行随 cloud_object::breadcrumbs 裁撤, 不再渲染。
 
         if let TrashStatus::Active = self
             .active_env_var_collection_data

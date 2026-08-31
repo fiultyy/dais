@@ -1,8 +1,5 @@
 use crate::ai::mcp::templatable::GalleryData;
 use crate::ai::mcp::MCPServerUpdate;
-use crate::modal::Modal;
-use crate::modal::ModalEvent;
-use crate::modal::ModalViewState;
 use crate::server::telemetry::{MCPTemplateInstallationSource, TelemetryEvent};
 use crate::settings::{AISettings, AISettingsChangedEvent};
 use crate::settings_view::mcp_servers_page::InstallOrigin;
@@ -38,14 +35,11 @@ use crate::{
     drive::ObjectTypeAndId,
     editor::{EditorView, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions},
     pane_group::Direction,
-    search_bar::SearchBar,
     settings_view::mcp_servers::{
         server_card::{
             ServerCardEvent, ServerCardOptions, ServerCardStatus, ServerCardView, TitleChip,
         },
-        style,
-        update_modal::{UpdateModalBody, UpdateModalBodyEvent},
-        ServerCardItemId,
+        style, ServerCardItemId,
     },
     ui_components::blended_colors,
     view_components::action_button::{ActionButton, NakedTheme},
@@ -68,7 +62,7 @@ use warpui::{
         MainAxisSize, ParentElement, Radius, Text,
     },
     ui_components::{
-        components::{Coords, UiComponent, UiComponentStyles},
+        components::{UiComponent, UiComponentStyles},
         switch::SwitchStateHandle,
     },
     AppContext, Element, Entity, SingletonEntity, TypedActionView, View, ViewContext, ViewHandle,
@@ -84,12 +78,9 @@ pub enum MCPServersListPageViewEvent {
         instructions_in_markdown: Option<String>,
         /// Where the install request was initiated from. List-page-originated
         /// events are always `InstallOrigin::InApp` because they are emitted in
-        /// response to a direct user gesture on the gallery card. See
-        /// `specs/GH686/product.md`.
+        /// response to a direct user gesture on the gallery card.
         origin: InstallOrigin,
     },
-    ShowModal,
-    HideModal,
 }
 
 #[derive(Debug, Clone)]
@@ -103,9 +94,7 @@ pub struct MCPServersListPageView {
     gallery_server_cards: HashMap<ServerCardItemId, ViewHandle<ServerCardView>>,
     // MCP server cards for uninstalled file-based servers, grouped by provider.
     file_based_template_cards: HashMap<MCPProvider, Vec<ViewHandle<ServerCardView>>>,
-    update_modal_state: ModalViewState<Modal<UpdateModalBody>>,
     search_editor: ViewHandle<EditorView>,
-    search_bar: ViewHandle<SearchBar>,
     add_button: ViewHandle<ActionButton>,
     file_based_mcp_toggle: SwitchStateHandle,
 }
@@ -158,43 +147,11 @@ impl MCPServersListPageView {
         });
 
         let appearance = Appearance::handle(ctx);
-        ctx.subscribe_to_model(&appearance, move |me, _, event, ctx| {
+        ctx.subscribe_to_model(&appearance, |_, _, event, ctx| {
             if let AppearanceEvent::ThemeChanged = event {
-                let appearance = Appearance::as_ref(ctx);
-                let search_bar_styles = UiComponentStyles {
-                    background: Some(internal_colors::neutral_2(appearance.theme()).into()),
-                    border_color: Some(internal_colors::neutral_4(appearance.theme()).into()),
-                    border_radius: Some(CornerRadius::with_all(Radius::Pixels(4.))),
-                    padding: Some(Coords {
-                        top: 8.,
-                        bottom: 8.,
-                        left: 12.,
-                        right: 12.,
-                    }),
-                    ..Default::default()
-                };
-                me.search_bar.update(ctx, |search_bar, _| {
-                    search_bar.with_style(search_bar_styles)
-                });
+                ctx.notify();
             }
         });
-
-        let update_modal_body = ctx.add_typed_action_view(|_ctx| UpdateModalBody::new());
-        ctx.subscribe_to_view(&update_modal_body, |me, _, event, ctx| {
-            me.handle_update_modal_body_event(event, ctx);
-        });
-
-        let update_modal = ctx.add_typed_action_view(|ctx| {
-            Modal::new(None, update_modal_body, ctx).with_body_style(UiComponentStyles {
-                padding: Some(Coords::uniform(0.)),
-                ..Default::default()
-            })
-        });
-        ctx.subscribe_to_view(&update_modal, |me, _, event, ctx| {
-            me.handle_update_modal_event(event, ctx);
-        });
-
-        let update_modal_state = ModalViewState::new(update_modal);
 
         let gallery_server_cards = Self::create_gallery_server_cards(ctx);
         for server_card in gallery_server_cards.values() {
@@ -221,7 +178,6 @@ impl MCPServersListPageView {
             editor.clear_buffer_and_reset_undo_stack(ctx);
             editor.set_placeholder_text(crate::t!("settings-mcp-list-search-placeholder"), ctx);
         });
-        let search_bar = ctx.add_typed_action_view(|_| SearchBar::new(search_editor.clone()));
 
         let add_button = ctx.add_typed_action_view(|_| {
             ActionButton::new(crate::t!("settings-mcp-list-add-button"), NakedTheme)
@@ -233,9 +189,7 @@ impl MCPServersListPageView {
             server_cards: Default::default(),
             gallery_server_cards,
             file_based_template_cards: Default::default(),
-            update_modal_state,
             search_editor,
-            search_bar,
             add_button,
             file_based_mcp_toggle: Default::default(),
         };
@@ -358,13 +312,6 @@ impl MCPServersListPageView {
                 None => ServerCardStatus::Installed,
             };
         let is_shareable = Self::is_shareable(item_id, server_card_status, ctx);
-        let is_update_available = TemplatableMCPServerManager::as_ref(ctx)
-            .is_update_available_for_installation(installation_uuid, ctx);
-        let is_authorized_editor =
-            TemplatableMCPServerManager::handle(ctx).read(ctx, |templatable_manager, ctx| {
-                templatable_manager.is_authorized_editor(installation.template_uuid(), ctx)
-            });
-        let should_show_update_symbol = is_authorized_editor && is_update_available;
 
         let title_chip_text = Self::get_title_chip_text(item_id, installation.template_uuid(), ctx);
         let description = installation.templatable_mcp_server().description.clone();
@@ -394,7 +341,6 @@ impl MCPServersListPageView {
             ServerCardOptions {
                 show_log_out_icon_button: uses_oauth,
                 show_share_icon_button: is_shareable,
-                show_update_available_icon_button: should_show_update_symbol,
                 ..server_card_status.into()
             },
         );
@@ -665,16 +611,6 @@ impl MCPServersListPageView {
                     self.install_from_gallery(*gallery_uuid, ctx);
                 }
             },
-            ServerCardEvent::InstallServerUpdate(item_id) => {
-                let ServerCardItemId::TemplatableMCPInstallation(installation_uuid) = item_id
-                else {
-                    log::error!(
-                        "Install server update is only supported for templatable MCP installations"
-                    );
-                    return;
-                };
-                self.start_server_update(*installation_uuid, ctx);
-            }
             ServerCardEvent::LogOut(item_id) => {
                 if let Some(server_card) = self.get_server_card(*item_id) {
                     let server_name = server_card.as_ref(ctx).title();
@@ -688,6 +624,8 @@ impl MCPServersListPageView {
         }
     }
 
+    /// W3 域裁切:update modal 已物理删。单更新照旧自动安装;多更新时
+    /// 退化为安装第一个可用更新(原走模态让用户挑选的分支不复存在)。
     fn start_server_update(&mut self, installation_uuid: Uuid, ctx: &mut ViewContext<Self>) {
         let Some(installation) =
             TemplatableMCPServerManager::as_ref(ctx).get_installed_server(&installation_uuid)
@@ -695,23 +633,14 @@ impl MCPServersListPageView {
             log::warn!("Cannot update server {installation_uuid}: Could not find installation.");
             return;
         };
-        let server_name = installation.templatable_mcp_server().name.clone();
+        let _server_name = installation.templatable_mcp_server().name.clone();
         let available_updates = TemplatableMCPServerManager::as_ref(ctx)
             .get_updates_available_for_installation(installation_uuid, ctx);
 
-        // Automatically install it if there's only one update available, otherwise open the modal so the user can select which one they want to proceed with
-        if available_updates.len() == 1 {
-            self.process_server_update(installation_uuid, available_updates[0].clone(), ctx);
+        if let Some(update) = available_updates.first() {
+            self.process_server_update(installation_uuid, update.clone(), ctx);
         } else {
-            self.update_modal_state.view.update(ctx, |modal, ctx| {
-                modal.body().update(ctx, |body, ctx| {
-                    body.set_installation(installation_uuid, server_name, available_updates);
-                    ctx.notify();
-                });
-            });
-            self.update_modal_state.open();
-            ctx.focus(&self.update_modal_state.view);
-            ctx.emit(MCPServersListPageViewEvent::ShowModal);
+            log::info!("No updates available for server {installation_uuid}.");
         }
         ctx.notify();
     }
@@ -918,53 +847,6 @@ impl MCPServersListPageView {
         };
     }
 
-    fn handle_update_modal_body_event(
-        &mut self,
-        event: &UpdateModalBodyEvent,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        match event {
-            UpdateModalBodyEvent::Cancel => {
-                self.update_modal_state.view.update(ctx, |modal, ctx| {
-                    modal.body().update(ctx, |body, _ctx| {
-                        body.clear();
-                    });
-                });
-                self.update_modal_state.close();
-                ctx.emit(MCPServersListPageViewEvent::HideModal);
-                ctx.notify();
-            }
-            UpdateModalBodyEvent::Update {
-                installation_uuid,
-                update,
-            } => {
-                let Some(installation_uuid) = installation_uuid else {
-                    log::warn!("Cannot update installation with uuid of None");
-                    return;
-                };
-                self.process_server_update(*installation_uuid, update.clone(), ctx);
-                self.update_modal_state.view.update(ctx, |modal, ctx| {
-                    modal.body().update(ctx, |body, _ctx| {
-                        body.clear();
-                    });
-                });
-                self.update_modal_state.close();
-                ctx.emit(MCPServersListPageViewEvent::HideModal);
-                ctx.notify();
-            }
-        }
-    }
-
-    fn handle_update_modal_event(&mut self, event: &ModalEvent, ctx: &mut ViewContext<Self>) {
-        match event {
-            ModalEvent::Close => {
-                self.update_modal_state.close();
-                ctx.emit(MCPServersListPageViewEvent::HideModal);
-                ctx.notify();
-            }
-        }
-    }
-
     fn handle_templatable_mcp_manager_event(
         &mut self,
         event: &TemplatableMCPServerManagerEvent,
@@ -1006,12 +888,9 @@ impl MCPServersListPageView {
         ctx.notify();
     }
 
+    /// W3 域裁切:update modal 已物理删,列表页不再贡献模态内容。
     pub fn get_modal_content(&self) -> Option<Box<dyn Element>> {
-        if self.update_modal_state.is_open() {
-            Some(self.update_modal_state.render())
-        } else {
-            None
-        }
+        None
     }
 
     fn server_card_handle_matches_search(
@@ -1182,7 +1061,7 @@ impl MCPServersListPageView {
             let empty_state = self.render_empty_state(appearance, app);
             page.add_child(empty_state);
         } else {
-            page.add_child(self.render_controls());
+            page.add_child(self.render_controls(appearance));
 
             if FeatureFlag::FileBasedMcp.is_enabled() {
                 page.add_child(self.render_file_based_mcp_section(appearance, app));
@@ -1242,10 +1121,23 @@ impl MCPServersListPageView {
         page.finish()
     }
 
-    fn render_controls(&self) -> Box<dyn Element> {
+    fn render_controls(&self, appearance: &Appearance) -> Box<dyn Element> {
+        let theme = appearance.theme();
+        let search_field = Container::new(ChildView::new(&self.search_editor).finish())
+            .with_background::<warpui::elements::Fill>(internal_colors::neutral_2(theme).into())
+            .with_border(
+                Border::all(1.)
+                    .with_border_fill::<warpui::elements::Fill>(internal_colors::neutral_4(theme).into()),
+            )
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+            .with_padding_left(12.)
+            .with_padding_right(12.)
+            .with_padding_top(8.)
+            .with_padding_bottom(8.)
+            .finish();
         Flex::row()
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
-            .with_child(Expanded::new(1., ChildView::new(&self.search_bar).finish()).finish())
+            .with_child(Expanded::new(1., search_field).finish())
             .with_child(self.render_add_button())
             .finish()
     }

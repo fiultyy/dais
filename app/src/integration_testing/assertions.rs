@@ -1,15 +1,19 @@
 use crate::{
     cloud_object::{
-        model::persistence::ObjectStoreModel, update_manager::UpdateManager, Space,
-        StoredObjectEventEntrypoint, StoredObjectLocation,
+        model::persistence::ObjectStoreModel, update_manager::UpdateManager, GenericStoredObject,
+        Revision, Space, StoredObjectEventEntrypoint, StoredObjectLocation, StoredObjectModel,
     },
     network::{NetworkStatus, NetworkStatusKind},
-    server::ids::ClientId,
+    server::ids::{ClientId, HashableId, ServerId, SyncId, ToServerId},
     util::bindings::keybinding_name_to_display_string,
     workflows::workflow::Workflow,
     workspaces::{team::Team, user_workspaces::UserWorkspaces, workspace::Workspace},
 };
-use warpui::{async_assert, async_assert_eq, integration::TestStep, SingletonEntity};
+use warpui::{
+    async_assert, async_assert_eq,
+    integration::{AssertionCallback, TestStep},
+    SingletonEntity,
+};
 
 fn set_and_assert_network_status(status: NetworkStatusKind) -> TestStep {
     TestStep::new("Set and assert network status")
@@ -139,6 +143,42 @@ pub fn assert_binding_display_string(
             })
         },
     )
+}
+
+// Dais(本地化,Phase 2d-4a-1):原 `assert_websocket_has_started` / `assert_websocket_has_not_started`
+
+/// Asserts metadata exists for the object with the given key and that the revision in that
+/// metadata matches the given expected revision.
+///
+/// Dais(本地化):原位于 integration_testing/cloud_object/assertion.rs,该目录已随 Drive 云对象
+/// UI 删除;此泛型助手被 notebook/workflow 元数据断言引用,迁移至此。
+pub fn assert_metadata_revision<K, M>(id: &str, expected_revision: i64) -> AssertionCallback
+where
+    K: HashableId + ToServerId + std::fmt::Debug + Into<String> + Clone + 'static,
+    M: StoredObjectModel<IdType = K, StoredObjectType = GenericStoredObject<K, M>> + 'static,
+{
+    let id = SyncId::ServerId(ServerId::try_from(id).expect("ID is invalid"));
+    Box::new(move |app, _window_id| {
+        let revision = app.get_singleton_model_handle::<ObjectStoreModel>().read(
+            app,
+            |object_store_model, _| {
+                let object = object_store_model
+                    .get_object_of_type::<K, M>(&id)
+                    .expect("object should exist");
+                object
+                    .metadata
+                    .revision
+                    .clone()
+                    .expect("revision should exist")
+            },
+        );
+        async_assert!(
+            revision
+                == Revision::from_unix_timestamp_micros(expected_revision)
+                    .expect("revision should parse"),
+            "Expected revision to be:{expected_revision:?}\nBut got:\n{revision:?}"
+        )
+    })
 }
 
 // Dais(本地化,Phase 2d-4a-1):原 `assert_websocket_has_started` / `assert_websocket_has_not_started`

@@ -9,27 +9,16 @@
 # SECTION: common (Owner: foundation)
 # =============================================================================
 
-app-name = Dais
-app-tagline = The local-first agentic terminal for developers
-
 common-ok = OK
 common-cancel = Cancel
-common-apply = Apply
 common-save = Save
 common-delete = Delete
 common-confirm = Confirm
 common-close = Close
-common-reset = Reset
 common-back = Back
 code-review-title = Code Review
 common-next = Next
-common-yes = Yes
-common-no = No
-common-continue = Continue
-common-approve = Approve
-common-deny = Deny
 common-import = Import
-common-upgrade = Upgrade
 common-default = Default
 common-editing = Editing
 common-viewing = Viewing
@@ -42,18 +31,12 @@ common-send-feedback = Send Feedback
 common-something-went-wrong = Something went wrong
 common-no-results-found = No results found.
 common-edit = Edit
-common-add = Add
 common-remove = Remove
-common-rename = Rename
 common-copy = Copy
 common-paste = Paste
 common-search = Search
 common-view = View
 common-loading = Loading…
-common-error = Error
-common-warning = Warning
-common-info = Info
-common-success = Success
 common-all = All
 common-none = None
 common-unknown = Unknown
@@ -64,9 +47,7 @@ common-export = Export
 common-trash = Trash
 common-copy-link = Copy link
 common-untitled = Untitled
-common-retry = Retry
 common-maximize = Maximize
-common-discard = Discard
 common-undo = Undo
 common-commit = Commit
 common-push = Push
@@ -76,13 +57,9 @@ common-configure = Configure
 common-dismiss = Dismiss
 common-manage = Manage
 common-failed = Failed
-common-done = Done
-common-working = Working
 common-cut = Cut
 common-previous = Previous
-common-suggested = Suggested
 common-copied-to-clipboard = Copied to clipboard
-common-new = New
 common-no-results = No results
 common-learn-more = Learn more
 common-skip = Skip
@@ -92,55 +69,12 @@ common-settings = Settings
 common-recommended = Recommended
 common-enabled = Enabled
 common-disabled = Disabled
-common-free = Free
 common-list-prefix = {" - "}
 common-current-directory = the current directory
 
 # =============================================================================
 # SECTION: agent-management (Owner: agent-i18n-remaining)
 # Files: app/src/ai/agent_management/**
-# =============================================================================
-
-agent-management-filter-all-tooltip = View your agent tasks plus all shared team tasks
-agent-management-filter-personal = Personal
-agent-management-filter-personal-tooltip = View agent tasks you created
-agent-management-get-started = Get started
-agent-management-view-agents = View Agents
-agent-management-clear-filters = Clear filters
-agent-management-clear-all = Clear all
-agent-management-new-agent = New agent
-agent-management-status = Status
-agent-management-source = Source
-agent-management-created-on = Created on
-agent-management-has-artifact = Has artifact
-agent-management-harness = Harness
-agent-management-environment = Environment
-agent-management-created-by = Created by
-agent-management-last-24-hours = Last 24 hours
-agent-management-past-3-days = Past 3 days
-agent-management-last-week = Last week
-agent-management-artifact-pull-request = Pull Request
-agent-management-artifact-plan = Plan
-agent-management-artifact-screenshot = Screenshot
-agent-management-artifact-file = File
-agent-management-source-scheduled = Scheduled
-agent-management-source-local-agent = Dais (local agent)
-agent-management-source-cloud-agent = Dais agent
-agent-management-source-oz-web = Oz
-agent-management-source-github-action = GitHub Action
-agent-management-no-session-available = No session available
-agent-management-session-expired = Session expired
-agent-management-session-expired-tooltip = Sessions expire after one week and cannot be opened.
-agent-management-metadata-source = Source: { $source }
-agent-management-metadata-harness = Harness: { $harness }
-agent-management-metadata-run-time = Run time: { $run_time }
-agent-management-metadata-credits-used = Credits used: { $usage }
-agent-management-environment-selected = Environment: { $environment }
-agent-management-loading-cloud-runs = Loading agent runs
-
-# =============================================================================
-# SECTION: workspace-runtime (Owner: agent-i18n-remaining)
-# Files: app/src/workspace/view.rs
 # =============================================================================
 
 workspace-menu-update-warp-manually = Update Dais manually
@@ -158,8 +92,6 @@ workspace-toast-no-terminal-pane-for-context = No terminal pane open. Open a new
 workspace-toast-plan-already-in-context = This plan is already in context.
 workspace-toast-command-still-running = A command in this session is still running.
 workspace-toast-cannot-open-terminal-session = Cannot open a new terminal session
-workspace-toast-out-of-ai-credits = Looks like you're out of AI credits.
-workspace-toast-upgrade-more-credits = Upgrade for more credits.
 workspace-toast-disabled-synchronized-inputs = Disabled all synchronized inputs.
 workspace-toast-conversation-deleted = Conversation deleted
 workspace-search-repos-placeholder = Search repos
@@ -169,65 +101,13 @@ terminal-onekey-search-no-results = No matching SSH credentials
 workspace-rearrange-toolbar-items = Re-arrange toolbar items
 workspace-new-session-agent = Agent
 workspace-new-session-terminal = Terminal
-workspace-new-session-cloud-oz = Agent tab
 workspace-new-session-local-docker-sandbox = Local Docker Sandbox
 workspace-new-worktree-config = New worktree config
 workspace-new-tab-config = New tab config
 workspace-reopen-closed-session = Reopen closed session
-app-menu-new-window = New Window
-app-menu-save-new = Save New...
-app-menu-launch-configurations = Launch Configurations
-app-menu-warp = Dais
-app-menu-preferences = Preferences
-app-menu-privacy-policy = Privacy Policy...
-app-menu-debug = Debug
-app-menu-set-default-terminal = Set Dais as Default Terminal
-app-menu-file = File
-app-menu-edit = Edit
-app-menu-use-warp-prompt = Use Dais's Prompt
-app-menu-copy-on-select-terminal = Copy on Select within the Terminal
-app-menu-synchronize-inputs = Synchronize Inputs
-app-menu-view = View
-app-menu-toggle-mouse-reporting = Toggle Mouse Reporting
-app-menu-toggle-scroll-reporting = Toggle Scroll Reporting
-app-menu-toggle-focus-reporting = Toggle Focus Reporting
-app-menu-compact-mode = Compact Mode
-app-menu-tab = Tab
-app-menu-ai = AI
-app-menu-blocks = Blocks
-app-menu-drive = Drive
-app-menu-show-in-band-command-blocks = Show In-band Command Blocks
-app-menu-hide-in-band-command-blocks = Hide In-band Command Blocks
-app-menu-show-warpified-ssh-blocks = Show Warpified SSH Blocks
-app-menu-hide-warpified-ssh-blocks = Hide Warpified SSH Blocks
-app-menu-show-initialization-block = Show Initialization Block
-app-menu-hide-initialization-block = Hide Initialization Block
-app-menu-window = Window
-app-menu-enable-shell-debug-mode = Enable Shell Debug Mode (-x) for New Sessions
-app-menu-disable-shell-debug-mode = Disable Shell Debug Mode (-x) for New Sessions
-app-menu-enable-pty-recording = Enable PTY Recording Mode (warp.pty.recording)
-app-menu-disable-pty-recording = Disable PTY Recording Mode (warp.pty.recording)
-app-menu-enable-in-band-generators = Enable in-band generators for new sessions
-app-menu-disable-in-band-generators = Disable in-band generators for new sessions
-app-menu-manually-toggle-network-status = Manually Toggle Network Status
-app-menu-export-default-settings-csv = Export Default Settings as CSV to home dir
-app-menu-create-anonymous-user = Create anonymous user
-app-menu-send-feedback = Send Feedback...
-app-menu-help = Help
-app-menu-warp-documentation = Dais Documentation...
-app-menu-github-issues = GitHub Issues...
-app-menu-warp-slack-community = Dais Slack Community...
 workspace-update-and-relaunch-warp = Update and relaunch Dais
 workspace-updating-to-version = Updating to ({ $version })
 workspace-update-warp-manually = Update Dais manually
-pane-get-started-title = Get started
-pane-new-tab-title = New tab
-
-# =============================================================================
-# SECTION: terminal-runtime (Owner: agent-i18n-remaining)
-# Files: app/src/terminal/view.rs
-# =============================================================================
-
 terminal-banner-completions-not-working-prefix = Seems like your completions are not working (
 terminal-banner-more-info-lower = more info
 terminal-banner-more-info = More info
@@ -241,7 +121,6 @@ terminal-toast-powershell-subshells-not-supported = PowerShell subshells not sup
 terminal-dont-ask-again = Don't ask me this again
 terminal-clear-upload = Clear upload
 terminal-manage-defaults = Manage defaults
-terminal-free-credits = Free credits
 terminal-cloud-agent-run = Agent run
 terminal-agent-header-for-terminal = for terminal
 ssh-remote-choice-title = Choose your experience for this remote session:
@@ -252,20 +131,14 @@ ssh-remote-choice-continue-without-installing-desc = You'll still get a Warpifie
 ssh-remote-choice-manage-warpify-settings = Manage Warpify settings
 ai-document-show-version-history = Show version history
 ai-document-update-agent = Update Agent
-ai-document-save-and-sync-tooltip = Save and auto-sync this plan to your Dais Drive
-ai-document-show-in-warp-drive = Show in Dais Drive
 ai-document-save-as-markdown-file = Save as markdown file
 ai-document-attach-to-active-session = Attach to active session
 ai-document-copy-plan-id = Copy plan ID
 ai-document-plan-id-copied = Plan ID copied to clipboard
-ai-conversation-view-in-oz = View run
-ai-conversation-view-in-oz-tooltip = View this agent run
 ai-block-open-in-github = Open in GitHub
 ai-block-open-in-code-review = Open in code review
-ai-block-manage-rules = Manage rules
 ai-block-review-changes = Review changes
 ai-block-open-all-in-code-review = Open all in code review
-ai-block-dont-show-again = Don't show again
 ai-block-rewind = Rewind
 ai-block-rewind-tooltip = Rewind to before this block
 ai-block-remove-queued-prompt = Remove queued prompt
@@ -279,8 +152,6 @@ ai-block-show-credit-usage-details = Show credit usage details
 ai-block-follow-up-existing-conversation = Follow up with existing conversation
 ai-block-accept = Accept
 ai-block-auto-approve = Auto-approve
-ai-rule-add-rule = Add rule
-ai-rule-edit-rule = Edit rule
 ai-rule-delete-rule = Delete rule
 ai-aws-refresh-credentials = Refresh AWS Credentials
 ai-footer-enable-notifications = Enable notifications
@@ -292,7 +163,6 @@ ai-footer-plugin-update-available-tooltip = A new version of the Warp plugin is 
 ai-footer-plugin-update-instructions = Plugin update instructions
 ai-footer-plugin-update-instructions-tooltip = View instructions to update the Warp plugin
 ai-footer-context-window-usage-tooltip = Context window usage
-ai-footer-choose-environment-tooltip = Choose an environment
 ai-footer-reasoning-depth-tooltip = Reasoning depth
 ai-footer-file-explorer = File explorer
 ai-footer-open-file-explorer = Open file explorer
@@ -305,7 +175,6 @@ ai-ask-user-answered-question = Answered question
 ai-ask-user-answered-all-questions = Answered all { $total } questions
 ai-ask-user-answered-count = Answered { $answered_count } of { $total } questions
 ai-code-diff-requested-edit-title = Requested Edit
-ai-cloud-setup-visit-oz = Open agent setup
 ai-inline-code-diff-review-changes = Review changes
 ai-execution-profile-name-placeholder = e.g. "YOLO code"
 ai-execution-profile-delete-profile = Delete profile
@@ -316,14 +185,12 @@ code-copy-file-path = Copy file path
 code-select-all = Select all
 code-replace-all = Replace all
 code-goto-line-placeholder = Line number:Column
-code-open-file-unavailable-remote-tooltip = Opening files is unavailable for remote sessions
 code-view-markdown-preview = View Markdown preview
 markdown-display-mode-rendered = Rendered
 markdown-display-mode-raw = Raw
 code-review-commit-and-create-pr = Commit and create PR
 notebook-link-text-placeholder = Text
 notebook-link-url-placeholder = Link (web or file)
-notebook-block-embed = Embed
 notebook-block-divider = Divider
 notebook-insert-block-tooltip = Insert block
 notebook-refresh-notebook = Refresh notebook
@@ -333,19 +200,6 @@ notebook-sign-in-to-edit = Sign in to edit
 editor-custom-keybinding = Custom...
 editor-change-keybinding = Change keybinding
 autosuggestion-ignore-this-suggestion = Ignore this suggestion
-codex-use-latest-model = Use latest codex model
-dais-launch-visit-repo = Visit the repo
-dais-launch-title = Dais is now open-source
-dais-launch-description = You, our community, can participate in building Dais using an agent-first workflow.
-dais-launch-contribute-title = Contribute
-dais-launch-contribute-description = Dais's client code is now open source. Get started by using the /feedback skill to open an issue, and follow the contribution guidelines here.
-dais-launch-contribute-link-text = here
-dais-launch-oad-title = Open Automated Development
-dais-launch-oad-description = The Dais repo is managed by an agent-first local workflow powered by Oz.
-dais-launch-auto-model-title = Introducing 'auto (open-weights)'
-dais-launch-auto-model-description = We've added a new auto model that picks the best open weight model for a task, like Kimi or MiniMax.
-hoa-see-whats-new = See what's new
-hoa-finish = Finish
 session-config-get-warping = Get Started
 uri-custom-uri-invalid = Custom URI is invalid.
 context-node-install-nvm = Install nvm
@@ -364,10 +218,6 @@ settings-ai-default-placeholder = default
 settings-working-directory-path-placeholder = Directory path
 settings-startup-shell-executable-path-placeholder = Executable path
 settings-agent-providers-base-url-placeholder = https://api.deepseek.com/v1
-drive-sharing-only-people-invited = Only people invited
-drive-sharing-anyone-with-link = Anyone with the link
-drive-sharing-only-invited-teammates = Local access only
-drive-sharing-teammates-with-link = Local access with link
 terminal-warpify-subshell = Warpify subshell
 terminal-warpify-subshell-tooltip = Enable Dais shell integration in this session
 terminal-use-agent = Use agent
@@ -385,15 +235,11 @@ terminal-fork-conversation-locally-tooltip = Fork this conversation locally
 terminal-open-in-warp = Open in Dais
 terminal-open-conversation-in-warp-tooltip = Open this conversation in the Dais desktop app
 terminal-stop-sharing = Stop sharing
-terminal-copy-session-sharing-link = Copy session sharing link
-terminal-shared-session-make-editor = Make editor
-terminal-shared-session-make-viewer = Make viewer
 terminal-shared-session-change-role = Change role
 terminal-choose-execution-profile-tooltip = Choose an AI execution profile
 terminal-choose-agent-model-tooltip = Choose an agent model
 terminal-input-cli-agent-rich-input-hint = Tell the agent what to build...
 terminal-input-enter-prompt-for-agent = Enter prompt for { $agent }...
-terminal-input-cloud-agent-hint = Kick off an agent
 terminal-input-a11y-label = Command Input.
 terminal-input-a11y-helper = Input your shell command, press enter to execute. Press cmd-up to navigate to output of previously executed commands. Press cmd-l to re-focus command input.
 terminal-input-ai-command-search-hint = Type '#' for AI command suggestions
@@ -474,8 +320,6 @@ code-review-add-diff-set-context = Add diff set as context
 code-review-show-saved-comment = Show saved comment
 code-review-add-comment = Add comment
 code-review-discard-all = Discard all
-code-review-initialize-codebase = Initialize codebase
-code-review-initialize-codebase-tooltip = Enables codebase indexing and WARP.md
 code-review-open-repository = Open repository
 code-review-open-repository-tooltip = Navigate to a repo and initialize it for coding
 code-review-open-file = Open file
@@ -504,7 +348,6 @@ drive-toast-finished-exporting = Finished exporting objects
 # Files: app/src/settings_view/**, app/src/tab_configs/**, app/src/env_vars/**
 # =============================================================================
 
-settings-environment-delete-button = Delete environment
 settings-language-system-default = System default
 settings-language-english = English
 tab-config-open-tab = Open Tab
@@ -567,16 +410,10 @@ language-restart-required-body = Dais's UI language has been updated. Some text 
 settings-section-about = About
 # Dais: settings-section-account removed alongside the Account settings page.
 settings-section-mcp-servers = MCP Servers
-settings-section-billing-and-usage = Billing and usage
 settings-section-appearance = Appearance
-settings-section-features = Features
 settings-section-keybindings = Keyboard shortcuts
-settings-section-referrals = Referrals
-settings-section-shared-blocks = Shared blocks
-settings-section-warp-drive = Dais Drive
 settings-section-warpify = Warpify
 settings-section-network = Network
-settings-section-cloud-sync = Cloud Sync
 settings-section-ai = AI
 settings-section-warp-agent = Dais Agent
 settings-section-agent-profiles = Profiles
@@ -586,8 +423,6 @@ settings-section-knowledge = Knowledge
 settings-section-third-party-cli-agents = Third party CLI agents
 settings-section-code = Code
 settings-section-editor-and-code-review = Editor and Code Review
-settings-section-cloud-environments = Environments
-settings-section-oz-cloud-api-keys = Agent API Keys
 settings-title = Settings
 
 # Context menu items (split / close pane)
@@ -631,33 +466,25 @@ settings-about-export-logs-failure = Failed to export logs: { $error }
 # Dais: main_page.rs (Account / version / autoupdate) strings removed alongside
 # the Account settings page. The About page now owns version / update CTAs.
 
-
 # --- ANCHOR-SUB-MCP (agent-settings-mcp) ---
 # 此锚点下放 settings_view/mcp_servers_page.rs 字符串
 # 命名前缀:settings-mcp-*
 settings-mcp-page-title = MCP Servers
 settings-mcp-logout-success-named = Successfully logged out of {$name} MCP server
 settings-mcp-logout-success = Successfully logged out of MCP server
-settings-mcp-install-modal-busy = Finish the current MCP install before opening another install link.
 settings-mcp-unknown-server = Unknown MCP server '{$name}'
 settings-mcp-install-from-link-failed = MCP server '{$name}' cannot be installed from this link.
 
 # ---- destructive_mcp_confirmation_dialog.rs ----
 settings-mcp-confirm-delete-local-title = Delete MCP server?
 settings-mcp-confirm-delete-local-description = This will uninstall and remove this MCP server from this device.
-settings-mcp-confirm-delete-shared-title = Delete MCP server?
-settings-mcp-confirm-delete-shared-description = This removes the saved MCP server from this device.
-settings-mcp-confirm-unshare-title = Remove saved MCP server?
-settings-mcp-confirm-unshare-description = This removes the saved MCP server from this device.
 settings-mcp-confirm-delete-button = Delete MCP
-settings-mcp-confirm-remove-from-team-button = Remove saved copy
 settings-mcp-confirm-cancel-button = Cancel
 
 # ---- edit_page.rs ----
 settings-mcp-edit-save = Save
 settings-mcp-edit-edit-variables = Edit Variables
 settings-mcp-edit-delete = Delete MCP
-settings-mcp-edit-remove-from-team = Remove saved copy
 settings-mcp-edit-editing-disabled-banner = This MCP server cannot be edited from this view.
 settings-mcp-edit-add-new-title = Add New MCP Server
 settings-mcp-edit-edit-named-title = Edit { $name } MCP Server
@@ -668,14 +495,6 @@ settings-mcp-edit-no-server-error = No MCP Server specified.
 settings-mcp-edit-multiple-servers-error = Cannot add multiple MCP servers while editing a single server.
 
 # ---- installation_modal.rs ----
-settings-mcp-install-modal-title = Install { $name }
-settings-mcp-install-modal-source-shared = Saved preset
-settings-mcp-install-modal-source-other-device = From another device
-settings-mcp-install-modal-cancel = Cancel
-settings-mcp-install-modal-install = Install
-settings-mcp-install-modal-no-server = No MCP server selected
-
-# ---- list_page.rs ----
 settings-mcp-list-description = Add MCP servers to extend the Dais Agent's capabilities. MCP servers expose data sources or tools to agents through a standardized interface, essentially acting like plugins. Add a custom server, or use the presets to get started with popular servers.
 settings-mcp-list-learn-more = Learn more.
 settings-mcp-list-empty-state = Once you add a MCP server, it will be shown here.
@@ -689,13 +508,10 @@ settings-mcp-list-template-available-to-install = Available to install
 settings-mcp-list-file-based-detected = Detected from config file
 settings-mcp-list-toast-server-updated = MCP server updated
 settings-mcp-list-section-my-mcps = My MCPs
-settings-mcp-list-section-shared-by-warp-and-team = Available from Dais and { $name }
 settings-mcp-list-section-shared-by-warp-and-other-devices = Shared by Dais and from other devices
 settings-mcp-list-section-shared-from-warp = Shared from Dais
 settings-mcp-list-section-detected-from = Detected from { $provider }
 settings-mcp-list-chip-global = global
-settings-mcp-list-chip-shared-by-creator = Shared by: { $creator }
-settings-mcp-list-chip-shared-by-team-member = Saved preset
 settings-mcp-list-chip-from-another-device = From another device
 
 # ---- server_card.rs ----
@@ -703,7 +519,6 @@ settings-mcp-card-tooltip-show-logs = Show logs
 settings-mcp-card-tooltip-log-out = Log out
 settings-mcp-card-tooltip-share-server = Share server
 settings-mcp-card-tooltip-edit = Edit
-settings-mcp-card-tooltip-update-available = Server update available
 settings-mcp-card-button-view-logs = View logs
 settings-mcp-card-button-edit-config = Edit config
 settings-mcp-card-button-set-up = Set up
@@ -715,57 +530,6 @@ settings-mcp-card-status-authenticating = Authenticating...
 settings-mcp-card-status-shutting-down = Shutting down...
 
 # ---- update_modal.rs ----
-settings-mcp-update-modal-default-name = Server
-settings-mcp-update-modal-title = Update { $name }
-settings-mcp-update-modal-description = This server has { $count } updates available, which would you like to proceed with?
-settings-mcp-update-modal-publisher-another-device = another device
-settings-mcp-update-modal-publisher-team-member = a local source
-settings-mcp-update-modal-update-from = Update from { $publisher }
-settings-mcp-update-modal-version = Version { $version }
-settings-mcp-update-modal-cancel = Cancel
-settings-mcp-update-modal-update = Update
-settings-mcp-update-modal-no-updates = No updates available
-
-# --- ANCHOR-SUB-PLATFORM (agent-settings-platform) ---
-# 此锚点下放 settings_view/platform_page.rs 字符串
-# 命名前缀:settings-platform-*
-settings-platform-section-title = Agent API Keys
-settings-platform-description = Create and manage API keys to allow local agents to access your Dais account.
-    For more information, visit the
-settings-platform-documentation-link = Documentation.
-settings-platform-create-button = + Create API Key
-settings-platform-modal-title-new = New API key
-settings-platform-modal-title-save = Save your key
-settings-platform-toast-deleted = API key deleted
-settings-platform-column-name = Name
-settings-platform-column-key = Key
-settings-platform-column-scope = Scope
-settings-platform-column-created = Created
-settings-platform-column-last-used = Last used
-settings-platform-column-expires-at = Expires at
-settings-platform-value-never = Never
-settings-platform-scope-personal = Personal
-settings-platform-scope-team = Team
-settings-platform-zero-state-title = No API Keys
-settings-platform-zero-state-description = Create a key to manage external access to Dais
-settings-platform-create-api-key-description-personal = This API key is tied to your user and can make requests against your Dais account.
-settings-platform-create-api-key-description-team = This API key is tied to your team and can make requests on behalf of your team.
-settings-platform-create-api-key-name-placeholder = Dais API Key
-settings-platform-create-api-key-expiration-one-day = 1 day
-settings-platform-create-api-key-expiration-thirty-days = 30 days
-settings-platform-create-api-key-expiration-ninety-days = 90 days
-settings-platform-create-api-key-label-type = Type
-settings-platform-create-api-key-label-expiration = Expiration
-settings-platform-create-api-key-error-no-current-team = Unable to create a team API key because there is no current team.
-settings-platform-create-api-key-error-create-failed = Failed to create API key. Please try again.
-settings-platform-create-api-key-secret-once = This secret key is shown only once. Copy and store it securely.
-settings-platform-create-api-key-copied = Copied
-settings-platform-create-api-key-done = Done
-settings-platform-create-api-key-creating = Creating…
-settings-platform-create-api-key-create = Create key
-settings-platform-create-api-key-toast-secret-copied = Secret key copied.
-
-# --- ANCHOR-SUB-KEYBINDINGS (agent-settings-keybindings) ---
 settings-keybindings-search-placeholder = Search by name or by keys (ex. "cmd d")
 settings-keybindings-conflict-warning = This shortcut conflicts with other keybinds
 settings-keybindings-button-default = Default
@@ -781,36 +545,6 @@ settings-keybindings-subheader = Configure keyboard shortcuts
 settings-keybindings-command-column = Command
 
 # --- ANCHOR-SUB-REFERRALS (agent-settings-referrals) ---
-settings-referrals-page-title = Invite a friend to Dais
-settings-referrals-anonymous-header = Referral program is unavailable in local Dais builds
-settings-referrals-sign-up = Unavailable locally
-settings-referrals-link-label = Link
-settings-referrals-email-label = Email
-settings-referrals-link-error = Failed to load referral code.
-settings-referrals-loading = Loading...
-settings-referrals-copy-link-button = Copy link
-settings-referrals-email-send-button = Send
-settings-referrals-email-sending-button = Sending...
-settings-referrals-link-copied-toast = Link copied.
-settings-referrals-email-success-toast = Successfully sent emails.
-settings-referrals-email-failure-toast = Failed to send emails. Please try again.
-settings-referrals-email-empty-error = Please enter an email.
-settings-referrals-email-invalid-error = Please ensure the following email is valid: { $email }
-settings-referrals-reward-intro = Get exclusive Dais goodies when you refer someone*
-settings-referrals-claimed-count-singular = Current referral
-settings-referrals-claimed-count-plural = Current referrals
-settings-referrals-terms-link = Certain restrictions apply.
-settings-referrals-terms-contact = { " " }If you have any questions about the referral program, please contact referrals@warp.dev.
-settings-referrals-reward-theme = Exclusive theme
-settings-referrals-reward-keycaps = Keycaps + stickers
-settings-referrals-reward-tshirt = T-shirt
-settings-referrals-reward-notebook = Notebook
-settings-referrals-reward-cap = Baseball cap
-settings-referrals-reward-hoodie = Hoodie
-settings-referrals-reward-hydroflask = Premium Hydro Flask
-settings-referrals-reward-backpack = Backpack
-
-# --- ANCHOR-SUB-WARPIFY (agent-settings-warpify) ---
 settings-warpify-page-title = Warpify
 settings-warpify-description-prefix = Configure whether Dais attempts to "Warpify" (add support for blocks, input modes, etc) certain shells.
 settings-warpify-learn-more = Learn more
@@ -865,53 +599,6 @@ settings-network-test-failed-http = ❌ Connection failed: {$error}
 
 # --- ANCHOR-SUB-CLOUD-SYNC (agent-settings-cloud-sync) ---
 # Cloud Sync settings page
-settings-cloud-sync-description = Configure cloud synchronization via GitHub Gist or Gitee Gist. Your settings will be encrypted and stored as a secret Gist.
-settings-cloud-sync-scope-note = Currently syncing SSH managed server configurations only.
-settings-cloud-sync-platform-label = Sync Platform
-settings-cloud-sync-platform-description = Select the cloud service for synchronization
-settings-cloud-sync-token-label = Access Token
-settings-cloud-sync-token-description = Personal access token with gist scope
-settings-cloud-sync-token-placeholder = Enter access token...
-settings-cloud-sync-operations-header = Sync Operations
-settings-cloud-sync-upload-label = Upload
-settings-cloud-sync-download-label = Download
-settings-cloud-sync-status-header = Sync Status
-settings-cloud-sync-local-version-label = Local version
-settings-cloud-sync-last-time-label = Last sync time
-settings-cloud-sync-last-platform-label = Last sync platform
-settings-cloud-sync-local-version = Local version: {$version}
-settings-cloud-sync-last-time = Last sync time: {$time}
-settings-cloud-sync-last-platform = Last sync platform: {$platform}
-settings-cloud-sync-na = N/A
-settings-cloud-sync-never = Never
-settings-cloud-sync-syncing-upload = Uploading to {$platform}...
-settings-cloud-sync-syncing-download = Downloading from {$platform}...
-settings-cloud-sync-success-upload = Upload to {$platform} successful (version v{$version})
-settings-cloud-sync-success-download = Download from {$platform} successful (version v{$version})
-settings-cloud-sync-already-up-to-date = Already up to date (v{$version}), no sync needed
-settings-cloud-sync-failed = Failed: {$error}
-settings-cloud-sync-conflict-status = Conflict: local v{$local} vs remote v{$remote}
-settings-cloud-sync-conflict-status-equal = Versions are equal: local v{$local} = remote v{$remote}
-settings-cloud-sync-token-not-configured = {$platform} Token not configured
-settings-cloud-sync-conflict-title = Version Conflict
-settings-cloud-sync-conflict-description = Remote version (v{$remote}) is newer than local (v{$local}). Forcing upload will overwrite the remote data.
-settings-cloud-sync-conflict-description-equal = Remote and local versions are identical. Forcing upload will overwrite the remote data.
-settings-cloud-sync-force-upload = Force Upload
-settings-cloud-sync-download-confirm-title = Confirm Download
-settings-cloud-sync-download-confirm-description = Downloading will replace all local SSH server configurations with the remote version. This action cannot be undone.
-settings-cloud-sync-download-confirm-button = Confirm Download
-settings-cloud-sync-upload-confirm-title = Confirm Upload
-settings-cloud-sync-upload-confirm-description = Uploading will overwrite all remote SSH server configurations with the local version. Gists do not keep history, so this action cannot be undone.
-settings-cloud-sync-upload-confirm-button = Confirm Upload
-settings-cloud-sync-clear = Clear
-settings-cloud-sync-validating = Validating token...
-settings-cloud-sync-token-valid = Token valid ({$username})
-settings-cloud-sync-token-invalid = Invalid token: {$error}
-settings-cloud-sync-auto-sync-label = Auto Sync
-settings-cloud-sync-auto-sync-description = Automatically upload on config change and download on app startup
-
-# --- ANCHOR-SUB-AI-PAGE (agent-settings-ai-page) ---
-# Section / sub-headers
 settings-ai-warp-agent-header = Dais Agent
 settings-ai-active-ai-section = Active AI
 settings-ai-input-section = Input
@@ -920,7 +607,6 @@ settings-ai-knowledge-section = Knowledge
 settings-ai-voice-section = Voice
 settings-ai-other-section = Other
 settings-ai-third-party-cli-section = Third party CLI agents
-settings-ai-experimental-section = Experimental
 settings-ai-aws-bedrock-section = AWS Bedrock
 settings-ai-agents-header = Agents
 settings-ai-profiles-header = Profiles
@@ -967,16 +653,11 @@ settings-ai-info-banner-managed-by-workspace = Some of your permissions are mana
 settings-ai-base-model = Base model
 settings-ai-base-model-description = This model serves as the primary engine behind the Dais Agent. It powers most interactions and invokes other models for tasks like planning or code generation when necessary. Dais may automatically switch to alternate models based on model availability or for auxiliary tasks such as conversation summarization.
 settings-ai-show-model-picker-in-prompt = Show model picker in prompt
-settings-ai-codebase-context = Codebase Context
-settings-ai-codebase-context-description = Allow the Dais Agent to generate an outline of your codebase that can be used for context. No code is ever stored on our servers.
 settings-ai-add-profile = Add Profile
 settings-ai-agents-description = Set the boundaries for how your Agent operates. Choose what it can access, how much autonomy it has, and when it must ask for your approval. You can also fine-tune behavior around natural language input, codebase awareness, and more.
 settings-ai-profiles-description = Profiles let you define how your Agent operates — from the actions it can take and when it needs approval, to the models it uses for tasks like coding and planning. You can also scope them to individual projects.
 
 # Anonymous / org gates
-settings-ai-sign-up = Enable local AI
-settings-ai-anonymous-create-account = Local AI features do not require an account.
-settings-ai-org-enforced-tooltip = This option is enforced by your organization's settings and cannot be customized.
 settings-ai-restricted-billing = Restricted due to billing issue
 settings-ai-unlimited = Unlimited
 
@@ -990,21 +671,16 @@ settings-ai-autodetect-terminal-commands = Autodetect terminal commands in agent
 settings-ai-natural-language-detection = Natural language detection
 settings-ai-natural-language-denylist = Natural language denylist
 settings-ai-natural-language-denylist-description = Commands listed here will never trigger natural language detection.
-settings-ai-let-us-know = Let us know
-
-# MCP Servers
 settings-ai-learn-more = Learn more
 settings-ai-add-server = Add a server
 settings-ai-manage-mcp-servers = Manage MCP servers
 settings-ai-file-based-mcp-toggle = Auto-spawn servers from third-party agents
-settings-ai-file-based-mcp-supported-providers = See supported providers.
 settings-ai-mcp-dropdown-header = Select MCP servers
 
 # Knowledge / Rules
 settings-ai-rules-label = Rules
 settings-ai-suggested-rules-label = Suggested Rules
 settings-ai-suggested-rules-description = Let AI suggest rules to save based on your interactions.
-settings-ai-manage-rules = Manage rules
 settings-ai-rules-description = Rules help the Dais Agent follow your conventions, whether for codebases or specific workflows.
 
 # Voice
@@ -1034,7 +710,6 @@ settings-ai-toolbar-commands-description = Add regex patterns to show the coding
 settings-ai-per-agent-section = Installed agents
 settings-ai-per-agent-scanning = Looking for installed agents...
 settings-ai-per-agent-empty = No installed CLI agents found.
-settings-ai-per-agent-agent-col = Agent
 settings-ai-per-agent-toolbar-col = Toolbar
 settings-ai-per-agent-tab-menu-col = Tab menu
 settings-ai-per-agent-titlebar-col = Title bar
@@ -1042,10 +717,6 @@ settings-ai-coding-agent-other = Other
 settings-ai-coding-agent-select-header = Select coding agent
 
 # Experimental / Agent
-settings-ai-cloud-agent-computer-use = Computer use in agents
-settings-ai-cloud-agent-computer-use-description = Enable computer use in agent conversations started from the Dais app.
-
-# AWS Bedrock
 settings-ai-aws-bedrock-toggle = Use AWS Bedrock credentials
 settings-ai-aws-bedrock-description = Dais loads and sends local AWS CLI credentials for Bedrock-supported models.
 settings-ai-aws-bedrock-description-managed = Dais loads and sends local AWS CLI credentials for Bedrock-supported models. This setting is managed by your organization.
@@ -1058,153 +729,16 @@ settings-ai-refresh = Refresh
 # --- ANCHOR-SUB-FEATURES (agent-settings-features) ---
 # settings_view/features_page.rs P0 + P1(category + toggle labels)
 # 命名前缀:settings-features-*
-settings-features-category-general = General
-settings-features-category-session = Session
-settings-features-category-keys = Keys
-settings-features-category-text-editing = Text Editing
-settings-features-category-terminal-input = Terminal Input
-settings-features-category-terminal = Terminal
-settings-features-category-notifications = Notifications
-settings-features-category-workflows = Workflows
-settings-features-category-system = System
-settings-features-open-links-in-desktop = Open links in desktop app
-settings-features-open-links-in-desktop-tooltip = Automatically open links in desktop app whenever possible.
-settings-features-restore-session = Restore windows, tabs, and panes on startup
-settings-features-persist-conversations = Save agent conversations to local history
-settings-features-show-sticky-command-header = Show sticky command header
-settings-features-show-link-tooltip = Show tooltip on click on links
-settings-features-show-quit-warning = Show warning before quitting/logging out
-settings-features-quit-on-last-window-closed = Quit when all windows are closed
-settings-features-show-changelog-after-update = Show changelog toast after updates
-settings-features-mouse-scroll-multiplier = Lines scrolled by mouse wheel interval
-settings-features-auto-open-code-review = Auto open code review panel
-settings-features-max-rows-per-block = Maximum rows in a block
-settings-features-ssh-wrapper = Dais SSH Wrapper
-settings-features-ssh-auto-discovery = Auto-discover SSH hosts
-settings-features-receive-desktop-notifications = Receive desktop notifications from Dais
-settings-features-show-in-app-agent-notifications = Show in-app agent notifications
-settings-features-confirm-close-shared-session = Confirm before closing read-only session
-settings-features-global-hotkey-label = Global hotkey:
-settings-features-global-hotkey-not-supported-on-wayland = Not supported on Wayland.
-settings-features-autocomplete-symbols = Autocomplete quotes, parentheses, and brackets
-settings-features-error-underlining = Error underlining for commands
-settings-features-syntax-highlighting = Syntax highlighting for commands
-settings-features-completions-while-typing = Open completions menu as you type
-settings-features-command-corrections = Suggest corrected commands
-settings-features-expand-aliases = Expand aliases as you type
-settings-features-middle-click-paste = Middle-click to paste
-settings-features-vim-mode = Edit code and commands with Vim keybindings
-settings-features-at-context-menu = Enable '@' context menu in terminal mode
-settings-features-slash-commands-in-terminal = Enable slash commands in terminal mode
-settings-features-outline-codebase-symbols = Outline codebase symbols for '@' context menu
-settings-features-show-input-message-bar = Show terminal input message line
-settings-features-show-autosuggestion-hint = Show autosuggestion keybinding hint
-settings-features-show-autosuggestion-ignore = Show autosuggestion ignore button
-settings-features-enable-mouse-reporting = Enable Mouse Reporting
-settings-features-enable-scroll-reporting = Enable Scroll Reporting
-settings-features-enable-focus-reporting = Enable Focus Reporting
-settings-features-use-audible-bell = Use Audible Bell
-settings-features-double-click-smart-selection = Double-click smart selection
-settings-features-show-help-block-in-new-sessions = Show help block in new sessions
-settings-features-copy-on-select = Copy on select
-settings-features-show-global-workflows-in-command-search = Show Global Workflows in Command Search (ctrl-r)
-settings-features-linux-selection-clipboard = Honor linux selection clipboard
-settings-features-prefer-low-power-gpu = Prefer rendering new windows with integrated GPU (low power)
-settings-features-use-wayland = Use Wayland for window management
-settings-features-use-wayland-tooltip = Enables the use of Wayland
-settings-features-ctrl-tab-behavior-label = Ctrl+Tab behavior:
-settings-features-extra-meta-key-left-mac = Left Option key is Meta
-settings-features-extra-meta-key-right-mac = Right Option key is Meta
-settings-features-extra-meta-key-left-other = Left Alt key is Meta
-settings-features-extra-meta-key-right-other = Right Alt key is Meta
-settings-features-default-shell-header = Default shell for new sessions
-settings-features-working-directory-header = Working directory for new sessions
-settings-features-notify-agent-task-completed = Notify when an agent completes a task
-settings-features-notify-needs-attention = Notify when a command or agent needs your attention to continue
-settings-features-play-notification-sounds = Play notification sounds
-settings-features-default-session-mode = Default mode for new sessions
-settings-features-block-rows-description = Setting the limit above 100k lines may impact performance. Maximum rows supported is { $max_rows }.
-settings-features-toast-duration-label = Toast notifications stay visible for
-settings-features-tab-key-behavior = Tab key behavior
-settings-features-graphics-backend-label = Preferred graphics backend
-settings-features-graphics-backend-current = Current backend: { $backend }
 settings-features-working-dir-home = Home directory
 settings-features-working-dir-previous = Previous session's directory
 settings-features-working-dir-custom = Custom directory
 settings-features-undo-close-enable = Enable reopening of closed sessions
 settings-features-undo-close-grace-period = Grace period (seconds)
-settings-features-configure-global-hotkey = Configure Global Hotkey
-settings-features-make-default-terminal = Make Dais the default terminal
-settings-features-pin-top = Pin to top
-settings-features-pin-bottom = Pin to bottom
-settings-features-pin-left = Pin to left
-settings-features-pin-right = Pin to right
-settings-features-default-option = Default
-settings-features-tab-behavior-completions = Open completions menu
-settings-features-tab-behavior-autosuggestions = Accept autosuggestion
-settings-features-tab-behavior-user-defined = User defined
-settings-features-new-tab-placement-all = After all tabs
-settings-features-new-tab-placement-current = After current tab
-settings-features-width-percent = Width %
-settings-features-height-percent = Height %
-settings-features-autohide-on-focus-loss = Autohides on loss of keyboard focus
-settings-features-long-running-prefix = When a command takes longer than
-settings-features-long-running-suffix = seconds to complete
-settings-features-keybinding-label = Keybinding
-settings-features-click-set-global-hotkey = Click to set global hotkey
-settings-features-cancel = Cancel
-settings-features-save = Save
-settings-features-press-new-shortcut = Press new keyboard shortcut
-settings-features-change-keybinding = Change keybinding
-settings-features-active-screen = Active Screen
-settings-features-wayland-window-restore-warning = Window positions won't be restored on Wayland.
-settings-features-see-docs = See docs.
-settings-features-allowed-values-1-20 = Allowed Values: 1-20
-settings-features-supports-floating-1-20 = Supports floating point values between 1 and 20.
-settings-features-auto-open-code-review-description = When this setting is on, the code review panel will open on the first accepted diff of a conversation
-settings-features-default-terminal-current = Dais is the default terminal
-settings-features-takes-effect-new-sessions = This change will take effect in new sessions
-settings-features-seconds = seconds
-settings-features-vim-system-clipboard = Set unnamed register as system clipboard
-settings-features-vim-status-bar = Show Vim status bar
-settings-features-tab-behavior-right-arrow-accepts = → accepts autosuggestions.
-settings-features-tab-behavior-key-accepts = { $keybinding } accepts autosuggestions.
-settings-features-completions-open-while-typing-sentence = Completions open as you type.
-settings-features-completions-open-while-typing-or-key = Completions open as you type (or { $keybinding }).
-settings-features-open-completions-unbound = Opening the completion menu is unbound.
-settings-features-tab-behavior-key-opens-completions = { $keybinding } opens completion menu.
-settings-features-word-characters-label = Characters considered part of a word
-settings-features-new-tab-placement = New tab placement
-settings-features-linux-selection-clipboard-tooltip = Whether the Linux primary clipboard should be supported.
-settings-features-changes-apply-new-windows = Changes will apply to new windows.
-settings-features-wayland-description = Enabling this setting disables global hotkey support. When disabled, text may be blurry if your Wayland compositor is using fraction scaling (ex: 125%).
-settings-features-restart-warp-to-apply = Restart Dais for changes to take effect.
-
-# --- ANCHOR-SUB-SETTINGS-PAGE-NAV (agent-settings-page-nav) ---
-# 此锚点下放 settings_view/{settings_page,nav,delete_environment_confirmation_dialog,directory_color_add_picker,pane_manager}.rs 字符串
-# 命名前缀:settings-page-* / settings-nav-* / settings-confirm-* / settings-color-picker-*
-
-# ---- settings_page.rs ----
 settings-page-info-icon-tooltip = Click to learn more in docs
 settings-page-local-only-icon-tooltip = This setting is not synced to your other devices
 settings-page-reset-to-default = Reset to default
 
 # ---- delete_environment_confirmation_dialog.rs ----
-settings-confirm-cancel = Cancel
-settings-confirm-delete-environment-button = Delete environment
-settings-confirm-delete-environment-title = Delete environment?
-settings-confirm-delete-environment-description = Are you sure you want to remove the { $name } environment?
-
-# ---- directory_color_add_picker.rs ----
-settings-color-picker-add-directory-footer = + Add directory…
-settings-color-picker-add-directory-color = Add directory color
-
-# ---- settings_file_footer.rs ----
-settings-footer-open-file = Open settings file
-settings-footer-alert-open-file = Open file
-settings-footer-alert-fix-with-oz = Fix with Oz
-
-# --- ANCHOR-SUB-CODE (agent-settings-code) ---
 settings-code-auto-open-review-panel = Auto open code review panel
 settings-code-auto-open-review-panel-desc = When this setting is on, the code review panel will open on the first accepted diff of a conversation
 settings-code-show-code-review-button = Show code review button
@@ -1293,47 +827,6 @@ settings-exec-profile-editor-mcp-denylist = MCP denylist
 settings-exec-profile-editor-mcp-denylist-desc = MCP servers that are not allowed to be called by Oz.
 
 # ---- agent_assisted_environment_modal ----
-settings-env-modal-add-repo = Add repo
-settings-env-modal-cancel = Cancel
-settings-env-modal-create-environment = Create environment
-settings-env-modal-selected-repos = Selected repos
-settings-env-modal-no-repos-selected = No repos selected yet
-settings-env-modal-available-repos = Available indexed repos
-settings-env-modal-loading = Loading locally indexed repos…
-settings-env-modal-empty-no-indexed = No locally indexed repos found yet. Index a repo, then try again.
-settings-env-modal-unavailable-build = Local repo selection is unavailable in this build.
-settings-env-modal-all-selected = All locally indexed repos are already selected.
-settings-env-modal-unknown-repo-name = (unknown)
-settings-env-modal-not-git-repo = Selected folder is not a Git repository: { $path }
-settings-env-modal-no-directory-selected = No directory selected
-settings-env-modal-dialog-title = Select repos for your environment
-settings-env-modal-dialog-description-indexed = Select locally indexed repos to provide context for the environment creation agent.
-settings-env-modal-dialog-description-default = Select repos to provide context for the environment creation agent.
-
-# ---- show_blocks_view ----
-settings-show-blocks-page-title = Shared blocks
-settings-show-blocks-unshare-menu-item = Unshare
-settings-show-blocks-copy-link = Copy link
-settings-show-blocks-deleting = Deleting...
-settings-show-blocks-executed-on = Executed on: { $time }
-settings-show-blocks-empty = You don't have any shared blocks yet.
-settings-show-blocks-loading = Getting blocks...
-settings-show-blocks-load-failed = Failed to load blocks. Please try again.
-settings-show-blocks-link-copied = Link copied.
-settings-show-blocks-unshare-success = Block was successfully unshared.
-settings-show-blocks-unshare-failed = Failed to unshare block. Please try again.
-settings-show-blocks-confirm-dialog-title = Unshare block
-settings-show-blocks-confirm-dialog-text = Are you sure you want to unshare this block?
-
-    It will no longer be accessible by link and will be permanently deleted from Dais servers.
-settings-show-blocks-confirm-cancel = Cancel
-settings-show-blocks-confirm-unshare = Unshare
-
-# --- ANCHOR-SUB-APPEARANCE (agent-settings-appearance) ---
-# 此锚点下放 settings_view/appearance_page.rs 剩余字符串(不含已完成的 Language widget)
-# 命名前缀:settings-appearance-*
-
-# Categories
 settings-appearance-category-themes = Themes
 settings-appearance-category-language = Language
 settings-appearance-category-icon = Icon
@@ -1459,54 +952,6 @@ settings-appearance-zoom-label = Zoom
 settings-appearance-zoom-secondary = Adjusts the default zoom level across all windows
 
 # --- ANCHOR-SUB-ENVIRONMENTS (agent-settings-environments) ---
-settings-environments-page-title = Environments
-settings-environments-page-description = Environments define where your ambient agents run. Set one up in minutes via GitHub (recommended), Dais-assisted setup, or manual configuration.
-settings-environments-search-placeholder = Search environments...
-settings-environments-no-matches = No environments match your search.
-settings-environments-section-personal = Personal
-settings-environments-section-team-default = Provided by Dais and this device
-settings-environments-section-team-named = Shared by Dais and { $team }
-settings-environments-env-id-prefix = Env ID: { $id }
-settings-environments-detail-image = Image: { $image }
-settings-environments-detail-repos = Repos: { $repos }
-settings-environments-detail-setup-commands = Setup commands: { $commands }
-settings-environments-last-edited = Last edited: { $time }
-settings-environments-last-used = Last used: { $time }
-settings-environments-last-used-never = Last used: never
-settings-environments-view-my-runs = View my runs
-settings-environments-tooltip-share = Share
-settings-environments-tooltip-edit = Edit
-settings-environments-empty-header = You haven’t set up any environments yet.
-settings-environments-empty-subheader = Choose how you’d like to set up your environment:
-settings-environments-empty-quick-setup-title = Quick setup
-settings-environments-empty-suggested-badge = Suggested
-settings-environments-empty-quick-setup-subtitle = Select the GitHub repositories you’d like to work with and we’ll suggest a base image and config
-settings-environments-empty-use-agent-title = Use the agent
-settings-environments-empty-use-agent-subtitle = Choose a locally set up project and we’ll help you set up an environment based on it
-settings-environments-button-loading = Loading...
-settings-environments-button-retry = Retry
-settings-environments-button-authorize = Authorize
-settings-environments-button-get-started = Get started
-settings-environments-button-launch-agent = Launch agent
-settings-environments-toast-update-success = Successfully updated environment
-settings-environments-toast-create-success = Successfully created environment
-settings-environments-toast-delete-success = Environment deleted successfully
-settings-environments-toast-share-success = Successfully shared environment
-settings-environments-toast-share-failure = Failed to share environment with team
-settings-environments-toast-create-not-logged-in = Unable to create environment: not logged in.
-settings-environments-toast-save-not-found = Unable to save: environment no longer exists.
-settings-environments-toast-share-no-team = Unable to share environment: you are not currently on a team.
-settings-environments-toast-share-not-synced = Unable to share environment: environment is not yet synced.
-settings-update-environment-name-placeholder = Environment name
-settings-update-environment-docker-image-placeholder = e.g. python:3.11, node:20-alpine
-settings-update-environment-repos-placeholder-authed = Enter repos (owner/repo format)
-settings-update-environment-repos-placeholder-unauthenticated = Paste repo URL(s)
-settings-update-environment-setup-command-placeholder = e.g. cd my-repo && pip install -r requirements.txt
-settings-update-environment-description-placeholder = e.g., this environment is for all front end focused agents
-
-# --- ANCHOR-SUB-AGENT-PROVIDERS (agent-settings-agent-providers) ---
-# 此锚点下放 settings_view/agent_providers_widget.rs 字符串
-# 命名前缀:settings-agent-providers-*
 settings-agent-providers-title = Agent providers
 settings-agent-providers-description = Configure custom Agent providers across multiple protocols — OpenAI-compatible (DeepSeek, Zhipu GLM, Moonshot, DashScope, SiliconFlow, OpenRouter, etc.), Anthropic, Gemini, and local Ollama. You can add models manually (display name + model ID mapping) or fetch them automatically from the API. Provider metadata is stored in the local settings.toml; API keys are stored securely in the system keychain.
 settings-agent-providers-empty = No providers configured yet. Click [+ Add provider] in the top-right to add one.
@@ -1543,13 +988,6 @@ settings-agent-providers-fetch-from-api = Fetch from API
 settings-agent-providers-sync-models-dev = Sync from models.dev
 settings-agent-providers-remove = Remove
 settings-agent-providers-save = Save
-settings-agent-providers-saved-toast = Saved
-
-# ---- AI page (settings_view/ai_page.rs) ----
-settings-ai-title = AI
-settings-ai-active-ai = Active AI
-settings-ai-input-autodetection = terminal command autodetection in agent input
-settings-ai-input-autodetection-legacy = natural language detection
 settings-ai-next-command-description = Let AI suggest the next command to run based on your command history, outputs, and common workflows.
 settings-ai-prompt-suggestions-description = Let AI suggest natural language prompts, as inline banners in the input, based on recent commands and their outputs.
 settings-ai-suggested-code-banners-description = Let AI suggest code diffs and queries as inline banners in the blocklist, based on recent commands and their outputs.
@@ -1611,51 +1049,6 @@ banner-dont-show-again = Don't show me again
 # =============================================================================
 
 # ---- Dialog titles ----
-quit-warning-title-pane = Close pane?
-quit-warning-title-tab-singular = Close tab?
-quit-warning-title-tab-plural = Close tabs?
-quit-warning-title-window = Close window?
-quit-warning-title-app = Quit Dais?
-quit-warning-title-editor-tab = Save changes?
-
-# ---- Buttons ----
-quit-warning-button-confirm-close = Yes, close
-quit-warning-button-confirm-quit = Yes, quit
-quit-warning-button-save = Save
-quit-warning-button-discard = Don't Save
-quit-warning-button-show-processes = Show running processes
-quit-warning-button-cancel = Cancel
-
-# ---- Warning body lines ----
-# Suffix appended to each warning line, indicating the scope.
-quit-warning-suffix-tab = { " " }in this tab.
-quit-warning-suffix-window = { " " }in this window.
-quit-warning-suffix-pane = { " " }in this pane.
-quit-warning-suffix-default = .
-
-# Process info: "{count} process(es) running" with optional window/tab qualifier.
-quit-warning-processes-running = You have { $count } { $count ->
-        [one] process
-       *[other] processes
-    } running
-quit-warning-processes-in-windows = { " " }in { $count } windows
-quit-warning-processes-in-tabs = { " " }in { $count } tabs
-
-# Shared sessions line.
-quit-warning-shared-sessions = You are sharing { $count } { $count ->
-        [one] session
-       *[other] sessions
-    }
-
-# Unsaved code changes (generic scope).
-quit-warning-unsaved-changes = You have unsaved file changes
-
-# Unsaved code changes for a specific editor tab.
-quit-warning-unsaved-editor-tab = Do you want to save the changes you made to { $file }? Your changes will be discarded if you don't save them.
-quit-warning-unsaved-editor-tab-fallback-name = this file
-
-# --- ANCHOR-SUB-RULES-PAGE (agent-rules-page) ---
-# Manage Rules 页面(Dais Drive 中的 AI Fact Collection)。
 rules-collection-name = Rules
 
 # --- ANCHOR-SUB-KEYBINDING-DESC (agent-keybinding-descriptions) ---
@@ -1718,7 +1111,6 @@ keybinding-desc-workspace-create-personal-folder-menu = New Personal Folder
 keybinding-desc-workspace-new-tab = Create new tab
 keybinding-desc-workspace-new-terminal-tab = New Terminal Tab
 keybinding-desc-workspace-new-agent-tab = New Agent Tab
-keybinding-desc-workspace-new-cloud-agent-tab = New Agent Tab
 new-session-create-new-tab = Create New Tab
 new-session-create-new-window = Create New Window
 new-session-split-pane-down = Split Pane Down
@@ -1742,13 +1134,10 @@ keybinding-desc-workspace-toggle-vertical-tabs-menu = Toggle Vertical Tabs Panel
 keybinding-desc-workspace-left-panel-agent-conversations = Left Panel: Agent conversations
 keybinding-desc-workspace-left-panel-project-explorer = Left Panel: Project explorer
 keybinding-desc-workspace-left-panel-global-search = Left Panel: Global search
-keybinding-desc-workspace-left-panel-warp-drive = Left Panel: Dais Drive
 keybinding-desc-workspace-left-panel-ssh-manager = Left Panel: SSH Manager
 keybinding-desc-workspace-left-panel-skill-manager = Left Panel: Skill Manager
 keybinding-desc-workspace-open-global-search = Open global search
 keybinding-desc-workspace-open-global-search-menu = Global Search
-keybinding-desc-workspace-toggle-warp-drive = Toggle Dais Drive
-keybinding-desc-workspace-toggle-warp-drive-menu = Dais Drive
 keybinding-desc-workspace-toggle-conversation-list-view = Toggle Agent conversation list view
 keybinding-desc-workspace-toggle-conversation-list-view-menu = Agent conversation list view
 keybinding-desc-workspace-close-panel = Close focused panel
@@ -1791,7 +1180,6 @@ keybinding-desc-workspace-view-changelog = View latest changelog
 
 # Resource center / Drive export / CLI
 keybinding-desc-workspace-toggle-resource-center = Toggle resource center
-keybinding-desc-workspace-export-all-warp-drive-objects = Export all Dais Drive objects
 keybinding-desc-workspace-install-cli = Install Oz CLI command
 keybinding-desc-workspace-uninstall-cli = Uninstall Oz CLI command
 
@@ -1812,7 +1200,6 @@ keybinding-desc-workspace-import-to-personal-drive = Import To Personal Drive
 # Drive / repository / AI rules / MCP
 keybinding-desc-workspace-open-repository = Open repository
 keybinding-desc-workspace-open-repository-menu = Open Repository
-keybinding-desc-workspace-open-ai-fact-collection = Open AI Rules
 keybinding-desc-workspace-open-mcp-servers = Open MCP Servers
 keybinding-desc-workspace-jump-to-latest-toast = Jump to latest agent task
 keybinding-desc-workspace-toggle-notification-mailbox = Toggle notification mailbox
@@ -1824,9 +1211,6 @@ keybinding-desc-workspace-show-settings-menu = Settings
 # Account settings page.
 keybinding-desc-workspace-show-settings-appearance = Open Settings: Appearance
 keybinding-desc-workspace-show-settings-appearance-menu = Appearance...
-keybinding-desc-workspace-show-settings-features = Open Settings: Features
-keybinding-desc-workspace-show-settings-shared-blocks = Open Settings: Shared Blocks
-keybinding-desc-workspace-show-settings-shared-blocks-menu = View Shared Blocks...
 keybinding-desc-workspace-show-settings-keyboard-shortcuts = Open Settings: Keyboard Shortcuts
 keybinding-desc-workspace-show-settings-keyboard-shortcuts-menu = Configure Keyboard Shortcuts...
 keybinding-desc-workspace-show-settings-about = Open Settings: About
@@ -1835,8 +1219,6 @@ keybinding-desc-workspace-show-settings-warpify = Open Settings: Warpify
 keybinding-desc-workspace-show-settings-warpify-menu = Configure Warpify...
 keybinding-desc-workspace-show-settings-ai = Open Settings: AI
 keybinding-desc-workspace-show-settings-code = Open Settings: Code
-keybinding-desc-workspace-show-settings-referrals = Open Settings: Referrals
-keybinding-desc-workspace-show-settings-environments = Open Settings: Environments
 keybinding-desc-workspace-show-settings-mcp-servers = Open Settings: MCP Servers
 keybinding-desc-workspace-open-settings-file = Open settings file
 
@@ -1853,7 +1235,6 @@ keybinding-desc-input-edit-prompt = Edit Prompt
 keybinding-desc-terminal-attach-block-as-context = Attach Selected Block as Agent Context
 keybinding-desc-terminal-attach-text-as-context = Attach Selected Text as Agent Context
 keybinding-desc-terminal-attach-as-context-menu = Attach Selection as Agent Context
-keybinding-desc-workspace-init-project = Initiate project for warp
 keybinding-desc-workspace-add-current-folder = Add current folder as project
 
 # Workspace debug / crash / heap profile bindings
@@ -1862,21 +1243,14 @@ keybinding-desc-workspace-crash-other = Crash the app (for testing local crash r
 keybinding-desc-workspace-log-review-comment-send-status = [Debug] Log review comment send status for active tab
 keybinding-desc-workspace-panic = Trigger a panic (for testing local panic logging)
 keybinding-desc-workspace-open-view-tree-debugger = Open view tree debugger
-keybinding-desc-workspace-view-first-time-user-experience = [Debug] View first-time user experience
 keybinding-desc-workspace-undismiss-aws-login-banner = [Debug] Un-dismiss AWS login banner
-keybinding-desc-workspace-open-oz-launch-modal = [Debug] Open Oz Launch Modal
-keybinding-desc-workspace-reset-oz-launch-modal-state = [Debug] Reset Oz Launch Modal State
-keybinding-desc-workspace-open-dais-launch-modal = [Debug] Open Dais Launch Modal
-keybinding-desc-workspace-reset-dais-launch-modal-state = [Debug] Reset Dais Launch Modal State
 keybinding-desc-workspace-install-opencode-warp-plugin = [Debug] Install OpenCode Warp plugin
 keybinding-desc-workspace-use-local-opencode-warp-plugin = [Debug] Use local OpenCode Warp plugin (testing only)
 keybinding-desc-workspace-open-session-config-modal = [Debug] Open Session Config Modal
-keybinding-desc-workspace-start-hoa-onboarding-flow = [Debug] Start HOA Onboarding Flow
 keybinding-desc-workspace-sample-process = Sample Process
 keybinding-desc-workspace-dump-heap-profile = Dump heap profile (can only be done once)
 
 # Terminal input bindings
-keybinding-desc-input-show-network-log = Show Dais network log
 keybinding-desc-input-clear-screen = Clear screen
 keybinding-desc-input-toggle-classic-completions = (Experimental) Toggle classic completions mode
 keybinding-desc-input-command-search = Command Search
@@ -1918,7 +1292,6 @@ keybinding-desc-terminal-delete-line-end = Delete to line end within an executin
 keybinding-desc-terminal-backward-tabulation = Backward tabulation within an executing command
 keybinding-desc-terminal-select-previous-block = Select previous block
 keybinding-desc-terminal-select-next-block = Select next block
-keybinding-desc-terminal-share-selected-block = Share selected block
 keybinding-desc-terminal-bookmark-selected-block = Bookmark selected block
 keybinding-desc-terminal-find-within-selected-block = Find within selected block
 keybinding-desc-terminal-copy-command-and-output = Copy command and output
@@ -1942,8 +1315,6 @@ keybinding-desc-terminal-onboarding-modality-project = [Debug] Onboarding Callou
 keybinding-desc-terminal-onboarding-modality-no-project = [Debug] Onboarding Callout: Modality - No Project
 keybinding-desc-terminal-onboarding-modality-terminal = [Debug] Onboarding Callout: Modality - Terminal
 keybinding-desc-terminal-import-external-settings = Import External Settings
-keybinding-desc-terminal-share-current-session = Share current session
-keybinding-desc-terminal-stop-sharing-current-session = Stop sharing current session
 keybinding-desc-terminal-toggle-block-filter = Toggle block filter on selected or last block
 keybinding-desc-terminal-toggle-sticky-command-header = Toggle Sticky Command Header in Active Pane
 keybinding-desc-terminal-toggle-autoexecute-mode = Toggle Auto-execute Mode
@@ -2055,8 +1426,6 @@ keybinding-desc-code-close-all-tabs = Close all tabs
 keybinding-desc-code-close-saved-tabs = Close saved tabs
 
 # Welcome view binding desc
-keybinding-desc-welcome-terminal-session = Terminal session
-keybinding-desc-welcome-add-repository = Add repository
 
 # AI assistant panel binding desc
 keybinding-desc-ai-assistant-close = Close Dais AI
@@ -2106,7 +1475,6 @@ keybinding-desc-nbeditor-toggle-regex-find = Toggle regular expression search
 keybinding-desc-nbeditor-toggle-case-sensitive-find = Toggle case-sensitive search
 
 # Pane group / undo close binding desc
-keybinding-desc-get-started-terminal-session = Terminal session
 keybinding-desc-undo-close-reopen-session = Reopen closed session
 keybinding-desc-right-panel-toggle-maximize-code-review = Toggle Maximize Code Review Panel
 
@@ -2124,11 +1492,6 @@ keybinding-desc-workspace-copy-access-token = Copy access token to clipboard
 keybinding-desc-env-var-collection-close = Close
 
 # Auth / share modal binding desc
-keybinding-desc-share-block-copy = Copy
-keybinding-desc-auth-paste-token = Paste
-keybinding-desc-conversation-details-copy = Copy
-
-# Terminal extras binding desc
 keybinding-desc-terminal-show-history = Show History
 keybinding-desc-terminal-ask-ai-selection = Ask Dais AI about Selection
 keybinding-desc-terminal-ask-ai-last-block = Ask Dais AI about last block
@@ -2179,7 +1542,6 @@ agent-zero-state-title = New Oz agent conversation
 agent-zero-state-description = Send a prompt below to start a new conversation
 agent-zero-state-description-with-location = Send a prompt below to start a new conversation in `{ $location }`
 agent-zero-state-recent-activity = RECENT ACTIVITY
-agent-zero-state-hide-hints-tooltip = Hide shortcut hints (re-enable in Settings)
 inline-agent-header-prompt-to-interact-command = Prompt agent to interact with `{ $command }`
 inline-agent-header-prompt-to-interact-running-command = Prompt agent to interact with the running command
 inline-agent-header-waiting-on-instructions = Agent is waiting for instructions
@@ -2241,8 +1603,6 @@ toggle-suffix-prompt-suggestions = prompt suggestions
 toggle-suffix-code-suggestions = code suggestions
 toggle-suffix-nl-autosuggestions = natural language autosuggestions
 toggle-suffix-voice-input = voice input
-toggle-suffix-codebase-index = codebase index
-toggle-suffix-auto-indexing = auto-indexing
 toggle-suffix-compact-mode = compact mode
 toggle-suffix-themes-sync-os = themes: sync with OS
 toggle-suffix-cursor-blink = cursor blink
@@ -2254,42 +1614,6 @@ toggle-suffix-focus-follows-mouse = focus follows mouse
 toggle-suffix-zen-mode = zen mode
 toggle-suffix-vertical-tabs = vertical tab layout
 toggle-suffix-ligature-rendering = ligature rendering
-toggle-suffix-copy-on-select = copy on select within the terminal
-toggle-suffix-linux-selection-clipboard = linux selection clipboard
-toggle-suffix-autocomplete-symbols = autocomplete quotes, parentheses, and brackets
-toggle-suffix-restore-session = restore windows, tabs, and panes on startup
-toggle-suffix-left-option-meta = Left Option key is Meta
-toggle-suffix-left-alt-meta = Left Alt key is Meta
-toggle-suffix-right-option-meta = Right Option key is Meta
-toggle-suffix-right-alt-meta = Right Alt key is Meta
-toggle-suffix-scroll-reporting = scroll reporting
-toggle-suffix-completions-while-typing = completions while typing
-toggle-suffix-command-corrections = command corrections
-toggle-suffix-error-underlining = error underlining
-toggle-suffix-syntax-highlighting = syntax highlighting
-toggle-suffix-audible-bell = audible terminal bell
-toggle-suffix-autosuggestions = autosuggestions
-toggle-suffix-autosuggestion-keybinding-hint = autosuggestion keybinding hint
-toggle-suffix-ssh-wrapper = Dais SSH wrapper
-toggle-suffix-ssh-auto-discovery = auto-discover SSH hosts
-toggle-suffix-link-tooltip = show tooltip on click on links
-toggle-suffix-quit-warning = quit warning modal
-toggle-suffix-alias-expansion = alias expansion
-toggle-suffix-middle-click-paste = middle-click paste
-toggle-suffix-code-as-default-editor = code as default editor
-toggle-suffix-input-hint-text = input hint text
-toggle-suffix-vim-keybindings = editing commands with Vim keybindings
-toggle-suffix-vim-clipboard = Vim unnamed register as system clipboard
-toggle-suffix-vim-status-bar = Vim status bar
-toggle-suffix-focus-reporting = focus reporting
-toggle-suffix-smart-select = smart select
-toggle-suffix-input-message-line = terminal input message line
-toggle-suffix-slash-commands-terminal = slash commands in terminal mode
-toggle-suffix-integrated-gpu = integrated GPU rendering (low power)
-toggle-suffix-wayland = Wayland for window management
-toggle-suffix-app-analytics = local diagnostics
-toggle-suffix-crash-reporting = crash reporting
-toggle-suffix-secret-redaction = secret redaction
 toggle-suffix-recording-mode = recording mode
 toggle-suffix-inband-generators = in-band generators for new sessions
 toggle-suffix-debug-network = debug network status
@@ -2380,9 +1704,6 @@ menu-ai-block-fork-from-last-query = Fork from last query
 menu-ai-block-fork-from-query = Fork from "{ $query }"
 
 # --- tab 右键菜单(tab.rs) ---
-menu-tab-stop-sharing = Stop sharing
-menu-tab-stop-sharing-all = Stop sharing all
-menu-tab-copy-link = Copy link
 menu-tab-rename = Rename tab
 menu-tab-reset-name = Reset tab name
 menu-tab-move-down = Move Tab Down
@@ -2397,11 +1718,7 @@ menu-tab-save-as-new-config = Save as new config
 menu-tab-default-no-color = Default (no color)
 
 # --- pane header 溢出菜单(terminal/view/pane_impl.rs) ---
-menu-pane-copy-link = Copy link
 menu-pane-stop-sharing-session = Stop session broadcast
-menu-pane-open-on-desktop = Open on Desktop
-
-# --- 文件树右键菜单(code/file_tree/view.rs) ---
 menu-filetree-open-in-new-pane = Open in new pane
 menu-filetree-open-in-new-tab = Open in new tab
 menu-filetree-open-file = Open file
@@ -2417,10 +1734,6 @@ menu-filetree-copy-path = Copy path
 menu-filetree-copy-relative-path = Copy relative path
 
 # --- 代码编辑器右键菜单(code/local_code_editor.rs) ---
-menu-codeeditor-go-to-definition = Go to definition
-menu-codeeditor-find-references = Find references
-
-# --- 共享标签:附加为 agent 上下文(blocklist/view_util.rs) ---
 menu-attach-as-agent-context = Attach as agent context
 
 # --- ANCHOR-SUB-SLASH-COMMANDS (agent-slash-commands) ---
@@ -2429,8 +1742,6 @@ menu-attach-as-agent-context = Attach as agent context
 slash-cmd-agent-desc = Start a new conversation
 slash-cmd-add-mcp-desc = Add new MCP server
 slash-cmd-pr-comments-desc = Pull GitHub PR review comments
-slash-cmd-create-environment-desc = Create an Oz environment (Docker image + repos) via guided setup
-slash-cmd-create-environment-hint = <optional repo paths or GitHub URLs>
 slash-cmd-docker-sandbox-desc = Create a new docker sandbox terminal session
 slash-cmd-create-new-project-desc = Have Oz walk you through creating a new coding project
 slash-cmd-create-new-project-hint = <describe what you want to build>
@@ -2466,7 +1777,6 @@ slash-cmd-queue-hint = <prompt to send when agent is done>
 slash-cmd-fork-and-compact-desc = Fork current conversation and compact it in the forked copy
 slash-cmd-fork-and-compact-hint = <optional prompt to send after compaction>
 slash-cmd-fork-from-desc = Fork conversation from a specific query
-slash-cmd-remote-control-desc = Start remote control for this session
 slash-cmd-conversations-desc = Open conversation history
 slash-cmd-prompts-desc = Search saved prompts
 slash-cmd-rewind-desc = Rewind to a previous point in the conversation
@@ -2486,24 +1796,6 @@ prompt-editor-cancel = Cancel
 prompt-editor-save-changes = Save changes
 
 # Welcome tips (app/src/tips/tip_view.rs)
-welcome-tips-command-palette-title = Command Palette
-welcome-tips-command-palette-description = Easily discover everything you can do in Dais without your hands leaving the keyboard.
-welcome-tips-split-pane-title = Split Pane
-welcome-tips-split-pane-description = Split tabs into multiple panes to make your ideal layout.
-welcome-tips-history-search-title = History Search
-welcome-tips-history-search-description = Find, edit and re-run previously executed commands.
-welcome-tips-ai-command-search-title = AI Command Search
-welcome-tips-ai-command-search-description = Generate shell commands with natural language.
-welcome-tips-theme-picker-title = Theme Picker
-welcome-tips-theme-picker-description = Make Dais your own by choosing a built-in theme. Or create your own.
-welcome-tips-shortcut-label = Shortcut
-welcome-tips-skip = Skip Welcome Tips
-welcome-tips-complete-title = Complete!
-welcome-tips-complete-description = Nice work on finishing the welcome tips!
-welcome-tips-close = Close Welcome Tips
-
-# --- ANCHOR-SUB-SMALL-DIALOGS ---
-# Rewind confirmation dialog (app/src/workspace/rewind_confirmation_dialog.rs)
 rewind-dialog-title = Rewind
 rewind-dialog-body = Are you sure you want to rewind? This will restore your code and conversation to before this point, and cancel any commands the agent is currently running. A copy of the original conversation will be saved in your conversation history.
 rewind-dialog-info = Rewinding does not affect files edited manually or via shell commands.
@@ -2518,8 +1810,6 @@ command-palette-toast-cannot-switch-conversations = Cannot switch conversations 
 command-palette-toast-cannot-start-new-conversation = Cannot start a new conversation while agent is monitoring a command.
 command-palette-zero-state-recent = Recent
 command-palette-zero-state-suggested = Suggested
-welcome-palette-search-placeholder = Code, build, or search for anything...
-welcome-palette-no-results = No results found
 search-filter-placeholder-history = Search history
 search-filter-placeholder-workflows = Search workflows
 search-filter-placeholder-agent-mode-workflows = Search prompts
@@ -2572,15 +1862,12 @@ search-filter-display-skills = skills
 search-filter-display-base-models = base models
 search-filter-display-full-terminal-use-models = full terminal use models
 search-filter-display-current-directory-conversations = current directory conversations
-search-results-menu-no-results = No results found
-search-results-menu-prompts-title = Prompts
 ai-context-diffset-uncommitted-changes = Uncommitted changes
 ai-context-diffset-changes-vs-main-branch = Changes vs. main branch
 ai-context-diffset-changes-vs-branch = Changes vs. { $branch }
 ai-context-diffset-uncommitted-changes-description = All uncommitted changes in the working directory
 ai-context-diffset-changes-vs-main-branch-description = All changes compared to the main branch
 ai-context-diffset-changes-vs-branch-description = All changes compared to { $branch }
-ai-context-code-search-failed = Code search failed
 ai-context-files-directory-accessibility-label = Directory: { $path }
 ai-context-files-file-accessibility-label = File: { $path }
 ai-context-blocks-just-now = Just now
@@ -2601,113 +1888,15 @@ ai-context-blocks-accessibility-label = Block: { $command }
 
 # --- ANCHOR-SUB-DRIVE-NAMING-IMPORT ---
 # Drive naming dialog (app/src/drive/cloud_object_naming_dialog.rs)
-drive-naming-notebook-name = Notebook name
-drive-naming-folder-name = Folder name
-drive-naming-collection-name = Collection name
-drive-naming-create = Create
-drive-naming-cancel = Cancel
-drive-naming-rename = Rename
-
-# Drive import modal (app/src/drive/import/modal.rs, app/src/drive/import/modal_body.rs)
-drive-import-title = Import
-drive-import-close = Close
-drive-import-cancel = Cancel
-drive-import-preparing = Preparing...
-drive-import-choose-files = Choose files...
-drive-import-learn-file-support = Learn about file support and formatting
-drive-import-file-upload-error = Failed to upload file to server
-drive-import-folder-upload-error = Failed to upload folder to server
-
-# Drive main panel and workflow editor (app/src/drive/index.rs, app/src/drive/workflows/*)
-drive-title = Drive
-drive-environment-variables = Environment variables
-drive-folder = Folder
-drive-notebook = Notebook
-drive-workflow = Workflow
-drive-prompt = Prompt
-drive-import = Import
-drive-remove = Remove
-drive-new-folder = New folder
-drive-new-notebook = New notebook
-drive-new-workflow = New workflow
-drive-new-prompt = New prompt
-drive-new-environment-variables = New environment variables
-drive-offline-banner = You are offline. Some files will be read only.
-drive-sort-by = Sort by
-drive-retry-sync = Retry sync
-drive-empty-trash = Empty trash
-drive-trash-section-title = TRASH
-drive-trash-title = Trash
-drive-trash-deletion-warning = Items in the trash will be deleted forever after 30 days.
-drive-team-space-zero-state = Team spaces are unavailable in local builds. Manage workflows and notebooks in Personal.
-drive-sign-up-storage-limit = Local storage limits are enforced on this device.
-drive-local-storage-limit-description = Local storage limits are enforced on this device. Remove unused items to create space for new Dais Drive objects.
-drive-sign-up = Manage locally
-drive-copy-link = Copy link
-drive-collapse-all = Collapse all
-drive-revert-to-server = Revert to server
-drive-attach-to-active-session = Attach to active session
-drive-copy-prompt = Copy prompt
-drive-copy-workflow-text = Copy workflow text
-drive-copy-id = Copy id
-drive-copy-variables = Copy variables
-drive-load-in-subshell = Load in subshell
-drive-delete-forever = Delete forever
-drive-rename = Rename
-drive-retry = Retry
 drive-move-to-space = Move to { $space }
-drive-open-on-desktop = Open on Desktop
-drive-duplicate = Duplicate
-drive-export = Export
-drive-trash-menu = Trash
-drive-open = Open
-drive-edit = Edit
-drive-restore = Restore
-drive-compare-plans = Compare plans
-drive-manage-billing = Manage billing
-drive-object-type-notebook-plural = notebook
-drive-object-type-workflow-plural = workflow
-drive-object-type-folder-plural = folder
-drive-object-type-env-var-collection-plural = environment variable collection
-drive-object-type-object-plural = object
-drive-object-type-notebooks = Notebooks
-drive-object-type-workflows = Workflows
-drive-object-type-environment-variables = Environment Variables
-drive-object-type-folders = Folders
-drive-object-type-agent-workflows = Agent Workflows
-drive-object-type-ai-fact = AI Fact
-drive-object-type-rules = Rules
-drive-object-type-mcp-server = MCP Server
-drive-object-type-mcp-servers = MCP Servers
-drive-shared-object-limit-hit-banner-prefix = You've reached the local { $object_type } limit.
-drive-shared-object-limit-hit-banner = You've reached the local { $object_type } limit.
-drive-payment-issue-banner-prefix = Shared objects have been restricted due to a subscription payment issue.
-drive-payment-issue-banner-admin = Shared objects have been restricted due to a subscription payment issue. Please update your payment information to restore access.
-drive-payment-issue-banner-admin-enterprise = Shared objects have been restricted due to a subscription payment issue. Please contact support@warp.dev to restore access.
-drive-payment-issue-banner-nonadmin = Shared objects have been restricted due to a subscription payment issue. Please contact a team admin to restore access.
-drive-empty-trash-title = Are you sure you want to empty the trash?
-drive-empty-trash-body = This action cannot be undone.
-drive-empty-trash-confirm = Yes, empty trash
-drive-empty-trash-cancel = Cancel
-workflow-title-placeholder = Untitled workflow
-workflow-description-placeholder = Add a description
 workflow-title-input-placeholder = Add a title
 workflow-description-input-placeholder = Add a description
-workflow-new-argument = New argument
 workflow-arguments-label = Arguments
 workflow-argument-description-placeholder = Description
 workflow-argument-value-placeholder = Value (optional)
 workflow-default-value-placeholder = Default value (optional)
 workflow-agent-mode-query-placeholder = Enter your prompt here... (e.g., 'Create a function to sort an array of objects by date' or 'Help me debug this React component').
-workflow-save = Save workflow
-workflow-unsaved-changes = You have unsaved changes.
-workflow-keep-editing = Keep editing
-workflow-discard-changes = Discard changes
-workflow-ai-assist-autofill = Autofill
-workflow-ai-assist-loading = Loading
-workflow-ai-assist-tooltip = Generate a title, descriptions, or parameters with Dais AI
 workflow-tooltip-restore-from-trash = Restore workflow from trash
-workflow-ai-assist-error-byop-required = Autofill requires a BYOP model. Configure a provider and model in Settings → AI.
 workflow-ai-assist-error-bad-command = Failed to generate metadata. Please try again with a different command.
 workflow-ai-assist-error-generic = Something went wrong. Please try again.
 workflow-ai-assist-error-rate-limited = Looks like you're out of AI credits. Please try again later.
@@ -2747,7 +1936,6 @@ project-explorer-unavailable-disabled-description = The Project Explorer require
 project-explorer-unavailable-remote-description = The Project Explorer requires access to your local workspace, which isn’t supported in remote sessions.
 project-explorer-unavailable-wsl-description = The Project Explorer doesn't currently work in WSL.
 workspace-left-panel-global-search = Global search
-workspace-left-panel-warp-drive = Dais Drive
 workspace-left-panel-agent-conversations = Agent conversations
 workspace-left-panel-ssh-manager = SSH Manager
 workspace-left-panel-server-file-browser = Server files
@@ -2758,9 +1946,6 @@ skill-manager-filter-provider = Source
 skill-manager-meta-default = Default
 skill-manager-meta-duplicate = Duplicate
 skill-manager-empty = No skills match the current filters.
-skill-manager-preview-empty = Select a skill to preview SKILL.md.
-workspace-left-panel-ssh-manager-placeholder = SSH Manager — coming soon
-workspace-left-panel-ssh-manager-detail-empty = Select a server to see its details.
 workspace-left-panel-ssh-manager-detail-host = Host
 workspace-left-panel-ssh-manager-detail-port = Port
 workspace-left-panel-ssh-manager-detail-user = User
@@ -2773,12 +1958,9 @@ workspace-left-panel-ssh-manager-onekey-credential = Credential
 workspace-left-panel-ssh-manager-onekey-new = New credential
 workspace-left-panel-ssh-manager-onekey-label = Credential name
 workspace-left-panel-ssh-manager-onekey-user = Credential user
-workspace-left-panel-ssh-manager-onekey-password = Credential password
-workspace-left-panel-ssh-manager-onekey-password-required = New OneKey credentials require a password.
 workspace-left-panel-ssh-manager-onekey-save-before-connect = Save the OneKey credential before connecting.
 workspace-left-panel-ssh-manager-onekey-select = Select credential
 workspace-left-panel-ssh-manager-onekey-select-required = Select a OneKey credential.
-workspace-left-panel-ssh-manager-onekey-manage = Manage OneKey
 workspace-left-panel-ssh-manager-onekey-manager-title = OneKey Manager
 workspace-left-panel-ssh-manager-onekey-add = Add
 workspace-left-panel-ssh-manager-onekey-delete = Delete
@@ -2797,7 +1979,6 @@ workspace-left-panel-ssh-manager-menu-connect = Connect
 workspace-left-panel-ssh-manager-menu-sftp = File Manager
 workspace-left-panel-ssh-manager-menu-clone = Clone
 workspace-left-panel-ssh-manager-menu-delete = Delete
-workspace-left-panel-ssh-manager-pane-hint = Editing fields and "Connect" will arrive in the next iteration. For now this pane shows the saved configuration; tweak it via the SQLite store or the upcoming editor.
 workspace-left-panel-ssh-manager-pane-folder-body = Folder. Select a server inside this folder to view its details, or right-click the folder for create / delete actions.
 workspace-left-panel-ssh-manager-server-missing = Server not found. It may have been deleted from another window.
 workspace-left-panel-ssh-manager-field-name = Name
@@ -2829,9 +2010,7 @@ workspace-left-panel-ssh-manager-candidates-header = From { $path }
 workspace-left-panel-ssh-manager-candidates-empty = No importable hosts in { $path }
 workspace-left-panel-ssh-manager-candidates-not-found = No SSH config found at { $path }
 workspace-left-panel-ssh-manager-candidates-error = Could not read SSH config at { $path }: { $error }
-workspace-left-panel-ssh-manager-candidates-add = Add to SSH Manager
 workspace-left-panel-ssh-manager-candidates-added = Added
-workspace-left-panel-ssh-manager-candidates-refresh = Refresh from ~/.ssh/config
 terminal-su-root-password-confirm = Auto-fill Root Password
 terminal-su-root-password-confirm-subtitle = Click to confirm and inject the saved Root password
 terminal-su-root-password-cancel = Cancel
@@ -2845,7 +2024,6 @@ server-file-browser-empty-response = Remote server returned an empty response.
 server-file-browser-unsupported-path = This remote path type is not supported yet.
 server-file-browser-copied-path = Path copied.
 server-file-browser-transfer-complete = Transfer complete.
-server-file-browser-modified = modified
 server-file-browser-menu-refresh = Refresh
 server-file-browser-menu-upload = Upload
 server-file-browser-menu-new = New
@@ -2878,11 +2056,9 @@ server-file-browser-operation-failed = Operation failed: { $error }
 server-file-browser-rename-requires-session = Renaming requires a connected remote server.
 server-file-browser-create-requires-session = Creating files requires a connected remote server.
 server-file-browser-delete-requires-session = Deleting folders requires an active SSH session.
-server-file-browser-upload-progress-title = Upload progress
 server-file-browser-transfer-progress-title = Transfer progress
 server-file-browser-transfer-progress-empty = No transfers yet.
 server-file-browser-transfer-overall = { $done } / { $total } files
-server-file-browser-upload-progress-empty = No uploads yet.
 server-file-browser-upload-status-pending = Waiting
 server-file-browser-upload-status-uploading = Uploading { $percent }%
 server-file-browser-upload-status-completed = Completed
@@ -2892,7 +2068,6 @@ server-file-browser-download-status-downloading = Downloading { $percent }%
 server-file-browser-download-status-completed = Completed
 server-file-browser-download-status-failed = Failed: { $error }
 server-file-browser-upload-clear-completed = Clear completed
-server-file-browser-upload-overall = { $done } / { $total } files
 server-file-browser-upload-phase-uploading = Uploading
 server-file-browser-upload-phase-verifying = Verifying
 server-file-browser-upload-phase-promoting = Applying
@@ -2917,7 +2092,6 @@ server-file-browser-upload-verify-size = Verification failed: size mismatch for 
 workspace-left-panel-close-panel = Close panel
 workspace-tabs-panel-tooltip = Tabs panel
 workspace-tools-panel-tooltip = Tools panel
-workspace-agent-management-panel-tooltip = Agent management panel
 workspace-code-review-panel-tooltip = Code review panel
 workspace-notifications-tooltip = Notifications
 workspace-new-tab-tooltip = New Tab
@@ -2937,13 +2111,10 @@ vertical-tabs-new-session = New session
 vertical-tabs-terminal-kind-oz = Oz
 vertical-tabs-pane-kind-terminal = Terminal
 vertical-tabs-pane-kind-code = Code
-vertical-tabs-pane-kind-code-diff = Code Diff
 vertical-tabs-pane-kind-file = File
 vertical-tabs-pane-kind-notebook = Notebook
 vertical-tabs-pane-kind-workflow = Workflow
 vertical-tabs-pane-kind-environment-variables = Environment Variables
-vertical-tabs-pane-kind-environments = Environments
-vertical-tabs-pane-kind-rules = Rules
 vertical-tabs-pane-kind-plan = Plan
 vertical-tabs-pane-kind-execution-profile = Execution Profile
 vertical-tabs-pane-kind-other = Other
@@ -2988,89 +2159,6 @@ global-search-unsupported-session-description = Global search doesn't currently 
 global-search-failed = Global search failed.
 
 # Wasm NUX dialog (app/src/wasm_nux_dialog.rs)
-wasm-nux-open-desktop-title = Open in Dais Desktop?
-wasm-nux-open-desktop-detail = Future links will automatically open on desktop.
-wasm-nux-open-desktop-confirm = Open in Dais
-wasm-nux-download-title = Download Dais Desktop?
-wasm-nux-download-description = Dais is the intelligent terminal with AI and your dev team's knowledge built-in.
-wasm-nux-learn-more = Learn more
-wasm-nux-download-confirm = Download
-wasm-nux-object-kind-drive-objects = Dais Drive objects
-wasm-nux-object-kind-warp-links = Dais links
-wasm-nux-always-open-on-web-title = Always open { $object_kind } on the web?
-wasm-nux-always-open-on-web-detail = You can change this at any time in settings.
-wasm-nux-yes = Yes
-
-# Auth override warning (app/src/auth/auth_override_warning_body.rs)
-auth-override-warning-title = New login detected
-auth-override-warning-confirm-title = Delete personal Dais Drive objects and preferences?
-auth-override-warning-description = It looks like you logged into a Dais account through a web browser. If you continue, any personal Dais Drive objects and preferences from this anonymous session will be permanently deleted.
-auth-override-warning-cannot-undo = This cannot be undone.
-auth-override-warning-export = Export your data
-auth-override-warning-export-description =  to import later.
-auth-override-warning-cancel = Cancel
-auth-override-warning-continue = Continue
-auth-override-warning-accessibility-help = Dais has detected a new login from a web browser. Press escape to cancel and continue using Dais without login.
-
-# Auth SSO link/login failures/paste token/logout/offline/privacy
-auth-needs-sso-link-button = Link SSO
-auth-needs-sso-link-title = Your organization has enabled SSO for your account
-auth-needs-sso-link-detail = Click the button below to link your Dais account to your SSO provider.
-auth-login-failure-troubleshooting-prefix =  Not the first time? See our
-auth-login-failure-troubleshooting-link =  troubleshooting docs
-auth-login-failure-troubleshooting-suffix = .
-auth-login-failure-invalid-token = An invalid auth token was entered into the modal.
-auth-login-failure-copy-token-manually = Failed to log in. Try manually copying the auth token from the authentication web page and pasting into the modal.
-auth-login-failure-login-request = Request to log in failed.
-auth-login-failure-signup-request = Request to sign up failed.
-auth-login-failure-wrong-redirect-url = The redirect URL pasted did not originate from this app. Please click the button below to try again.
-auth-paste-token-placeholder = Enter auth token
-auth-paste-token-title = Paste your auth token below
-auth-paste-token-detail = Paste your auth token from the browser to get complete login.
-auth-paste-token-cancel = Cancel
-auth-paste-token-continue = Continue
-auth-offline-first-use-description = You are currently offline. An internet connection is required to use Dais for the first time.
-auth-offline-first-use-learn-more = Learn more
-auth-offline-overlay-title = Using Dais Offline
-auth-offline-overlay-paragraph-1 = Dais can be used offline for local terminal and agent workflows.
-auth-offline-overlay-paragraph-2 = Some setup flows may still need an internet connection when they depend on external providers.
-auth-offline-overlay-paragraph-3 = Logged-out usage keeps local workflows on this machine.
-auth-offline-overlay-dismiss = Dismiss
-auth-privacy-settings-title = Privacy Settings
-auth-privacy-settings-done = Done
-auth-privacy-settings-help-improve = Help improve Dais
-auth-privacy-settings-help-improve-description = High-level feature usage data helps Dais's product team prioritize the roadmap.
-auth-privacy-settings-learn-more = Learn more
-auth-privacy-settings-send-crash-reports = Send crash reports
-auth-privacy-settings-crash-reports-description = Crash reporting helps Dais's engineering team understand stability and improve performance.
-auth-logout-confirm = Yes, log out
-auth-logout-show-running-processes = Show running processes
-auth-logout-cancel = Cancel
-auth-logout-title = Log out?
-auth-logout-running-processes-warning = You have { $count } { $count ->
-        [one] process
-       *[other] processes
-    } running.
-auth-logout-shared-sessions-warning = You have { $count } remote { $count ->
-        [one] session
-       *[other] sessions
-    }.
-auth-logout-unsynced-drive-objects-warning = You have { $count } unsynced Dais Drive { $count ->
-        [one] object
-       *[other] objects
-    }. Logging out will cause you to lose the { $count ->
-        [one] object
-       *[other] objects
-    }.
-auth-logout-unsaved-files-warning = You have { $count } unsaved { $count ->
-        [one] file
-       *[other] files
-    }. Logging out will cause you to lose the { $count ->
-        [one] file
-       *[other] files
-    }.
-
-# CLI agent plugin instructions
 cli-agent-plugin-run-on-remote = Be sure to run these commands on your remote machine.
 cli-agent-plugin-codex-install-title = Enable Dais Notifications for Codex
 cli-agent-plugin-codex-install-subtitle = Update Codex to the latest version, then enable in-focus notifications so Dais can display them while you work.
@@ -3127,11 +2215,9 @@ agent-tip-slash-menu = `/` to open the slash-command menu and access quick agent
 agent-tip-toggle-input-mode = <keybinding> to toggle natural language detection and switch between agent and terminal input.
 agent-tip-plan = `/plan` <prompt> to create a plan for the agent before executing.
 agent-tip-command-palette = <keybinding> to open the Command Palette and access Dais actions and shortcuts.
-agent-tip-warp-drive = Store reusable workflows, notebooks, and prompts in your
 agent-tip-redirect-running-agent = Enter a new prompt to redirect the agent while it's running.
 agent-tip-add-context = `@` to add context from files, blocks, or Dais Drive objects to your prompt.
 agent-tip-attach-prior-output = <keybinding> to attach the prior command output as agent context.
-agent-tip-init-index = `/init` to index the repo so the agent can understand your codebase.
 agent-tip-agent-profiles = Add agent profiles to customize permissions and models per session.
 agent-tip-fork-block = Right-click a block to fork the conversation from that point.
 agent-tip-copy-output = Right-click a block to copy a conversation's output.
@@ -3158,18 +2244,8 @@ agent-tip-auto-approve = <keybinding> to auto-approve the agent's commands and d
 agent-tip-desktop-notifications = Enable desktop notifications to get an alert when an agent needs your attention.
 agent-tip-cancel-task = <keybinding> to cancel the current agent task.
 agent-tip-action-open-palette = Open palette
-agent-tip-action-warp-drive = Dais Drive.
 agent-tip-action-show-diff-view = Show diff view
 agent-tip-voice-input = Hold <keybinding> to speak your prompt directly to the agent.
-hoa-welcome-banner-title = Introducing universal agent support: level up any coding agent with Dais
-hoa-feature-vertical-tabs-title = Vertical tabs
-hoa-feature-vertical-tabs-description = Rich tab titles and metadata like git branch, worktree, and PR. Fully customizable.
-hoa-feature-tab-configs-title = Tab configs
-hoa-feature-tab-configs-description = Tab-level schema to set your directory, startup commands, theme, and worktree with one click
-hoa-feature-agent-inbox-title = Agent inbox
-hoa-feature-agent-inbox-description = Notifications when any agent needs your attention, also accessible in a central inbox
-hoa-feature-native-code-review-title = Native code review
-hoa-feature-native-code-review-description = Send inline comments from Dais's code review directly to Claude Code, Codex, or OpenCode
 resource-center-whats-new-section = What's New?
 resource-center-getting-started-section = Getting Started
 resource-center-maximize-warp-section = Maximize Dais
@@ -3205,11 +2281,6 @@ notebook-link-new-session-tooltip = Open a new terminal session in this director
 notebook-link-open-terminal-session = Open in terminal session
 notebook-link-open-in-editor = Open in editor
 notebook-link-edit-markdown-file = Edit Markdown file
-auth-token-placeholder = Auth Token
-sharing-inherited-from-prefix = Inherited from {" "}
-sharing-inherited-permission-label = Inherited permission
-sharing-inherited-permissions-edit-parent-tooltip = Edit inherited permissions on the parent folder
-sharing-inherited-permissions-cannot-edit-tooltip = Cannot edit inherited permissions
 command-palette-navigation-running = Running...
 command-palette-navigation-completed-over-hour = Completed over 1 hour ago
 command-palette-navigation-completed-minute-ago = Completed { $mins } minute ago
@@ -3220,7 +2291,6 @@ command-palette-navigation-empty-session = Empty Session
 terminal-history-tab-commands = Commands
 terminal-history-tab-prompts = Prompts
 common-current = Current
-auth-browser-token-placeholder = Browser auth token
 requested-script-expand-to-show = Expand to show script
 common-hide = Hide
 terminal-message-new-conversation = {" "}new conversation
@@ -3263,7 +2333,6 @@ onboarding-project-subtitle = Set up a project to optimize it for coding in Dais
 onboarding-project-open-local-folder = Open local folder
 onboarding-project-initialize-automatically = Initialize project automatically
 onboarding-project-initialize-description = Prepares the project environment, builds an index of your code, and generates project rules—giving the agent deeper understanding and better performance.
-onboarding-intro-already-have-account = Already have an account?{" "}
 onboarding-intro-subtitle = A modern terminal with state of the art agents built in.
 onboarding-get-started = Get started
 onboarding-theme-title = Choose a theme
@@ -3285,49 +2354,7 @@ onboarding-customize-warp-drive = Dais Drive
 onboarding-customize-tools-panel = Tools panel
 onboarding-customize-code-review = Code review
 
-auth-opt-out-line-1 = Dais stores onboarding choices locally.
-auth-opt-out-line-2-prefix = You can adjust your{" "}
-auth-privacy-settings-prefix = You can adjust your{" "}
-auth-privacy-settings-ai-prefix = You can adjust your local AI preferences in{" "}
-auth-privacy-settings = Privacy Settings
 auth-local-privacy-note = Dais stores onboarding choices locally on this device.
-auth-terms-prefix = Continuing keeps this setup on your device.{" "}
-auth-terms-of-service = Local setup
-auth-log-in = Log in
-auth-paste-token-from-browser = Click here to paste your token from the browser
-auth-login-slide-title-warp-drive = Get started with Dais Drive
-auth-login-slide-title-ai = Get started with AI
-auth-login-slide-subtitle-warp-drive = Connect your account to save and share notebooks, workflows, and more across devices.
-auth-login-slide-subtitle-ai = Connect your account to enable AI-powered planning, coding, and automation.
-auth-disable-warp-drive = Disable Dais Drive
-auth-disable-ai-features = Disable AI features
-auth-enable-warp-drive = Enable Dais Drive
-auth-enable-ai-features = Enable AI features
-auth-browser-sign-in-one-line-title = Sign in on your browser to continue
-auth-open-page-manually-line-prefix = {" "}and open
-auth-open-page-manually-line-suffix = the page manually.
-auth-disable-warp-drive-confirm-title = Are you sure you want to disable Dais Drive?
-auth-disable-ai-features-confirm-title = Are you sure you want to disable AI features?
-auth-disable-warp-drive-confirm-body = Dais Drive lets you save workflows and knowledge across devices and share them with your team. By continuing, you won't have access to the following features:
-auth-disable-ai-features-confirm-body = Dais is better with AI. By continuing, you won't have access to any of the following features:
-auth-feature-session-sharing = Session Sharing
-auth-sign-up = Continue locally
-auth-sign-in = Sign in
-auth-already-have-account = Already have an account?{" "}
-auth-dont-want-sign-in-now = Don't want to sign in right now?{" "}
-auth-skip-for-now = Skip for now
-auth-skip-login-confirm-title = Are you sure you want to skip login?
-auth-skip-login-confirm-line-1 = You can sign up later, but some features, such as AI,
-auth-skip-login-confirm-line-2-prefix = are only available to logged-in users.{" "}
-auth-yes-skip-login = Yes, skip login
-auth-require-login-ai-collaboration = Local AI features do not require a Dais account.
-auth-require-login-drive-limit = Dais Drive objects are stored locally in Dais.
-auth-require-login-share = Sharing is unavailable in local Dais builds.
-auth-welcome-title = Welcome to Dais!
-auth-sign-up-for-warp = Continue in Dais
-auth-browser-sign-in-title = Sign in on your browser\nto continue
-auth-open-page-manually-suffix = and open the page manually.
-
 voice-try-input = Try Voice Input
 voice-input-enabled-toast = Voice input is enabled. You can also press and hold the `{ $key }` key to activate voice input (configure in Settings > AI > Voice)
 voice-input-microphone-access-error = Failed to start voice input (you may need to enable Microphone access)
@@ -3335,8 +2362,6 @@ voice-transcription-disabled-microphone = Voice transcription is disabled becaus
 voice-transcription = Voice transcription
 voice-transcription-hold-key = Voice transcription (hold `{ $key }` key)
 
-get-started-welcome-title = Welcome to Dais
-get-started-subtitle = The Agentic Development Environment
 theme-creator-theme-name = Theme name
 theme-creator-background-color = Background color
 theme-creator-image-subheader = Automatically generate a theme based on extracted colors from an image (.png, .jpg).
@@ -3381,14 +2406,10 @@ terminal-banner-pure-unsupported = Pure is not yet supported in Dais. You might 
 terminal-loading-session = Loading session...
 
 ai-footer-hide-rich-input = Hide Rich Input
-ai-footer-choose-environment = Choose an environment
-ai-footer-agent-environment = Agent environment
 ai-footer-enable-terminal-command-autodetection = Enable terminal command autodetection
 ai-footer-disable-terminal-command-autodetection = Disable terminal command autodetection
 ai-footer-turn-off-auto-approve-agent-actions = Turn off auto-approve all agent actions
 ai-footer-auto-approve-agent-actions-for-task = Auto-approve all agent actions for this task
-ai-footer-start-remote-control = Start remote control
-ai-footer-login-required-remote-control = Log in to use /remote-control
 ai-footer-see-logs-for-details = See logs for details
 ai-footer-plugin-installed-restart-session = Warp plugin installed. Please restart the session to activate.
 ai-footer-installing-warp-plugin = Installing Warp plugin...
@@ -3436,13 +2457,6 @@ code-review-discard-file-branch-description = This will reset this file to the {
 code-review-stash-changes = Stash changes
 code-review-no-changes-to-commit = No changes to commit
 code-review-no-git-actions-available = No git actions available
-command-search-out-of-credits-contact-admin = Looks like you're out of credits. Contact a team admin to upgrade for more credits.
-command-search-out-of-credits-prefix = Looks like you're out of credits.{" "}
-command-search-for-more-credits-suffix = {" "}for more credits.
-search-not-visible-to-other-users = Not visible to other users
-sharing-invite = Invite
-sharing-who-has-access = Who has access
-terminal-shared-session-cancel-request = Cancel request
 terminal-shared-session-continue-sharing = Continue sharing
 settings-import-reset-to-warp-defaults = Reset to Dais defaults
 settings-import-type-theme = Theme
@@ -3472,7 +2486,6 @@ ai-continue-summarization = Continue summarization
 ai-dont-show-suggested-code-banners-again = Don't show me suggested code banners again
 ai-inline-code-diff-no-file-name = No file name
 ai-tool-call-cancelled = Tool call was cancelled
-ai-agent-view-open-in-different-pane = Open in different pane
 passive-suggestion-feature-or-bug-label = Code a feature or fix a bug in {1}
 passive-suggestion-help-feature-or-bug-label = Help me code a feature or fix a bug in {1}
 passive-suggestion-implement-feature-or-bug-query = Implement a feature or fix a bug in {1}. Ask me for all the details you need.
@@ -3533,7 +2546,6 @@ common-open-file = Open file
 common-open-folder = Open folder
 common-name = Name
 common-rule = Rule
-common-skip-for-now = Skip for now
 common-never = Never
 common-save-changes = Save changes
 common-do-not-show-again = Do not show again
@@ -3541,12 +2553,9 @@ common-dont-show-again-with-period = Don't show again.
 common-refresh = Refresh
 common-resource-not-found-or-access-denied = Resource not found or access denied
 workspace-close-session = Close session
-workspace-auto-reload = Auto-reload
 workspace-add-new-repo = {" "}+ Add new repo
 workspace-notification-permission-denied-toast = Dais doesn't have permission to send desktop notifications.
 workspace-troubleshoot-notifications-link = Troubleshoot notifications
-workspace-plan-synced-to-warp-drive-toast = Plan synced to your Dais Drive
-workspace-remote-control-link-copied-toast = Remote control link copied.
 workspace-update-now = Update now
 workspace-update-warp = Update Dais
 workspace-app-out-of-date-needs-update = Your app is out of date and needs to update.
@@ -3559,10 +2568,6 @@ workspace-unable-to-launch-new-installed-version = Dais was unable to launch the
 tab-config-session-type = Session type
 terminal-copy-error = Copy error
 terminal-authenticate-with-github = Authenticate with GitHub
-terminal-create-environment = Create an environment
-terminal-regenerate-agents-file = Re-generate AGENTS.md file
-terminal-view-index-status = View index status
-terminal-shared-session-request-edit-access = Request edit access
 terminal-create-team = Create team
 terminal-warpify-without-tmux = Warpify without TMUX
 terminal-continue-without-warpification = Continue without Warpification
@@ -3604,7 +2609,6 @@ notifications-banner-configure-notifications = Configure notifications
 notifications-banner-set-permissions = Set permissions
 ai-edit-api-keys = Edit API Keys
 ai-block-manage-agent-permissions = Manage Agent permissions
-agent-zero-state-visit-docs = Visit docs
 ai-execution-profile-agent-decides = Agent decides
 ai-execution-profile-always-ask = Always ask
 ai-execution-profile-ask-on-first-write = Ask on first write
@@ -3623,9 +2627,7 @@ code-review-tooltip-view-changes = View changes
 code-review-diffs-local-workspaces-only = Diffs only work for local workspaces.
 code-review-diffs-git-repositories-only = Diffs only work for git repositories.
 code-review-diffs-wsl-unsupported = Diffs don't currently work in WSL.
-code-review-generating-commit-message-placeholder = Generating commit message…
 code-review-type-commit-message-placeholder = Type a commit message
-code-review-committing-loading = Committing…
 code-review-commit-message-label = Commit message
 code-review-no-non-outdated-comments-to-send = No non-outdated comments to send
 code-review-send-diff-comments-to = Send diff comments to { $label }
@@ -3640,11 +2642,9 @@ notebook-apply-link = Apply link
 notebook-sync-conflict-resolution-message = This notebook could not be saved because changes were made while you were editing. Please copy your work and refresh.
 notebook-sync-feature-not-available-message = This notebook could not be saved to the server because the feature is temporarily unavailable. The changes are saved locally. Please retry later.
 notebook-link-copied-toast = Link copied
-settings-share-with-team = Save locally
 tooltip-secrets-not-sent-to-warp-server = *Secrets are not sent to Dais's server.
 editor-voice-limit-hit-toast = You have hit the limit for Voice requests. Your limit will be refreshed as a part of your next cycle.
 editor-voice-error-toast = An error occurred while processing your voice input.
-ai-copied-branch-name-toast = Copied branch name
 workflow-new-enum = New enum
 workflow-edit-enum = Edit enum
 workflow-enum-variant-placeholder = Variant
@@ -3793,7 +2793,6 @@ cockpit-badge-readonly = read-only
 project-rail-all-projects = All
 project-rail-ungrouped-instances = Ungrouped instances
 project-rail-section-title = Projects
-
 
 # =============================================================================
 # SECTION: left-rail-status (Owner: AB-render)

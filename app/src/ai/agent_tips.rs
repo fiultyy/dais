@@ -113,13 +113,6 @@ static DEFAULT_TIPS: LazyLock<Vec<AgentTip>> = LazyLock::new(|| {
             kind: AgentTipKind::General,
         },
         AgentTip {
-            description: crate::t!("agent-tip-warp-drive"),
-            link: Some("".to_string()),
-            binding_name: None,
-            action: Some(WorkspaceAction::DaisDrive),
-            kind: AgentTipKind::DaisDrive,
-        },
-        AgentTip {
             description: crate::t!("agent-tip-redirect-running-agent"),
             link: None,
             binding_name: None,
@@ -394,7 +387,6 @@ impl WorkspaceAction {
     pub fn display_text(&self) -> Option<String> {
         match self {
             WorkspaceAction::OpenPalette { .. } => Some(crate::t!("agent-tip-action-open-palette")),
-            WorkspaceAction::DaisDrive => Some(crate::t!("agent-tip-action-warp-drive")),
             WorkspaceAction::ToggleRightPanel => Some(crate::t!("agent-tip-action-show-diff-view")),
             _ => None,
         }

@@ -13,7 +13,6 @@ pub mod telemetry_event;
 #[cfg_attr(not(feature = "local_fs"), allow(unused_imports))]
 pub use telemetry_event::CodeReviewTelemetryEvent;
 
-pub(crate) mod code_review_header;
 pub(crate) mod comment_rendering;
 pub mod comments;
 pub(crate) mod diff_menu;

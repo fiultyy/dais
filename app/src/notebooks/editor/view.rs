@@ -887,7 +887,6 @@ pub enum EditorViewAction {
         block: BlockInfo,
         entrypoint: ActionEntrypoint,
     },
-    OpenEmbeddedObjectSearch,
     RemoveEmbeddingAt(CharOffset),
     MiddleClickPaste,
     /// Open a file. If open_in_warp is true, open in Dais's code editor; otherwise use external editor.
@@ -1135,8 +1134,7 @@ impl RichTextEditorView {
         let find_bar = FindBarState::new(parent_position_id, model.clone(), ctx);
         ctx.subscribe_to_view(find_bar.view(), Self::handle_find_bar_event);
 
-        let insertion_menu_state =
-            BlockInsertionMenuState::new(ctx, config.embedded_objects_enabled.unwrap_or(true));
+        let insertion_menu_state = BlockInsertionMenuState::new(ctx);
 
         Self {
             omnibar,
@@ -1450,8 +1448,7 @@ impl RichTextEditorView {
     fn should_handle_user_input(&self, app: &AppContext) -> bool {
         !(self.link_editor.as_ref(app).editors_focused(app)
             || self.find_bar.is_focused(app)
-            || self.model.as_ref(app).has_command_selection(app)
-            || self.insertion_menu_state.embedded_object_search_open)
+            || self.model.as_ref(app).has_command_selection(app))
     }
 
     /// Whether or not the view is currently editable.
@@ -2987,10 +2984,6 @@ impl TypedActionView for RichTextEditorView {
                     entrypoint: *entrypoint,
                 });
             }
-            OpenEmbeddedObjectSearch => {
-                self.open_embedded_object_search(ctx);
-                ctx.notify();
-            }
             RemoveEmbeddingAt(offset) => self
                 .model
                 .update(ctx, |model, ctx| model.remove_embedding_at(*offset, ctx)),
@@ -3126,12 +3119,6 @@ impl TypedActionView for RichTextEditorView {
             EditorViewAction::OpenBlockInsertionMenu => {
                 ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
                     "Open block-insertion menu",
-                    WarpA11yRole::UserAction,
-                ))
-            }
-            EditorViewAction::OpenEmbeddedObjectSearch => {
-                ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
-                    "Open embedded object search menu",
                     WarpA11yRole::UserAction,
                 ))
             }

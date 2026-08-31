@@ -5,7 +5,7 @@ use warpui::{
 };
 
 use crate::{
-    integration_testing::{cloud_object::assert_metadata_revision, view_getters::workflow_view},
+    integration_testing::{assertions::assert_metadata_revision, view_getters::workflow_view},
     server::ids::SyncId,
     workflows::{workflow_view::WorkflowView, WorkflowId, WorkflowObjectModel},
 };

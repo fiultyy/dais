@@ -7,7 +7,6 @@ use crate::{
         model::persistence::ObjectStoreModel, update_manager::UpdateManager, Space,
         StoredObjectEventEntrypoint,
     },
-    drive::DaisDriveObjectSettings,
     integration_testing::view_getters::workspace_view,
     server::ids::{ClientId, SyncId},
     workflows::{manager::WorkflowOpenSource, workflow::Workflow, WorkflowViewMode},
@@ -70,7 +69,6 @@ pub fn open_workflow(window_key: impl Into<String>, workflow_key: impl Into<Stri
                 WindowManager::as_ref(ctx).show_window_and_focus_app(*window_id);
                 workspace.open_workflow_in_pane(
                     &WorkflowOpenSource::Existing(*workflow_id),
-                    &DaisDriveObjectSettings::default(),
                     WorkflowViewMode::View,
                     ctx,
                 );

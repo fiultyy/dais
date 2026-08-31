@@ -10,8 +10,7 @@ use crate::autoupdate::{AutoupdateState, AutoupdateStateEvent};
 use crate::cloud_object::model::persistence::ObjectStoreModel;
 use crate::cloud_object::{GenericStringObjectFormat, JsonObjectType, ObjectType};
 use crate::drive::export::ExportManager;
-use crate::drive::items::WarpDriveItemId;
-use crate::drive::{ObjectTypeAndId, DaisDriveObjectArgs, DaisDriveObjectSettings};
+use crate::drive::{DaisDriveObjectArgs, DaisDriveObjectSettings};
 use crate::experiments::{BlockOnboarding, Experiment};
 use crate::interval_timer::IntervalTimer;
 use crate::launch_configs::launch_config;
@@ -19,9 +18,7 @@ use crate::linear::LinearIssueWork;
 use crate::notebooks::manager::NotebookSource;
 use crate::settings::apply_onboarding_settings;
 use crate::settings::AISettings;
-use onboarding::{
-    AgentOnboardingEvent, AgentOnboardingView, OnboardingIntention, SelectedSettings,
-};
+use onboarding::{AgentOnboardingEvent, AgentOnboardingView, SelectedSettings};
 
 use crate::auth::UserAuthenticationError;
 use crate::persistence::ModelEvent;
@@ -45,7 +42,6 @@ use crate::util::bindings::{self, is_binding_pty_compliant};
 use crate::util::traffic_lights::{traffic_light_data, TrafficLightData, TrafficLightMouseStates};
 use crate::view_components::DismissibleToast;
 use crate::window_settings::WindowSettings;
-use crate::workspace::hoa_onboarding::mark_hoa_onboarding_completed;
 use crate::workspace::WorkspaceAction;
 use crate::workspaces::user_workspaces::{UserWorkspaces, UserWorkspacesEvent};
 use crate::{
@@ -61,7 +57,7 @@ use crate::{
 use crate::{
     auth::{AuthOverrideWarningModal, AuthOverrideWarningModalEvent},
     auth::{AuthView, AuthViewVariant},
-    workspace::{view::OnboardingTutorial, PaneViewLocator, Workspace, WorkspaceRegistry},
+    workspace::{PaneViewLocator, Workspace, WorkspaceRegistry},
 };
 use crate::{features::FeatureFlag, ChannelState};
 use crate::{send_telemetry_from_app_ctx, GlobalResourceHandles, GlobalResourceHandlesProvider};
@@ -318,14 +314,6 @@ pub fn init(app: &mut AppContext) {
         RootView::open_mcp_settings_in_existing_window,
     );
 
-    app.add_global_action(
-        "root_view:open_codex_in_new_window",
-        open_codex_in_new_window,
-    );
-    app.add_action(
-        "root_view:open_codex_in_existing_window",
-        RootView::open_codex_in_existing_window,
-    );
 
     app.add_global_action(
         "root_view:open_linear_issue_work_in_new_window",
@@ -827,23 +815,6 @@ fn open_mcp_settings_in_new_window(args: &OpenMCPSettingsArgs, ctx: &mut AppCont
                         autoinstall.as_deref(),
                         ctx,
                     )
-                });
-            });
-        }
-    });
-}
-
-/// Opens a new window and shows the Codex modal.
-fn open_codex_in_new_window(_: &(), ctx: &mut AppContext) {
-    let root_handle = open_new_window_get_handles(None, ctx).1;
-    root_handle.update(ctx, |root_view, ctx| {
-        if let AuthOnboardingState::Terminal(workspace_view_handle) =
-            &root_view.auth_onboarding_state
-        {
-            let initial_load_complete = ObjectStoreModel::as_ref(ctx).initial_load_complete();
-            workspace_view_handle.update(ctx, |_, ctx| {
-                let _ = ctx.spawn(initial_load_complete, move |workspace, _, ctx| {
-                    workspace.open_codex_modal(ctx)
                 });
             });
         }
@@ -1432,8 +1403,6 @@ pub struct RootView {
     /// in the [`Self::render`] method, but there is no [`ViewContext`] available there. So, we
     /// need to store it in a field instead.
     window_id: WindowId,
-    /// Stores the tutorial from onboarding until the workspace is ready.
-    pending_tutorial: Option<OnboardingTutorial>,
 }
 
 impl RootView {
@@ -1526,7 +1495,6 @@ impl RootView {
             model_event_sender,
             mouse_states: Default::default(),
             window_id: ctx.window_id(),
-            pending_tutorial: None,
         };
 
         match &root_view.auth_onboarding_state {
@@ -1832,10 +1800,6 @@ impl RootView {
                 let target = target.clone();
 
                 mark_local_onboarding_completed(ctx);
-                if FeatureFlag::HOAOnboardingFlow.is_enabled() {
-                    mark_hoa_onboarding_completed(ctx);
-                }
-
                 // Terminal-intent users should not see the conversation list
                 // auto-opened for discoverability.
                 if matches!(selected_settings, SelectedSettings::Terminal { .. }) {
@@ -1856,11 +1820,8 @@ impl RootView {
                 }
 
                 let workspace = target.to_workspace(ctx);
-                let tutorial = OnboardingTutorial::from(selected_settings.clone());
-                self.pending_tutorial = Some(tutorial);
                 self.auth_onboarding_state = AuthOnboardingState::Terminal(workspace);
                 ctx.emit(RootViewEvent::AuthOnboardingStateChanged);
-                self.start_pending_tutorial(ctx);
                 ctx.notify();
             }
             AgentOnboardingEvent::OnboardingSkipped => {
@@ -1868,11 +1829,6 @@ impl RootView {
                 else {
                     return;
                 };
-
-                mark_local_onboarding_completed(ctx);
-                if FeatureFlag::HOAOnboardingFlow.is_enabled() {
-                    mark_hoa_onboarding_completed(ctx);
-                }
 
                 if AuthStateProvider::as_ref(ctx).get().is_logged_in() {
                     AuthManager::handle(ctx)
@@ -1959,79 +1915,33 @@ impl RootView {
         ctx: &mut ViewContext<Self>,
     ) -> bool {
         if let AuthOnboardingState::Terminal(handle) = &self.auth_onboarding_state {
-            let object_store_model = ObjectStoreModel::as_ref(ctx);
-
             match arg.object_type {
                 ObjectType::Notebook => {
                     handle.update(ctx, |workspace, ctx| {
-                        let initialized_section_states =
-                            workspace.has_warp_drive_initialized_sections(ctx);
                         let notebook_id = SyncId::ServerId(arg.server_id);
-                        let settings = arg.settings.clone();
-                        let _ = ctx.spawn(initialized_section_states, move |workspace, _, ctx| {
-                            workspace.open_notebook(
-                                &NotebookSource::Existing(notebook_id),
-                                &settings,
-                                ctx,
-                                false,
-                            );
-                        });
+                        workspace.open_notebook(&NotebookSource::Existing(notebook_id), ctx, false);
                     });
                 }
                 ObjectType::Workflow => {
                     handle.update(ctx, |workspace, ctx| {
-                        let initialized_section_states =
-                            workspace.has_warp_drive_initialized_sections(ctx);
                         let workflow_id = SyncId::ServerId(arg.server_id);
-                        let settings = arg.settings.clone();
-                        let _ = ctx.spawn(initialized_section_states, move |workspace, _, ctx| {
-                            workspace.open_workflow_from_intent(workflow_id, &settings, ctx);
-                        });
+                        workspace.open_workflow_from_intent(workflow_id, ctx);
                     });
                 }
                 ObjectType::GenericStringObject(GenericStringObjectFormat::Json(
                     JsonObjectType::EnvVarCollection,
-                )) => {
-                    if object_store_model
-                        .get_by_uid(&arg.server_id.uid())
-                        .is_none()
-                    {
-                        display_object_missing_error_in_window(ctx.window_id(), ctx);
-                        return false;
-                    }
-
-                    let item_id =
-                        WarpDriveItemId::Object(ObjectTypeAndId::from_generic_string_object(
-                            GenericStringObjectFormat::Json(JsonObjectType::EnvVarCollection),
-                            SyncId::ServerId(arg.server_id),
-                        ));
-
+                )) | ObjectType::Folder => {
+                    // 去中心化分支:Drive Panel/Index 已删,deep-link 直接打开对象 pane。
+                    let uid = {
+                        let object = ObjectStoreModel::as_ref(ctx).get_by_uid(&arg.server_id.uid());
+                        let Some(object) = object else {
+                            display_object_missing_error_in_window(ctx.window_id(), ctx);
+                            return false;
+                        };
+                        object.uid()
+                    };
                     handle.update(ctx, |workspace, ctx| {
-                        let initialized_section_states =
-                            workspace.has_warp_drive_initialized_sections(ctx);
-                        let _ = ctx.spawn(initialized_section_states, move |workspace, _, ctx| {
-                            workspace.view_in_and_focus_warp_drive(item_id, ctx);
-                        });
-                    });
-                }
-                ObjectType::Folder => {
-                    if object_store_model
-                        .get_by_uid(&arg.server_id.uid())
-                        .is_none()
-                    {
-                        display_object_missing_error_in_window(ctx.window_id(), ctx);
-                        return false;
-                    }
-
-                    let item_id = WarpDriveItemId::Object(ObjectTypeAndId::Folder(
-                        SyncId::ServerId(arg.server_id),
-                    ));
-                    handle.update(ctx, |workspace, ctx| {
-                        let initialized_section_states =
-                            workspace.has_warp_drive_initialized_sections(ctx);
-                        let _ = ctx.spawn(initialized_section_states, move |workspace, _, ctx| {
-                            workspace.view_in_and_focus_warp_drive(item_id, ctx);
-                        });
+                        workspace.open_warp_drive_object_in_new_pane(&uid, ctx);
                     });
                 }
                 _ => {
@@ -2157,21 +2067,6 @@ impl RootView {
         true
     }
 
-    /// Opens the Codex modal in an existing window.
-    pub fn open_codex_in_existing_window(&mut self, _: &(), ctx: &mut ViewContext<Self>) -> bool {
-        let window_id = ctx.window_id();
-        if let AuthOnboardingState::Terminal(handle) = &self.auth_onboarding_state {
-            handle.update(ctx, |workspace, ctx| {
-                workspace.open_codex_modal(ctx);
-            });
-            ctx.windows().show_window_and_focus_app(window_id);
-        } else {
-            log::error!("Auth not complete before trying to open Codex modal");
-        }
-        true
-    }
-
-    /// Opens a new tab with agent view for a Linear issue work deeplink.
     pub fn open_linear_issue_work_in_existing_window(
         &mut self,
         args: &LinearIssueWork,
@@ -2230,7 +2125,6 @@ impl RootView {
                     });
                     self.auth_onboarding_state
                         .complete_auth_and_create_workspace(ctx);
-                    self.start_pending_tutorial(ctx);
                 } else if let AuthOnboardingState::NeedsSsoLink { .. } = &self.auth_onboarding_state
                 {
                     // We should be able to access their SSO state; if not, default to true,
@@ -2287,7 +2181,6 @@ impl RootView {
                 {
                     self.auth_onboarding_state
                         .complete_auth_and_create_workspace(ctx);
-                    self.start_pending_tutorial(ctx);
                 }
                 self.focus(ctx);
             }
@@ -2421,43 +2314,6 @@ impl RootView {
             }
         }
         true
-    }
-
-    /// Dais(本地化,Phase 5):原 `handle_preferences_syncer_event` 在云端
-    /// preferences 同步初始加载完成后应用 onboarding settings,随同步器物理删除。
-    /// onboarding settings 现在在 onboarding 完成时直接应用,不需要延迟到 cloud sync 后。
-    /// If onboarding stored a pending tutorial (because login was required first),
-    /// start it now that the workspace exists.
-    fn start_pending_tutorial(&mut self, ctx: &mut ViewContext<Self>) {
-        let Some(tutorial) = self.pending_tutorial.take() else {
-            return;
-        };
-
-        let AuthOnboardingState::Terminal(workspace) = &self.auth_onboarding_state else {
-            return;
-        };
-
-        if FeatureFlag::ZapNewSettingsModes.is_enabled()
-            && FeatureFlag::TabConfigs.is_enabled()
-        {
-            let intention = tutorial.intention();
-            // Terminal-intent users skip the session config modal.
-            if matches!(intention, OnboardingIntention::AgentDrivenDevelopment) {
-                workspace.update(ctx, |view, ctx| {
-                    view.set_pending_onboarding_intention(intention);
-                    view.open_vertical_tabs_panel_if_enabled(ctx);
-                    view.show_session_config_modal(ctx);
-                });
-            } else {
-                workspace.update(ctx, |view, ctx| {
-                    view.open_vertical_tabs_panel_if_enabled(ctx);
-                });
-            }
-        } else if AISettings::as_ref(ctx).is_any_ai_enabled(ctx) {
-            workspace.update(ctx, |view, ctx| {
-                view.start_agent_onboarding_tutorial(tutorial, ctx);
-            });
-        }
     }
 
     fn traffic_light_data(&self, ctx: &AppContext) -> Option<TrafficLightData> {

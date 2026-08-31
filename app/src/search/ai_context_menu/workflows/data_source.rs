@@ -4,7 +4,6 @@ use crate::cloud_object::StoredObjectModel;
 use crate::search::ai_context_menu::mixer::AIContextMenuSearchableAction;
 use crate::search::data_source::{Query, QueryResult};
 use crate::search::mixer::{DataSourceRunErrorWrapper, SyncDataSource};
-use crate::workspaces::user_workspaces::UserWorkspaces;
 use fuzzy_match::FuzzyMatchResult;
 use warpui::{AppContext, SingletonEntity};
 
@@ -34,9 +33,7 @@ impl SyncDataSource for WorkflowDataSource {
 
         // Get all workflows from ObjectStoreModel
         let object_store_model = ObjectStoreModel::as_ref(app);
-        let _user_workspaces = UserWorkspaces::as_ref(app);
 
-        // Get workflows from all spaces the user has access to
         let mut workflow_results = Vec::new();
 
         // Collect non-welcome workflows, sorted by revision timestamp in zero state

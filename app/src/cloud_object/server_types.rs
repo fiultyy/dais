@@ -17,7 +17,6 @@ use warpui::{
 
 use crate::{
     auth::UserUid,
-    drive::sharing::{SharingAccessLevel, Subject},
     server::ids::{ServerId, SyncId},
     server_time::ServerTimestamp,
 };
@@ -245,12 +244,6 @@ impl From<Owner> for Option<ServerId> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ServerObjectContainer {
-    Folder { folder_uid: ServerId },
-    Drive { owner: Owner },
-}
-
 #[derive(Clone, Debug)]
 pub struct NumInFlightRequests(pub usize);
 
@@ -268,38 +261,17 @@ const SYNC_STATUS_TOOLTIP_ERROR: &str = "Failed to save";
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoredObjectPermissions {
     pub owner: Owner,
-    pub permissions_last_updated_ts: Option<ServerTimestamp>,
-    pub anyone_with_link: Option<LinkSharing>,
-    pub guests: Vec<StoredObjectGuest>,
 }
 
 impl StoredObjectPermissions {
+    /// W3-d8: 云端分享字段裁撤后仅剩 owner;此测试助手为多个外部测试文件的
+    /// 存活依赖,按旧签名恢复。
     #[cfg(test)]
     pub fn mock_personal() -> Self {
         Self {
             owner: Owner::mock_current_user(),
-            permissions_last_updated_ts: Some(Utc::now().into()),
-            guests: Vec::new(),
-            anyone_with_link: None,
         }
     }
-
-    pub fn has_direct_user_access(&self, user_uid: UserUid) -> bool {
-        self.anyone_with_link.is_some() || self.guests.iter().any(|g| g.subject.is_user(user_uid))
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct LinkSharing {
-    pub access_level: SharingAccessLevel,
-    pub source: Option<ServerObjectContainer>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct StoredObjectGuest {
-    pub subject: Subject,
-    pub access_level: SharingAccessLevel,
-    pub source: Option<ServerObjectContainer>,
 }
 
 #[derive(Clone, Debug)]

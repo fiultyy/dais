@@ -7,7 +7,6 @@ use pathfinder_geometry::vector::Vector2F;
 use crate::search::mixer::AddAsyncSourceOptions;
 use lazy_static::lazy_static;
 use std::{collections::HashSet, ops::Range, sync::Arc, time::Duration};
-use warp_core::features::FeatureFlag;
 use warpui::{
     accessibility::{AccessibilityContent, WarpA11yRole},
     elements::{
@@ -19,16 +18,14 @@ use warpui::{
     },
     presenter::ChildView,
     ui_components::components::{UiComponent, UiComponentStyles},
-    AppContext, Element, Entity, FocusContext, ModelHandle, SingletonEntity, TypedActionView, View,
-    ViewContext, ViewHandle, WeakViewHandle,
+    AppContext, Element, Entity, FocusContext, ModelHandle, SingletonEntity, TypedActionView,
+    View, ViewContext, ViewHandle, WeakViewHandle,
 };
 
 use crate::{
     ai_assistant::execution_context::WarpAiExecutionContext,
     appearance::Appearance,
-    auth::{AuthState, AuthStateProvider},
     completer::SessionContext,
-    drive::settings::WarpDriveSettings,
     search::{
         command_search::searcher::{CommandSearchItemAction, CommandSearchMixer},
         result_renderer::{QueryResultRenderer, QueryResultRendererStyles},
@@ -47,11 +44,8 @@ use crate::{
 };
 
 use super::{
-    ai_queries::AIQueriesDataSource,
     env_var_collections::EnvVarCollectionDataSource,
     history::history_data_source_for_session,
-    notebooks::notebooks_data_source,
-    warp_ai::WarpAIDataSource,
     workflows::{stored_workflows_data_source, WorkflowsDataSource},
     zero_state::{CommandSearchZeroStateEvent, CommandSearchZeroStateView},
 };
@@ -117,7 +111,6 @@ pub struct CommandSearchView {
     zero_state_handle: ViewHandle<CommandSearchZeroStateView>,
     handle: WeakViewHandle<Self>,
     menu_positioning: MenuPositioning,
-    auth_state: Arc<AuthState>,
     state: CommandSearchViewState,
     visible_results_range_sender: Sender<Range<usize>>,
     resizable_state_handle: ResizableStateHandle,
@@ -188,9 +181,7 @@ impl CommandSearchView {
                 log::error!("Couldn't retrieve universal search resizable state handle.");
                 resizable_state_handle(DEFAULT_UNIVERSAL_SEARCH_WIDTH)
             });
-
         Self {
-            auth_state: AuthStateProvider::as_ref(ctx).get().clone(),
             zero_state_handle,
             menu_positioning: Default::default(),
             handle: ctx.handle(),
@@ -218,66 +209,36 @@ impl CommandSearchView {
         self.mixer.update(ctx, |mixer, ctx| {
             mixer.reset(ctx);
 
-            // Add data sources in lowest->highest priority order.  If results from two
-            // data sources produce the same ranking score, the data source added first
-            // will show up higher in the list (i.e.: further away from the input).
+            // 本地化:workflows/EVC 数据源不再受 Dais Drive(云端)开关限制,
+            // ObjectStoreModel 是本地 SQLite 对象库,始终可用。
+            mixer.add_sync_source(
+                WorkflowsDataSource::new(session_context.as_ref(), ctx),
+                HashSet::from([QueryFilter::Workflows]),
+            );
+
+            let mut workflows_filters = HashSet::from([QueryFilter::Workflows]);
             if AISettings::as_ref(ctx).is_any_ai_enabled(ctx) {
-                mixer.add_sync_source(
-                    WarpAIDataSource::new(),
-                    HashSet::from([QueryFilter::NaturalLanguage]),
-                );
+                workflows_filters.insert(QueryFilter::AgentModeWorkflows);
             }
 
-            if WarpDriveSettings::is_warp_drive_enabled(ctx) {
-                mixer.add_sync_source(
-                    WorkflowsDataSource::new(session_context.as_ref(), ctx),
-                    HashSet::from([QueryFilter::Workflows]),
-                );
-
-                let mut workflows_filters = HashSet::from([QueryFilter::Workflows]);
-                if AISettings::as_ref(ctx).is_any_ai_enabled(ctx) {
-                    workflows_filters.insert(QueryFilter::AgentModeWorkflows);
-                }
-
-                mixer.add_async_source(
-                    stored_workflows_data_source(),
-                    workflows_filters,
-                    AddAsyncSourceOptions {
-                        debounce_interval: Some(Duration::from_millis(50)),
-                        run_in_zero_state: true,
-                        run_when_unfiltered: true,
-                    },
-                    ctx,
-                );
-
-                mixer.add_async_source(
-                    notebooks_data_source(),
-                    HashSet::from([QueryFilter::Notebooks]),
-                    AddAsyncSourceOptions {
-                        debounce_interval: Some(Duration::from_millis(50)),
-                        run_in_zero_state: true,
-                        run_when_unfiltered: true,
-                    },
-                    ctx,
-                );
-
-                // EnvVarCollectionDataSource stays synchronous because each match target is
-                // structurally short (title, variable name, description). The per-item fuzzy
-                // match cost is negligible, so offloading to an async task would add complexity
-                // without meaningful performance benefit.
-                mixer.add_sync_source(
-                    EnvVarCollectionDataSource::new(),
-                    HashSet::from([QueryFilter::EnvironmentVariables]),
-                );
-            }
-
-            if FeatureFlag::AgentMode.is_enabled() && AISettings::as_ref(ctx).is_any_ai_enabled(ctx)
-            {
-                mixer.add_sync_source(
-                    AIQueriesDataSource::new(),
-                    HashSet::from([QueryFilter::PromptHistory]),
-                );
-            }
+            mixer.add_async_source(
+                stored_workflows_data_source(),
+                workflows_filters,
+                AddAsyncSourceOptions {
+                    debounce_interval: Some(Duration::from_millis(50)),
+                    run_in_zero_state: true,
+                    run_when_unfiltered: true,
+                },
+                ctx,
+            );
+            // EnvVarCollectionDataSource stays synchronous because each match target is
+            // structurally short (title, variable name, description). The per-item fuzzy
+            // match cost is negligible, so offloading to an async task would add complexity
+            // without meaningful performance benefit.
+            mixer.add_sync_source(
+                EnvVarCollectionDataSource::new(),
+                HashSet::from([QueryFilter::EnvironmentVariables]),
+            );
 
             if History::as_ref(ctx).is_queryable(&session_id) {
                 let source = History::handle(ctx).read(ctx, |history_model, app| {

@@ -12,7 +12,6 @@ use crate::{
         model::persistence::ObjectStoreModel, update_manager::UpdateManager, Space,
         StoredObjectEventEntrypoint,
     },
-    drive::DaisDriveObjectSettings,
     integration_testing::view_getters::{notebook_view, workspace_view},
     notebooks::manager::NotebookSource,
     server::ids::{ClientId, SyncId},
@@ -81,12 +80,7 @@ pub fn open_notebook(window_key: impl Into<String>, notebook_key: impl Into<Stri
             // focus if switching to an already-open window). Since the user wouldn't be able to
             // open a notebook in an unfocused window, switch focus explicitly here.
             WindowManager::as_ref(ctx).show_window_and_focus_app(*window_id);
-            workspace.open_notebook(
-                &NotebookSource::Existing(*notebook_id),
-                &DaisDriveObjectSettings::default(),
-                ctx,
-                true,
-            );
+            workspace.open_notebook(&NotebookSource::Existing(*notebook_id), ctx, true);
         })
     })
 }

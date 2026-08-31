@@ -9,22 +9,17 @@
 //! The [`PaneId`] must be created via a [`PaneView<BackingView>`]. The [`PaneId`] is consequently
 //! used to render a [`PaneView`] which internally renders the pane, including the [`BackingView`].
 pub(super) mod ai_document_pane;
-pub(super) mod ai_fact_pane;
 pub(super) mod code_diff_pane;
 pub(super) mod code_diff_pane_model;
 pub(super) mod code_pane;
 pub(super) mod env_var_collection_pane;
 // Dais Wave 7-3:`environment_management_pane` 随 ambient-agent UI 子系统物理删。
-pub(super) mod execution_profile_editor_pane;
 pub(super) mod file_pane;
-pub(super) mod get_started_pane;
-pub(super) mod get_started_view;
 pub(super) mod image_pane;
 #[cfg(not(target_family = "wasm"))]
 pub(super) mod local_harness_launch;
 #[cfg(not(target_family = "wasm"))]
 pub(crate) mod cockpit_pane;
-pub(super) mod notebook_pane;
 #[cfg(not(target_family = "wasm"))]
 pub(crate) mod observatory_pane;
 pub(super) mod settings_pane;
@@ -32,31 +27,28 @@ pub(crate) mod sftp_pane;
 pub(crate) mod ssh_server_pane;
 pub(super) mod terminal_pane;
 pub mod view;
-pub(super) mod welcome_pane;
-pub(crate) mod welcome_view;
-pub mod workflow_pane;
+pub(super) mod workflow_pane;
+pub(super) mod notebook_pane;
+pub(crate) mod execution_profile_editor_pane;
 
 use std::{any::Any, fmt::Display};
 
 use crate::pane_group::focus_state::PaneFocusHandle;
-use crate::pane_group::pane::get_started_view::GetStartedView;
 use crate::ssh_manager::server_view::SshServerView;
 use crate::sftp_manager::browser::SftpBrowserView;
 use crate::view_components::action_button::ActionButton;
 use crate::{
+    ai::blocklist::inline_action::code_diff_view::CodeDiffView,
     ai::execution_profiles::editor::ExecutionProfileEditorView,
-    ai::{
-        ai_document_view::AIDocumentView, blocklist::inline_action::code_diff_view::CodeDiffView,
-        facts::AIFactView,
-    },
     code::view::CodeView,
     env_vars::view::env_var_collection::EnvVarCollectionView,
     menu::MenuItem,
     notebooks::{file::FileNotebookView, image::ImageViewerView, notebook::NotebookView},
+    workflows::workflow_view::WorkflowView,
+    ai::ai_document_view::AIDocumentView,
     settings::PaneSettings,
     settings_view::SettingsView,
     terminal::{available_shells::AvailableShell, TerminalView},
-    workflows::workflow_view::WorkflowView,
 };
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -73,14 +65,11 @@ pub use self::view::PaneHeaderCustomAction;
 pub use self::view::PaneView;
 pub use self::view::PaneViewEvent;
 
-use welcome_view::WelcomeView;
 
 use super::{ActivationReason, LeafContents, PaneGroup, PaneGroupAction};
 
 pub(super) fn init(app: &mut AppContext) {
     self::view::init(app);
-    welcome_view::init(app);
-    get_started_view::init(app);
 }
 
 // Pane id 层已下沉 crates/pane_tree (布局拆分 v1 步骤3): id 类型是
@@ -126,25 +115,10 @@ pub trait PaneIdConstruct: Sized {
         PaneId::new_from_ctx(IPaneType::ImageViewer, ctx)
     }
 
-    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<NotebookView>>`]
-    fn from_notebook_pane_ctx(ctx: &ViewContext<PaneView<NotebookView>>) -> PaneId {
-        PaneId::new_from_ctx(IPaneType::Notebook, ctx)
-    }
-
-    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<EnvVarCollectionView>>`]
-    fn from_env_var_collection_pane_ctx(
-        ctx: &ViewContext<PaneView<EnvVarCollectionView>>,
-    ) -> PaneId {
-        PaneId::new_from_ctx(IPaneType::EnvVarCollection, ctx)
-    }
 
     // Dais Wave 7-3:`from_environment_management_pane_ctx` 随 ambient-agent UI 子系统
     // 物理删。
 
-    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<WorkflowView>>`]
-    fn from_workflow_pane_ctx(ctx: &ViewContext<PaneView<WorkflowView>>) -> PaneId {
-        PaneId::new_from_ctx(IPaneType::Workflow, ctx)
-    }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<TextView>>`]
     fn from_code_pane_ctx(ctx: &ViewContext<PaneView<CodeView>>) -> PaneId {
@@ -159,6 +133,28 @@ pub trait PaneIdConstruct: Sized {
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<SettingsView>>`]
     fn from_settings_pane_ctx(ctx: &ViewContext<PaneView<SettingsView>>) -> PaneId {
         PaneId::new_from_ctx(IPaneType::Settings, ctx)
+    }
+
+    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<WorkflowView>>`]
+    fn from_workflow_pane_ctx(ctx: &ViewContext<PaneView<WorkflowView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::Workflow, ctx)
+    }
+
+    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<NotebookView>>`]
+    fn from_notebook_pane_ctx(ctx: &ViewContext<PaneView<NotebookView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::Notebook, ctx)
+    }
+
+    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<AIDocumentView>>`]
+    fn from_ai_document_pane_ctx(ctx: &ViewContext<PaneView<AIDocumentView>>) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::AIDocument, ctx)
+    }
+
+    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<EnvVarCollectionView>>`]
+    fn from_env_var_collection_pane_ctx(
+        ctx: &ViewContext<PaneView<EnvVarCollectionView>>,
+    ) -> PaneId {
+        PaneId::new_from_ctx(IPaneType::EnvVarCollection, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<ObservatoryPanelView>>`]
@@ -193,16 +189,6 @@ pub trait PaneIdConstruct: Sized {
         Self::new(IPaneType::Cockpit, pane_view)
     }
 
-    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<AIFactView>>`]
-    fn from_ai_fact_pane_ctx(ctx: &ViewContext<PaneView<AIFactView>>) -> PaneId {
-        PaneId::new_from_ctx(IPaneType::AIFact, ctx)
-    }
-
-    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<AIDocumentView>>`]
-    fn from_ai_document_pane_ctx(ctx: &ViewContext<PaneView<AIDocumentView>>) -> PaneId {
-        PaneId::new_from_ctx(IPaneType::AIDocument, ctx)
-    }
-
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<ExecutionProfileEditorView>>`]
     fn from_execution_profile_editor_pane_ctx(
         ctx: &ViewContext<PaneView<ExecutionProfileEditorView>>,
@@ -210,13 +196,6 @@ pub trait PaneIdConstruct: Sized {
         PaneId::new_from_ctx(IPaneType::ExecutionProfileEditor, ctx)
     }
 
-    fn from_welcome_pane_ctx(ctx: &ViewContext<PaneView<WelcomeView>>) -> PaneId {
-        PaneId::new_from_ctx(IPaneType::Welcome, ctx)
-    }
-
-    fn from_get_started_pane_ctx(ctx: &ViewContext<PaneView<GetStartedView>>) -> PaneId {
-        PaneId::new_from_ctx(IPaneType::GetStarted, ctx)
-    }
 
     fn from_ssh_server_pane_ctx(ctx: &ViewContext<PaneView<SshServerView>>) -> PaneId {
         PaneId::new_from_ctx(IPaneType::SshServer, ctx)
@@ -232,13 +211,6 @@ pub trait PaneIdConstruct: Sized {
         terminal_pane_view: &ViewHandle<terminal_pane::TerminalPaneView>,
     ) -> PaneId {
         Self::new(IPaneType::Terminal, terminal_pane_view)
-    }
-
-    /// Creates a [`PaneId`] from a [`PaneView<NotebookView>`] entity ID.
-    fn from_notebook_pane_view(
-        notebook_pane_view: &ViewHandle<PaneView<NotebookView>>,
-    ) -> PaneId {
-        Self::new(IPaneType::Notebook, notebook_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<FileNotebookView>`] entity ID.
@@ -270,15 +242,7 @@ pub trait PaneIdConstruct: Sized {
         Self::new(IPaneType::EnvVarCollection, env_var_collection_view)
     }
 
-    // Dais Wave 7-3:`from_environment_management_pane_view` 随 ambient-agent UI 子系统
-    // 物理删。
-
-    /// Creates a [`PaneId`] from a [`PaneView<WorkflowView>`] entity ID.
-    fn from_workflow_pane_view(
-        workflow_pane_view: &ViewHandle<PaneView<WorkflowView>>,
-    ) -> PaneId {
-        Self::new(IPaneType::Workflow, workflow_pane_view)
-    }
+    // Dais Wave 7-3:`from_environment_management_pane_view` 随 ambient-agent UI 子系统物理删。
 
     /// Creates a [`PaneId`] from a [`PaneView<SettingsView>`] entity ID.
     fn from_settings_pane_view(
@@ -287,9 +251,18 @@ pub trait PaneIdConstruct: Sized {
         Self::new(IPaneType::Settings, settings_pane_view)
     }
 
-    /// Creates a [`PaneId`] from a [`PaneView<AIFactView>`] entity ID.
-    fn from_ai_fact_pane_view(ai_fact_pane_view: &ViewHandle<PaneView<AIFactView>>) -> PaneId {
-        Self::new(IPaneType::AIFact, ai_fact_pane_view)
+    /// Creates a [`PaneId`] from a [`PaneView<WorkflowView>`] entity ID.
+    fn from_workflow_pane_view(
+        workflow_pane_view: &ViewHandle<PaneView<WorkflowView>>,
+    ) -> PaneId {
+        Self::new(IPaneType::Workflow, workflow_pane_view)
+    }
+
+    /// Creates a [`PaneId`] from a [`PaneView<NotebookView>`] entity ID.
+    fn from_notebook_pane_view(
+        notebook_pane_view: &ViewHandle<PaneView<NotebookView>>,
+    ) -> PaneId {
+        Self::new(IPaneType::Notebook, notebook_pane_view)
     }
 
     /// Creates a [`PaneId`] from a [`PaneView<AIDocumentView>`] entity ID.
@@ -309,11 +282,6 @@ pub trait PaneIdConstruct: Sized {
         )
     }
 
-    fn from_get_started_pane_view(
-        get_started_pane_view: &ViewHandle<PaneView<GetStartedView>>,
-    ) -> PaneId {
-        Self::new(IPaneType::GetStarted, get_started_pane_view)
-    }
 
     fn from_ssh_server_pane_view(
         ssh_server_pane_view: &ViewHandle<PaneView<SshServerView>>,
@@ -328,9 +296,6 @@ pub trait PaneIdConstruct: Sized {
         Self::new(IPaneType::Sftp, sftp_pane_view)
     }
 
-    fn from_welcome_pane_view(welcome_pane_view: &ViewHandle<PaneView<WelcomeView>>) -> PaneId {
-        Self::new(IPaneType::Welcome, welcome_pane_view)
-    }
 
     #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
     fn deferred_placeholder_pane_id() -> PaneId {
@@ -343,16 +308,7 @@ pub trait PaneIdConstruct: Sized {
         PaneId::new(IPaneType::Dummy, warpui::EntityId::new())
     }
 
-    /// Returns true if this pane contains a Dais Drive object (notebook, workflow, etc.).
-    fn is_warp_drive_object_pane(&self) -> bool {
-        matches!(
-            self.pane_type(),
-            IPaneType::Notebook
-                | IPaneType::Workflow
-                | IPaneType::EnvVarCollection
-                | IPaneType::AIFact
-        )
-    }
+    // Dais Wave 7-3:`is_warp_drive_object_pane` 随 Notebook/Workflow pane 物理删。
 }
 
 
@@ -375,9 +331,6 @@ pub(crate) fn render_pane_id(pane: &PaneId, app: &AppContext) -> Box<dyn Element
         IPaneType::Terminal => {
             ChildView::<PaneView<TerminalView>>::with_id(pane.pane_view_id()).finish()
         }
-        IPaneType::Notebook => {
-            ChildView::<PaneView<NotebookView>>::with_id(pane.pane_view_id()).finish()
-        }
         IPaneType::File => {
             ChildView::<PaneView<FileNotebookView>>::with_id(pane.pane_view_id()).finish()
         }
@@ -393,25 +346,21 @@ pub(crate) fn render_pane_id(pane: &PaneId, app: &AppContext) -> Box<dyn Element
         IPaneType::EnvVarCollection => {
             ChildView::<PaneView<EnvVarCollectionView>>::with_id(pane.pane_view_id()).finish()
         }
-        // Dais Wave 7-3:`EnvironmentManagement` render arm 随 variant 物理删。
         IPaneType::Workflow => {
             ChildView::<PaneView<WorkflowView>>::with_id(pane.pane_view_id()).finish()
         }
-        IPaneType::Settings => {
-            ChildView::<PaneView<SettingsView>>::with_id(pane.pane_view_id()).finish()
-        }
-        IPaneType::AIFact => {
-            ChildView::<PaneView<AIFactView>>::with_id(pane.pane_view_id()).finish()
+        IPaneType::Notebook => {
+            ChildView::<PaneView<NotebookView>>::with_id(pane.pane_view_id()).finish()
         }
         IPaneType::AIDocument => {
             ChildView::<PaneView<AIDocumentView>>::with_id(pane.pane_view_id()).finish()
         }
+        IPaneType::Settings => {
+            ChildView::<PaneView<SettingsView>>::with_id(pane.pane_view_id()).finish()
+        }
         IPaneType::ExecutionProfileEditor => {
             ChildView::<PaneView<ExecutionProfileEditorView>>::with_id(pane.pane_view_id())
                 .finish()
-        }
-        IPaneType::GetStarted => {
-            ChildView::<PaneView<GetStartedView>>::with_id(pane.pane_view_id()).finish()
         }
         IPaneType::SshServer => {
             ChildView::<PaneView<SshServerView>>::with_id(pane.pane_view_id()).finish()
@@ -432,9 +381,6 @@ pub(crate) fn render_pane_id(pane: &PaneId, app: &AppContext) -> Box<dyn Element
                 pane.pane_view_id(),
             )
             .finish()
-        }
-        IPaneType::Welcome => {
-            ChildView::<PaneView<WelcomeView>>::with_id(pane.pane_view_id()).finish()
         }
         IPaneType::DeferredPlaceholder => warpui::elements::Empty::new().finish(),
         IPaneType::Dummy => warpui::elements::Empty::new().finish(),

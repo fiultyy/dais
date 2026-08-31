@@ -6,27 +6,16 @@
 # SECTION: common (Owner: foundation)
 # =============================================================================
 
-app-name = Dais
-app-tagline = 面向个人与团队的本地智能终端
-
 common-ok = 确定
 common-cancel = 取消
-common-apply = 应用
 common-save = 保存
 common-delete = 删除
 common-confirm = 确认
 common-close = 关闭
-common-reset = 重置
 common-back = 返回
 code-review-title = 代码评审
 common-next = 下一步
-common-yes = 是
-common-no = 否
-common-continue = 继续
-common-approve = 批准
-common-deny = 拒绝
 common-import = 导入
-common-upgrade = 升级
 common-default = 默认
 common-editing = 正在编辑
 common-viewing = 正在查看
@@ -37,18 +26,12 @@ common-send-feedback = 发送反馈
 common-something-went-wrong = 出了点问题
 common-no-results-found = 未找到结果。
 common-edit = 编辑
-common-add = 添加
 common-remove = 移除
-common-rename = 重命名
 common-copy = 复制
 common-paste = 粘贴
 common-search = 搜索
 common-view = 查看
 common-loading = 加载中…
-common-error = 错误
-common-warning = 警告
-common-info = 提示
-common-success = 成功
 common-all = 全部
 common-none = 无
 common-unknown = 未知
@@ -59,9 +42,7 @@ common-export = 导出
 common-trash = 移到废纸篓
 common-copy-link = 复制链接
 common-untitled = 未命名
-common-retry = 重试
 common-maximize = 最大化
-common-discard = 放弃
 common-undo = 撤销
 common-commit = 提交
 common-push = 推送
@@ -71,71 +52,23 @@ common-configure = 配置
 common-dismiss = 忽略
 common-manage = 管理
 common-failed = 失败
-common-done = 已完成
-common-working = 进行中
 common-cut = 剪切
 common-previous = 上一个
-common-suggested = 推荐
 common-copied-to-clipboard = 已复制到剪贴板
-common-new = 新增
 common-no-results = 无结果
 common-learn-more = 了解更多
 common-skip = 跳过
 common-get-warping = 开始使用 Dais
 common-try-again = 重试
 common-settings = 设置
-common-premium = 高级版
 common-recommended = 推荐
 common-enabled = 启用
 common-disabled = 停用
-common-free = 免费
-common-subscribe = 订阅
 common-list-prefix = {" - "}
 common-current-directory = 当前目录
 
 # =============================================================================
 # SECTION: agent-management (Owner: agent-i18n-remaining)
-# =============================================================================
-
-agent-management-filter-all-tooltip = 查看你的智能体任务以及所有共享的团队任务
-agent-management-filter-personal = 个人
-agent-management-filter-personal-tooltip = 查看你创建的智能体任务
-agent-management-get-started = 开始使用
-agent-management-view-agents = 查看智能体
-agent-management-clear-filters = 清除筛选
-agent-management-clear-all = 全部清除
-agent-management-new-agent = 新建智能体
-agent-management-status = 状态
-agent-management-source = 来源
-agent-management-created-on = 创建时间
-agent-management-has-artifact = 包含产物
-agent-management-harness = 执行器
-agent-management-environment = 环境
-agent-management-created-by = 创建者
-agent-management-last-24-hours = 最近 24 小时
-agent-management-past-3-days = 最近 3 天
-agent-management-last-week = 最近一周
-agent-management-artifact-pull-request = Pull Request
-agent-management-artifact-plan = 计划
-agent-management-artifact-screenshot = 截图
-agent-management-artifact-file = 文件
-agent-management-source-scheduled = 定时
-agent-management-source-local-agent = Dais（本地智能体）
-agent-management-source-cloud-agent = Dais（本地智能体）
-agent-management-source-oz-web = Oz Web
-agent-management-source-github-action = GitHub Action
-agent-management-no-session-available = 无可用会话
-agent-management-session-expired = 会话已过期
-agent-management-session-expired-tooltip = 会话会在一周后过期，且无法再打开。
-agent-management-metadata-source = 来源：{ $source }
-agent-management-metadata-harness = 执行器：{ $harness }
-agent-management-metadata-run-time = 运行时长：{ $run_time }
-agent-management-metadata-credits-used = 已用额度：{ $usage }
-agent-management-environment-selected = 环境：{ $environment }
-agent-management-loading-cloud-runs = 正在加载智能体运行
-
-# =============================================================================
-# SECTION: workspace-runtime (Owner: agent-i18n-remaining)
 # =============================================================================
 
 workspace-menu-update-warp-manually = 手动更新 Dais
@@ -153,8 +86,6 @@ workspace-toast-no-terminal-pane-for-context = 没有打开的终端窗格。请
 workspace-toast-plan-already-in-context = 此计划已在上下文中。
 workspace-toast-command-still-running = 此会话中仍有命令正在运行。
 workspace-toast-cannot-open-terminal-session = 无法打开新的终端会话
-workspace-toast-out-of-ai-credits = 你的 AI 额度似乎已用完。
-workspace-toast-upgrade-more-credits = 升级以获取更多额度。
 workspace-toast-disabled-synchronized-inputs = 已停用所有同步输入。
 workspace-toast-conversation-deleted = 对话已删除
 workspace-search-repos-placeholder = 搜索仓库
@@ -164,64 +95,13 @@ terminal-onekey-search-no-results = 未匹配到任何 SSH 凭据
 workspace-rearrange-toolbar-items = 重新排列工具栏项目
 workspace-new-session-agent = 智能体
 workspace-new-session-terminal = 终端
-workspace-new-session-cloud-oz = 智能体标签页
 workspace-new-session-local-docker-sandbox = 本地 Docker 沙箱
 workspace-new-worktree-config = 新建 worktree 配置
 workspace-new-tab-config = 新建标签页配置
 workspace-reopen-closed-session = 重新打开已关闭的会话
-app-menu-new-window = 新建窗口
-app-menu-save-new = 另存为新配置...
-app-menu-launch-configurations = 启动配置
-app-menu-warp = Dais
-app-menu-preferences = 偏好设置
-app-menu-privacy-policy = 隐私政策...
-app-menu-debug = 调试
-app-menu-set-default-terminal = 将 Dais 设为默认终端
-app-menu-file = 文件
-app-menu-edit = 编辑
-app-menu-use-warp-prompt = 使用 Dais 提示符
-app-menu-copy-on-select-terminal = 在终端中选中即复制
-app-menu-synchronize-inputs = 同步输入
-app-menu-view = 视图
-app-menu-toggle-mouse-reporting = 切换鼠标上报
-app-menu-toggle-scroll-reporting = 切换滚动上报
-app-menu-toggle-focus-reporting = 切换焦点上报
-app-menu-compact-mode = 紧凑模式
-app-menu-tab = 标签页
-app-menu-ai = AI
-app-menu-blocks = 命令块
-app-menu-drive = Drive
-app-menu-show-in-band-command-blocks = 显示内嵌命令块
-app-menu-hide-in-band-command-blocks = 隐藏内嵌命令块
-app-menu-show-warpified-ssh-blocks = 显示 Dais 化 SSH 块
-app-menu-hide-warpified-ssh-blocks = 隐藏 Dais 化 SSH 块
-app-menu-show-initialization-block = 显示初始化命令块
-app-menu-hide-initialization-block = 隐藏初始化命令块
-app-menu-window = 窗口
-app-menu-enable-shell-debug-mode = 为新会话启用 Shell 调试模式 (-x)
-app-menu-disable-shell-debug-mode = 为新会话停用 Shell 调试模式 (-x)
-app-menu-enable-pty-recording = 启用 PTY 录制模式 (warp.pty.recording)
-app-menu-disable-pty-recording = 停用 PTY 录制模式 (warp.pty.recording)
-app-menu-enable-in-band-generators = 为新会话启用内嵌生成器
-app-menu-disable-in-band-generators = 为新会话停用内嵌生成器
-app-menu-manually-toggle-network-status = 手动切换网络状态
-app-menu-export-default-settings-csv = 将默认设置导出为 CSV 到主目录
-app-menu-create-anonymous-user = 创建匿名用户
-app-menu-send-feedback = 发送反馈...
-app-menu-help = 帮助
-app-menu-warp-documentation = Dais 文档...
-app-menu-github-issues = GitHub Issues...
-app-menu-warp-slack-community = Dais Slack 社区...
 workspace-update-and-relaunch-warp = 更新并重启 Dais
 workspace-updating-to-version = 正在更新到（{ $version }）
 workspace-update-warp-manually = 手动更新 Dais
-pane-get-started-title = 开始使用
-pane-new-tab-title = 新建标签页
-
-# =============================================================================
-# SECTION: terminal-runtime (Owner: agent-i18n-remaining)
-# =============================================================================
-
 terminal-banner-completions-not-working-prefix = 你的补全看起来没有正常工作（
 terminal-banner-more-info-lower = 更多信息
 terminal-banner-more-info = 更多信息
@@ -235,7 +115,6 @@ terminal-toast-powershell-subshells-not-supported = 不支持 PowerShell 子 she
 terminal-dont-ask-again = 不再询问
 terminal-clear-upload = 清除上传
 terminal-manage-defaults = 管理默认值
-terminal-free-credits = 免费额度
 terminal-cloud-agent-run = 智能体运行
 terminal-agent-header-for-terminal = 用于终端
 ssh-remote-choice-title = 为此远程会话选择体验：
@@ -246,21 +125,14 @@ ssh-remote-choice-continue-without-installing-desc = 你仍可获得 Dais 化体
 ssh-remote-choice-manage-warpify-settings = 管理 Warpify 设置
 ai-document-show-version-history = 显示版本历史
 ai-document-update-agent = 更新智能体
-ai-document-save-and-sync-tooltip = 保存并将此计划自动同步到你的 Dais Drive
-ai-document-show-in-warp-drive = 在 Dais Drive 中查看
 ai-document-save-as-markdown-file = 另存为 markdown 文件
 ai-document-attach-to-active-session = 附加到当前会话
 ai-document-copy-plan-id = 复制计划 ID
 ai-document-plan-id-copied = 计划 ID 已复制到剪贴板
-ai-conversation-view-in-oz = 在 Oz 中查看
-ai-conversation-view-in-oz-tooltip = 在 Oz Web 应用中查看此运行
-ai-artifact-prepare-download-failed = 准备文件下载失败。
 ai-block-open-in-github = 在 GitHub 中打开
 ai-block-open-in-code-review = 在代码评审中打开
-ai-block-manage-rules = 管理规则
 ai-block-review-changes = 查看更改
 ai-block-open-all-in-code-review = 在代码评审中全部打开
-ai-block-dont-show-again = 不再显示
 ai-block-rewind = 回退
 ai-block-rewind-tooltip = 回退到此命令块之前
 ai-block-remove-queued-prompt = 移除排队提示
@@ -274,8 +146,6 @@ ai-block-show-credit-usage-details = 显示额度使用详情
 ai-block-follow-up-existing-conversation = 跟进已有对话
 ai-block-accept = 接受
 ai-block-auto-approve = 自动批准
-ai-rule-add-rule = 添加规则
-ai-rule-edit-rule = 编辑规则
 ai-rule-delete-rule = 删除规则
 ai-aws-refresh-credentials = 刷新 AWS 凭据
 ai-footer-enable-notifications = 启用通知
@@ -287,7 +157,6 @@ ai-footer-plugin-update-available-tooltip = Warp 插件有新版本可用
 ai-footer-plugin-update-instructions = 插件更新说明
 ai-footer-plugin-update-instructions-tooltip = 查看更新 Warp 插件的说明
 ai-footer-context-window-usage-tooltip = 上下文窗口使用情况
-ai-footer-choose-environment-tooltip = 选择环境
 ai-footer-reasoning-depth-tooltip = 推理深度
 ai-footer-file-explorer = 文件浏览器
 ai-footer-open-file-explorer = 打开文件浏览器
@@ -300,7 +169,6 @@ ai-ask-user-answered-question = 已回答问题
 ai-ask-user-answered-all-questions = 已回答全部 { $total } 个问题
 ai-ask-user-answered-count = 已回答 { $answered_count } / { $total } 个问题
 ai-code-diff-requested-edit-title = 请求的编辑
-ai-cloud-setup-visit-oz = 访问 Oz
 ai-inline-code-diff-review-changes = 查看更改
 ai-execution-profile-name-placeholder = 例如 "YOLO code"
 ai-execution-profile-delete-profile = 删除配置
@@ -311,14 +179,12 @@ code-copy-file-path = 复制文件路径
 code-select-all = 全选
 code-replace-all = 全部替换
 code-goto-line-placeholder = 行号:列号
-code-open-file-unavailable-remote-tooltip = 远程会话无法打开文件
 code-view-markdown-preview = 查看 Markdown 预览
 markdown-display-mode-rendered = 预览
 markdown-display-mode-raw = 源码
 code-review-commit-and-create-pr = 提交并创建 PR
 notebook-link-text-placeholder = 文本
 notebook-link-url-placeholder = 链接（网页或文件）
-notebook-block-embed = 嵌入
 notebook-block-divider = 分割线
 notebook-insert-block-tooltip = 插入块
 notebook-refresh-notebook = 刷新笔记
@@ -328,19 +194,6 @@ notebook-sign-in-to-edit = 登录后编辑
 editor-custom-keybinding = 自定义...
 editor-change-keybinding = 更改快捷键
 autosuggestion-ignore-this-suggestion = 忽略此建议
-codex-use-latest-model = 使用最新 Codex 模型
-dais-launch-visit-repo = 访问仓库
-dais-launch-title = Dais 现已开源
-dais-launch-description = 你和我们的社区现在可以使用智能体优先的工作流参与构建 Dais。
-dais-launch-contribute-title = 参与贡献
-dais-launch-contribute-description = Dais 客户端代码现已开源。你可以先使用 /feedback skill 创建 issue，并阅读这里的贡献指南。
-dais-launch-contribute-link-text = 这里
-dais-launch-oad-title = 开放自动化开发
-dais-launch-oad-description = Dais 仓库由智能体优先的本地工作流管理，并由 Oz 本地智能体体验提供支持。
-dais-launch-auto-model-title = 介绍「auto（开放权重）」
-dais-launch-auto-model-description = 我们新增了一个 auto 模型，可为任务选择最佳开放权重模型，例如 Kimi 或 MiniMax。
-hoa-see-whats-new = 查看新变化
-hoa-finish = 完成
 session-config-get-warping = 开始使用 Dais
 uri-custom-uri-invalid = 自定义 URI 无效。
 context-node-install-nvm = 安装 nvm
@@ -359,10 +212,6 @@ settings-ai-default-placeholder = default
 settings-working-directory-path-placeholder = 路径
 settings-startup-shell-executable-path-placeholder = 可执行文件路径
 settings-agent-providers-base-url-placeholder = https://api.deepseek.com/v1
-drive-sharing-only-people-invited = 仅受邀者
-drive-sharing-anyone-with-link = 拥有链接的任何人
-drive-sharing-only-invited-teammates = 仅限本地访问
-drive-sharing-teammates-with-link = 拥有链接的本地访问
 terminal-warpify-subshell = Warpify subshell
 terminal-warpify-subshell-tooltip = 在此会话中启用 Dais shell 集成
 terminal-use-agent = 使用智能体
@@ -380,15 +229,11 @@ terminal-fork-conversation-locally-tooltip = 将此对话 fork 到本地
 terminal-open-in-warp = 在 Dais 中打开
 terminal-open-conversation-in-warp-tooltip = 在 Dais 桌面端打开此对话
 terminal-stop-sharing = 停止分享
-terminal-copy-session-sharing-link = 复制会话分享链接
-terminal-shared-session-make-editor = 设为编辑者
-terminal-shared-session-make-viewer = 设为查看者
 terminal-shared-session-change-role = 更改角色
 terminal-choose-execution-profile-tooltip = 选择 AI 执行配置
 terminal-choose-agent-model-tooltip = 选择智能体模型
 terminal-input-cli-agent-rich-input-hint = 告诉智能体要构建什么...
 terminal-input-enter-prompt-for-agent = 输入给 { $agent } 的提示...
-terminal-input-cloud-agent-hint = 启动智能体
 terminal-input-a11y-label = 命令输入。
 terminal-input-a11y-helper = 输入 shell 命令，按 Enter 执行。按 cmd-up 导航到之前执行命令的输出。按 cmd-l 重新聚焦命令输入框。
 terminal-input-ai-command-search-hint = 输入 '#' 获取 AI 命令建议
@@ -468,8 +313,6 @@ code-review-add-diff-set-context = 将 diff 集添加为上下文
 code-review-show-saved-comment = 显示已保存评论
 code-review-add-comment = 添加评论
 code-review-discard-all = 放弃全部
-code-review-initialize-codebase = 初始化代码库
-code-review-initialize-codebase-tooltip = 启用代码库索引和 WARP.md
 code-review-open-repository = 打开仓库
 code-review-open-repository-tooltip = 前往仓库并初始化用于编码
 code-review-open-file = 打开文件
@@ -497,7 +340,6 @@ drive-toast-finished-exporting = 对象导出完成
 # SECTION: remaining-settings-tabs-env (Owner: agent-i18n-remaining)
 # =============================================================================
 
-settings-environment-delete-button = 删除环境
 settings-language-system-default = 系统默认
 settings-language-english = 英文
 tab-config-open-tab = 打开标签页
@@ -557,16 +399,10 @@ language-restart-required-body = Dais 的界面语言已更新。部分文字会
 settings-section-about = 关于
 # Dais: settings-section-account 随 Account 设置页一同删除。
 settings-section-mcp-servers = MCP 服务器
-settings-section-billing-and-usage = 账单与用量
 settings-section-appearance = 外观
-settings-section-features = 功能
 settings-section-keybindings = 快捷键
-settings-section-referrals = 推荐
-settings-section-shared-blocks = 共享命令块
-settings-section-warp-drive = Dais Drive
 settings-section-warpify = Warpify
 settings-section-network = 网络
-settings-section-cloud-sync = 云同步
 settings-section-ai = AI
 settings-section-warp-agent = Dais 智能体
 settings-section-agent-profiles = 配置
@@ -576,8 +412,6 @@ settings-section-knowledge = Rules
 settings-section-third-party-cli-agents = 第三方 CLI 智能体
 settings-section-code = 代码
 settings-section-editor-and-code-review = 编辑器与代码评审
-settings-section-cloud-environments = 环境
-settings-section-oz-cloud-api-keys = Agent API 密钥
 settings-title = 设置
 
 # 上下文菜单项（分屏 / 关闭窗格）
@@ -618,31 +452,23 @@ settings-about-export-logs-failure = 导出日志失败：{ $error }
 
 # Dais：main_page.rs 相关文案随 Account 设置页一同删除。
 
-
 # --- ANCHOR-SUB-MCP (agent-settings-mcp) ---
 settings-mcp-page-title = MCP 服务器
 settings-mcp-logout-success-named = 已成功登出 {$name} MCP 服务器
 settings-mcp-logout-success = 已成功登出 MCP 服务器
-settings-mcp-install-modal-busy = 请先完成当前 MCP 安装，然后再打开另一个安装链接。
 settings-mcp-unknown-server = 未知的 MCP 服务器 '{$name}'
 settings-mcp-install-from-link-failed = MCP 服务器 '{$name}' 无法通过此链接安装。
 
 # ---- destructive_mcp_confirmation_dialog.rs ----
 settings-mcp-confirm-delete-local-title = 删除 MCP 服务器？
 settings-mcp-confirm-delete-local-description = 这将从本设备卸载并移除此 MCP 服务器。
-settings-mcp-confirm-delete-shared-title = 删除 MCP 服务器？
-settings-mcp-confirm-delete-shared-description = 此操作会从这台设备移除已保存的 MCP 服务器。
-settings-mcp-confirm-unshare-title = 移除已保存的 MCP 服务器？
-settings-mcp-confirm-unshare-description = 此操作会从这台设备移除已保存的 MCP 服务器。
 settings-mcp-confirm-delete-button = 删除 MCP
-settings-mcp-confirm-remove-from-team-button = 移除本地副本
 settings-mcp-confirm-cancel-button = 取消
 
 # ---- edit_page.rs ----
 settings-mcp-edit-save = 保存
 settings-mcp-edit-edit-variables = 编辑变量
 settings-mcp-edit-delete = 删除 MCP
-settings-mcp-edit-remove-from-team = 移除本地副本
 settings-mcp-edit-editing-disabled-banner = 此视图无法编辑该 MCP 服务器。
 settings-mcp-edit-add-new-title = 添加新 MCP 服务器
 settings-mcp-edit-edit-named-title = 编辑 { $name } MCP 服务器
@@ -653,14 +479,6 @@ settings-mcp-edit-no-server-error = 未指定 MCP 服务器。
 settings-mcp-edit-multiple-servers-error = 编辑单个服务器时无法添加多个 MCP 服务器。
 
 # ---- installation_modal.rs ----
-settings-mcp-install-modal-title = 安装 { $name }
-settings-mcp-install-modal-source-shared = 已保存预设
-settings-mcp-install-modal-source-other-device = 来自其他设备
-settings-mcp-install-modal-cancel = 取消
-settings-mcp-install-modal-install = 安装
-settings-mcp-install-modal-no-server = 未选择 MCP 服务器
-
-# ---- list_page.rs ----
 settings-mcp-list-description = 添加 MCP 服务器以扩展 Dais Agent 的能力。MCP 服务器通过标准化接口向 agent 暴露数据源或工具，本质上类似插件。你可以添加自定义服务器，或使用预设快速开始使用流行的服务器。
 settings-mcp-list-learn-more = 了解更多。
 settings-mcp-list-empty-state = 添加 MCP 服务器后，它将显示在此处。
@@ -674,13 +492,10 @@ settings-mcp-list-template-available-to-install = 可安装
 settings-mcp-list-file-based-detected = 来自配置文件的检测
 settings-mcp-list-toast-server-updated = MCP 服务器已更新
 settings-mcp-list-section-my-mcps = 我的 MCP
-settings-mcp-list-section-shared-by-warp-and-team = 来自 Dais 和 { $name }
 settings-mcp-list-section-shared-by-warp-and-other-devices = 由 Dais 和其他设备共享
 settings-mcp-list-section-shared-from-warp = 来自 Dais 的共享
 settings-mcp-list-section-detected-from = 检测自 { $provider }
 settings-mcp-list-chip-global = 全局
-settings-mcp-list-chip-shared-by-creator = 由 { $creator } 共享
-settings-mcp-list-chip-shared-by-team-member = 已保存预设
 settings-mcp-list-chip-from-another-device = 来自其他设备
 
 # ---- server_card.rs ----
@@ -688,7 +503,6 @@ settings-mcp-card-tooltip-show-logs = 查看日志
 settings-mcp-card-tooltip-log-out = 登出
 settings-mcp-card-tooltip-share-server = 共享服务器
 settings-mcp-card-tooltip-edit = 编辑
-settings-mcp-card-tooltip-update-available = 有可用的服务器更新
 settings-mcp-card-button-view-logs = 查看日志
 settings-mcp-card-button-edit-config = 编辑配置
 settings-mcp-card-button-set-up = 设置
@@ -700,55 +514,6 @@ settings-mcp-card-status-authenticating = 正在认证…
 settings-mcp-card-status-shutting-down = 正在关闭…
 
 # ---- update_modal.rs ----
-settings-mcp-update-modal-default-name = 服务器
-settings-mcp-update-modal-title = 更新 { $name }
-settings-mcp-update-modal-description = 此服务器有 { $count } 个可用更新，你想使用哪一个？
-settings-mcp-update-modal-publisher-another-device = 其他设备
-settings-mcp-update-modal-publisher-team-member = 本地来源
-settings-mcp-update-modal-update-from = 来自 { $publisher } 的更新
-settings-mcp-update-modal-version = 版本 { $version }
-settings-mcp-update-modal-cancel = 取消
-settings-mcp-update-modal-update = 更新
-settings-mcp-update-modal-no-updates = 暂无可用更新
-
-# --- ANCHOR-SUB-PLATFORM (agent-settings-platform) ---
-settings-platform-section-title = Agent API 密钥
-settings-platform-description = 创建并管理 API 密钥，允许本地 agent 访问你的 Dais 账户。
-    了解更多请访问
-settings-platform-documentation-link = 文档。
-settings-platform-create-button = + 创建 API 密钥
-settings-platform-modal-title-new = 新建 API 密钥
-settings-platform-modal-title-save = 保存你的密钥
-settings-platform-toast-deleted = API 密钥已删除
-settings-platform-column-name = 名称
-settings-platform-column-key = 密钥
-settings-platform-column-scope = 范围
-settings-platform-column-created = 创建时间
-settings-platform-column-last-used = 最近使用
-settings-platform-column-expires-at = 过期时间
-settings-platform-value-never = 从未
-settings-platform-scope-personal = 个人
-settings-platform-scope-team = 团队
-settings-platform-zero-state-title = 暂无 API 密钥
-settings-platform-zero-state-description = 创建密钥以管理对 Dais 的外部访问
-settings-platform-create-api-key-description-personal = 此 API 密钥与你的用户绑定，可用于向你的 Dais 账户发起请求。
-settings-platform-create-api-key-description-team = 此 API 密钥与你的团队绑定，可用于代表你的团队发起请求。
-settings-platform-create-api-key-name-placeholder = Dais API 密钥
-settings-platform-create-api-key-expiration-one-day = 1 天
-settings-platform-create-api-key-expiration-thirty-days = 30 天
-settings-platform-create-api-key-expiration-ninety-days = 90 天
-settings-platform-create-api-key-label-type = 类型
-settings-platform-create-api-key-label-expiration = 过期时间
-settings-platform-create-api-key-error-no-current-team = 无法创建团队 API 密钥，因为当前没有团队。
-settings-platform-create-api-key-error-create-failed = API 密钥创建失败。请重试。
-settings-platform-create-api-key-secret-once = 此密钥只会显示一次。请复制并安全保存。
-settings-platform-create-api-key-copied = 已复制
-settings-platform-create-api-key-done = 完成
-settings-platform-create-api-key-creating = 正在创建…
-settings-platform-create-api-key-create = 创建密钥
-settings-platform-create-api-key-toast-secret-copied = 密钥已复制。
-
-# --- ANCHOR-SUB-KEYBINDINGS (agent-settings-keybindings) ---
 settings-keybindings-search-placeholder = 按名称或按键搜索（例如 "cmd d"）
 settings-keybindings-conflict-warning = 此快捷键与其他快捷键冲突
 settings-keybindings-button-default = 默认
@@ -764,36 +529,6 @@ settings-keybindings-subheader = 配置键盘快捷键
 settings-keybindings-command-column = 命令
 
 # --- ANCHOR-SUB-REFERRALS (agent-settings-referrals) ---
-settings-referrals-page-title = 邀请朋友加入 Dais
-settings-referrals-anonymous-header = 本地 Dais 构建不提供推荐计划
-settings-referrals-sign-up = 本地不可用
-settings-referrals-link-label = 链接
-settings-referrals-email-label = 邮箱
-settings-referrals-link-error = 加载邀请码失败。
-settings-referrals-loading = 加载中...
-settings-referrals-copy-link-button = 复制链接
-settings-referrals-email-send-button = 发送
-settings-referrals-email-sending-button = 发送中...
-settings-referrals-link-copied-toast = 链接已复制。
-settings-referrals-email-success-toast = 邮件发送成功。
-settings-referrals-email-failure-toast = 邮件发送失败，请重试。
-settings-referrals-email-empty-error = 请输入邮箱。
-settings-referrals-email-invalid-error = 请确认下列邮箱有效：{ $email }
-settings-referrals-reward-intro = 推荐朋友即可获得 Dais 专属周边*
-settings-referrals-claimed-count-singular = 当前推荐
-settings-referrals-claimed-count-plural = 当前推荐
-settings-referrals-terms-link = 部分条款适用。
-settings-referrals-terms-contact = { " " }如对推荐计划有任何疑问，请联系 referrals@warp.dev。
-settings-referrals-reward-theme = 专属主题
-settings-referrals-reward-keycaps = 键帽 + 贴纸
-settings-referrals-reward-tshirt = T 恤
-settings-referrals-reward-notebook = 笔记本
-settings-referrals-reward-cap = 棒球帽
-settings-referrals-reward-hoodie = 连帽衫
-settings-referrals-reward-hydroflask = 高级 Hydro Flask 水壶
-settings-referrals-reward-backpack = 双肩包
-
-# --- ANCHOR-SUB-WARPIFY (agent-settings-warpify) ---
 settings-warpify-page-title = Warpify
 settings-warpify-description-prefix = 配置 Dais 是否尝试对特定 Shell 执行 "Warpify"（为其添加命令块、输入模式等支持）。
 settings-warpify-learn-more = 了解更多
@@ -848,53 +583,6 @@ settings-network-test-failed-http = ❌ 连接失败:{$error}
 
 # --- ANCHOR-SUB-CLOUD-SYNC (agent-settings-cloud-sync) ---
 # 云同步设置页面
-settings-cloud-sync-description = 通过 GitHub Gist 或 Gitee Gist 配置云同步。您的设置将被加密并存储为私密 Gist。
-settings-cloud-sync-scope-note = 当前仅同步 SSH 管理的服务器配置数据。
-settings-cloud-sync-platform-label = 同步平台
-settings-cloud-sync-platform-description = 选择用于同步的云服务
-settings-cloud-sync-token-label = 访问令牌
-settings-cloud-sync-token-description = 具有 gist 权限的个人访问令牌
-settings-cloud-sync-token-placeholder = 输入访问令牌...
-settings-cloud-sync-operations-header = 同步操作
-settings-cloud-sync-upload-label = 上传
-settings-cloud-sync-download-label = 下载
-settings-cloud-sync-status-header = 同步状态
-settings-cloud-sync-local-version-label = 本地版本
-settings-cloud-sync-last-time-label = 上次同步时间
-settings-cloud-sync-last-platform-label = 上次同步平台
-settings-cloud-sync-local-version = 本地版本：{$version}
-settings-cloud-sync-last-time = 上次同步时间：{$time}
-settings-cloud-sync-last-platform = 上次同步平台：{$platform}
-settings-cloud-sync-na = 不可用
-settings-cloud-sync-never = 从未同步
-settings-cloud-sync-syncing-upload = 正在上传到 {$platform}...
-settings-cloud-sync-syncing-download = 正在从 {$platform} 下载...
-settings-cloud-sync-success-upload = 上传到 {$platform} 成功（版本 v{$version}）
-settings-cloud-sync-success-download = 从 {$platform} 下载成功（版本 v{$version}）
-settings-cloud-sync-already-up-to-date = 已是最新版本（v{$version}），无需同步
-settings-cloud-sync-failed = 失败：{$error}
-settings-cloud-sync-conflict-status = 版本冲突：本地 v{$local} vs 远程 v{$remote}
-settings-cloud-sync-conflict-status-equal = 版本相同：本地 v{$local} = 远程 v{$remote}
-settings-cloud-sync-token-not-configured = {$platform} Token 未配置
-settings-cloud-sync-conflict-title = 版本冲突
-settings-cloud-sync-conflict-description = 远程版本（v{$remote}）比本地（v{$local}）更新。强制上传将覆盖远程数据。
-settings-cloud-sync-conflict-description-equal = 远程版本与本地版本相同。强制上传将覆盖远程数据。
-settings-cloud-sync-force-upload = 强制上传
-settings-cloud-sync-download-confirm-title = 确认下载
-settings-cloud-sync-download-confirm-description = 下载将用远程版本替换所有本地 SSH 服务器配置。此操作无法撤销。
-settings-cloud-sync-download-confirm-button = 确认下载
-settings-cloud-sync-upload-confirm-title = 确认上传
-settings-cloud-sync-upload-confirm-description = 上传将用本地版本覆盖远程的所有 SSH 服务器配置。Gist 不保留历史版本,此操作无法撤销。
-settings-cloud-sync-upload-confirm-button = 确认上传
-settings-cloud-sync-clear = 清除
-settings-cloud-sync-validating = 正在验证令牌...
-settings-cloud-sync-token-valid = 令牌有效（{$username}）
-settings-cloud-sync-token-invalid = 无效令牌：{$error}
-settings-cloud-sync-auto-sync-label = 自动同步
-settings-cloud-sync-auto-sync-description = 启用后，配置变更时自动上传到云端，应用启动时自动从云端下载
-
-# --- ANCHOR-SUB-AI-PAGE (agent-settings-ai-page) ---
-# 章节 / 副标题
 settings-ai-warp-agent-header = Dais 智能体
 settings-ai-active-ai-section = 主动 AI
 settings-ai-input-section = 输入
@@ -903,7 +591,6 @@ settings-ai-knowledge-section = Rules
 settings-ai-voice-section = 语音
 settings-ai-other-section = 其他
 settings-ai-third-party-cli-section = 第三方 CLI 智能体
-settings-ai-experimental-section = 实验性
 settings-ai-aws-bedrock-section = AWS Bedrock
 settings-ai-agents-header = 智能体
 settings-ai-profiles-header = 配置
@@ -950,16 +637,11 @@ settings-ai-info-banner-managed-by-workspace = 你的部分权限由工作区管
 settings-ai-base-model = 基础模型
 settings-ai-base-model-description = 此模型作为 Dais 智能体背后的主要引擎，驱动大部分交互，并在需要时调用其他模型完成规划或代码生成等任务。Dais 可能根据模型可用性自动切换备用模型，或将其用于会话摘要等辅助任务。
 settings-ai-show-model-picker-in-prompt = 在提示中显示模型选择器
-settings-ai-codebase-context = 代码库上下文
-settings-ai-codebase-context-description = 允许 Dais 智能体生成代码库的概要作为上下文。代码从不存储到我们的服务器。
 settings-ai-add-profile = 新建配置
 settings-ai-agents-description = 设定智能体的运行边界：它能访问什么、拥有多少自主权、以及何时必须征得你的同意。你也可以微调自然语言输入、代码库感知等行为。
 settings-ai-profiles-description = 配置让你定义智能体的运行方式 —— 包括它可执行的动作、何时需要审批，以及编码、规划等任务使用的模型。你也可以将其作用于具体项目。
 
 # 匿名 / 组织限制
-settings-ai-sign-up = 启用本地 AI
-settings-ai-anonymous-create-account = 本地 AI 功能不需要账户。
-settings-ai-org-enforced-tooltip = 此选项由你所在组织的设置强制启用，无法自定义。
 settings-ai-restricted-billing = 因账单问题受限
 settings-ai-unlimited = 不限量
 
@@ -973,21 +655,16 @@ settings-ai-autodetect-terminal-commands = 在智能体输入中自动检测终�
 settings-ai-natural-language-detection = 自然语言检测
 settings-ai-natural-language-denylist = 自然语言拒绝列表
 settings-ai-natural-language-denylist-description = 列出的命令永远不会触发自然语言检测。
-settings-ai-let-us-know = 告诉我们
-
-# MCP 服务器
 settings-ai-learn-more = 了解更多
 settings-ai-add-server = 添加服务器
 settings-ai-manage-mcp-servers = 管理 MCP 服务器
 settings-ai-file-based-mcp-toggle = 从第三方智能体自动启动服务器
-settings-ai-file-based-mcp-supported-providers = 查看支持的提供商。
 settings-ai-mcp-dropdown-header = 选择 MCP 服务器
 
 # 知识库 / 规则
 settings-ai-rules-label = 规则
 settings-ai-suggested-rules-label = 规则建议
 settings-ai-suggested-rules-description = 让 AI 根据你的交互建议要保存的规则。
-settings-ai-manage-rules = 管理规则
 settings-ai-rules-description = 规则帮助 Dais 智能体遵循你的约定，无论是针对代码库还是特定工作流。
 
 # 语音
@@ -1017,7 +694,6 @@ settings-ai-toolbar-commands-description = 添加正则表达式，匹配的命�
 settings-ai-per-agent-section = 已安装的智能体
 settings-ai-per-agent-scanning = 正在查找已安装的智能体...
 settings-ai-per-agent-empty = 未找到已安装的 CLI 智能体。
-settings-ai-per-agent-agent-col = 智能体
 settings-ai-per-agent-toolbar-col = 工具栏
 settings-ai-per-agent-tab-menu-col = 新标签页
 settings-ai-per-agent-titlebar-col = 标题栏
@@ -1025,10 +701,6 @@ settings-ai-coding-agent-other = 其他
 settings-ai-coding-agent-select-header = 选择编码智能体
 
 # 实验性 / 智能体
-settings-ai-cloud-agent-computer-use = 在智能体中启用计算机使用
-settings-ai-cloud-agent-computer-use-description = 在 Dais 应用中启动的智能体会话中启用计算机使用。
-
-# AWS Bedrock
 settings-ai-aws-bedrock-toggle = 使用 AWS Bedrock 凭证
 settings-ai-aws-bedrock-description = Dais 加载并发送本地 AWS CLI 凭证以使用 Bedrock 支持的模型。
 settings-ai-aws-bedrock-description-managed = Dais 加载并发送本地 AWS CLI 凭证以使用 Bedrock 支持的模型。此设置由你的组织管理。
@@ -1039,151 +711,16 @@ settings-ai-aws-auto-login-description = 启用后，AWS Bedrock 凭证过期时
 settings-ai-refresh = 刷新
 
 # --- ANCHOR-SUB-FEATURES (agent-settings-features) ---
-settings-features-category-general = 通用
-settings-features-category-session = 会话
-settings-features-category-keys = 按键
-settings-features-category-text-editing = 文本编辑
-settings-features-category-terminal-input = 终端输入
-settings-features-category-terminal = 终端
-settings-features-category-notifications = 通知
-settings-features-category-workflows = 工作流
-settings-features-category-system = 系统
-settings-features-open-links-in-desktop = 在桌面应用中打开链接
-settings-features-open-links-in-desktop-tooltip = 尽可能自动在桌面应用中打开链接。
-settings-features-restore-session = 启动时恢复窗口、标签页和面板
-settings-features-persist-conversations = 保存智能体对话到本地历史
-settings-features-show-sticky-command-header = 显示固定的命令标题栏
-settings-features-show-link-tooltip = 点击链接时显示提示
-settings-features-show-quit-warning = 退出/登出前显示警告
-settings-features-quit-on-last-window-closed = 关闭所有窗口时退出应用
-settings-features-show-changelog-after-update = 更新后显示更新日志提示
-settings-features-mouse-scroll-multiplier = 鼠标滚轮每次滚动的行数
-settings-features-auto-open-code-review = 自动打开代码评审面板
-settings-features-max-rows-per-block = 命令块最大行数
-settings-features-ssh-wrapper = Dais SSH 包装器
-settings-features-ssh-auto-discovery = 自动发现 SSH 主机
-settings-features-receive-desktop-notifications = 接收来自 Dais 的桌面通知
-settings-features-show-in-app-agent-notifications = 显示应用内 Agent 通知
-settings-features-confirm-close-shared-session = 关闭只读会话前确认
-settings-features-global-hotkey-label = 全局快捷键：
-settings-features-global-hotkey-not-supported-on-wayland = Wayland 下不支持。
-settings-features-autocomplete-symbols = 自动补全引号、圆括号和方括号
-settings-features-error-underlining = 命令错误下划线提示
-settings-features-syntax-highlighting = 命令语法高亮
-settings-features-completions-while-typing = 输入时自动打开补全菜单
-settings-features-command-corrections = 建议修正后的命令
-settings-features-expand-aliases = 输入时展开别名
-settings-features-middle-click-paste = 中键点击粘贴
-settings-features-vim-mode = 使用 Vim 快捷键编辑代码和命令
-settings-features-at-context-menu = 在终端模式下启用「@」上下文菜单
-settings-features-slash-commands-in-terminal = 在终端模式下启用斜杠命令
-settings-features-outline-codebase-symbols = 为「@」上下文菜单提取代码库符号大纲
-settings-features-show-input-message-bar = 显示终端输入消息行
-settings-features-show-autosuggestion-hint = 显示自动建议快捷键提示
-settings-features-show-autosuggestion-ignore = 显示自动建议忽略按钮
-settings-features-enable-mouse-reporting = 启用鼠标事件上报
-settings-features-enable-scroll-reporting = 启用滚动事件上报
-settings-features-enable-focus-reporting = 启用焦点事件上报
-settings-features-use-audible-bell = 启用响铃
-settings-features-double-click-smart-selection = 双击智能选择
-settings-features-show-help-block-in-new-sessions = 新会话中显示帮助命令块
-settings-features-copy-on-select = 选中即复制
-settings-features-show-global-workflows-in-command-search = 在命令搜索（ctrl-r）中显示全局工作流
-settings-features-linux-selection-clipboard = 兼容 Linux 选区剪贴板
-settings-features-prefer-low-power-gpu = 新窗口优先使用集成 GPU 渲染（低功耗）
-settings-features-use-wayland = 使用 Wayland 进行窗口管理
-settings-features-use-wayland-tooltip = 启用 Wayland 支持
-settings-features-ctrl-tab-behavior-label = Ctrl+Tab 行为：
-settings-features-extra-meta-key-left-mac = 左 Option 键作为 Meta
-settings-features-extra-meta-key-right-mac = 右 Option 键作为 Meta
-settings-features-extra-meta-key-left-other = 左 Alt 键作为 Meta
-settings-features-extra-meta-key-right-other = 右 Alt 键作为 Meta
-settings-features-default-shell-header = 新会话默认 shell
-settings-features-working-directory-header = 新会话工作目录
-settings-features-notify-agent-task-completed = Agent 完成任务时通知
-settings-features-notify-needs-attention = 命令或 Agent 需要继续操作时通知
-settings-features-play-notification-sounds = 播放通知声音
-settings-features-default-session-mode = 新会话默认模式
-settings-features-block-rows-description = 将上限设置为超过 10 万行可能影响性能。最大支持行数为 { $max_rows }。
-settings-features-toast-duration-label = Toast 通知保持显示时长
-settings-features-tab-key-behavior = Tab 键行为
-settings-features-graphics-backend-label = 首选图形后端
-settings-features-graphics-backend-current = 当前后端：{ $backend }
 settings-features-working-dir-home = 用户主目录
 settings-features-working-dir-previous = 上一个会话的目录
 settings-features-working-dir-custom = 自定义目录
 settings-features-undo-close-enable = 启用重新打开已关闭的会话
 settings-features-undo-close-grace-period = 宽限期（秒）
-settings-features-configure-global-hotkey = 配置全局快捷键
-settings-features-make-default-terminal = 将 Dais 设为默认终端
-settings-features-pin-top = 固定到顶部
-settings-features-pin-bottom = 固定到底部
-settings-features-pin-left = 固定到左侧
-settings-features-pin-right = 固定到右侧
-settings-features-default-option = 默认
-settings-features-tab-behavior-completions = 打开补全菜单
-settings-features-tab-behavior-autosuggestions = 接受自动建议
-settings-features-tab-behavior-user-defined = 用户自定义
-settings-features-new-tab-placement-all = 在所有标签页之后
-settings-features-new-tab-placement-current = 在当前标签页之后
-settings-features-width-percent = 宽度 %
-settings-features-height-percent = 高度 %
-settings-features-autohide-on-focus-loss = 键盘焦点丢失时自动隐藏
-settings-features-long-running-prefix = 当命令执行时间超过
-settings-features-long-running-suffix = 秒时完成
-settings-features-keybinding-label = 快捷键
-settings-features-click-set-global-hotkey = 点击设置全局快捷键
-settings-features-cancel = 取消
-settings-features-save = 保存
-settings-features-press-new-shortcut = 按下新的键盘快捷键
-settings-features-change-keybinding = 更改快捷键
-settings-features-active-screen = 当前屏幕
-settings-features-wayland-window-restore-warning = 在 Wayland 下不会恢复窗口位置。
-settings-features-see-docs = 查看文档。
-settings-features-allowed-values-1-20 = 允许的取值范围：1-20
-settings-features-supports-floating-1-20 = 支持 1 到 20 之间的浮点数。
-settings-features-auto-open-code-review-description = 打开此设置后，对话中第一次接受 diff 时会自动打开代码评审面板
-settings-features-default-terminal-current = Dais 已是默认终端
-settings-features-takes-effect-new-sessions = 此更改会在新会话中生效
-settings-features-seconds = 秒
-settings-features-vim-system-clipboard = 将未命名寄存器设为系统剪贴板
-settings-features-vim-status-bar = 显示 Vim 状态栏
-settings-features-tab-behavior-right-arrow-accepts = 按右箭头可接受自动建议。
-settings-features-tab-behavior-key-accepts = { $keybinding } 可接受自动建议。
-settings-features-completions-open-while-typing-sentence = 输入时会自动打开补全菜单。
-settings-features-completions-open-while-typing-or-key = 输入时会自动打开补全菜单（或按 { $keybinding }）。
-settings-features-open-completions-unbound = 打开补全菜单未绑定快捷键。
-settings-features-tab-behavior-key-opens-completions = { $keybinding } 可打开补全菜单。
-settings-features-word-characters-label = 视为单词一部分的字符
-settings-features-new-tab-placement = 新标签页位置
-settings-features-linux-selection-clipboard-tooltip = 是否支持 Linux 主选区剪贴板。
-settings-features-changes-apply-new-windows = 更改会应用到新窗口。
-settings-features-wayland-description = 启用此设置会禁用全局快捷键支持。禁用时，如果 Wayland 合成器使用分数缩放（例如 125%），文本可能会发虚。
-settings-features-restart-warp-to-apply = 重启 Dais 以使更改生效。
-
-# --- ANCHOR-SUB-SETTINGS-PAGE-NAV (agent-settings-page-nav) ---
-
-# ---- settings_page.rs ----
 settings-page-info-icon-tooltip = 点击查看文档详情
 settings-page-local-only-icon-tooltip = 此设置不会同步到你的其他设备
 settings-page-reset-to-default = 重置为默认值
 
 # ---- delete_environment_confirmation_dialog.rs ----
-settings-confirm-cancel = 取消
-settings-confirm-delete-environment-button = 删除环境
-settings-confirm-delete-environment-title = 删除环境？
-settings-confirm-delete-environment-description = 确定要删除 { $name } 环境吗？
-
-# ---- directory_color_add_picker.rs ----
-settings-color-picker-add-directory-footer = + 添加目录…
-settings-color-picker-add-directory-color = 添加目录颜色
-
-# ---- settings_file_footer.rs ----
-settings-footer-open-file = 打开设置文件
-settings-footer-alert-open-file = 打开文件
-settings-footer-alert-fix-with-oz = 用 Oz 修复
-
-# --- ANCHOR-SUB-CODE (agent-settings-code) ---
 settings-code-auto-open-review-panel = 自动打开代码评审面板
 settings-code-auto-open-review-panel-desc = 启用后，代码评审面板将在会话首次接受 diff 时自动打开。
 settings-code-show-code-review-button = 显示代码评审按钮
@@ -1272,45 +809,6 @@ settings-exec-profile-editor-mcp-denylist = MCP 拒绝列表
 settings-exec-profile-editor-mcp-denylist-desc = 不允许被 Oz 调用的 MCP 服务器。
 
 # ---- agent_assisted_environment_modal ----
-settings-env-modal-add-repo = 添加仓库
-settings-env-modal-cancel = 取消
-settings-env-modal-create-environment = 创建环境
-settings-env-modal-selected-repos = 已选仓库
-settings-env-modal-no-repos-selected = 尚未选择仓库
-settings-env-modal-available-repos = 可用的已索引仓库
-settings-env-modal-loading = 正在加载本地已索引仓库…
-settings-env-modal-empty-no-indexed = 尚未发现本地已索引仓库。请先索引一个仓库后再试。
-settings-env-modal-unavailable-build = 当前构建不支持选择本地仓库。
-settings-env-modal-all-selected = 所有本地已索引仓库均已选中。
-settings-env-modal-unknown-repo-name = （未知）
-settings-env-modal-not-git-repo = 所选文件夹不是 Git 仓库：{ $path }
-settings-env-modal-no-directory-selected = 未选择目录
-settings-env-modal-dialog-title = 为你的环境选择仓库
-settings-env-modal-dialog-description-indexed = 选择本地已索引仓库，为环境创建 agent 提供上下文。
-settings-env-modal-dialog-description-default = 选择仓库，为环境创建 agent 提供上下文。
-
-# ---- show_blocks_view ----
-settings-show-blocks-page-title = 共享命令块
-settings-show-blocks-unshare-menu-item = 取消共享
-settings-show-blocks-copy-link = 复制链接
-settings-show-blocks-deleting = 正在删除...
-settings-show-blocks-executed-on = 执行于：{ $time }
-settings-show-blocks-empty = 你还没有任何共享命令块。
-settings-show-blocks-loading = 正在获取命令块...
-settings-show-blocks-load-failed = 加载命令块失败，请重试。
-settings-show-blocks-link-copied = 链接已复制。
-settings-show-blocks-unshare-success = 命令块已成功取消共享。
-settings-show-blocks-unshare-failed = 取消共享命令块失败，请重试。
-settings-show-blocks-confirm-dialog-title = 取消共享命令块
-settings-show-blocks-confirm-dialog-text = 确定要取消共享此命令块吗？
-
-    取消后将无法通过链接访问，并将从 Dais 服务器永久删除。
-settings-show-blocks-confirm-cancel = 取消
-settings-show-blocks-confirm-unshare = 取消共享
-
-# --- ANCHOR-SUB-APPEARANCE (agent-settings-appearance) ---
-
-# Categories
 settings-appearance-category-themes = 主题
 settings-appearance-category-language = 语言
 settings-appearance-category-icon = 图标
@@ -1436,52 +934,6 @@ settings-appearance-zoom-label = 缩放
 settings-appearance-zoom-secondary = 调整所有窗口的默认缩放级别
 
 # --- ANCHOR-SUB-ENVIRONMENTS (agent-settings-environments) ---
-settings-environments-page-title = 环境
-settings-environments-page-description = 环境定义了你的 ambient agent 在哪里运行。可通过 GitHub（推荐）、Dais 辅助配置或手动配置在几分钟内创建一个。
-settings-environments-search-placeholder = 搜索环境...
-settings-environments-no-matches = 没有符合搜索条件的环境。
-settings-environments-section-personal = 个人
-settings-environments-section-team-default = 由 Dais 和本地设备提供
-settings-environments-section-team-named = 由 Dais 和 { $team } 共享
-settings-environments-env-id-prefix = 环境 ID:{ $id }
-settings-environments-detail-image = 镜像：{ $image }
-settings-environments-detail-repos = 仓库：{ $repos }
-settings-environments-detail-setup-commands = 初始命令：{ $commands }
-settings-environments-last-edited = 最近编辑：{ $time }
-settings-environments-last-used = 最近使用：{ $time }
-settings-environments-last-used-never = 最近使用：从未
-settings-environments-view-my-runs = 查看我的运行记录
-settings-environments-tooltip-share = 分享
-settings-environments-tooltip-edit = 编辑
-settings-environments-empty-header = 你还没有创建任何环境。
-settings-environments-empty-subheader = 选择你想要的环境创建方式：
-settings-environments-empty-quick-setup-title = 快速创建
-settings-environments-empty-suggested-badge = 推荐
-settings-environments-empty-quick-setup-subtitle = 选择你想要使用的 GitHub 仓库，我们会为你建议基础镜像与配置
-settings-environments-empty-use-agent-title = 使用 agent
-settings-environments-empty-use-agent-subtitle = 选择一个本地已配置好的项目，我们会基于它帮你创建环境
-settings-environments-button-loading = 加载中...
-settings-environments-button-retry = 重试
-settings-environments-button-authorize = 授权
-settings-environments-button-get-started = 开始使用
-settings-environments-button-launch-agent = 启动 agent
-settings-environments-toast-update-success = 环境更新成功
-settings-environments-toast-create-success = 环境创建成功
-settings-environments-toast-delete-success = 环境删除成功
-settings-environments-toast-share-success = 环境分享成功
-settings-environments-toast-share-failure = 环境分享给团队失败
-settings-environments-toast-create-not-logged-in = 无法创建环境：未登录。
-settings-environments-toast-save-not-found = 无法保存：环境已不存在。
-settings-environments-toast-share-no-team = 无法分享环境：你当前未加入任何团队。
-settings-environments-toast-share-not-synced = 无法分享环境：环境尚未同步。
-settings-update-environment-name-placeholder = 环境名称
-settings-update-environment-docker-image-placeholder = 例如 python:3.11、node:20-alpine
-settings-update-environment-repos-placeholder-authed = 输入仓库（owner/repo 格式）
-settings-update-environment-repos-placeholder-unauthenticated = 粘贴仓库 URL
-settings-update-environment-setup-command-placeholder = 例如 cd my-repo && pip install -r requirements.txt
-settings-update-environment-description-placeholder = 例如，这个环境适用于所有偏前端的智能体
-
-# --- ANCHOR-SUB-AGENT-PROVIDERS (agent-settings-agent-providers) ---
 settings-agent-providers-title = Agent 提供商
 settings-agent-providers-description = 配置自定义 Agent 提供商，支持多协议 —— OpenAI 兼容（DeepSeek、智谱 GLM、Moonshot、通义千问 DashScope、SiliconFlow、OpenRouter 等）、Anthropic、Gemini、本地 Ollama。可以手动添加模型（显示名 + 模型 ID 映射），也可以从 API 自动抓取。提供商元数据存储在本地 settings.toml，API 密钥安全存储在系统密钥库。
 settings-agent-providers-empty = 尚未配置任何提供商。点击右上角 [+ 添加提供商] 按钮添加。
@@ -1518,13 +970,6 @@ settings-agent-providers-fetch-from-api = 从 API 抓取
 settings-agent-providers-sync-models-dev = 从 models.dev 同步
 settings-agent-providers-remove = 移除
 settings-agent-providers-save = 保存
-settings-agent-providers-saved-toast = 已保存
-
-# ---- AI 子页 ----
-settings-ai-title = AI
-settings-ai-active-ai = 主动 AI
-settings-ai-input-autodetection = 智能体输入框中的终端命令自动识别
-settings-ai-input-autodetection-legacy = 自然语言识别
 settings-ai-next-command-description = 根据你的历史命令、输出与常见工作流，让 AI 推荐下一条要执行的命令。
 settings-ai-prompt-suggestions-description = 让 AI 根据最近命令与输出，在输入框中以行内横幅形式建议自然语言提示。
 settings-ai-suggested-code-banners-description = 让 AI 根据最近命令与输出，在命令块列表中以行内横幅形式建议代码差异与查询。
@@ -1542,47 +987,12 @@ settings-ai-git-operations-autogen-description = 让 AI 自动生成提交信息
 
 banner-dont-show-again = 不再显示
 
-
 # =============================================================================
 # SECTION: quit-warning (Owner: agent-quit-warning)
 # Files: app/src/quit_warning/mod.rs
 # =============================================================================
 
 # ---- 对话框标题 ----
-quit-warning-title-pane = 关闭窗格？
-quit-warning-title-tab-singular = 关闭标签页？
-quit-warning-title-tab-plural = 关闭标签页？
-quit-warning-title-window = 关闭窗口？
-quit-warning-title-app = 退出 Dais？
-quit-warning-title-editor-tab = 保存更改？
-
-# ---- 按钮 ----
-quit-warning-button-confirm-close = 确定关闭
-quit-warning-button-confirm-quit = 确定退出
-quit-warning-button-save = 保存
-quit-warning-button-discard = 不保存
-quit-warning-button-show-processes = 查看运行中的进程
-quit-warning-button-cancel = 取消
-
-# ---- 提示正文 ----
-quit-warning-suffix-tab = { " " }（此标签页）。
-quit-warning-suffix-window = { " " }（此窗口）。
-quit-warning-suffix-pane = { " " }（此窗格）。
-quit-warning-suffix-default = 。
-
-quit-warning-processes-running = 你有 { $count } 个进程正在运行
-quit-warning-processes-in-windows = ，分布在 { $count } 个窗口
-quit-warning-processes-in-tabs = ，分布在 { $count } 个标签页
-
-quit-warning-shared-sessions = 你正在共享 { $count } 个会话
-
-quit-warning-unsaved-changes = 你有未保存的文件更改
-
-quit-warning-unsaved-editor-tab = 是否保存对 { $file } 所做的更改？如果不保存，这些更改将被丢弃。
-quit-warning-unsaved-editor-tab-fallback-name = 此文件
-
-# --- ANCHOR-SUB-RULES-PAGE (agent-rules-page) ---
-# Manage Rules 页面（Dais Drive 中的 AI Fact Collection）。
 rules-collection-name = 规则
 
 # --- ANCHOR-SUB-KEYBINDING-DESC (agent-keybinding-descriptions) ---
@@ -1642,7 +1052,6 @@ keybinding-desc-workspace-create-personal-folder-menu = 新建个人文件夹
 keybinding-desc-workspace-new-tab = 创建新标签页
 keybinding-desc-workspace-new-terminal-tab = 新建终端标签页
 keybinding-desc-workspace-new-agent-tab = 新建 Agent 标签页
-keybinding-desc-workspace-new-cloud-agent-tab = 新建 Agent 标签页
 new-session-create-new-tab = 新建标签页
 new-session-create-new-window = 新建窗口
 new-session-split-pane-down = 向下拆分窗格
@@ -1666,13 +1075,10 @@ keybinding-desc-workspace-toggle-vertical-tabs-menu = 切换垂直标签页面�
 keybinding-desc-workspace-left-panel-agent-conversations = 左侧面板：Agent 对话
 keybinding-desc-workspace-left-panel-project-explorer = 左侧面板：项目浏览器
 keybinding-desc-workspace-left-panel-global-search = 左侧面板：全局搜索
-keybinding-desc-workspace-left-panel-warp-drive = 左侧面板：Dais Drive
 keybinding-desc-workspace-left-panel-ssh-manager = 左侧面板：SSH 管理器
 keybinding-desc-workspace-left-panel-skill-manager = 左侧面板：Skill 管理器
 keybinding-desc-workspace-open-global-search = 打开全局搜索
 keybinding-desc-workspace-open-global-search-menu = 全局搜索
-keybinding-desc-workspace-toggle-warp-drive = 切换 Dais Drive
-keybinding-desc-workspace-toggle-warp-drive-menu = Dais Drive
 keybinding-desc-workspace-toggle-conversation-list-view = 切换 Agent 对话列表视图
 keybinding-desc-workspace-toggle-conversation-list-view-menu = Agent 对话列表视图
 keybinding-desc-workspace-close-panel = 关闭聚焦面板
@@ -1715,7 +1121,6 @@ keybinding-desc-workspace-view-changelog = 查看最新更新日志
 
 # 资源中心 / Drive 导出 / CLI
 keybinding-desc-workspace-toggle-resource-center = 切换资源中心
-keybinding-desc-workspace-export-all-warp-drive-objects = 导出所有 Dais Drive 对象
 keybinding-desc-workspace-install-cli = 安装 Oz CLI 命令
 keybinding-desc-workspace-uninstall-cli = 卸载 Oz CLI 命令
 
@@ -1736,7 +1141,6 @@ keybinding-desc-workspace-import-to-personal-drive = 导入到个人 Drive
 # Drive / 仓库 / AI Rules / MCP
 keybinding-desc-workspace-open-repository = 打开仓库
 keybinding-desc-workspace-open-repository-menu = 打开仓库
-keybinding-desc-workspace-open-ai-fact-collection = 打开 AI Rules
 keybinding-desc-workspace-open-mcp-servers = 打开 MCP 服务器
 keybinding-desc-workspace-jump-to-latest-toast = 跳转到最新 agent 任务
 keybinding-desc-workspace-toggle-notification-mailbox = 切换通知邮箱
@@ -1747,9 +1151,6 @@ keybinding-desc-workspace-show-settings-menu = 设置
 # Dais：keybinding-desc-workspace-show-settings-account 随 Account 设置页一同删除。
 keybinding-desc-workspace-show-settings-appearance = 打开设置：外观
 keybinding-desc-workspace-show-settings-appearance-menu = 外观...
-keybinding-desc-workspace-show-settings-features = 打开设置：功能
-keybinding-desc-workspace-show-settings-shared-blocks = 打开设置：共享命令块
-keybinding-desc-workspace-show-settings-shared-blocks-menu = 查看共享命令块...
 keybinding-desc-workspace-show-settings-keyboard-shortcuts = 打开设置：键盘快捷键
 keybinding-desc-workspace-show-settings-keyboard-shortcuts-menu = 配置键盘快捷键...
 keybinding-desc-workspace-show-settings-about = 打开设置：关于
@@ -1758,8 +1159,6 @@ keybinding-desc-workspace-show-settings-warpify = 打开设置：Warpify
 keybinding-desc-workspace-show-settings-warpify-menu = 配置 Warpify...
 keybinding-desc-workspace-show-settings-ai = 打开设置：AI
 keybinding-desc-workspace-show-settings-code = 打开设置：代码
-keybinding-desc-workspace-show-settings-referrals = 打开设置：推荐
-keybinding-desc-workspace-show-settings-environments = 打开设置：环境
 keybinding-desc-workspace-show-settings-mcp-servers = 打开设置：MCP 服务器
 keybinding-desc-workspace-open-settings-file = 打开设置文件
 
@@ -1776,7 +1175,6 @@ keybinding-desc-input-edit-prompt = 编辑 Prompt
 keybinding-desc-terminal-attach-block-as-context = 将所选块作为 Agent 上下文附加
 keybinding-desc-terminal-attach-text-as-context = 将所选文本作为 Agent 上下文附加
 keybinding-desc-terminal-attach-as-context-menu = 将所选内容作为 Agent 上下文附加
-keybinding-desc-workspace-init-project = 为 Dais 初始化项目
 keybinding-desc-workspace-add-current-folder = 将当前文件夹添加为项目
 
 # Workspace 调试 / crash / 堆分析相关 binding
@@ -1785,21 +1183,14 @@ keybinding-desc-workspace-crash-other = 触发崩溃（用于测试本地 crash 
 keybinding-desc-workspace-log-review-comment-send-status = [调试] 记录当前标签页的评审评论发送状态
 keybinding-desc-workspace-panic = 触发 panic（用于测试本地 panic 日志）
 keybinding-desc-workspace-open-view-tree-debugger = 打开视图树调试器
-keybinding-desc-workspace-view-first-time-user-experience = [调试] 查看首次启动引导体验
 keybinding-desc-workspace-undismiss-aws-login-banner = [调试] 取消关闭 AWS 登录提示条
-keybinding-desc-workspace-open-oz-launch-modal = [调试] 打开 Oz 启动弹窗
-keybinding-desc-workspace-reset-oz-launch-modal-state = [调试] 重置 Oz 启动弹窗状态
-keybinding-desc-workspace-open-dais-launch-modal = [调试] 打开 Dais 启动弹窗
-keybinding-desc-workspace-reset-dais-launch-modal-state = [调试] 重置 Dais 启动弹窗状态
 keybinding-desc-workspace-install-opencode-warp-plugin = [调试] 安装 OpenCode Warp 插件
 keybinding-desc-workspace-use-local-opencode-warp-plugin = [调试] 使用本地 OpenCode Warp 插件（仅测试用）
 keybinding-desc-workspace-open-session-config-modal = [调试] 打开会话配置弹窗
-keybinding-desc-workspace-start-hoa-onboarding-flow = [调试] 启动 HOA 引导流程
 keybinding-desc-workspace-sample-process = 采样进程
 keybinding-desc-workspace-dump-heap-profile = 导出堆分析（只能执行一次）
 
 # 终端输入相关 binding
-keybinding-desc-input-show-network-log = 显示 Dais 网络日志
 keybinding-desc-input-clear-screen = 清屏
 keybinding-desc-input-toggle-classic-completions = （实验性）切换经典补全模式
 keybinding-desc-input-command-search = 命令搜索
@@ -1841,7 +1232,6 @@ keybinding-desc-terminal-delete-line-end = 在执行中的命令内删除到行�
 keybinding-desc-terminal-backward-tabulation = 在执行中的命令内反向跳格
 keybinding-desc-terminal-select-previous-block = 选择上一个命令块
 keybinding-desc-terminal-select-next-block = 选择下一个命令块
-keybinding-desc-terminal-share-selected-block = 分享所选命令块
 keybinding-desc-terminal-bookmark-selected-block = 收藏所选命令块
 keybinding-desc-terminal-find-within-selected-block = 在所选命令块内查找
 keybinding-desc-terminal-copy-command-and-output = 复制命令与输出
@@ -1865,8 +1255,6 @@ keybinding-desc-terminal-onboarding-modality-project = [调试] 引导提示：M
 keybinding-desc-terminal-onboarding-modality-no-project = [调试] 引导提示：Modality - 无项目
 keybinding-desc-terminal-onboarding-modality-terminal = [调试] 引导提示：Modality - 终端
 keybinding-desc-terminal-import-external-settings = 导入外部设置
-keybinding-desc-terminal-share-current-session = 分享当前会话
-keybinding-desc-terminal-stop-sharing-current-session = 停止分享当前会话
 keybinding-desc-terminal-toggle-block-filter = 在所选或最近的命令块上切换块过滤
 keybinding-desc-terminal-toggle-sticky-command-header = 在当前面板切换粘性命令头
 keybinding-desc-terminal-toggle-autoexecute-mode = 切换自动执行模式
@@ -1978,8 +1366,6 @@ keybinding-desc-code-close-all-tabs = 关闭所有标签页
 keybinding-desc-code-close-saved-tabs = 关闭已保存的标签页
 
 # 欢迎视图 binding desc
-keybinding-desc-welcome-terminal-session = 终端会话
-keybinding-desc-welcome-add-repository = 添加仓库
 
 # AI 助手面板 binding desc
 keybinding-desc-ai-assistant-close = 关闭 Dais AI
@@ -2029,7 +1415,6 @@ keybinding-desc-nbeditor-toggle-regex-find = 切换正则表达式搜索
 keybinding-desc-nbeditor-toggle-case-sensitive-find = 切换大小写敏感搜索
 
 # 面板组 / 撤销关闭 binding desc
-keybinding-desc-get-started-terminal-session = 终端会话
 keybinding-desc-undo-close-reopen-session = 重新打开已关闭的会话
 keybinding-desc-right-panel-toggle-maximize-code-review = 切换最大化代码审阅面板
 
@@ -2047,11 +1432,6 @@ keybinding-desc-workspace-copy-access-token = 复制访问令牌到剪贴板
 keybinding-desc-env-var-collection-close = 关闭
 
 # 鉴权 / 分享模态 binding desc
-keybinding-desc-share-block-copy = 复制
-keybinding-desc-auth-paste-token = 粘贴
-keybinding-desc-conversation-details-copy = 复制
-
-# 终端补充 binding desc
 keybinding-desc-terminal-show-history = 显示历史
 keybinding-desc-terminal-ask-ai-selection = 就所选内容询问 Dais AI
 keybinding-desc-terminal-ask-ai-last-block = 就最近的命令块询问 Dais AI
@@ -2100,11 +1480,9 @@ rules-init-project-button = 初始化项目
 # --- Agent 视图零状态 + 消息栏 ---
 agent-zero-state-title = 新建 Agent 对话
 # Dais 已移除远端 Agent 入口，此 key 实际不会被渲染;保留以匹配 en 兜底链。
-agent-zero-state-title-cloud = 新建 Agent 对话
 agent-zero-state-description = 在下方输入提示开始新的对话
 agent-zero-state-description-with-location = 在下方输入提示，于 `{ $location }` 开始新的对话
 agent-zero-state-recent-activity = 最近活动
-agent-zero-state-hide-hints-tooltip = 隐藏快捷键提示（可在设置中重新开启）
 inline-agent-header-prompt-to-interact-command = 提示智能体与 `{ $command }` 交互
 inline-agent-header-prompt-to-interact-running-command = 提示智能体与正在运行的命令交互
 inline-agent-header-waiting-on-instructions = 智能体正在等待指令
@@ -2166,8 +1544,6 @@ toggle-suffix-prompt-suggestions = 提示词建议
 toggle-suffix-code-suggestions = 代码建议
 toggle-suffix-nl-autosuggestions = 自然语言自动建议
 toggle-suffix-voice-input = 语音输入
-toggle-suffix-codebase-index = 代码库索引
-toggle-suffix-auto-indexing = 自动索引
 toggle-suffix-compact-mode = 紧凑模式
 toggle-suffix-themes-sync-os = 主题：跟随系统
 toggle-suffix-cursor-blink = 光标闪烁
@@ -2179,43 +1555,6 @@ toggle-suffix-focus-follows-mouse = 焦点跟随鼠标
 toggle-suffix-zen-mode = 禅模式
 toggle-suffix-vertical-tabs = 垂直标签栏布局
 toggle-suffix-ligature-rendering = 连字渲染
-toggle-suffix-copy-on-select = 终端内选中即复制
-toggle-suffix-linux-selection-clipboard = Linux 主选择剪贴板
-toggle-suffix-autocomplete-symbols = 自动补全引号、圆括号和方括号
-toggle-suffix-restore-session = 启动时恢复窗口、标签页和面板
-toggle-suffix-left-option-meta = 左 Option 键作为 Meta
-toggle-suffix-left-alt-meta = 左 Alt 键作为 Meta
-toggle-suffix-right-option-meta = 右 Option 键作为 Meta
-toggle-suffix-right-alt-meta = 右 Alt 键作为 Meta
-toggle-suffix-scroll-reporting = 滚动事件上报
-toggle-suffix-completions-while-typing = 输入时补全
-toggle-suffix-command-corrections = 命令纠错
-toggle-suffix-error-underlining = 错误下划线
-toggle-suffix-syntax-highlighting = 语法高亮
-toggle-suffix-audible-bell = 终端响铃
-toggle-suffix-autosuggestions = 自动建议
-toggle-suffix-autosuggestion-keybinding-hint = 自动建议快捷键提示
-toggle-suffix-ssh-wrapper = Dais SSH 包装器
-toggle-suffix-ssh-auto-discovery = 自动发现 SSH 主机
-toggle-suffix-link-tooltip = 点击链接显示提示
-toggle-suffix-quit-warning = 退出警告弹窗
-toggle-suffix-alias-expansion = 别名展开
-toggle-suffix-middle-click-paste = 中键粘贴
-toggle-suffix-code-as-default-editor = VS Code 作为默认编辑器
-toggle-suffix-input-hint-text = 输入提示文字
-toggle-suffix-vim-keybindings = 用 Vim 快捷键编辑命令
-toggle-suffix-vim-clipboard = Vim 默认寄存器使用系统剪贴板
-toggle-suffix-vim-status-bar = Vim 状态栏
-toggle-suffix-focus-reporting = 焦点上报
-toggle-suffix-smart-select = 智能选择
-toggle-suffix-input-message-line = 终端输入提示行
-toggle-suffix-slash-commands-terminal = 终端模式斜杠命令
-toggle-suffix-integrated-gpu = 集成 GPU 渲染（低功耗）
-toggle-suffix-wayland = Wayland 窗口管理
-toggle-suffix-settings-sync = 设置同步
-toggle-suffix-app-analytics = 本地诊断
-toggle-suffix-crash-reporting = 崩溃上报
-toggle-suffix-secret-redaction = 敏感信息脱敏
 toggle-suffix-recording-mode = 录制模式
 toggle-suffix-inband-generators = 新会话使用 in-band 生成器
 toggle-suffix-debug-network = 网络状态调试
@@ -2306,9 +1645,6 @@ menu-ai-block-fork-from-last-query = 从上一次提问分叉
 menu-ai-block-fork-from-query = 从「{ $query }」分叉
 
 # --- tab 右键菜单（tab.rs） ---
-menu-tab-stop-sharing = 停止共享
-menu-tab-stop-sharing-all = 停止共享全部
-menu-tab-copy-link = 复制链接
 menu-tab-rename = 重命名标签页
 menu-tab-reset-name = 重置标签页名称
 menu-tab-move-down = 向下移动标签页
@@ -2323,11 +1659,7 @@ menu-tab-save-as-new-config = 另存为新配置
 menu-tab-default-no-color = 默认（无颜色）
 
 # --- pane header 溢出菜单（terminal/view/pane_impl.rs） ---
-menu-pane-copy-link = 复制链接
 menu-pane-stop-sharing-session = 停止会话广播
-menu-pane-open-on-desktop = 在桌面端打开
-
-# --- 文件树右键菜单（code/file_tree/view.rs） ---
 menu-filetree-open-in-new-pane = 在新面板中打开
 menu-filetree-open-in-new-tab = 在新标签页中打开
 menu-filetree-open-file = 打开文件
@@ -2343,10 +1675,6 @@ menu-filetree-copy-path = 复制路径
 menu-filetree-copy-relative-path = 复制相对路径
 
 # --- 代码编辑器右键菜单（code/local_code_editor.rs） ---
-menu-codeeditor-go-to-definition = 跳转到定义
-menu-codeeditor-find-references = 查找引用
-
-# --- 共享标签：附加为 agent 上下文（blocklist/view_util.rs） ---
 menu-attach-as-agent-context = 附加为 agent 上下文
 
 # --- ANCHOR-SUB-SLASH-COMMANDS (agent-slash-commands) ---
@@ -2355,8 +1683,6 @@ menu-attach-as-agent-context = 附加为 agent 上下文
 slash-cmd-agent-desc = 开始新对话
 slash-cmd-add-mcp-desc = 添加新的 MCP 服务器
 slash-cmd-pr-comments-desc = 拉取 GitHub PR 评审评论
-slash-cmd-create-environment-desc = 通过引导式流程创建 Oz 环境（Docker 镜像 + 仓库）
-slash-cmd-create-environment-hint = <可选：仓库路径或 GitHub URL>
 slash-cmd-docker-sandbox-desc = 创建新的 Docker 沙盒终端会话
 slash-cmd-create-new-project-desc = 由 Oz 引导你创建新的代码项目
 slash-cmd-create-new-project-hint = <描述你想构建什么>
@@ -2392,7 +1718,6 @@ slash-cmd-queue-hint = <智能体完成后要发送的提示词>
 slash-cmd-fork-and-compact-desc = 分叉当前对话并在分叉副本中压缩
 slash-cmd-fork-and-compact-hint = <可选：压缩后要发送的提示词>
 slash-cmd-fork-from-desc = 从特定查询处分叉对话
-slash-cmd-remote-control-desc = 为此会话启动远程控制
 slash-cmd-conversations-desc = 打开对话历史
 slash-cmd-prompts-desc = 搜索已保存的提示词
 slash-cmd-rewind-desc = 倒回到对话中的上一个节点
@@ -2412,24 +1737,6 @@ prompt-editor-cancel = 取消
 prompt-editor-save-changes = 保存更改
 
 # 欢迎提示（app/src/tips/tip_view.rs）
-welcome-tips-command-palette-title = 命令面板
-welcome-tips-command-palette-description = 无需双手离开键盘，即可轻松发现 Dais 的全部功能。
-welcome-tips-split-pane-title = 拆分窗格
-welcome-tips-split-pane-description = 将标签页拆分为多个窗格，创建理想布局。
-welcome-tips-history-search-title = 历史搜索
-welcome-tips-history-search-description = 查找、编辑并重新运行之前执行过的命令。
-welcome-tips-ai-command-search-title = AI 命令搜索
-welcome-tips-ai-command-search-description = 用自然语言生成 shell 命令。
-welcome-tips-theme-picker-title = 主题选择器
-welcome-tips-theme-picker-description = 选择内置主题，让 Dais 更符合你的风格。也可以创建自己的主题。
-welcome-tips-shortcut-label = 快捷键
-welcome-tips-skip = 跳过欢迎提示
-welcome-tips-complete-title = 完成！
-welcome-tips-complete-description = 欢迎提示已完成，做得不错！
-welcome-tips-close = 关闭欢迎提示
-
-# --- ANCHOR-SUB-SMALL-DIALOGS ---
-# 倒回确认弹窗（app/src/workspace/rewind_confirmation_dialog.rs）
 rewind-dialog-title = 倒回
 rewind-dialog-body = 确定要倒回吗？这会将你的代码和对话恢复到此节点之前，并取消智能体当前正在运行的任何命令。原始对话的副本将保存到你的对话历史中。
 rewind-dialog-info = 倒回不会影响手动编辑或通过 shell 命令编辑的文件。
@@ -2444,8 +1751,6 @@ command-palette-toast-cannot-switch-conversations = 智能体正在监控命令�
 command-palette-toast-cannot-start-new-conversation = 智能体正在监控命令时，无法开始新对话。
 command-palette-zero-state-recent = 最近使用
 command-palette-zero-state-suggested = 推荐
-welcome-palette-search-placeholder = 编码、构建，或搜索任意内容...
-welcome-palette-no-results = 未找到结果
 search-filter-placeholder-history = 搜索历史记录
 search-filter-placeholder-workflows = 搜索工作流
 search-filter-placeholder-agent-mode-workflows = 搜索提示词
@@ -2498,15 +1803,12 @@ search-filter-display-skills = 技能
 search-filter-display-base-models = 基础模型
 search-filter-display-full-terminal-use-models = 完整终端使用模型
 search-filter-display-current-directory-conversations = 当前目录对话
-search-results-menu-no-results = 未找到结果
-search-results-menu-prompts-title = 提示词
 ai-context-diffset-uncommitted-changes = 未提交的更改
 ai-context-diffset-changes-vs-main-branch = 与 main 分支相比的更改
 ai-context-diffset-changes-vs-branch = 与 { $branch } 相比的更改
 ai-context-diffset-uncommitted-changes-description = 工作目录中所有未提交的更改
 ai-context-diffset-changes-vs-main-branch-description = 与 main 分支相比的所有更改
 ai-context-diffset-changes-vs-branch-description = 与 { $branch } 相比的所有更改
-ai-context-code-search-failed = 代码搜索失败
 ai-context-files-directory-accessibility-label = 目录：{ $path }
 ai-context-files-file-accessibility-label = 文件：{ $path }
 ai-context-blocks-just-now = 刚刚
@@ -2518,113 +1820,15 @@ ai-context-blocks-accessibility-label = 命令块：{ $command }
 
 # --- ANCHOR-SUB-DRIVE-NAMING-IMPORT ---
 # Drive 命名弹窗（app/src/drive/cloud_object_naming_dialog.rs）
-drive-naming-notebook-name = 笔记本名称
-drive-naming-folder-name = 文件夹名称
-drive-naming-collection-name = 集合名称
-drive-naming-create = 创建
-drive-naming-cancel = 取消
-drive-naming-rename = 重命名
-
-# Drive 导入弹窗（app/src/drive/import/modal.rs, app/src/drive/import/modal_body.rs）
-drive-import-title = 导入
-drive-import-close = 关闭
-drive-import-cancel = 取消
-drive-import-preparing = 正在准备...
-drive-import-choose-files = 选择文件...
-drive-import-learn-file-support = 了解文件支持和格式设置
-drive-import-file-upload-error = 文件上传到服务器失败
-drive-import-folder-upload-error = 文件夹上传到服务器失败
-
-# Drive 主面板和 workflow 编辑器（app/src/drive/index.rs, app/src/drive/workflows/*）
-drive-title = Drive
-drive-environment-variables = 环境变量
-drive-folder = 文件夹
-drive-notebook = 笔记本
-drive-workflow = workflow
-drive-prompt = 提示词
-drive-import = 导入
-drive-remove = 移除
-drive-new-folder = 新建文件夹
-drive-new-notebook = 新建笔记本
-drive-new-workflow = 新建 workflow
-drive-new-prompt = 新建提示词
-drive-new-environment-variables = 新建环境变量
-drive-offline-banner = 你已离线。部分文件将为只读。
-drive-sort-by = 排序方式
-drive-retry-sync = 重试同步
-drive-empty-trash = 清空废纸篓
-drive-trash-section-title = 废纸篓
-drive-trash-title = 废纸篓
-drive-trash-deletion-warning = 废纸篓中的项目将在 30 天后永久删除。
-drive-team-space-zero-state = 本地版不提供团队空间。请在个人空间管理 workflow 和笔记本。
-drive-sign-up-storage-limit = 本地存储上限会在此设备上生效。
-drive-local-storage-limit-description = 本地存储上限会在此设备上生效。请移除不再需要的项目，为新的 Dais Drive 对象腾出空间。
-drive-sign-up = 本地管理
-drive-copy-link = 复制链接
-drive-collapse-all = 全部折叠
-drive-revert-to-server = 恢复为服务器版本
-drive-attach-to-active-session = 附加到活动会话
-drive-copy-prompt = 复制提示词
-drive-copy-workflow-text = 复制 workflow 文本
-drive-copy-id = 复制 ID
-drive-copy-variables = 复制变量
-drive-load-in-subshell = 在子 shell 中加载
-drive-delete-forever = 永久删除
-drive-rename = 重命名
-drive-retry = 重试
 drive-move-to-space = 移动到 { $space }
-drive-open-on-desktop = 在桌面端打开
-drive-duplicate = 复制副本
-drive-export = 导出
-drive-trash-menu = 移到废纸篓
-drive-open = 打开
-drive-edit = 编辑
-drive-restore = 恢复
-drive-compare-plans = 比较套餐
-drive-manage-billing = 管理账单
-drive-object-type-notebook-plural = 笔记本
-drive-object-type-workflow-plural = workflow
-drive-object-type-folder-plural = 文件夹
-drive-object-type-env-var-collection-plural = 环境变量集合
-drive-object-type-object-plural = 对象
-drive-object-type-notebooks = 笔记本
-drive-object-type-workflows = workflow
-drive-object-type-environment-variables = 环境变量
-drive-object-type-folders = 文件夹
-drive-object-type-agent-workflows = Agent workflow
-drive-object-type-ai-fact = AI 事实
-drive-object-type-rules = 规则
-drive-object-type-mcp-server = MCP 服务器
-drive-object-type-mcp-servers = MCP 服务器
-drive-shared-object-limit-hit-banner-prefix = 你已达到本地 { $object_type } 数量上限。
-drive-shared-object-limit-hit-banner = 你已达到本地 { $object_type } 数量上限。
-drive-payment-issue-banner-prefix = 由于订阅付款问题，共享对象已受限。
-drive-payment-issue-banner-admin = 由于订阅付款问题，共享对象已受限。请更新付款信息以恢复访问。
-drive-payment-issue-banner-admin-enterprise = 由于订阅付款问题，共享对象已受限。请联系 support@warp.dev 恢复访问。
-drive-payment-issue-banner-nonadmin = 由于订阅付款问题，共享对象已受限。请联系团队管理员恢复访问。
-drive-empty-trash-title = 确定要清空废纸篓吗？
-drive-empty-trash-body = 此操作无法撤销。
-drive-empty-trash-confirm = 是，清空废纸篓
-drive-empty-trash-cancel = 取消
-workflow-title-placeholder = 未命名 workflow
-workflow-description-placeholder = 添加描述
 workflow-title-input-placeholder = 添加标题
 workflow-description-input-placeholder = 添加描述
-workflow-new-argument = 新增参数
 workflow-arguments-label = 参数
 workflow-argument-description-placeholder = 描述
 workflow-argument-value-placeholder = 值（可选）
 workflow-default-value-placeholder = 默认值（可选）
 workflow-agent-mode-query-placeholder = 在此输入你的提示...（例如，「创建一个按日期排序对象数组的函数」或「帮我调试这个 React 组件」）。
-workflow-save = 保存 workflow
-workflow-unsaved-changes = 你有未保存的更改。
-workflow-keep-editing = 继续编辑
-workflow-discard-changes = 放弃更改
-workflow-ai-assist-autofill = 自动填充
-workflow-ai-assist-loading = 加载中
-workflow-ai-assist-tooltip = 使用 Dais AI 生成标题、描述或参数
 workflow-tooltip-restore-from-trash = 从废纸篓恢复 workflow
-workflow-ai-assist-error-byop-required = 自动填充需要 BYOP 模型。请在「设置 → AI」中配置 provider 与模型。
 workflow-ai-assist-error-bad-command = 无法生成元数据。请换一个命令后重试。
 workflow-ai-assist-error-generic = 出错了。请重试。
 workflow-ai-assist-error-rate-limited = 看起来你的 AI 额度已用完。请稍后重试。
@@ -2664,7 +1868,6 @@ project-explorer-unavailable-disabled-description = 项目浏览器需要访问�
 project-explorer-unavailable-remote-description = 项目浏览器需要访问本地工作区,远程会话暂不支持。
 project-explorer-unavailable-wsl-description = 项目浏览器当前不支持 WSL。
 workspace-left-panel-global-search = 全局搜索
-workspace-left-panel-warp-drive = Dais Drive
 workspace-left-panel-agent-conversations = 智能体对话
 workspace-left-panel-ssh-manager = SSH 管理器
 workspace-left-panel-server-file-browser = 服务器文件
@@ -2675,9 +1878,6 @@ skill-manager-filter-provider = 来源
 skill-manager-meta-default = 默认
 skill-manager-meta-duplicate = 重复
 skill-manager-empty = 当前过滤条件下没有 skill。
-skill-manager-preview-empty = 选择一个 skill 预览 SKILL.md。
-workspace-left-panel-ssh-manager-placeholder = SSH 管理器 — 功能开发中
-workspace-left-panel-ssh-manager-detail-empty = 选择左侧的服务器以查看详情。
 workspace-left-panel-ssh-manager-detail-host = 主机
 workspace-left-panel-ssh-manager-detail-port = 端口
 workspace-left-panel-ssh-manager-detail-user = 用户
@@ -2690,12 +1890,9 @@ workspace-left-panel-ssh-manager-onekey-credential = 账密
 workspace-left-panel-ssh-manager-onekey-new = 新建账密
 workspace-left-panel-ssh-manager-onekey-label = 账密名称
 workspace-left-panel-ssh-manager-onekey-user = 账密用户
-workspace-left-panel-ssh-manager-onekey-password = 账密密码
-workspace-left-panel-ssh-manager-onekey-password-required = 新建 OneKey 账密必须填写密码。
 workspace-left-panel-ssh-manager-onekey-save-before-connect = 连接前请先保存 OneKey 账密。
 workspace-left-panel-ssh-manager-onekey-select = 选择账密
 workspace-left-panel-ssh-manager-onekey-select-required = 请选择 OneKey 账密。
-workspace-left-panel-ssh-manager-onekey-manage = 管理 OneKey
 workspace-left-panel-ssh-manager-onekey-manager-title = OneKey 管理器
 workspace-left-panel-ssh-manager-onekey-add = 新增
 workspace-left-panel-ssh-manager-onekey-delete = 删除
@@ -2714,7 +1911,6 @@ workspace-left-panel-ssh-manager-menu-connect = 连接
 workspace-left-panel-ssh-manager-menu-sftp = 文件管理
 workspace-left-panel-ssh-manager-menu-clone = 克隆
 workspace-left-panel-ssh-manager-menu-delete = 删除
-workspace-left-panel-ssh-manager-pane-hint = 字段编辑与「连接」按钮将在下一迭代加入。目前此面板仅展示已保存的配置。
 workspace-left-panel-ssh-manager-pane-folder-body = 文件夹。在此文件夹内选择某个服务器查看详情;右键此节点可以新建/删除。
 workspace-left-panel-ssh-manager-server-missing = 找不到该服务器。可能已经从其他窗口被删除。
 workspace-left-panel-ssh-manager-field-name = 名称
@@ -2746,9 +1942,7 @@ workspace-left-panel-ssh-manager-candidates-header = 来自 { $path }
 workspace-left-panel-ssh-manager-candidates-empty = { $path } 中没有可导入的主机
 workspace-left-panel-ssh-manager-candidates-not-found = 未找到 SSH 配置文件:{ $path }
 workspace-left-panel-ssh-manager-candidates-error = 读取 SSH 配置失败 { $path }:{ $error }
-workspace-left-panel-ssh-manager-candidates-add = 添加到 SSH 管理器
 workspace-left-panel-ssh-manager-candidates-added = 已添加
-workspace-left-panel-ssh-manager-candidates-refresh = 从 ~/.ssh/config 重新加载
 terminal-su-root-password-confirm = 自动输入 Root 密码
 terminal-su-root-password-confirm-subtitle = 点击确认后自动填入保存的 Root 密码
 terminal-su-root-password-cancel = 取消
@@ -2762,7 +1956,6 @@ server-file-browser-empty-response = 远端服务器返回了空响应。
 server-file-browser-unsupported-path = 暂不支持此远端路径类型。
 server-file-browser-copied-path = 路径已复制。
 server-file-browser-transfer-complete = 传输完成。
-server-file-browser-modified = 已修改
 server-file-browser-menu-refresh = 刷新
 server-file-browser-menu-upload = 上传
 server-file-browser-menu-new = 新建
@@ -2795,11 +1988,9 @@ server-file-browser-operation-failed = 操作失败：{ $error }
 server-file-browser-rename-requires-session = 重命名需要已连接的远端服务。
 server-file-browser-create-requires-session = 新建文件需要已连接的远端服务。
 server-file-browser-delete-requires-session = 删除文件夹需要已连接的 SSH 会话。
-server-file-browser-upload-progress-title = 上传进度
 server-file-browser-transfer-progress-title = 传输进度
 server-file-browser-transfer-progress-empty = 暂无传输任务
 server-file-browser-transfer-overall = { $done } / { $total } 个文件
-server-file-browser-upload-progress-empty = 暂无上传任务
 server-file-browser-upload-status-pending = 等待中
 server-file-browser-upload-status-uploading = 上传中 { $percent }%
 server-file-browser-upload-status-completed = 已完成
@@ -2809,7 +2000,6 @@ server-file-browser-download-status-downloading = 下载中 { $percent }%
 server-file-browser-download-status-completed = 已完成
 server-file-browser-download-status-failed = 失败：{ $error }
 server-file-browser-upload-clear-completed = 清除已完成
-server-file-browser-upload-overall = { $done } / { $total } 个文件
 server-file-browser-upload-phase-uploading = 上传中
 server-file-browser-upload-phase-verifying = 校验中
 server-file-browser-upload-phase-promoting = 应用中
@@ -2834,7 +2024,6 @@ server-file-browser-upload-verify-size = 校验失败：{ $path } 大小不一�
 workspace-left-panel-close-panel = 关闭面板
 workspace-tabs-panel-tooltip = 标签页面板
 workspace-tools-panel-tooltip = 工具面板
-workspace-agent-management-panel-tooltip = 智能体管理面板
 workspace-code-review-panel-tooltip = 代码评审面板
 workspace-notifications-tooltip = 通知
 workspace-new-tab-tooltip = 新建标签页
@@ -2847,7 +2036,6 @@ workspace-right-panel-code-review = 代码评审
 workspace-right-panel-minimize = 最小化
 workspace-right-panel-maximize = 最大化
 workspace-right-panel-unknown = 未知
-terminal-pane-new-cloud-agent-title = 新建智能体
 terminal-pane-new-agent-conversation-title = 新建智能体对话
 vertical-tabs-no-tabs-open = 没有打开的标签页
 vertical-tabs-untitled-tab = 未命名标签页
@@ -2856,13 +2044,10 @@ vertical-tabs-new-session = 新建会话
 vertical-tabs-terminal-kind-oz = Oz
 vertical-tabs-pane-kind-terminal = 终端
 vertical-tabs-pane-kind-code = 代码
-vertical-tabs-pane-kind-code-diff = 代码差异
 vertical-tabs-pane-kind-file = 文件
 vertical-tabs-pane-kind-notebook = Notebook
 vertical-tabs-pane-kind-workflow = 工作流
 vertical-tabs-pane-kind-environment-variables = 环境变量
-vertical-tabs-pane-kind-environments = 环境
-vertical-tabs-pane-kind-rules = 规则
 vertical-tabs-pane-kind-plan = 计划
 vertical-tabs-pane-kind-execution-profile = 执行配置
 vertical-tabs-pane-kind-other = 其他
@@ -2900,71 +2085,6 @@ global-search-unsupported-session-description = 全局搜索目前不支持 Git 
 global-search-failed = 全局搜索失败。
 
 # Wasm NUX dialog (app/src/wasm_nux_dialog.rs)
-wasm-nux-open-desktop-title = 在 Dais 桌面版中打开？
-wasm-nux-open-desktop-detail = 之后的链接会自动在桌面版中打开。
-wasm-nux-open-desktop-confirm = 在 Dais 中打开
-wasm-nux-download-title = 下载 Dais 桌面版？
-wasm-nux-download-description = Dais 是一款内置 AI 和团队知识的智能终端。
-wasm-nux-learn-more = 了解更多
-wasm-nux-download-confirm = 下载
-wasm-nux-object-kind-drive-objects = Dais Drive 对象
-wasm-nux-object-kind-warp-links = Dais 链接
-wasm-nux-always-open-on-web-title = 始终在网页中打开 { $object_kind } 吗？
-wasm-nux-always-open-on-web-detail = 你可以随时在设置中更改此项。
-wasm-nux-yes = 是
-
-# Auth override warning (app/src/auth/auth_override_warning_body.rs)
-auth-override-warning-title = 检测到新的登录
-auth-override-warning-confirm-title = 要删除个人 Dais Drive 对象和偏好吗？
-auth-override-warning-description = 看起来你刚刚通过网页浏览器登录了一个 Dais 账号。如果继续，当前匿名会话中的所有个人 Dais Drive 对象和偏好都将被永久删除。
-auth-override-warning-cannot-undo = 此操作无法撤销。
-auth-override-warning-export = 导出你的数据
-auth-override-warning-export-description = ，稍后可再导入。
-auth-override-warning-cancel = 取消
-auth-override-warning-continue = 继续
-auth-override-warning-accessibility-help = Dais 检测到你通过网页浏览器进行了新的登录。按 Esc 键取消，并继续在未登录状态下使用 Dais。
-
-# Auth SSO link/login failures/paste token/logout/offline/privacy
-auth-needs-sso-link-button = 关联 SSO
-auth-needs-sso-link-title = 你的组织已为该账号启用 SSO
-auth-needs-sso-link-detail = 点击下方按钮，将你的 Dais 账号关联到你的 SSO 提供商。
-auth-login-failure-troubleshooting-prefix =  这已经不是第一次了？请查看我们的
-auth-login-failure-troubleshooting-link = 故障排查文档
-auth-login-failure-troubleshooting-suffix = 。
-auth-login-failure-invalid-token = 你在弹窗中输入了无效的认证令牌。
-auth-login-failure-copy-token-manually = 登录失败。请尝试从认证网页手动复制认证令牌并粘贴到弹窗中。
-auth-login-failure-login-request = 登录请求失败。
-auth-login-failure-signup-request = 注册请求失败。
-auth-login-failure-wrong-redirect-url = 你粘贴的重定向 URL 不是从当前应用发起的。请点击下方按钮重试。
-auth-paste-token-placeholder = 输入认证令牌
-auth-paste-token-title = 在下方粘贴你的认证令牌
-auth-paste-token-detail = 从浏览器粘贴你的认证令牌，以完成登录。
-auth-paste-token-cancel = 取消
-auth-paste-token-continue = 继续
-auth-offline-first-use-description = 你当前处于离线状态。首次使用 Dais 时需要联网。
-auth-offline-first-use-learn-more = 了解更多
-auth-offline-overlay-title = 离线使用 Dais
-auth-offline-overlay-paragraph-1 = Dais 的本地功能可以离线使用。
-auth-offline-overlay-paragraph-2 = 首次使用时可能需要联网完成依赖初始化，之后本地智能体和终端功能不依赖 Dais 云服务。
-auth-offline-overlay-paragraph-3 = Dais 会把必要状态保存在本机，用于本地会话、设置和智能体功能。
-auth-offline-overlay-dismiss = 关闭
-auth-privacy-settings-title = 隐私设置
-auth-privacy-settings-done = 完成
-auth-privacy-settings-help-improve = 帮助改进 Dais
-auth-privacy-settings-help-improve-description = 高层级的功能使用数据可以帮助 Dais 产品团队确定路线图优先级。
-auth-privacy-settings-learn-more = 了解更多
-auth-privacy-settings-send-crash-reports = 发送崩溃报告
-auth-privacy-settings-crash-reports-description = 崩溃报告能帮助 Dais 工程团队了解稳定性情况并改进性能。
-auth-logout-confirm = 是，退出登录
-auth-logout-show-running-processes = 显示正在运行的进程
-auth-logout-cancel = 取消
-auth-logout-title = 要退出登录吗？
-auth-logout-running-processes-warning = 你有 { $count } 个正在运行的进程。
-auth-logout-shared-sessions-warning = 你有 { $count } 个远端会话。
-auth-logout-unsynced-drive-objects-warning = 你有 { $count } 个未同步的 Dais Drive 对象。退出登录后将失去这些对象。
-auth-logout-unsaved-files-warning = 你有 { $count } 个未保存的文件。退出登录后将失去这些文件。
-
-# CLI agent plugin instructions
 cli-agent-plugin-run-on-remote = 请确认在远程机器上运行这些命令。
 cli-agent-plugin-codex-install-title = 为 Codex 启用 Dais 通知
 cli-agent-plugin-codex-install-subtitle = 将 Codex 更新到最新版本，然后启用聚焦时通知，这样你工作时 Dais 就能显示通知。
@@ -3021,11 +2141,9 @@ agent-tip-slash-menu = 输入 `/` 打开斜杠菜单并访问快捷智能体操�
 agent-tip-toggle-input-mode = 按 <keybinding> 切换自然语言检测，在智能体输入和终端输入之间切换。
 agent-tip-plan = 输入 `/plan` <prompt>，先为智能体创建计划再执行。
 agent-tip-command-palette = 按 <keybinding> 打开命令面板，访问 Dais 操作和快捷方式。
-agent-tip-warp-drive = 将可复用的工作流、Notebook 和提示词存入你的
 agent-tip-redirect-running-agent = 输入新的提示词即可在智能体运行时重定向它。
 agent-tip-add-context = 输入 `@` 将文件、块或 Dais Drive 对象作为上下文添加到提示词。
 agent-tip-attach-prior-output = 按 <keybinding> 将上一条命令输出作为智能体上下文附加。
-agent-tip-init-index = 输入 `/init` 索引仓库，让智能体理解你的代码库。
 agent-tip-agent-profiles = 添加智能体配置，按会话自定义权限和模型。
 agent-tip-fork-block = 右键点击块，可从该位置 fork 对话。
 agent-tip-copy-output = 右键点击块，可复制对话输出。
@@ -3034,7 +2152,6 @@ agent-tip-interactive-tools = 可以让智能体控制 node、python、postgres�
 agent-tip-code-review-panel = 按 <keybinding> 打开代码审查面板并审查智能体的改动。
 agent-tip-add-mcp = 输入 `/add-mcp` 将 MCP 服务器添加到工作区。
 agent-tip-open-mcp-servers = 输入 `/open-mcp-servers` 查看并管理本地 MCP 服务器。
-agent-tip-create-environment = 输入 `/create-environment` 将仓库转换为智能体可运行的远程 docker 环境。
 agent-tip-add-prompt = 输入 `/add-prompt` 创建可复用提示词，用于重复工作流。
 agent-tip-add-rule = 输入 `/add-rule` 创建全局智能体规则。
 agent-tip-fork = 输入 `/fork` 创建当前对话的新副本，也可以附带新提示词。
@@ -3053,18 +2170,8 @@ agent-tip-auto-approve = 按 <keybinding> 可在本会话剩余时间内自动�
 agent-tip-desktop-notifications = 启用桌面通知，当智能体需要你处理时收到提醒。
 agent-tip-cancel-task = 按 <keybinding> 取消当前智能体任务。
 agent-tip-action-open-palette = 打开命令面板
-agent-tip-action-warp-drive = Dais Drive。
 agent-tip-action-show-diff-view = 显示 diff 视图
 agent-tip-voice-input = 按住 <keybinding>，直接用语音向智能体输入提示词。
-hoa-welcome-banner-title = 引入通用智能体支持：用 Dais 增强任何编码智能体
-hoa-feature-vertical-tabs-title = 垂直标签页
-hoa-feature-vertical-tabs-description = 丰富的标签标题和元数据，如 git 分支、worktree 和 PR。完全可自定义。
-hoa-feature-tab-configs-title = 标签页配置
-hoa-feature-tab-configs-description = 标签页级 schema，一键设置目录、启动命令、主题和 worktree
-hoa-feature-agent-inbox-title = 智能体收件箱
-hoa-feature-agent-inbox-description = 任一智能体需要你处理时收到通知，也可在集中收件箱中访问
-hoa-feature-native-code-review-title = 原生代码审查
-hoa-feature-native-code-review-description = 将 Dais 代码审查中的行内评论直接发送到 Claude Code、Codex 或 OpenCode
 resource-center-whats-new-section = 新变化
 resource-center-getting-started-section = 入门
 resource-center-maximize-warp-section = 充分使用 Dais
@@ -3100,11 +2207,6 @@ notebook-link-new-session-tooltip = 在此目录中打开新的终端会话
 notebook-link-open-terminal-session = 在终端会话中打开
 notebook-link-open-in-editor = 在编辑器中打开
 notebook-link-edit-markdown-file = 编辑 Markdown 文件
-auth-token-placeholder = Auth Token
-sharing-inherited-from-prefix = 继承自
-sharing-inherited-permission-label = 继承的权限
-sharing-inherited-permissions-edit-parent-tooltip = 在父文件夹上编辑继承权限
-sharing-inherited-permissions-cannot-edit-tooltip = 无法编辑继承权限
 command-palette-navigation-running = 正在运行...
 command-palette-navigation-completed-over-hour = 1 小时前已完成
 command-palette-navigation-completed-minute-ago = { $mins } 分钟前已完成
@@ -3115,7 +2217,6 @@ command-palette-navigation-empty-session = 空会话
 terminal-history-tab-commands = 命令
 terminal-history-tab-prompts = 提示词
 common-current = 当前
-auth-browser-token-placeholder = 浏览器认证 token
 requested-script-expand-to-show = 展开以显示脚本
 common-hide = 隐藏
 terminal-message-new-conversation = {" "}新建对话
@@ -3151,18 +2252,11 @@ onboarding-agent-autonomy-partial-subtitle = 可以规划、读取文件并执�
 onboarding-agent-autonomy-none-title = 无
 onboarding-agent-autonomy-none-subtitle = 未经你批准不会执行任何操作。
 onboarding-agent-disable-warp-agent = 禁用 Dais 智能体
-onboarding-agent-upgrade-title = 升级以使用高级模型。
-onboarding-agent-upgrade-subtitle = 前沿模型需要付费套餐。
-onboarding-agent-paste-token-link = 点击这里
-onboarding-agent-open-page-manually = {" "}并手动打开页面。{" "}
-onboarding-agent-paste-token-suffix = {" "}以粘贴浏览器中的 token。
-onboarding-agent-plan-activated = 套餐已成功激活。所有高级模型均可使用。
 onboarding-project-title = 打开项目
 onboarding-project-subtitle = 设置项目，让 Dais 更适合编码。
 onboarding-project-open-local-folder = 打开本地文件夹
 onboarding-project-initialize-automatically = 自动初始化项目
 onboarding-project-initialize-description = 准备项目环境、构建代码索引并生成项目规则，让智能体理解更深入、表现更好。
-onboarding-intro-already-have-account = 已有账号？{" "}
 onboarding-intro-subtitle = 内置先进智能体的现代终端。
 onboarding-get-started = 开始使用
 onboarding-theme-title = 选择主题
@@ -3183,66 +2277,7 @@ onboarding-customize-global-file-search = 全局文件搜索
 onboarding-customize-warp-drive = Dais Drive
 onboarding-customize-tools-panel = 工具面板
 onboarding-customize-code-review = 代码评审
-onboarding-free-user-title = 开始使用吧。
-onboarding-free-user-agent-title = 使用 Dais 内置智能体进行开发
-onboarding-free-user-agent-description = 使用 Oz（Dais 内置智能体）迭代、规划和构建。本地运行，不依赖 Dais 云服务。
-onboarding-free-user-terminal-title = 搭配第三方智能体的经典终端
-onboarding-free-user-terminal-description = 现代终端，支持第三方智能体（Claude Code、Codex、Gemini CLI）和经典终端工作流。
-onboarding-free-user-subscribe-title = 订阅后即可使用 Dais 的智能体开发能力。
-onboarding-free-user-subscribe-item-credits = 每月 1,500 点额度
-onboarding-free-user-subscribe-item-models = 使用 OpenAI、Anthropic 和 Google 的前沿模型
-onboarding-free-user-subscribe-item-reload = 使用 Reload 额度和按量折扣
-onboarding-free-user-subscribe-item-cloud-agents = 更长的智能体访问权限
-onboarding-free-user-subscribe-item-indexing = 最高代码库索引额度
-onboarding-free-user-subscribe-item-drive = 不限量 Dais Drive 对象和协作
-onboarding-free-user-subscribe-item-support = 私人邮件支持
-onboarding-free-user-subscribe-item-cloud-storage = 本地对话存储
-
-auth-opt-out-line-1 = Dais 会把引导选择保存在本机。
-auth-opt-out-line-2-prefix = 你可以调整你的
-auth-privacy-settings-prefix = 你可以调整你的{" "}
-auth-privacy-settings-ai-prefix = 你可以在这里调整本地 AI 偏好：{" "}
-auth-privacy-settings = 隐私设置
 auth-local-privacy-note = Dais 会把引导选择保存在本设备。
-auth-terms-prefix = 继续后，此设置仍保留在本机。{" "}
-auth-terms-of-service = 本地设置
-auth-log-in = 登录
-auth-paste-token-from-browser = 点击这里粘贴浏览器中的 token
-auth-login-slide-title-warp-drive = 开始使用 Dais Drive
-auth-login-slide-title-ai = 开始使用 AI
-auth-login-slide-subtitle-warp-drive = 连接你的账号，以便跨设备保存和分享笔记、工作流等内容。
-auth-login-slide-subtitle-ai = 连接你的账号，以启用 AI 驱动的规划、编码和自动化。
-auth-disable-warp-drive = 停用 Dais Drive
-auth-disable-ai-features = 停用 AI 功能
-auth-enable-warp-drive = 启用 Dais Drive
-auth-enable-ai-features = 启用 AI 功能
-auth-browser-sign-in-one-line-title = 在浏览器中登录以继续
-auth-open-page-manually-line-prefix = {" "}并打开
-auth-open-page-manually-line-suffix = 手动打开页面。
-auth-disable-warp-drive-confirm-title = 确定要停用 Dais Drive 吗？
-auth-disable-ai-features-confirm-title = 确定要停用 AI 功能吗？
-auth-disable-warp-drive-confirm-body = Dais Drive 可让你跨设备保存工作流和知识，并与团队分享。继续后，你将无法使用以下功能：
-auth-disable-ai-features-confirm-body = 开启 AI 后 Dais 会更强大。继续后，你将无法使用以下功能：
-auth-feature-session-sharing = 会话分享
-auth-sign-up = 继续本地使用
-auth-sign-in = 登录
-auth-already-have-account = 已有账号？{" "}
-auth-dont-want-sign-in-now = 现在不想登录？{" "}
-auth-skip-for-now = 暂时跳过
-auth-skip-login-confirm-title = 确定要跳过登录吗？
-auth-skip-login-confirm-line-1 = 你可以稍后注册，但部分功能（例如 AI）
-auth-skip-login-confirm-line-2-prefix = 仅登录用户可用。{" "}
-auth-yes-skip-login = 是，跳过登录
-auth-require-login-ai-collaboration = 本地 AI 功能不需要 Dais 账户。
-auth-require-login-drive-limit = Dais 会将 Dais Drive 对象保存在本机。
-auth-require-login-share = 本地 Dais 构建不提供分享功能。
-auth-welcome-title = 欢迎使用 Dais！
-auth-sign-up-for-warp = 继续使用 Dais
-auth-browser-sign-in-title = 在浏览器中登录\n以继续
-auth-browser-not-launched-prefix = 如果浏览器没有打开，{" "}
-auth-copy-url = 复制 URL
-auth-open-page-manually-suffix = 然后手动打开页面。
-
 voice-try-input = 试用语音输入
 voice-input-enabled-toast = 语音输入已启用。你也可以按住 `{ $key }` 键激活语音输入（可在 设置 > AI > 语音 中配置）
 voice-input-microphone-access-error = 无法启动语音输入（可能需要启用麦克风访问权限）
@@ -3250,8 +2285,6 @@ voice-transcription-disabled-microphone = 由于未授予麦克风访问权限�
 voice-transcription = 语音转写
 voice-transcription-hold-key = 语音转写（按住 `{ $key }` 键）
 
-get-started-welcome-title = 欢迎使用 Dais
-get-started-subtitle = 智能体开发环境
 theme-creator-theme-name = 主题名称
 theme-creator-background-color = 背景色
 theme-creator-image-subheader = 根据图片（.png、.jpg）中提取的颜色自动生成主题。
@@ -3296,14 +2329,10 @@ terminal-banner-pure-unsupported = Dais 尚不支持 Pure。你可以考虑改�
 terminal-loading-session = 正在加载会话...
 
 ai-footer-hide-rich-input = 隐藏富输入
-ai-footer-choose-environment = 选择环境
-ai-footer-agent-environment = 智能体环境
 ai-footer-enable-terminal-command-autodetection = 启用终端命令自动检测
 ai-footer-disable-terminal-command-autodetection = 停用终端命令自动检测
 ai-footer-turn-off-auto-approve-agent-actions = 关闭所有智能体操作的自动批准
 ai-footer-auto-approve-agent-actions-for-task = 为此任务自动批准所有智能体操作
-ai-footer-start-remote-control = 开始远程控制
-ai-footer-login-required-remote-control = 登录后使用 /remote-control
 ai-footer-see-logs-for-details = 查看日志详情
 ai-footer-plugin-installed-restart-session = Warp 插件已安装。请重启会话以启用。
 ai-footer-installing-warp-plugin = 正在安装 Warp 插件...
@@ -3351,13 +2380,6 @@ code-review-discard-file-branch-description = 这会将此文件重置为 { $bra
 code-review-stash-changes = 暂存更改
 code-review-no-changes-to-commit = 没有可提交的更改
 code-review-no-git-actions-available = 没有可用的 Git 操作
-command-search-out-of-credits-contact-admin = 你的额度似乎已用完。请联系团队管理员升级以获取更多额度。
-command-search-out-of-credits-prefix = 你的额度似乎已用完。{" "}
-command-search-for-more-credits-suffix = {" "}以获取更多额度。
-search-not-visible-to-other-users = 其他用户不可见
-sharing-invite = 邀请
-sharing-who-has-access = 有权访问的用户
-terminal-shared-session-cancel-request = 取消请求
 terminal-shared-session-continue-sharing = 继续分享
 settings-import-reset-to-warp-defaults = 重置为 Dais 默认设置
 settings-import-type-theme = 主题
@@ -3387,7 +2409,6 @@ ai-continue-summarization = 继续摘要
 ai-dont-show-suggested-code-banners-again = 不再显示建议代码横幅
 ai-inline-code-diff-no-file-name = 无文件名
 ai-tool-call-cancelled = 工具调用已取消
-ai-agent-view-open-in-different-pane = 已在其他窗格打开
 passive-suggestion-feature-or-bug-label = 在 {1} 中开发功能或修复 bug
 passive-suggestion-help-feature-or-bug-label = 帮我在 {1} 中开发功能或修复 bug
 passive-suggestion-implement-feature-or-bug-query = 在 {1} 中实现功能或修复 bug。请询问你需要的所有细节。
@@ -3446,7 +2467,6 @@ common-open-file = 打开文件
 common-open-folder = 打开文件夹
 common-name = 名称
 common-rule = 规则
-common-skip-for-now = 暂时跳过
 common-never = 从不
 common-save-changes = 保存更改
 common-do-not-show-again = 不再显示
@@ -3454,12 +2474,9 @@ common-dont-show-again-with-period = 不再显示。
 common-refresh = 刷新
 common-resource-not-found-or-access-denied = 资源不存在或无访问权限
 workspace-close-session = 关闭会话
-workspace-auto-reload = 自动重载
 workspace-add-new-repo = {" "}+ 添加新仓库
 workspace-notification-permission-denied-toast = Dais 没有发送桌面通知的权限。
 workspace-troubleshoot-notifications-link = 排查通知问题
-workspace-plan-synced-to-warp-drive-toast = 计划已同步到你的 Dais Drive
-workspace-remote-control-link-copied-toast = 远程控制链接已复制。
 workspace-update-now = 立即更新
 workspace-update-warp = 更新 Dais
 workspace-app-out-of-date-needs-update = 你的应用已过期，需要更新。
@@ -3472,10 +2489,6 @@ workspace-unable-to-launch-new-installed-version = Dais 无法启动新安装的
 tab-config-session-type = 会话类型
 terminal-copy-error = 复制错误
 terminal-authenticate-with-github = 使用 GitHub 认证
-terminal-create-environment = 创建环境
-terminal-regenerate-agents-file = 重新生成 AGENTS.md 文件
-terminal-view-index-status = 查看索引状态
-terminal-shared-session-request-edit-access = 请求编辑权限
 terminal-create-team = 创建团队
 terminal-warpify-without-tmux = 不使用 TMUX 进行 Warpify
 terminal-continue-without-warpification = 不进行 Warpification 继续
@@ -3517,8 +2530,6 @@ notifications-banner-configure-notifications = 配置通知
 notifications-banner-set-permissions = 设置权限
 ai-edit-api-keys = 编辑 API Key
 ai-block-manage-agent-permissions = 管理智能体权限
-agent-zero-state-cloud-agents-description = 使用本地智能体并行运行多个智能体，构建可自主运行的智能体，并在本机查看智能体状态。
-agent-zero-state-visit-docs = 查看文档
 ai-execution-profile-agent-decides = 由智能体决定
 ai-execution-profile-always-ask = 始终询问
 ai-execution-profile-ask-on-first-write = 首次写入时询问
@@ -3537,9 +2548,7 @@ code-review-tooltip-view-changes = 查看变更
 code-review-diffs-local-workspaces-only = Diff 仅适用于本地工作区。
 code-review-diffs-git-repositories-only = Diff 仅适用于 Git 仓库。
 code-review-diffs-wsl-unsupported = WSL 暂不支持 Diff。
-code-review-generating-commit-message-placeholder = 正在生成提交信息…
 code-review-type-commit-message-placeholder = 输入提交信息
-code-review-committing-loading = 正在提交…
 code-review-commit-message-label = 提交信息
 code-review-no-non-outdated-comments-to-send = 没有可发送的未过期评论
 code-review-send-diff-comments-to = 将 diff 评论发送给 { $label }
@@ -3554,11 +2563,9 @@ notebook-apply-link = 应用链接
 notebook-sync-conflict-resolution-message = 此 Notebook 无法保存，因为你编辑时内容已被其他更改更新。请复制你的内容并刷新。
 notebook-sync-feature-not-available-message = 此 Notebook 无法保存到服务器，因为该功能暂时不可用。更改已保存在本地，请稍后重试。
 notebook-link-copied-toast = 链接已复制
-settings-share-with-team = 本地保存
 tooltip-secrets-not-sent-to-warp-server = *密钥不会发送到 Dais 服务器。
 editor-voice-limit-hit-toast = 你已达到语音请求额度上限。额度将在下个周期刷新。
 editor-voice-error-toast = 处理语音输入时出错。
-ai-copied-branch-name-toast = 分支名称已复制
 workflow-new-enum = 新建枚举
 workflow-edit-enum = 编辑枚举
 workflow-enum-variant-placeholder = 变体
@@ -3707,7 +2714,6 @@ cockpit-badge-readonly = 只读
 project-rail-all-projects = 全部
 project-rail-ungrouped-instances = 未分组实例
 project-rail-section-title = 项目
-
 
 # =============================================================================
 # SECTION: left-rail-status (Owner: AB-render)

@@ -122,16 +122,8 @@ impl PaneId {
         matches!(self.0.pane_type, IPaneType::Settings)
     }
 
-    pub fn is_ai_fact_pane(&self) -> bool {
-        matches!(self.0.pane_type, IPaneType::AIFact)
-    }
-
     pub fn is_ai_document_pane(&self) -> bool {
         matches!(self.0.pane_type, IPaneType::AIDocument)
-    }
-
-    pub fn is_execution_profile_editor_pane(&self) -> bool {
-        matches!(self.0.pane_type, IPaneType::ExecutionProfileEditor)
     }
 
     pub fn is_ssh_server_pane(&self) -> bool {
@@ -156,13 +148,6 @@ impl PaneId {
         matches!(self.0.pane_type, IPaneType::Cockpit)
     }
 
-    pub fn is_welcome_pane(&self) -> bool {
-        matches!(self.0.pane_type, IPaneType::Welcome)
-    }
-
-    pub fn is_get_started_pane(&self) -> bool {
-        matches!(self.0.pane_type, IPaneType::GetStarted)
-    }
 
     pub fn is_deferred_placeholder_pane(&self) -> bool {
         matches!(self.0.pane_type, IPaneType::DeferredPlaceholder)
@@ -213,17 +198,14 @@ pub enum IPaneType {
     EnvVarCollection,
     Workflow,
     Settings,
-    AIFact,
     AIDocument,
     ExecutionProfileEditor,
     SshServer,
     Sftp,
     Observatory,
-    GetStarted,
     /// 多 agent 终端驾驶舱 pane(hub-tui 原生移植;cfg 门控同 Observatory:
     /// 变体本身不 cfg,PaneId 构造/render 臂 cfg)。
     Cockpit,
-    Welcome,
     DeferredPlaceholder,
     /// A pane type only for tests (原 app #[cfg(test)] 变体; app 的 cfg(test)
     /// 不影响本 crate 编译, 故无条件保留 — 无生产构造点, dead_code 允许)。
@@ -243,14 +225,11 @@ impl Display for IPaneType {
             IPaneType::EnvVarCollection => write!(f, "Environment Variable Collection"),
             IPaneType::Workflow => write!(f, "Workflow"),
             IPaneType::Settings => write!(f, "Settings"),
-            IPaneType::AIFact => write!(f, "AI Fact"),
             IPaneType::AIDocument => write!(f, "AI Document"),
             IPaneType::ExecutionProfileEditor => write!(f, "Execution Profile Editor"),
-            IPaneType::GetStarted => write!(f, "GetStarted"),
             IPaneType::SshServer => write!(f, "SSH Server"),
             IPaneType::Sftp => write!(f, "SFTP"),
             IPaneType::Observatory => write!(f, "Observatory"),
-            IPaneType::Welcome => write!(f, "Welcome"),
             #[cfg(not(target_family = "wasm"))]
             IPaneType::Cockpit => write!(f, "Cockpit"),
             IPaneType::DeferredPlaceholder => write!(f, "Placeholder"),

@@ -30,12 +30,6 @@ pub trait ArgumentTypeEditor {
     fn arg_type_editor(&self) -> &ViewHandle<WorkflowArgSelector>;
 }
 
-impl ArgumentTypeEditor for super::modal::ArgumentEditorRow {
-    fn arg_type_editor(&self) -> &ViewHandle<WorkflowArgSelector> {
-        &self.typed_default_value_editor
-    }
-}
-
 /// Get all workflow enums in the space, filtering to only show the shared ones
 pub fn load_workflow_enums_with_owner<V>(
     owner: Owner,

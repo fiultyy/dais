@@ -3,15 +3,13 @@ use crate::ai::agent::conversation::{AIAgentHarness, AIConversation, AIConversat
 use crate::ai::agent_conversations_model::{
     AgentConversationsModel, AgentConversationsModelEvent, ConversationOrTask,
 };
-use crate::ai::ai_document_view::AIDocumentView;
 use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::blocklist::agent_view::AgentViewEntryOrigin;
 use crate::ai::blocklist::history_model::LoadedConversationData;
 use crate::ai::blocklist::inline_action::code_diff_view::CodeDiffView;
-use crate::ai::blocklist::suggested_agent_mode_workflow_modal::SuggestedAgentModeWorkflowAndId;
-use crate::ai::blocklist::suggested_rule_modal::SuggestedRuleAndId;
 use crate::ai::blocklist::{BlocklistAIHistoryModel, InputConfig};
 use crate::ai::document::ai_document_model::{AIDocumentId, AIDocumentModel, AIDocumentVersion};
+use crate::ai::ai_document_view::AIDocumentView;
 use crate::ai::execution_profiles::profiles::ClientProfileId;
 use crate::ai::restored_conversations::RestoredAgentConversations;
 #[cfg(target_family = "wasm")]
@@ -25,8 +23,6 @@ use crate::code_review::diff_state::DiffMode;
 use crate::env_vars::EnvVarCollectionType;
 use crate::notebooks::file::FileNotebookView;
 use crate::pane_group::focus_state::PaneGroupFocusEvent;
-use crate::pane_group::pane::get_started_pane::GetStartedPane;
-use crate::pane_group::pane::welcome_pane::WelcomePane;
 use crate::pane_group::pane::ActionOrigin;
 pub use crate::pane_group::pane::PaneIdConstruct;
 use crate::quit_warning::UnsavedStateSummary;
@@ -149,18 +145,17 @@ pub mod working_directories;
 use focus_state::PaneGroupFocusState;
 
 pub use crate::code_review::CodeReviewPanelArg;
-pub use pane::ai_document_pane::AIDocumentPane;
-pub use pane::ai_fact_pane::AIFactPane;
-pub use pane::code_diff_pane::CodeDiffPane;
 pub use pane::code_pane::CodePane;
+pub use pane::code_diff_pane::CodeDiffPane;
 pub use pane::env_var_collection_pane::EnvVarCollectionPane;
 // Dais Wave 7-3:`EnvironmentManagementPane` 随 ambient-agent UI 子系统物理删。
 pub use pane::execution_profile_editor_pane::ExecutionProfileEditorPane;
 pub use pane::file_pane::FilePane;
 pub use pane::image_pane::ImagePane;
-pub use pane::notebook_pane::NotebookPane;
 pub use pane::settings_pane::SettingsPane;
 pub use pane::terminal_pane::TerminalPane;
+pub use pane::notebook_pane::NotebookPane;
+pub use pane::ai_document_pane::AIDocumentPane;
 pub use pane::workflow_pane::WorkflowPane;
 pub use pane::PaneHeaderAction;
 pub use pane::PaneHeaderCustomAction;
@@ -557,16 +552,6 @@ pub enum Event {
     /// Clears the hovered tab index so it no longer appears as highlighted drop target
     ClearHoveredTabIndex,
     DaisDriveObjectInPane(ObjectUid),
-    OpenSuggestedAgentModeWorkflowModal {
-        workflow_and_id: SuggestedAgentModeWorkflowAndId,
-    },
-    OpenSuggestedRuleModal {
-        rule_and_id: SuggestedRuleAndId,
-    },
-    OpenAIFactCollection {
-        /// If set, open the fact collection to the specific rule.
-        sync_id: Option<SyncId>,
-    },
     /// Request that the workspace open the command palette.
     OpenPalette {
         mode: PaletteMode,
@@ -717,7 +702,7 @@ pub struct NewTerminalOptions {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum DefaultSessionModeBehavior {
+pub(crate) enum DefaultSessionModeBehavior {
     Apply,
     Ignore,
 }
@@ -960,6 +945,7 @@ enum AmbientRestoreKind {
     /// (this is a valid state from when a user quits with an empty ambient-agent pane).
     NewCloudConversation,
 }
+
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AIDocumentPaneVisibilityAction {
@@ -1606,6 +1592,7 @@ impl PaneGroup {
 
         result
     }
+
 
     pub fn snapshot_for_node(&self, app: &AppContext, node: &PaneNode) -> PaneNodeSnapshot {
         match node {
@@ -3312,9 +3299,6 @@ impl PaneGroup {
         self.downcast_pane_by_id(pane_id?)
     }
 
-    pub fn ai_fact_pane_by_pane_id(&self, pane_id: Option<PaneId>) -> Option<&AIFactPane> {
-        self.downcast_pane_by_id(pane_id?)
-    }
 
     pub fn code_pane_by_id(&self, pane_id: PaneId) -> Option<&CodePane> {
         self.downcast_pane_by_id(pane_id)
@@ -5603,6 +5587,7 @@ impl PaneGroup {
             .map(|p| p.diff_view(ctx))
             .collect()
     }
+
 
     pub fn file_notebook_views(&self, ctx: &AppContext) -> Vec<ViewHandle<FileNotebookView>> {
         self.panes_of::<FilePane>()

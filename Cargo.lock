@@ -3802,24 +3802,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dais_sync"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "anyhow",
- "base64 0.22.1",
- "chrono",
- "log",
- "reqwest 0.12.28",
- "rustls 0.23.40",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14864,7 +14846,6 @@ dependencies = [
  "ctor",
  "cvt",
  "dais_sftp",
- "dais_sync",
  "dashmap",
  "deltae",
  "derivative",
@@ -15437,7 +15418,6 @@ dependencies = [
  "anyhow",
  "chrono",
  "command",
- "dais_sync",
  "diesel",
  "diesel_migrations",
  "dirs 6.0.0",

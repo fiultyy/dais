@@ -1,14 +1,10 @@
 use crate::ai::execution_profiles::AIExecutionProfileObject;
-use crate::auth::AuthStateProvider;
 use crate::cloud_object::{
     GenericStoredObject, GenericStringObjectFormat, JsonObjectType, ObjectIdType, ObjectType,
     Owner, Revision, Space, StoredObjectLocation, StoredObjectModel,
 };
 use crate::drive::folders::{FolderObject, FolderObjectModel};
-use crate::drive::{
-    should_auto_open_welcome_folder, write_has_auto_opened_welcome_folder_to_user_defaults,
-    DriveIndexVariant, ObjectTypeAndId,
-};
+use crate::drive::{should_auto_open_welcome_folder, write_has_auto_opened_welcome_folder_to_user_defaults, ObjectTypeAndId};
 use crate::env_vars::{EnvVarCollection, EnvVarCollectionObject, EnvVarCollectionObjectModel};
 use crate::notebooks::NotebookObject;
 use crate::persistence::ModelEvent;
@@ -414,15 +410,8 @@ impl ObjectStoreModel {
     ) {
         if let Some(object) = self.objects_by_id.get_mut(uid) {
             object.metadata_mut().metadata_last_updated_ts = Some(new_ts);
-
-            if let Some(model_event_sender) = &self.model_event_sender {
-                if let Err(e) = model_event_sender.send(ModelEvent::UpdateObjectMetadata {
-                    id: object.hashed_sqlite_id(),
-                    metadata: object.metadata().clone(),
-                }) {
-                    log::error!("Error saving to cache: {e:?}");
-                }
-            }
+            // W3-d8: object_metadata 云表已 DROP,ModelEvent::UpdateObjectMetadata
+            // 变体已删除;本地化后仅更新内存 metadata 时间戳。
             ctx.notify();
         }
     }
@@ -560,11 +549,10 @@ impl ObjectStoreModel {
     pub fn collapse_all_in_location(
         &mut self,
         location: StoredObjectLocation,
-        index_variant: DriveIndexVariant,
         ctx: &mut ModelContext<Self>,
     ) {
         let mut folder_ids: Vec<SyncId> = Vec::new();
-        self.collapse_all_in_location_helper(location, index_variant, &mut folder_ids, ctx);
+        self.collapse_all_in_location_helper(location, &mut folder_ids, ctx);
 
         folder_ids.iter().for_each(|folder_id| {
             self.set_folder_open_state(*folder_id, FolderOpenState::Closed, ctx)
@@ -578,7 +566,6 @@ impl ObjectStoreModel {
     fn collapse_all_in_location_helper(
         &self,
         location: StoredObjectLocation,
-        index_variant: DriveIndexVariant,
         folder_ids: &mut Vec<SyncId>,
         app: &AppContext,
     ) {
@@ -586,52 +573,17 @@ impl ObjectStoreModel {
             folder_ids.push(folder_id);
         }
 
-        match index_variant {
-            DriveIndexVariant::MainIndex => self
-                .active_cloud_objects_in_location_without_descendents(location, app)
-                .for_each(|object| {
-                    let folder: Option<&FolderObject> = object.into();
-                    if let Some(folder) = folder {
-                        self.collapse_all_in_location_helper(
-                            StoredObjectLocation::Folder(folder.id),
-                            index_variant,
-                            folder_ids,
-                            app,
-                        );
-                    }
-                }),
-            DriveIndexVariant::Trash => {
-                if let StoredObjectLocation::Space(space) = location {
-                    self.directly_trashed_cloud_objects_in_space(space, app)
-                        .for_each(|object| {
-                            let folder: Option<&FolderObject> = object.into();
-                            if let Some(folder) = folder {
-                                self.collapse_all_in_location_helper(
-                                    StoredObjectLocation::Folder(folder.id),
-                                    index_variant,
-                                    folder_ids,
-                                    app,
-                                );
-                            }
-                        })
-                } else {
-                    self.indirectly_trashed_cloud_objects_in_location_without_descendents(
-                        location, app,
-                    )
-                    .for_each(|object| {
-                        let folder: Option<&FolderObject> = object.into();
-                        if let Some(folder) = folder {
-                            self.collapse_all_in_location_helper(
-                                StoredObjectLocation::Folder(folder.id),
-                                index_variant,
-                                folder_ids,
-                                app,
-                            );
-                        }
-                    })
+        self.active_cloud_objects_in_location_without_descendents(location, app)
+            .for_each(|object| {
+                let folder: Option<&FolderObject> = object.into();
+                if let Some(folder) = folder {
+                    self.collapse_all_in_location_helper(
+                        StoredObjectLocation::Folder(folder.id),
+                        folder_ids,
+                        app,
+                    );
                 }
-            }
-        }
+            });
     }
 
     /// Force expands the object identified by `hash_id` and any of its ancestors. If an object is
@@ -754,11 +706,9 @@ impl ObjectStoreModel {
         user_workspaces: &UserWorkspaces,
         app: &AppContext,
     ) -> bool {
-        let user_uid = AuthStateProvider::as_ref(app).get().user_id();
         self.objects_by_id.values().any(|object| {
             // We can't use StoredObject::is_in_space, because that reborrows UserWorkspaces.
             user_workspaces.owner_to_space(object.permissions().owner, app) == Space::Shared
-                && user_uid.is_some_and(|uid| object.permissions().has_direct_user_access(uid))
         })
     }
 

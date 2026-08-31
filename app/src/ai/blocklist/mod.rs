@@ -13,9 +13,6 @@ mod input_model;
 mod permissions;
 mod persistence;
 pub mod prompt;
-pub mod suggested_agent_mode_workflow_modal;
-pub mod suggested_rule_modal;
-mod suggestion_chip_view;
 pub mod summarization_cancel_dialog;
 pub mod usage;
 
@@ -73,5 +70,4 @@ pub use controller::input_context::{
     BLOCK_CONTEXT_ATTACHMENT_REGEX, DIFF_HUNK_ATTACHMENT_REGEX, DRIVE_OBJECT_ATTACHMENT_REGEX,
 };
 pub use permissions::{BlocklistAIPermissions, CommandExecutionPermissionAllowedReason};
-pub use suggestion_chip_view::*;
 pub use view_util::error_color;

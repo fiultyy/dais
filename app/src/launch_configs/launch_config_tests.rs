@@ -2,10 +2,9 @@ use std::path::PathBuf;
 
 use crate::{
     app_state::{
-        AppState, BranchSnapshot, LeafContents, LeafSnapshot, NotebookPaneSnapshot, PaneFlex,
+        AppState, BranchSnapshot, LeafContents, LeafSnapshot, PaneFlex,
         PaneNodeSnapshot, SplitDirection, TabSnapshot, TerminalPaneSnapshot, WindowSnapshot,
     },
-    drive::DaisDriveObjectSettings,
     tab::SelectedTabColor,
 };
 
@@ -88,10 +87,7 @@ fn test_config_from_snapshot_flattens_single_pane() {
                 PaneNodeSnapshot::Leaf(LeafSnapshot {
                     is_focused: true,
                     custom_vertical_tabs_title: None,
-                    contents: LeafContents::Notebook(NotebookPaneSnapshot::NotebookObject {
-                        notebook_id: None,
-                        settings: DaisDriveObjectSettings::default(),
-                    }),
+                    contents: LeafContents::Image { path: None },
                 }),
             ),
             (
@@ -158,10 +154,7 @@ fn test_config_from_snapshot_filters_panes() {
                 PaneNodeSnapshot::Leaf(LeafSnapshot {
                     is_focused: false,
                     custom_vertical_tabs_title: None,
-                    contents: LeafContents::Notebook(NotebookPaneSnapshot::NotebookObject {
-                        notebook_id: None,
-                        settings: DaisDriveObjectSettings::default(),
-                    }),
+                    contents: LeafContents::Image { path: None },
                 }),
             ),
             (
@@ -222,10 +215,7 @@ fn test_config_from_snapshot_filters_tabs() {
             PaneNodeSnapshot::Leaf(LeafSnapshot {
                 is_focused: true,
                 custom_vertical_tabs_title: None,
-                contents: LeafContents::Notebook(NotebookPaneSnapshot::NotebookObject {
-                    notebook_id: None,
-                    settings: DaisDriveObjectSettings::default(),
-                }),
+                contents: LeafContents::Image { path: None },
             }),
         )],
     }));
@@ -294,12 +284,7 @@ fn test_config_with_active_tab_index_and_filtered_tabs() {
                         PaneNodeSnapshot::Leaf(LeafSnapshot {
                             is_focused: true,
                             custom_vertical_tabs_title: None,
-                            contents: LeafContents::Notebook(
-                                NotebookPaneSnapshot::NotebookObject {
-                                    notebook_id: None,
-                                    settings: DaisDriveObjectSettings::default(),
-                                },
-                            ),
+                            contents: LeafContents::Image { path: None },
                         }),
                     )],
                 }),
@@ -390,12 +375,7 @@ fn test_config_with_active_tab_being_filtered() {
                         PaneNodeSnapshot::Leaf(LeafSnapshot {
                             is_focused: true,
                             custom_vertical_tabs_title: None,
-                            contents: LeafContents::Notebook(
-                                NotebookPaneSnapshot::NotebookObject {
-                                    notebook_id: None,
-                                    settings: DaisDriveObjectSettings::default(),
-                                },
-                            ),
+                            contents: LeafContents::Image { path: None },
                         }),
                     )],
                 }),

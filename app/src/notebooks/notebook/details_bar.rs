@@ -13,14 +13,10 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    cloud_object::{
-        breadcrumbs::ContainingObject,
-        model::view::{Editor, EditorState},
-    },
+    cloud_object::model::view::{Editor, EditorState},
     drive::sharing::ContentEditability,
     notebooks::{active_notebook_data::Mode, styles},
     ui_components::{
-        breadcrumb::{render_breadcrumbs, BreadcrumbState},
         buttons::{accent_icon_button, icon_button},
         icons::Icon,
     },
@@ -30,28 +26,17 @@ use crate::{
 use super::{super::active_notebook_data::ActiveNotebookData, NotebookAction, EDIT_BUTTON_MARGIN};
 
 /// Component to show details about a notebook:
-/// * Interactive breadcrumbs for its location within Dais Drive
 /// * The current editor of the notebook
 /// * Grab-the-baton UI controls
 pub struct DetailsBar {
-    breadcrumbs: Vec<BreadcrumbState<ContainingObject>>,
     edit_mode_button_mouse_state: MouseStateHandle,
 }
 
 impl DetailsBar {
     pub fn new() -> Self {
         Self {
-            breadcrumbs: Vec::new(),
             edit_mode_button_mouse_state: Default::default(),
         }
-    }
-
-    /// Update the cached breadcrumbs in the notebook header.
-    pub fn update_breadcrumbs(&mut self, notebook_data: &ActiveNotebookData, ctx: &AppContext) {
-        self.breadcrumbs = notebook_data
-            .breadcrumbs(ctx)
-            .map(|breadcrumbs| breadcrumbs.into_iter().map(BreadcrumbState::new).collect())
-            .unwrap_or_default();
     }
 
     pub fn render(
@@ -64,22 +49,6 @@ impl DetailsBar {
             .with_main_axis_size(MainAxisSize::Max)
             .with_main_axis_alignment(MainAxisAlignment::SpaceBetween)
             .with_cross_axis_alignment(CrossAxisAlignment::Center);
-
-        header_row.add_child(
-            Shrinkable::new(
-                2.,
-                render_breadcrumbs(
-                    self.breadcrumbs.iter().cloned(),
-                    appearance,
-                    |ctx, _, breadcrumb| {
-                        ctx.dispatch_typed_action(NotebookAction::ViewInWarpDrive(
-                            breadcrumb.kind.into_item_id(),
-                        ));
-                    },
-                ),
-            )
-            .finish(),
-        );
 
         let mut editing_state_row = Flex::row()
             .with_main_axis_alignment(MainAxisAlignment::End)

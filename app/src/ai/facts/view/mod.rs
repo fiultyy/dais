@@ -140,27 +140,6 @@ impl AIFactView {
                     rule_view.add_ai_rule(name.clone(), content.clone(), ctx);
                 });
             }
-            RuleEditorViewEvent::Edit {
-                name,
-                content,
-                sync_id,
-                revision_ts,
-            } => {
-                self.rule_view.update(ctx, |rule_view, ctx| {
-                    rule_view.edit_ai_rule(
-                        name.clone(),
-                        content.clone(),
-                        *sync_id,
-                        revision_ts.clone(),
-                        ctx,
-                    );
-                });
-            }
-            RuleEditorViewEvent::Delete { sync_id } => {
-                self.rule_view.update(ctx, |rule_view, ctx| {
-                    rule_view.delete_ai_rule(*sync_id, ctx);
-                });
-            }
             _ => {}
         }
     }

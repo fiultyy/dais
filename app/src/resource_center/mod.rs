@@ -7,22 +7,15 @@ use crate::{
     util::bindings::trigger_to_keystroke,
 };
 
-use chrono::{DateTime, FixedOffset};
-
 mod main_page;
 pub mod utils;
 pub use main_page::{ResourceCenterMainEvent, ResourceCenterMainView};
 mod keybindings_page;
 pub use keybindings_page::KeybindingsView;
-mod section_views;
-pub use section_views::{ChangelogSectionView, ContentSectionView, FeatureSectionView};
-pub mod sections;
 mod view;
 use serde::{Deserialize, Serialize};
 pub use view::{ResourceCenterAction, ResourceCenterEvent, ResourceCenterPage, ResourceCenterView};
 use warpui::{keymap::Keystroke, AppContext, Entity, SingletonEntity};
-
-use self::section_views::feature_section::FeatureSection;
 
 #[derive(
     Clone,
@@ -127,79 +120,6 @@ impl TipAction {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-
-// Section item that dispatches an action within the app
-pub struct FeatureItem {
-    pub title: String,
-    pub description: String,
-    pub feature: Tip,
-    pub editable_binding_name: Option<&'static str>,
-    pub shortcut: Option<Keystroke>,
-}
-
-impl FeatureItem {
-    pub fn new(title: String, description: String, feature: Tip, ctx: &mut AppContext) -> Self {
-        let editable_binding_name;
-        let shortcut;
-
-        match feature {
-            Tip::Hint(_) => {
-                editable_binding_name = None;
-                shortcut = None;
-            }
-            Tip::Action(tip) => {
-                editable_binding_name = Some(tip.editable_binding_name());
-                shortcut = tip.keyboard_shortcut(ctx);
-            }
-        }
-
-        Self {
-            title,
-            description,
-            feature,
-            editable_binding_name,
-            shortcut,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-// Section item that links to an external URL
-pub struct ContentItem {
-    pub title: String,
-    pub description: String,
-    pub url: &'static str,
-    pub button_label: String,
-}
-
-pub enum Section {
-    Feature(FeatureSectionData),
-    Content(ContentSectionData),
-    Changelog(),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FeatureSectionData {
-    pub section_name: FeatureSection,
-    pub items: Vec<FeatureItem>,
-}
-
-#[derive(Clone)]
-pub struct ContentSectionData {
-    pub section_name: FeatureSection,
-    pub items: Vec<ContentItem>,
-}
-
-#[derive(Clone)]
-pub struct ChangelogSectionData {
-    pub section_name: FeatureSection,
-    pub date: DateTime<FixedOffset>,
-    pub new_features_markdown: String,
-    pub improvements_markdown: String,
-    pub coming_soon_markdown: String,
-}
-
 #[derive(Default)]
 pub struct TipsCompleted {
     pub features_used: HashSet<Tip>,
@@ -211,20 +131,6 @@ impl Entity for TipsCompleted {
     type Event = ();
 }
 
-impl FeatureSectionData {
-    pub fn is_section_completed(&self, tips_completed: &TipsCompleted) -> bool {
-        self.items
-            .iter()
-            .all(|item| tips_completed.features_used.contains(&item.feature))
-    }
-
-    pub fn tips_completed_count(&self, tips_completed: &TipsCompleted) -> usize {
-        self.items
-            .iter()
-            .filter(|item| tips_completed.features_used.contains(&item.feature))
-            .count()
-    }
-}
 
 /// Marks the welcome tip as used, writes their current state to a cloud synced preference.
 pub fn mark_feature_used_and_write_to_user_defaults(

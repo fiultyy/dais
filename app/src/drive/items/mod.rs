@@ -7,17 +7,12 @@ use crate::{
     ui_components::icons::Icon,
 };
 
-use super::{
-    cloud_object_styling::warp_drive_icon_color,
-    index::{warp_drive_section_header_position_id, DriveIndexAction, DriveIndexSection},
-    DriveObjectType, ObjectTypeAndId,
-};
+use super::{cloud_object_styling::warp_drive_icon_color, DriveObjectType, ObjectTypeAndId};
 
 pub mod ai_fact;
 pub mod ai_fact_collection;
 pub mod env_var_collection;
 pub mod folder;
-pub mod item;
 pub mod mcp_server;
 pub mod mcp_server_collection;
 pub mod notebook;
@@ -31,7 +26,6 @@ pub trait WarpDriveItem {
     fn metadata(&self) -> Option<&StoredObjectMetadata>;
     fn object_type(&self) -> Option<DriveObjectType>;
     fn secondary_icon(&self, color: Option<Fill>) -> Option<Box<dyn Element>>; // The optional icon to the right of the name
-    fn click_action(&self) -> Option<DriveIndexAction>;
     fn preview(&self, appearance: &Appearance) -> Option<Box<dyn Element>>;
     fn warp_drive_id(&self) -> WarpDriveItemId;
     fn sync_status_icon(
@@ -64,9 +58,7 @@ impl WarpDriveItemId {
             Self::AIFactCollection => "AI_fact_collection".to_string(),
             Self::MCPServerCollection => "MCP_server_collection".to_string(),
             Self::Object(object_id) => object_id.drive_row_position_id(),
-            Self::Space(space) => {
-                warp_drive_section_header_position_id(&DriveIndexSection::Space(*space))
-            }
+            Self::Space(_) => "Space".to_string(),
             Self::Trash => "Trash".to_string(),
         }
     }

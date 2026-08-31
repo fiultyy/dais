@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use uuid::Uuid;
 use warpui::{
     elements::{ChildView, Container},
-    ui_components::components::{Coords, UiComponentStyles},
     AppContext, Element, Entity, SingletonEntity, TypedActionView, View, ViewContext, ViewHandle,
 };
 
@@ -14,11 +13,9 @@ use crate::{
     appearance::Appearance,
     cloud_object::update_manager::InitiatedBy,
     cloud_object::Space,
-    modal::{Modal, ModalViewState},
     settings_view::{
         mcp_servers::{
             edit_page::{MCPServersEditPageView, MCPServersEditPageViewEvent},
-            installation_modal::{InstallationModalBody, InstallationModalBodyEvent},
             list_page::{MCPServersListPageView, MCPServersListPageViewEvent},
             style, ServerCardItemId,
         },
@@ -31,19 +28,16 @@ use crate::{
 
 /// Describes where an MCP install request originated.
 ///
-/// Used to decide whether an install request is allowed to bypass the
-/// installation modal. In-app gestures (gallery card click, reinstall button)
-/// are implicitly confirmed by the click itself. Deeplink-triggered installs
-/// are untrusted and must always route through the installation modal so the
-/// user can explicitly confirm before any installation or server spawn occurs.
-/// See `specs/GH686/product.md`.
+/// W3 域裁切:installation modal 已物理删。In-app 请求视为用户已确认,
+/// 直接安装;Deeplink 请求失去确认入口,一律拒绝。
+/// (原语义见 `specs/GH686/product.md`。)
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum InstallOrigin {
     /// Triggered by a user gesture inside Dais (gallery card click,
     /// reinstall button, programmatic in-app flows, etc.).
     InApp,
-    /// Triggered by a `warp://settings/mcp?autoinstall=...` deeplink; must be
-    /// gated by an explicit in-app confirmation before install or spawn.
+    /// Triggered by a `warp://settings/mcp?autoinstall=...` deeplink; rejected
+    /// because the confirmation modal no longer exists.
     Deeplink,
 }
 
@@ -56,18 +50,12 @@ pub enum MCPServersSettingsPage {
     },
 }
 
-#[derive(Debug, Clone)]
-pub enum MCPServersSettingsPageEvent {
-    ShowModal,
-    HideModal,
-}
 
 pub struct MCPServersSettingsPageView {
     page: PageType<Self>,
     current_page: MCPServersSettingsPage,
     list_view: ViewHandle<MCPServersListPageView>,
     edit_view: ViewHandle<MCPServersEditPageView>,
-    installation_modal_state: ModalViewState<Modal<InstallationModalBody>>,
 }
 
 impl MCPServersSettingsPageView {
@@ -82,19 +70,6 @@ impl MCPServersSettingsPageView {
             me.handle_edit_view_event(event, ctx);
         });
 
-        let installation_modal_body =
-            ctx.add_typed_action_view(|_ctx| InstallationModalBody::new());
-        ctx.subscribe_to_view(&installation_modal_body, |me, _, event, ctx| {
-            me.handle_installation_modal_body_event(event, ctx);
-        });
-
-        let installation_modal = ctx.add_typed_action_view(|ctx| {
-            Modal::new(None, installation_modal_body, ctx).with_body_style(UiComponentStyles {
-                padding: Some(Coords::uniform(0.)),
-                ..Default::default()
-            })
-        });
-        let installation_modal_state = ModalViewState::new(installation_modal);
 
         Self {
             page: PageType::new_monolith(
@@ -107,7 +82,6 @@ impl MCPServersSettingsPageView {
             current_page: MCPServersSettingsPage::default(),
             list_view,
             edit_view,
-            installation_modal_state,
         }
     }
 
@@ -180,6 +154,12 @@ impl MCPServersSettingsPageView {
         }
     }
 
+    /// Installs a templatable MCP server directly.
+    ///
+    /// W3 域裁切:installation modal 已随 installation_modal.rs 一同物理删。
+    /// In-app 请求(gallery 卡片点击 / reinstall 按钮)视为用户已确认,直接安装;
+    /// Deeplink 请求因失去显式确认入口而一律拒绝,绝不静默安装
+    /// (原 GH686 不变量:deeplink 必须经用户确认才能安装/拉起)。
     fn start_server_installation(
         &mut self,
         templatable_mcp_server: TemplatableMCPServer,
@@ -187,47 +167,26 @@ impl MCPServersSettingsPageView {
         origin: InstallOrigin,
         ctx: &mut ViewContext<Self>,
     ) {
-        let has_variables = !templatable_mcp_server.template.variables.is_empty();
-        let has_instructions = instructions_in_markdown.is_some();
-        let should_show_modal =
-            Self::should_show_install_modal(origin, has_variables, has_instructions);
-
-        if should_show_modal {
-            self.installation_modal_state
-                .view
-                .update(ctx, |modal, ctx| {
-                    modal.body().update(ctx, |body, ctx| {
-                        body.set_templatable_mcp_server(
-                            Some(templatable_mcp_server),
-                            instructions_in_markdown,
-                            ctx,
-                        )
-                    });
-                });
-            self.installation_modal_state.open();
-            ctx.focus(&self.installation_modal_state.view);
-            ctx.emit(MCPServersSettingsPageEvent::ShowModal);
-        } else {
-            self.process_server_installation(&templatable_mcp_server, HashMap::new(), ctx);
+        let _ = instructions_in_markdown;
+        match origin {
+            InstallOrigin::InApp => {
+                self.process_server_installation(&templatable_mcp_server, HashMap::new(), ctx);
+            }
+            InstallOrigin::Deeplink => {
+                log::warn!(
+                    "Rejecting MCP install for '{}' from deeplink: installation confirmation modal was removed",
+                    templatable_mcp_server.name
+                );
+                self.add_error_toast(
+                    crate::t!(
+                        "settings-mcp-install-from-link-failed",
+                        name = templatable_mcp_server.name
+                    ),
+                    ctx,
+                );
+            }
         }
         ctx.notify();
-    }
-
-    /// Decides whether an install request should route through the installation
-    /// modal. Deeplink-origin requests always require explicit confirmation via
-    /// the modal, regardless of template shape. In-app requests keep the
-    /// pre-existing heuristic where the modal is only shown when the template
-    /// has variables or markdown instructions; the click gesture itself is the
-    /// user confirmation. See `specs/GH686/product.md`.
-    pub(crate) fn should_show_install_modal(
-        origin: InstallOrigin,
-        has_variables: bool,
-        has_instructions: bool,
-    ) -> bool {
-        match origin {
-            InstallOrigin::Deeplink => true,
-            InstallOrigin::InApp => has_variables || has_instructions,
-        }
     }
 
     fn process_server_installation(
@@ -295,28 +254,14 @@ impl MCPServersSettingsPageView {
     /// untrusted input. The `autoinstall_param` is matched case-insensitively
     /// against gallery titles.
     ///
-    /// Every deeplink autoinstall is routed through the installation modal and
-    /// requires an explicit user confirmation before any installation or
-    /// server spawn occurs — even for templates with no variables and no
-    /// markdown instructions. See `specs/GH686/product.md`.
+    /// W3 域裁切:installation modal 已物理删,deeplink 请求失去显式确认入口,
+    /// 由 `start_server_installation` 统一拒绝,绝不静默安装。
     pub fn autoinstall_from_gallery(
         &mut self,
         autoinstall_param: &str,
         ctx: &mut ViewContext<Self>,
     ) {
         log::info!("Received MCP deeplink autoinstall for value '{autoinstall_param}'");
-
-        // Concurrent deeplink guard: if a prior installation modal is still
-        // open, surface a toast and bail so we do not silently overwrite the
-        // current modal contents with a different template. See product
-        // invariant 7 in specs/GH686/product.md.
-        if self.installation_modal_state.is_open() {
-            log::warn!(
-                "Ignoring MCP deeplink autoinstall for '{autoinstall_param}': installation modal already open"
-            );
-            self.add_error_toast(crate::t!("settings-mcp-install-modal-busy"), ctx);
-            return;
-        }
 
         let autoinstall_lower = autoinstall_param.to_lowercase();
         let gallery_server = MCPGalleryManager::as_ref(ctx)
@@ -366,7 +311,9 @@ impl MCPServersSettingsPageView {
             );
             return;
         };
-        log::info!("Opening MCP install confirmation for deeplink gallery title '{gallery_title}'");
+        log::info!(
+            "Deeplink autoinstall for '{gallery_title}': installation modal removed, request will be rejected"
+        );
         self.start_server_installation(
             templatable_mcp_server,
             instructions,
@@ -407,12 +354,6 @@ impl MCPServersSettingsPageView {
                     ctx,
                 );
             }
-            MCPServersListPageViewEvent::ShowModal => {
-                ctx.emit(MCPServersSettingsPageEvent::ShowModal);
-            }
-            MCPServersListPageViewEvent::HideModal => {
-                ctx.emit(MCPServersSettingsPageEvent::HideModal);
-            }
         }
     }
 
@@ -440,80 +381,15 @@ impl MCPServersSettingsPageView {
         }
     }
 
-    pub fn get_modal_content(&self, app: &AppContext) -> Option<Box<dyn Element>> {
-        if self.installation_modal_state.is_open() {
-            Some(self.installation_modal_state.render())
-        } else {
-            match self.current_page {
-                MCPServersSettingsPage::List => self
-                    .list_view
-                    .read(app, |list_view, _| list_view.get_modal_content()),
-                MCPServersSettingsPage::Edit { .. } => None,
-            }
-        }
-    }
-
-    fn handle_installation_modal_body_event(
-        &mut self,
-        event: &InstallationModalBodyEvent,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        match event {
-            InstallationModalBodyEvent::Install(templatable_mcp_server, variable_values) => {
-                // Uninstall the old copy with outdated variable values
-                TemplatableMCPServerManager::handle(ctx).update(ctx, |manager, ctx| {
-                    let old_installation =
-                        manager.get_installation_by_template_uuid(templatable_mcp_server.uuid);
-                    if let Some(old_installation) = old_installation {
-                        let old_installation_uuid = old_installation.uuid();
-                        manager
-                            .delete_templatable_mcp_server_installation(old_installation_uuid, ctx);
-                        ctx.notify();
-                    };
-                });
-
-                // Install the copy with new variables
-                let new_installation = self.process_server_installation(
-                    templatable_mcp_server,
-                    variable_values.clone(),
-                    ctx,
-                );
-
-                // When we re-install, the installation uuid changes, so we should load the edit page with the new installation uuid
-                if let Some(new_installation) = new_installation {
-                    self.edit_view.update(ctx, |edit_page, ctx| {
-                        edit_page.set_mcp_server(
-                            Some(ServerCardItemId::TemplatableMCPInstallation(
-                                new_installation.uuid(),
-                            )),
-                            ctx,
-                        );
-                    });
-                }
-
-                self.installation_modal_state
-                    .view
-                    .update(ctx, |modal, ctx| {
-                        modal.body().update(ctx, |body, ctx| {
-                            body.set_templatable_mcp_server(None, None, ctx)
-                        });
-                    });
-                self.installation_modal_state.close();
-                ctx.emit(MCPServersSettingsPageEvent::HideModal);
-
-                ctx.notify();
-            }
-            InstallationModalBodyEvent::Cancel => {
-                self.installation_modal_state.close();
-                ctx.emit(MCPServersSettingsPageEvent::HideModal);
-                ctx.notify();
-            }
-        }
+    /// W3 域裁切:两个 MCP 模态(installation / update)均已物理删,
+    /// 设置页不再贡献任何模态内容。
+    pub fn get_modal_content(&self, _app: &AppContext) -> Option<Box<dyn Element>> {
+        None
     }
 }
 
 impl Entity for MCPServersSettingsPageView {
-    type Event = MCPServersSettingsPageEvent;
+    type Event = ();
 }
 
 impl View for MCPServersSettingsPageView {
@@ -561,9 +437,6 @@ impl SettingsPageMeta for MCPServersSettingsPageView {
     }
 }
 
-#[cfg(test)]
-#[path = "mcp_servers_page_tests.rs"]
-mod tests;
 
 #[derive(Default)]
 pub struct MCPServersSettingsWidget {

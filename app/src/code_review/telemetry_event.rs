@@ -62,7 +62,6 @@ pub enum AddToContextOrigin {
     Gutter,
     /// User clicked the "Add diff set as context" button in code review header.
     #[serde(rename = "code_review_header")]
-    #[allow(unused)]
     CodeReviewHeader,
 }
 

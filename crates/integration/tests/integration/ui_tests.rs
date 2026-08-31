@@ -101,8 +101,6 @@ integration_tests! {
     #[cfg(target_os="macos")]
     test_preview_config_dir_migration,
     #[ignore = "Flakes in CI"]
-    test_add_launch_config_to_warp_config,
-    #[ignore = "Flakes in CI"]
     test_add_workflows_to_warp_config,
     #[ignore = "Flakes in CI"]
     test_add_theme_to_warp_config,

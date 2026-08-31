@@ -1,7 +1,7 @@
 use warpui::{platform::WindowStyle, App};
 
 use crate::{
-    auth::AuthManager, cloud_object::model::persistence::ObjectStoreModel,
+    auth::{AuthManager, AuthStateProvider}, cloud_object::model::persistence::ObjectStoreModel,
     cloud_object::update_manager::UpdateManager, network::NetworkStatus,
     settings_view::keybindings::KeybindingChangedNotifier, system::SystemStats,
     test_util::settings::initialize_settings_for_tests,

@@ -2190,7 +2190,6 @@ impl View for AISettingsPageView {
 
 pub enum AISettingsPageEvent {
     FocusModal,
-    OpenAIFactCollection,
     OpenMCPServerCollection,
     OpenExecutionProfileEditor(ClientProfileId),
 }
@@ -2231,7 +2230,6 @@ pub enum AISettingsPageAction {
     ToggleShowAgentZeroStateHints,
     SetThinkingDisplayMode(ThinkingDisplayMode),
     RemoveCLIAgentToolbarEnabledCommand(String),
-    OpenAIFactCollection,
     OpenMCPServerCollection,
     OpenExecutionProfileEditor(ClientProfileId),
     SetBaseModel(LLMId),
@@ -2771,9 +2769,6 @@ impl TypedActionView for AISettingsPageView {
                 AISettings::handle(ctx).update(ctx, |settings, ctx| {
                     settings.set_cli_agent_for_command(pattern, *agent, ctx);
                 });
-            }
-            AISettingsPageAction::OpenAIFactCollection => {
-                ctx.emit(AISettingsPageEvent::OpenAIFactCollection)
             }
             AISettingsPageAction::OpenMCPServerCollection => {
                 ctx.emit(AISettingsPageEvent::OpenMCPServerCollection)
@@ -5657,7 +5652,6 @@ impl SettingsWidget for MCPServersWidget {
 struct AIFactWidget {
     rules_toggle: SwitchStateHandle,
     rules_link_index: HighlightedHyperlink,
-    manage_rules_button: MouseStateHandle,
     rule_suggestions_toggle: SwitchStateHandle,
 }
 
@@ -5770,13 +5764,6 @@ impl SettingsWidget for AIFactWidget {
         .with_margin_bottom(HEADER_PADDING)
         .finish();
 
-        let button = render_full_pane_width_ai_button(
-            &crate::t!("settings-ai-manage-rules"),
-            is_any_ai_enabled,
-            self.manage_rules_button.clone(),
-            AISettingsPageAction::OpenAIFactCollection,
-            appearance,
-        );
 
         let mut column = Flex::column()
             .with_child(header)
@@ -5789,7 +5776,7 @@ impl SettingsWidget for AIFactWidget {
         // 去中心化分支:不再渲染 "Dais Drive as agent context" 开关。
         let _ = self;
         let _ = view;
-        column.with_child(button).finish()
+        column.finish()
     }
 }
 

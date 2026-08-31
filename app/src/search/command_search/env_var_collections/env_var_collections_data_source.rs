@@ -12,7 +12,7 @@ use crate::search::mixer::{DataSourceRunErrorWrapper, SyncDataSource};
 pub struct EnvVarCollectionDataSource {}
 
 impl EnvVarCollectionDataSource {
-    /// Creates a new EnvVarCollectionDataSource containing personal and team EVCs.
+    /// Creates a new EnvVarCollectionDataSource containing EVCs from the local object store.
     pub fn new() -> Self {
         Self {}
     }

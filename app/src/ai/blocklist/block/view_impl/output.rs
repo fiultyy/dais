@@ -71,6 +71,7 @@ use crate::{
                 AutonomySettingSpeedbump, EmbeddedCodeEditorView, RequestedEdit, TextLocation,
                 TodoListElementState,
             },
+            block::keyboard_navigable_buttons::KeyboardNavigableButtons,
             history_model::BlocklistAIHistoryModel,
             inline_action::{
                 ask_user_question_view::AskUserQuestionView,
@@ -88,8 +89,7 @@ use crate::{
                 web_fetch::WebFetchView,
                 web_search::WebSearchView,
             },
-            keyboard_navigable_buttons::KeyboardNavigableButtons,
-            BlocklistAIActionModel, SuggestionChipView,
+            BlocklistAIActionModel,
         },
         paths::shell_native_absolute_path,
         skills::SkillManager,
@@ -125,7 +125,7 @@ use warpui::{
     elements::{
         Align, Border, ChildView, ConstrainedBox, Container, CornerRadius, CrossAxisAlignment,
         Empty, Expanded, Fill, Flex, FormattedTextElement, Hoverable, MainAxisAlignment,
-        MainAxisSize, ParentElement, Radius, Shrinkable, Text, Wrap,
+        MainAxisSize, ParentElement, Radius, Shrinkable, Text,
     },
     keymap::Keystroke,
     platform::{Cursor, OperatingSystem},
@@ -157,17 +157,12 @@ pub(crate) struct Props<'a> {
     pub(crate) find_context: Option<FindContext<'a>>,
     pub(super) is_references_section_open: bool,
     pub(super) autonomy_setting_speedbump: &'a AutonomySettingSpeedbump,
-    pub(super) suggested_rules: &'a Vec<ViewHandle<SuggestionChipView>>,
-    pub(super) suggested_agent_mode_workflow: &'a Option<ViewHandle<SuggestionChipView>>,
-    pub(super) manage_rules_button: &'a ViewHandle<ActionButton>,
     pub(super) keyboard_navigable_buttons: Option<&'a ViewHandle<KeyboardNavigableButtons>>,
     pub(super) request_refunded_count: Option<i32>,
     pub(super) web_search_views: &'a HashMap<MessageId, ViewHandle<WebSearchView>>,
     pub(super) web_fetch_views: &'a HashMap<MessageId, ViewHandle<WebFetchView>>,
     pub(super) review_changes_button: &'a ViewHandle<ActionButton>,
     pub(super) open_all_comments_button: &'a ViewHandle<ActionButton>,
-    pub(super) dismiss_suggestion_button: &'a ViewHandle<ActionButton>,
-    pub(super) disable_rule_suggestions_button: &'a ViewHandle<ActionButton>,
     pub(super) current_todo_list: Option<&'a AIAgentTodoList>,
     pub(super) has_accepted_edits: bool,
     pub(super) finish_reason: Option<&'a FinishReason>,
@@ -239,11 +234,12 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                 // We only want to render the references section, thumbs up/down ratings, and suggestions
                 // when the entire response is complete to avoid intermediate states.
                 let mut should_render_references_section = is_complete && request_type.is_active();
-                let mut should_render_suggestions = is_complete
-                    && props.model.is_latest_non_passive_exchange_in_root_task(app)
-                    && !is_conversation_in_progress
-                    && !is_output_for_static_prompt_suggestions
-                    && request_type.is_active();
+                let mut should_render_footer =
+                    is_complete
+                        && props.model.is_latest_non_passive_exchange_in_root_task(app)
+                        && !is_conversation_in_progress
+                        && !is_output_for_static_prompt_suggestions
+                        && request_type.is_active();
 
                 // Passive code diffs footer, after acceptance, is different from the usual footer.
                 let requires_special_footer =
@@ -392,7 +388,6 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                             if !is_action_done {
                                 // Ratings & suggestions should not be rendered for requested command actions that are not complete.
                                 should_render_footer = false;
-                                should_render_suggestions = false;
                             }
 
                             // T1-2:已成功完成的卡片可隐藏(失败/取消仍显示)。
@@ -541,7 +536,6 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                             ..
                         }) => {
                             should_render_footer = false;
-                            should_render_suggestions = false;
                             // T1-2 guard
                             if should_hide_completed_action(
                                 props.action_model,
@@ -573,7 +567,6 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                             ..
                         }) => {
                             should_render_footer = false;
-                            should_render_suggestions = false;
                             // T1-2 guard
                             if should_hide_completed_action(
                                 props.action_model,
@@ -607,7 +600,6 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                             ..
                         }) => {
                             should_render_footer = false;
-                            should_render_suggestions = false;
                             let name = uri.as_ref().unwrap_or(name);
                             output_items.add_child(render_read_mcp_resource(props, id, name, app));
                         }
@@ -629,7 +621,6 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                             if !is_action_done {
                                 // Ratings & suggestions should not be rendered for MCP tool call actions that are not complete.
                                 should_render_footer = false;
-                                should_render_suggestions = false;
                             }
 
                             if let Some(rendered_mcp_tool) = props
@@ -646,7 +637,6 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                             ..
                         }) if FeatureFlag::AskUserQuestion.is_enabled() => {
                             should_render_footer = false;
-                            should_render_suggestions = false;
                             if let Some(rendered_ask_user_question) =
                                 render_ask_user_question(id, props, app)
                             {
@@ -666,7 +656,6 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                             }
                         }
                         AIAgentOutputMessageType::CommentsAddressed { comments } => {
-                            should_render_suggestions = false;
                             for comment in comments {
                                 output_items
                                     .add_child(render_comment_addressed_header(comment, app));
@@ -849,7 +838,6 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                             task_id: subagent_task_id,
                         }) => {
                             should_render_footer = false;
-                            should_render_suggestions = false;
                             let conversation = props.model.conversation(app);
                             let is_finished = conversation
                                 .and_then(|c| {
@@ -982,14 +970,6 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                     };
                     if let AIAgentOutputMessageType::Action(..) = output_message.message {
                         action_index += 1;
-                    }
-                }
-
-                // Only render suggested rules and prompts if the response is complete.
-                if should_render_suggestions && FeatureFlag::SuggestedRules.is_enabled() {
-                    if let Some(suggestions) = render_suggested_rules_and_prompts_footer(props, app)
-                    {
-                        output_items.add_child(suggestions);
                     }
                 }
 
@@ -2386,104 +2366,6 @@ fn render_references_footer(
     }
 
     Some(column.finish().with_agent_output_item_spacing(app).finish())
-}
-
-/// Renders the suggested rules footer at the bottom of the block.
-fn render_suggested_rules_and_prompts_footer(
-    props: Props,
-    app: &AppContext,
-) -> Option<Box<dyn Element>> {
-    // Filter out dismissed suggestions
-    let dismissed_ids = props
-        .model
-        .conversation(app)
-        .map(|c| c.dismissed_suggestion_ids().clone())
-        .unwrap_or_default();
-
-    let suggested_rules = props
-        .suggested_rules
-        .iter()
-        .filter(|chip| {
-            let logging_id = chip.as_ref(app).logging_id();
-            !dismissed_ids.contains(&logging_id)
-        })
-        .collect_vec();
-
-    let suggested_prompt = props.suggested_agent_mode_workflow.as_ref().filter(|chip| {
-        let logging_id = chip.as_ref(app).logging_id();
-        !dismissed_ids.contains(&logging_id)
-    });
-
-    // If no visible suggestions, don't render the footer
-    if suggested_rules.is_empty() && suggested_prompt.is_none() {
-        return None;
-    }
-
-    let appearance = Appearance::as_ref(app);
-    let theme = appearance.theme();
-    let title_row_color = theme.sub_text_color(theme.background());
-    let title_text = Text::new_inline(
-        "Suggestions:",
-        appearance.ui_font_family(),
-        appearance.monospace_font_size(),
-    )
-    .with_color(title_row_color.into())
-    .with_selectable(false)
-    .finish();
-
-    let has_suggested_rules = !suggested_rules.is_empty();
-
-    let right_buttons = {
-        let mut row = Flex::row().with_cross_axis_alignment(CrossAxisAlignment::Center);
-        if has_suggested_rules {
-            row.add_child(
-                Container::new(ChildView::new(props.disable_rule_suggestions_button).finish())
-                    .with_margin_right(4.)
-                    .finish(),
-            );
-        }
-        row.add_child(ChildView::new(props.dismiss_suggestion_button).finish());
-        row.finish()
-    };
-
-    let title = Container::new(
-        Flex::row()
-            .with_main_axis_alignment(MainAxisAlignment::SpaceBetween)
-            .with_cross_axis_alignment(CrossAxisAlignment::Center)
-            .with_child(Expanded::new(1.0, title_text).finish())
-            .with_child(right_buttons)
-            .finish(),
-    )
-    .with_margin_bottom(8.)
-    .finish();
-
-    let suggested_rules = suggested_rules
-        .iter()
-        .map(|rule| ChildView::new(rule).finish())
-        .collect_vec();
-
-    let suggested_agent_mode_workflows = suggested_prompt
-        .iter()
-        .map(|workflow| ChildView::new(workflow).finish())
-        .collect_vec();
-    let has_suggested_agent_mode_workflow = !suggested_agent_mode_workflows.is_empty();
-
-    let mut prompts_row = Wrap::row()
-        .with_children(suggested_rules)
-        .with_children(suggested_agent_mode_workflows);
-
-    if has_suggested_rules && !has_suggested_agent_mode_workflow {
-        prompts_row.add_child(ChildView::new(props.manage_rules_button).finish());
-    }
-
-    Some(
-        Flex::column()
-            .with_child(title)
-            .with_child(prompts_row.finish())
-            .finish()
-            .with_agent_output_item_spacing(app)
-            .finish(),
-    )
 }
 
 fn render_response_footer(props: Props, app: &AppContext) -> Option<Box<dyn Element>> {

@@ -1,4 +1,3 @@
-use warp_core::context_flag::ContextFlag;
 use warpui::{
     elements::{Container, Flex, MouseStateHandle, ParentElement},
     fonts::Weight,
@@ -12,9 +11,9 @@ use crate::{
         model::actions::{ObjectActionType, ObjectActions},
         StoredObjectMetadata,
     },
-    drive::{index::DriveIndexAction, DriveObjectType, ObjectTypeAndId},
+    drive::{DriveObjectType, ObjectTypeAndId},
     themes::theme::Fill,
-    workflows::{WorkflowObject, WorkflowViewMode},
+    workflows::WorkflowObject,
 };
 
 use super::{WarpDriveItem, WarpDriveItemId};
@@ -56,18 +55,6 @@ impl WarpDriveItem for WarpDriveWorkflow {
         None
     }
 
-    fn click_action(&self) -> Option<DriveIndexAction> {
-        if !ContextFlag::RunWorkflow.is_enabled() {
-            // If we are in a context where we can't run workflows, open it in view mode
-            // by default
-            Some(DriveIndexAction::OpenWorkflowInPane {
-                object_type_and_id: self.id,
-                open_mode: WorkflowViewMode::View,
-            })
-        } else {
-            Some(DriveIndexAction::RunObject(self.id))
-        }
-    }
 
     fn preview(&self, appearance: &Appearance) -> Option<Box<dyn Element>> {
         let mut modal =

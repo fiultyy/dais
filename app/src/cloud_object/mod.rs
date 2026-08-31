@@ -22,17 +22,20 @@
 //! 真正的 "服务端往返" 类型正在分批物理删除；服务端对象 enum、字段转换、
 //! 初始加载 fan-in 与旧服务端泛型对象承载结构已删除。
 
-use self::{breadcrumbs::ContainingObject, model::persistence::ObjectStoreModel};
+use self::model::persistence::ObjectStoreModel;
 use crate::{
     appearance::Appearance,
     auth::UserUid,
     channel::ChannelState,
     drive::{
-        items::WarpDriveItem, ObjectTypeAndId, DaisDriveObjectArgs, DaisDriveObjectSettings,
+        folders::FolderObject,
+        items::{WarpDriveItem, WarpDriveItemId},
+        ObjectTypeAndId,
     },
     persistence::ModelEvent,
     server::ids::{ClientId, HashableId, HashedSqliteId, ObjectUid, ServerId, SyncId, ToServerId},
     server_time::ServerTimestamp,
+    ui_components::breadcrumb::Breadcrumb,
     util::time_format::format_approx_duration_from_now_utc,
     workflows::{WorkflowObject, WorkflowSource},
     workspaces::{user_profiles::UserProfiles, user_workspaces::UserWorkspaces},
@@ -43,19 +46,15 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use std::{
     any::Any,
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     fmt::Debug,
     sync::Arc,
 };
-use url::Url;
 use warp_core::{channel::Channel, features::FeatureFlag};
 use warpui::{AppContext, SingletonEntity};
 
-pub mod breadcrumbs;
-pub mod grab_edit_access_modal;
 pub mod model;
 mod server_types;
-pub mod toast_message;
 pub mod update_manager;
 
 pub use server_types::*;
@@ -92,6 +91,59 @@ impl From<&str> for SerializedModel {
         Self(s.to_string())
     }
 }
+// Encapsulates an object that can contain other objects, and keeps
+// information necessary to show breadcrumbs.
+//
+// W3-d8: 原 `cloud_object::breadcrumbs` 模块已裁撤, 类型本地化到此。
+#[derive(Clone, Debug)]
+pub struct ContainingObject {
+    pub name: String,
+    pub kind: ContainingObjectKind,
+}
+
+impl Breadcrumb for ContainingObject {
+    fn label(&self) -> String {
+        self.name.clone()
+    }
+
+    fn enabled(&self) -> bool {
+        true
+    }
+}
+
+impl From<&FolderObject> for ContainingObject {
+    fn from(folder: &FolderObject) -> Self {
+        Self {
+            name: folder.display_name().clone(),
+            kind: ContainingObjectKind::Object(ObjectTypeAndId::Folder(folder.id)),
+        }
+    }
+}
+
+impl Space {
+    pub fn into_containing_object(self, app: &AppContext) -> ContainingObject {
+        ContainingObject {
+            name: self.name(app).clone(),
+            kind: ContainingObjectKind::Space(self),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ContainingObjectKind {
+    Space(Space),
+    Object(ObjectTypeAndId),
+}
+
+impl ContainingObjectKind {
+    pub fn into_item_id(self) -> WarpDriveItemId {
+        match self {
+            ContainingObjectKind::Space(space) => WarpDriveItemId::Space(space),
+            ContainingObjectKind::Object(object) => WarpDriveItemId::Object(object),
+        }
+    }
+}
+
 
 /// A StoredObject represents
 /// therefore shareable and editable (i.e. Notebooks and Workflows). In order
@@ -238,6 +290,9 @@ pub trait StoredObject: Debug {
 
     // Returns the path of all the containing "objects" for this object.
     // This could include folders or spaces.
+    //
+    // W3-d8: 递归依赖 `breadcrumbs` 模块的 `ContainingObject` 已内联本地化,
+    // 祖先路径仍由 `ObjectStoreModel` 的 folder 图驱动。
     fn containing_objects_path(&self, app: &AppContext) -> Vec<ContainingObject> {
         let space = self.space(app);
 
@@ -517,12 +572,6 @@ pub trait StoredObjectModel: Debug + Clone + Send + Sync {
     fn supports_linking(&self) -> bool {
         true
     }
-    /// Returns whether this model type should be updated after a server conflict.
-    /// Note that for now the only model type that this is relevant for is Notebooks,
-    /// where we show a banner in case of conflicts and ask users to manually take action.
-    /// For other types we typically just want to replace the local object with the server
-    /// revision, which doesn't go through this code path.
-    fn should_update_after_server_conflict(&self) -> bool;
 
     /// Whether this model type can be exported.
     fn can_export(&self) -> bool {
@@ -810,56 +859,10 @@ where
                 last_editor_uid: None,
                 last_task_run_ts: None,
             },
-            permissions: StoredObjectPermissions {
-                owner,
-                anyone_with_link: None,
-                guests: Default::default(),
-                permissions_last_updated_ts: None,
-            },
+            permissions: StoredObjectPermissions { owner },
             conflict_status: ConflictStatus::NoConflicts,
         }
     }
-}
-
-/// Extracts the server id and object type from a (caller validated) Drive link.
-/// Intended use is deriving metadata from links such that Dais objects
-/// can be opened natively in Dais with no web interaction.
-pub fn extract_server_id_and_object_type_from_warp_drive_link(
-    url: &Url,
-) -> Option<DaisDriveObjectArgs> {
-    let server_id = url
-        .path_segments()
-        .and_then(|mut segments| segments.next_back())
-        .and_then(|last_segment| last_segment.split('-').next_back())
-        .map(|id| id.to_string());
-
-    let object_type = url.path_segments().and_then(|mut segments| segments.nth(1));
-
-    // Parse the object portion of the path segment (warp.dev/drive/{object})
-    // into an object type
-    let object_type = match object_type {
-        Some("notebook") => ObjectType::Notebook,
-        Some("workflow") => ObjectType::Workflow,
-        _ => return None,
-    };
-    let query_string: HashMap<_, _> = url.query_pairs().collect();
-    let focused_folder_id: Option<ServerId> = query_string
-        .get("focused_folder_id")
-        .and_then(|s| s.to_string().try_into().ok());
-
-    let invitee_email: Option<String> = query_string.get("invitee_email").map(|s| s.to_string());
-
-    Some(DaisDriveObjectArgs {
-        object_type,
-        server_id: match server_id {
-            Some(server_id) => server_id.try_into().ok()?,
-            _ => return None,
-        },
-        settings: DaisDriveObjectSettings {
-            focused_folder_id,
-            invitee_email,
-        },
-    })
 }
 
 impl<'a, K, M> From<&'a dyn StoredObject> for Option<&'a GenericStoredObject<K, M>>

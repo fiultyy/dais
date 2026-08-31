@@ -6,7 +6,7 @@ use crate::{
     cloud_object::StoredObjectMetadata,
     drive::{
         cloud_object_styling::warp_drive_icon_color, folders::FolderObject,
-        index::DriveIndexAction, DriveObjectType, ObjectTypeAndId,
+            DriveObjectType, ObjectTypeAndId,
     },
     themes::theme::Fill,
     ui_components::icons::Icon,
@@ -63,9 +63,6 @@ impl WarpDriveItem for WarpDriveFolder {
         Some(self.folder.model().is_open)
     }
 
-    fn click_action(&self) -> Option<DriveIndexAction> {
-        Some(DriveIndexAction::ToggleFolderOpen(self.folder.id))
-    }
 
     fn preview(&self, _: &Appearance) -> Option<Box<dyn Element>> {
         None

@@ -1,20 +1,16 @@
 #[cfg(target_os = "macos")]
 use std::fs;
 use std::{path::PathBuf, sync::Arc};
-
-use warp_core::features::FeatureFlag;
-
 use crate::{
     app_state::{
         AppState, CodePaneSnapShot, CodePaneTabSnapshot, LeafContents, LeafSnapshot,
         PaneNodeSnapshot, TabSnapshot, TerminalPaneSnapshot, WindowSnapshot,
     },
-    cloud_object::{Owner, StoredObjectPermissions},
+    cloud_object::Owner,
     code::editor_management::CodeSource,
     notebooks::{NotebookObject, NotebookObjectModel},
-    persistence::{model::ObjectPermissions, BlockCompleted, ModelEvent},
+    persistence::{BlockCompleted, ModelEvent},
     server::ids::ClientId,
-    server_time::ServerTimestamp,
     tab::SelectedTabColor,
     terminal::model::block::SerializedBlock,
     terminal::ShellLaunchData,
@@ -703,39 +699,3 @@ fn test_migrate_zap_app_group_sqlite_marker_skips_copy() {
     assert_eq!(fs::read_to_string(&target_db).unwrap(), "target-db");
 }
 
-#[test]
-fn test_deserialize_corrupted_guests() {
-    let _ = FeatureFlag::SharedWithMe.override_enabled(true);
-    // Use a hardcoded timestamp to ensure this test works on systems with more-than-microsecond
-    // precision.
-    let permissions_ts_micros = 123456;
-    let permissions_ts =
-        ServerTimestamp::from_unix_timestamp_micros(permissions_ts_micros).unwrap();
-
-    let db_permissions = ObjectPermissions {
-        id: 42,
-        object_metadata_id: 10,
-        subject_type: "TEAM".to_string(),
-        subject_id: Some("7".to_string()),
-        subject_uid: "team_uid12345678912345".to_string(),
-        permissions_last_updated_at: Some(permissions_ts_micros),
-        // This is not a valid set of encoded object guests.
-        object_guests: Some(vec![1, 2, 3]),
-        anyone_with_link_access_level: None,
-        anyone_with_link_source: None,
-    };
-
-    // The overall permissions should successfully convert, minus the object guests.
-    let cloud_permissions = super::to_cloud_object_permissions(&db_permissions, None);
-    assert_eq!(
-        cloud_permissions,
-        Some(StoredObjectPermissions {
-            owner: Owner::Team {
-                team_uid: crate::server::ids::ServerId::from_string_lossy("team_uid12345678912345"),
-            },
-            permissions_last_updated_ts: Some(permissions_ts),
-            anyone_with_link: None,
-            guests: vec![],
-        })
-    );
-}

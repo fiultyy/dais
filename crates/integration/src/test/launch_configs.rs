@@ -1,10 +1,6 @@
 use std::{path::PathBuf, time::Duration};
 
-use warpui::{
-    async_assert,
-    integration::{AssertionOutcome, TestStep},
-    ModelHandle,
-};
+use warpui::integration::AssertionOutcome;
 
 use super::{assert_approx_eq, new_builder, TEST_ONLY_ASSETS};
 use crate::Builder;
@@ -17,80 +13,10 @@ use warp::integration_testing::{
     step::new_step_with_default_assertions,
     terminal::{validate_block_output, wait_until_bootstrapped_single_pane_for_tab},
 };
-use warp::search::command_palette::launch_config;
 use warp::workspace::NEW_TAB_BUTTON_POSITION_ID;
 use warp::{features::FeatureFlag, integration_testing::settings::set_window_custom_size};
-use warp::{
-    integration_testing::type_getters::get_launch_config_ui_location, search::SyncDataSource,
-};
-use warp::{
-    integration_testing::{self},
-    search::data_source::Query,
-};
-
-/// Adds a launch config to the mocked out warp config directory and verifies that
-/// the launch config appears in the launch config palette.
-pub fn test_add_launch_config_to_warp_config() -> Builder {
-    new_builder()
-        .with_setup(move |utils| {
-            utils.set_env("WARP_CONFIG_WATCHER_DELAY_MS", Some((10).to_string()));
-
-            std::fs::create_dir_all(integration_testing::launch_configs::launch_configs_dir())
-                .expect("Should be able to create launch configs dir");
-        })
-        .with_step(wait_until_bootstrapped_single_pane_for_tab(0))
-        .with_step(
-            TestStep::new("Launch config palette should be empty").add_named_assertion(
-                "Launch config palette should be empty",
-                |app, _| {
-                    let launch_config_data_source: ModelHandle<launch_config::DataSource> = app
-                        .models_of_type()
-                        .first()
-                        .expect("launch config must exist")
-                        .clone();
-                    launch_config_data_source.read(app, |palette, app| {
-                        // Note that this can be a synchronous assertion because unlike the next test step,
-                        // we don't have concurrency with a WarpConfig watcher thread
-                        assert_eq!(
-                            palette.run_query(&Query::from(""), app).unwrap().len(),
-                            0,
-                            "There should not be any launch configs in the palette"
-                        );
-                    });
-                    AssertionOutcome::Success
-                },
-            ),
-        )
-        .with_step(
-            TestStep::new("Write a new launch config")
-                .with_setup(|_utils| {
-                    integration_testing::create_file_from_assets(
-                        TEST_ONLY_ASSETS,
-                        "test_launch_config.yaml",
-                        &integration_testing::launch_configs::launch_configs_dir()
-                            .join("test_launch_config.yaml"),
-                    );
-                })
-                .add_named_assertion(
-                    "The added launch config should be in the palette",
-                    |app, _| {
-                        let launch_config_data_source: ModelHandle<launch_config::DataSource> = app
-                            .models_of_type()
-                            .first()
-                            .expect("launch config must exist")
-                            .clone();
-                        let num_configs = launch_config_data_source.read(app, |palette, ctx| {
-                            palette.run_query(&Query::from(""), ctx).unwrap().len()
-                        });
-                        async_assert!(
-                            num_configs == 1,
-                            "Expected to find one launch config, instead found {}",
-                            num_configs
-                        )
-                    },
-                ),
-        )
-}
+use warp::integration_testing::type_getters::get_launch_config_ui_location;
+use warp::integration_testing;
 
 pub fn test_with_launch_config() -> Builder {
     new_builder()

@@ -6,8 +6,6 @@
 mod ai;
 mod alloc;
 mod antivirus;
-#[cfg(target_os = "macos")]
-mod app_menus;
 mod app_services;
 mod app_state;
 mod auth;
@@ -74,7 +72,6 @@ mod quit_warning;
 mod remote_server;
 mod resource_limits;
 mod safe_triangle;
-mod search_bar;
 mod server;
 mod server_time;
 mod session_management;
@@ -88,7 +85,6 @@ mod tab;
 #[cfg(test)]
 mod test_util;
 mod throttle;
-mod tips;
 mod tracing;
 mod ui_components;
 mod undo_close;
@@ -100,11 +96,8 @@ mod vim_registers;
 mod voice;
 mod voltron;
 mod warp_managed_paths_watcher;
-#[cfg(target_family = "wasm")]
-mod wasm_nux_dialog;
-mod window_settings;
-mod word_block_editor;
 mod workspaces;
+mod window_settings;
 
 // PLEASE DO NOT ADD MORE PUBLIC MODULES!
 //
@@ -196,7 +189,6 @@ use workflows::manager::WorkflowManager;
 
 use crate::ai::ambient_agents::github_auth_notifier::GitHubAuthNotifier;
 use crate::ai::document::ai_document_model::AIDocumentModel;
-use crate::ai::facts::manager::AIFactManager;
 use crate::ai::llms::LLMPreferences;
 use crate::ai::mcp::MCPGalleryManager;
 use crate::ai::mcp::TemplatableMCPServerManager;
@@ -240,7 +232,7 @@ use crate::vim_registers::VimRegisters;
 use crate::warp_managed_paths_watcher::{ensure_warp_watch_roots_exist, WarpManagedPathsWatcher};
 use crate::workflows::aliases::WorkflowAliases;
 use crate::workflows::local_workflows::LocalWorkflows;
-use crate::workspace::{ActiveSession, OneTimeModalModel, ToastStack};
+use crate::workspace::{ActiveSession, ToastStack};
 use crate::workspaces::user_profiles::UserProfiles;
 #[cfg(feature = "local_tty")]
 use anyhow::Context;
@@ -897,8 +889,6 @@ fn run_internal(mut launch_mode: LaunchMode) -> Result<()> {
         let dev_icon = ASSETS.get("bundled/png/local.png")?;
         app_builder.set_dev_icon(dev_icon);
 
-        app_builder.set_menu_bar_builder(app_menus::menu_bar);
-        app_builder.set_dock_menu_builder(|_| app_menus::dock_menu());
     }
 
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
@@ -1362,8 +1352,6 @@ fn initialize_app(
 
     ctx.add_singleton_model(AntivirusInfo::new);
 
-    // 云同步 Token 走 OS 密钥库，不落 TOML。
-    ctx.add_singleton_model(crate::settings::CloudSyncTokenStore::new);
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "crash_reporting")] {
@@ -1405,7 +1393,6 @@ fn initialize_app(
     App::record_last_active_timestamp();
 
     ctx.add_singleton_model(|_| SettingsPaneManager::new());
-    ctx.add_singleton_model(|_| AIFactManager::new());
     ctx.add_singleton_model(|_| ExecutionProfileEditorManager::default());
     ctx.add_singleton_model(|_| pricing::PricingInfoModel::new());
     ctx.add_singleton_model(|_| {
@@ -1506,11 +1493,8 @@ fn initialize_app(
             });
 
             for window_id in ctx.window_ids().collect_vec() {
-                SettingsPaneManager::handle(ctx)
-                    .read(ctx, |model, _| model.settings_view(window_id))
-                    .update(ctx, |settings, ctx| {
-                        settings.refresh_preferred_graphics_backend_dropdown(ctx);
-                    })
+                // W3 域裁切: Features 页随 preferred-graphics-backend 下线,
+                // 启动时的 dropdown 刷新随页面一同物理删。
             }
 
             send_telemetry_from_app_ctx!(event, ctx);
@@ -1616,10 +1600,7 @@ fn initialize_app(
     terminal::init(ctx);
     input::init(ctx);
     editor::init(ctx);
-    onboarding::set_localizer(|key| crate::i18n::t_or(key, key));
-    onboarding::init(ctx);
     menu::init(ctx);
-    tips::tip_view::init(ctx);
     launch_configs::init(ctx);
     workflows::init(ctx);
     notifications::init(ctx);
@@ -1637,7 +1618,6 @@ fn initialize_app(
     tab_configs::params_modal::init(ctx);
     ai::blocklist::init(ctx);
     ai::blocklist::block::status_bar::init(ctx);
-    drive::index::init(ctx);
     ai_assistant::panel::init(ctx);
     // Dais Wave 7-2:`settings_view::update_environment_form::init` 随 cloud ambient agent
     // 主体子系统物理删。
@@ -1649,7 +1629,6 @@ fn initialize_app(
     context_chips::node_version_popup::init(ctx);
     env_vars::view::env_var_collection::init(ctx);
     ai::agent::todos::popup::init(ctx);
-    coding_entrypoints::project_buttons::init(ctx);
     if FeatureFlag::CodeReviewSaveChanges.is_enabled() {
         code_review::init(ctx);
     }
@@ -1675,7 +1654,6 @@ fn initialize_app(
     ctx.add_singleton_model(UndoCloseStack::new);
     ctx.add_singleton_model(|_| ToastStack);
     ctx.add_singleton_model(|_| GlobalCodeReviewModel);
-    ctx.add_singleton_model(workspace::OneTimeModalModel::new);
     ctx.add_singleton_model(
         workspace::bonus_grant_notification_model::BonusGrantNotificationModel::new,
     );
@@ -2180,12 +2158,6 @@ fn app_callbacks(is_integration_test: bool) -> warpui::platform::AppCallbacks {
                 );
             }
 
-            if let Some(active_window_id) = active_window_id {
-                OneTimeModalModel::handle(ctx).update(ctx, |model, ctx| {
-                    model.update_target_window_id(active_window_id, ctx);
-                });
-            }
-
             ctx.dispatch_global_action("workspace:save_app", &());
         })),
         on_window_will_close: Some(Box::new(move |closed_window_data, ctx| {
@@ -2499,7 +2471,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::AlacrittySettingsImport,
         #[cfg(feature = "dynamic_workflow_enums")]
         FeatureFlag::DynamicWorkflowEnums,
-        #[cfg(feature = "shared_with_me")]
         FeatureFlag::SharedWithMe,
         #[cfg(feature = "am_workflows")]
         FeatureFlag::AgentModeWorkflows,
@@ -2647,10 +2618,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::ConversationArtifacts,
         #[cfg(feature = "sync_ambient_plans")]
         FeatureFlag::SyncAmbientPlans,
-        #[cfg(feature = "get_started_tab")]
-        FeatureFlag::GetStartedTab,
-        #[cfg(feature = "welcome_tab")]
-        FeatureFlag::WelcomeTab,
         #[cfg(feature = "projects")]
         FeatureFlag::Projects,
         #[cfg(feature = "drive_objects_as_context")]
@@ -2685,10 +2652,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::ServerFileBrowser,
         #[cfg(feature = "allow_ignoring_input_suggestions")]
         FeatureFlag::AllowIgnoringInputSuggestions,
-        // Dais(本地化):ambient agent / agent management view 的云端入口已物理下线。
-        // BYOP agent 本地运行不依赖这些入口。
-        #[cfg(feature = "code_launch_modal")]
-        FeatureFlag::CodeLaunchModal,
         #[cfg(feature = "api_key_authentication")]
         FeatureFlag::APIKeyAuthentication,
         #[cfg(feature = "api_key_management")]
@@ -2697,9 +2660,7 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::McpOauth,
         #[cfg(feature = "file_based_mcp")]
         FeatureFlag::FileBasedMcp,
-        #[cfg(feature = "diff_set_as_context")]
         FeatureFlag::DiffSetAsContext,
-        #[cfg(feature = "discard_per_file_and_all_changes")]
         FeatureFlag::DiscardPerFileAndAllChanges,
         #[cfg(feature = "summarization_cancellation_confirmation")]
         FeatureFlag::SummarizationCancellationConfirmation,
@@ -2777,7 +2738,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::OzPlatformSkills,
         #[cfg(feature = "bundled_skills")]
         FeatureFlag::BundledSkills,
-        #[cfg(feature = "open_warp_launch_modal")]
         FeatureFlag::ZapLaunchModal,
         #[cfg(feature = "new_tab_styling")]
         FeatureFlag::NewTabStyling,
@@ -2797,7 +2757,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::KittyKeyboardProtocol,
         #[cfg(feature = "inline_menu_headers")]
         FeatureFlag::InlineMenuHeaders,
-        #[cfg(feature = "directory_tab_colors")]
         FeatureFlag::DirectoryTabColors,
         #[cfg(feature = "open_warp_new_settings_modes")]
         FeatureFlag::ZapNewSettingsModes,
@@ -2823,8 +2782,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::WarpifyFooter,
         #[cfg(feature = "solo_user_byok")]
         FeatureFlag::SoloUserByok,
-        #[cfg(feature = "hoa_onboarding_flow")]
-        FeatureFlag::HOAOnboardingFlow,
         #[cfg(feature = "git_operations_in_code_review")]
         FeatureFlag::GitOperationsInCodeReview,
         #[cfg(feature = "hoa_remote_control")]

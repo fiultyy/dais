@@ -1,6 +1,5 @@
 use crate::{
     cloud_object::{
-        breadcrumbs::ContainingObject,
         model::{persistence::ObjectStoreEvent, view::ObjectStoreViewModel},
         Owner, Revision, Space, StoredObject,
     },
@@ -61,14 +60,12 @@ impl ActiveEnvVarCollectionData {
     fn handle_object_store_event(
         &mut self,
         event: &ObjectStoreEvent,
-        ctx: &mut ModelContext<Self>,
+        _ctx: &mut ModelContext<Self>,
     ) {
         if let ObjectStoreEvent::ObjectMoved { type_and_id, .. } = event {
-            if let Some(env_var_collection_id) = type_and_id.as_generic_string_object_id() {
-                if self.is_active_env_var_collection(env_var_collection_id) {
-                    ctx.emit(ActiveEnvVarCollectionDataEvent::BreadcrumbsChanged)
-                }
-            }
+            // Dais(W3-d8): 面包屑刷新随 cloud_object::breadcrumbs 裁撤,
+            // ObjectMoved 不再触发 BreadcrumbsChanged。
+            let _ = type_and_id;
         }
     }
 
@@ -96,7 +93,6 @@ impl ActiveEnvVarCollectionData {
             ),
         ));
 
-        ctx.emit(ActiveEnvVarCollectionDataEvent::BreadcrumbsChanged);
         ctx.notify();
     }
 
@@ -106,7 +102,6 @@ impl ActiveEnvVarCollectionData {
         self.active_env_var_collection =
             ActiveEnvVarCollection::CommittedEnvVarCollection(env_var_collection_id);
 
-        ctx.emit(ActiveEnvVarCollectionDataEvent::BreadcrumbsChanged);
         ctx.notify();
     }
 
@@ -172,20 +167,8 @@ impl ActiveEnvVarCollectionData {
         self.id() == Some(env_var_collection_id)
     }
 
-    pub fn breadcrumbs(&self, ctx: &AppContext) -> Option<Vec<ContainingObject>> {
-        let cloud_env_var_collection = match &self.active_env_var_collection {
-            ActiveEnvVarCollection::None => None,
-            ActiveEnvVarCollection::CommittedEnvVarCollection(id) => {
-                ObjectStoreModel::as_ref(ctx).get_env_var_collection(id)
-            }
-            ActiveEnvVarCollection::NewEnvVarCollection(env_var_collection) => {
-                Some(env_var_collection.as_ref())
-            }
-        };
-
-        cloud_env_var_collection
-            .map(|env_var_collection| env_var_collection.containing_objects_path(ctx))
-    }
+    // Dais(W3-d8): `breadcrumbs()` 已随 cloud_object::breadcrumbs 裁撤;
+    // containing_objects_path 仍由 StoredObject trait 提供。
 
     pub fn trash_status(&self, ctx: &AppContext) -> TrashStatus {
         match &self.active_env_var_collection {
@@ -217,8 +200,6 @@ pub enum TrashStatus {
 }
 
 pub enum ActiveEnvVarCollectionDataEvent {
-    /// The EVC's breadcrumbs were updated.
-    BreadcrumbsChanged,
     /// The EVC was trashed or untrashed
     /// (used for refreshing the pane overflow items)
     TrashStatusChanged,

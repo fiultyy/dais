@@ -8,7 +8,7 @@ use crate::{
     auth::TEST_USER_UID,
     cloud_object::{
         model::{
-            actions::{ObjectAction, ObjectActionHistory, ObjectActionType, ObjectActions},
+            actions::{ObjectActionType, ObjectActions},
             generic_string_model::{
                 GenericStringModel, GenericStringObjectId, Serializer, StringModel,
             },
@@ -36,14 +36,11 @@ use crate::{
     },
     workspaces::user_workspaces::UserWorkspaces,
 };
-use chrono::{DateTime, Utc};
-use futures::channel::oneshot::{self, Receiver};
-use itertools::Itertools;
+use chrono::Utc;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashSet;
 use std::sync::{mpsc::SyncSender, Arc};
-use warpui::r#async::FutureId;
 use warpui::AppContext;
 use warpui::{Entity, ModelContext, SingletonEntity};
 
@@ -89,19 +86,6 @@ pub struct ObjectOperationResult {
 pub enum UpdateManagerEvent {
     ObjectOperationComplete { result: ObjectOperationResult },
     PreferencesUpdated { updated: Vec<Preference> },
-    AmbientTaskUpdated { timestamp: DateTime<Utc> },
-}
-
-/// An enum for choosing the behavior of the fetch_single_cloud_object function.
-pub enum FetchSingleObjectOption {
-    /// Perform the normal upsert behavior.
-    None,
-    /// Perform the normal upsert behavior, but additionally force overwrite the
-    /// in-memory object to whatever the server object is.
-    ForceOverwrite,
-    /// Only perform the normal upsert behavior if the object doesn't already
-    /// exist in-memory.
-    IgnoreIfExists,
 }
 
 /// An enum that defines whether the action was initiated by the user or the system.
@@ -125,14 +109,11 @@ where
 }
 
 /// The UpdateManager is responsible for delegating work
-/// when there is an update to an object (e.g. via a user interaction or
-/// a message from the server). Specifically, it will
+/// when there is an update to a local object (e.g. via a user interaction). Specifically, it will
 /// - write to SQLite
 /// - interact with the ObjectStoreModel to update the in-memory state used by the object views
-/// - interact with the SyncQueue by enqueueing an event
 pub struct UpdateManager {
     model_event_sender: Option<SyncSender<ModelEvent>>,
-    spawned_futures: Vec<FutureId>,
 }
 
 impl UpdateManager {
@@ -142,18 +123,12 @@ impl UpdateManager {
     ) -> Self {
         Self {
             model_event_sender,
-            spawned_futures: Default::default(),
         }
     }
 
     #[cfg(test)]
     pub fn mock(ctx: &mut ModelContext<Self>) -> Self {
         Self::new(None, ctx)
-    }
-
-    #[cfg(any(test, feature = "integration_tests"))]
-    pub fn spawned_futures(&self) -> &[FutureId] {
-        &self.spawned_futures
     }
 
     fn save_to_db(&self, events: impl IntoIterator<Item = ModelEvent>) {
@@ -167,59 +142,6 @@ impl UpdateManager {
         }
     }
 
-    /// Remove team-owned objects in response to leaving a team.
-    pub fn remove_team_objects(&mut self, left_team_uid: ServerId, ctx: &mut ModelContext<Self>) {
-        let object_store_model = ObjectStoreModel::handle(ctx);
-        let objects_to_remove = object_store_model
-            .as_ref(ctx)
-            .all_cloud_objects_in_space(
-                Space::Team {
-                    team_uid: left_team_uid,
-                },
-                ctx,
-            )
-            .map(|object| object.object_type_and_id())
-            .collect_vec();
-
-        // First, delete in-memory from ObjectStoreModel and object actions.
-        object_store_model.update(ctx, |object_store_model, ctx| {
-            for object in objects_to_remove.iter() {
-                object_store_model.delete_object(object.sync_id(), ctx);
-            }
-        });
-        ObjectActions::handle(ctx).update(ctx, |object_actions, ctx| {
-            for object in objects_to_remove.iter() {
-                object_actions.delete_actions_for_object(&object.uid(), ctx);
-            }
-        });
-
-        // Then, delete from SQLite.
-        let object_ids_and_types = objects_to_remove
-            .into_iter()
-            .map(|object| (object.sync_id(), object.object_id_type()))
-            .collect();
-        self.save_to_db([ModelEvent::DeleteObjects {
-            ids: object_ids_and_types,
-        }]);
-    }
-
-    pub fn resync_object(
-        &mut self,
-        object_type_and_id: &ObjectTypeAndId,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        // Dais(Wave 4):resync 原语义是“重新入 SyncQueue 向服务端推上本地变更”。
-        // 本地化后本身就是单向 sqlite 写入,调用点仅需轻量检查。
-        let _ = (object_type_and_id, ctx);
-    }
-
-    /// Out-of-band (from the regular poll) refresh of updated objects.
-    pub fn refresh_updated_objects(&mut self, ctx: &mut ModelContext<Self>) {
-        // Dais 本地化: 暂无云端 object 轮询源。
-        // 保留本方法仅用于兼容旧调用点，不触发网络 I/O。
-        let _ = ctx;
-    }
-
     fn save_in_memory_object_to_sqlite(
         &mut self,
         object_store_model: &ObjectStoreModel,
@@ -227,68 +149,6 @@ impl UpdateManager {
     ) {
         if let Some(cloud_object) = object_store_model.get_by_uid(uid) {
             self.save_to_db([cloud_object.upsert_event()]);
-        }
-    }
-
-    fn save_in_memory_object_metadata_to_sqlite(
-        &mut self,
-        object_store_model: &ObjectStoreModel,
-        uid: &ObjectUid,
-        hashed_sqlite_id: &str,
-    ) {
-        if let Some(cloud_object) = object_store_model.get_by_uid(uid) {
-            let metadata = cloud_object.metadata().clone();
-            let event = ModelEvent::UpdateObjectMetadata {
-                id: hashed_sqlite_id.to_string(),
-                metadata,
-            };
-            self.save_to_db([event]);
-        }
-    }
-
-    /// Dais 本地版不再拉取云端单对象；保留签名仅用于兼容旧调用点。
-    ///
-    /// Returns A `Receiver<()>` that completes when the fetch operation is done.
-    /// This receiver can be used to wait for the fetch operation to complete before proceeding.
-    pub fn fetch_single_cloud_object(
-        &mut self,
-        server_id: &ServerId,
-        fetch_single_object_option: FetchSingleObjectOption,
-        ctx: &mut ModelContext<Self>,
-    ) -> Receiver<()> {
-        let _ = fetch_single_object_option;
-        let _ = ctx;
-        let (fetch_cloud_object_tx, fetch_cloud_object_rx) = oneshot::channel::<()>();
-        log::debug!("Dais 跳过云端单对象拉取: {server_id:?}");
-        let _ = fetch_cloud_object_tx.send(());
-        fetch_cloud_object_rx
-    }
-
-    /// Replace an object's data with its conflicting version. If the object does not have a
-    /// conflict, this has no effect.
-    pub fn replace_object_with_conflict(&mut self, uid: &ObjectUid, ctx: &mut ModelContext<Self>) {
-        let object_store_model_handle = ObjectStoreModel::handle(ctx);
-
-        // Update the in-memory model first, and check for conflicts.
-        let had_conflicts =
-            object_store_model_handle.update(
-                ctx,
-                |object_store_model, ctx| match object_store_model.get_mut_by_uid(uid) {
-                    Some(object) if object.has_conflicting_changes() => {
-                        object.replace_object_with_conflict();
-                        ctx.emit(ObjectStoreEvent::ObjectUpdated {
-                            type_and_id: object.object_type_and_id(),
-                            source: UpdateSource::External,
-                        });
-                        true
-                    }
-                    _ => false,
-                },
-            );
-
-        // Update SQLite, but only if the in-memory model was updated.
-        if had_conflicts {
-            self.save_in_memory_object_to_sqlite(object_store_model_handle.as_ref(ctx), uid);
         }
     }
 
@@ -461,7 +321,6 @@ impl UpdateManager {
         destination_owner: Owner,
         _current_folder: Option<SyncId>,
         _current_owner: Owner,
-        _current_permissions_last_updated_ts: Option<ServerTimestamp>,
         ctx: &mut ModelContext<Self>,
     ) {
         // 本地复制 workflow enums 到目标 owner 仍需要进行 —— `update_object` /
@@ -571,24 +430,17 @@ impl UpdateManager {
             return;
         };
 
-        let Some((
-            object_current_owner,
-            object_current_folder,
-            object_type,
-            has_pending_online_only_change,
-            curr_metadata_ts,
-            curr_permissions_ts,
-        )) = ObjectStoreModel::handle(ctx).read(ctx, |model, _| {
-            let object = model.get_by_uid(&uid)?;
-            Some((
-                object.permissions().owner,
-                object.metadata().folder_id,
-                object.into(),
-                object.metadata().has_pending_online_only_change(),
-                object.metadata().metadata_last_updated_ts,
-                object.permissions().permissions_last_updated_ts,
-            ))
-        })
+        let Some((object_current_owner, object_current_folder, object_type, has_pending_online_only_change, curr_metadata_ts)) =
+            ObjectStoreModel::handle(ctx).read(ctx, |model, _| {
+                let object = model.get_by_uid(&uid)?;
+                Some((
+                    object.permissions().owner,
+                    object.metadata().folder_id,
+                    object.into(),
+                    object.metadata().has_pending_online_only_change(),
+                    object.metadata().metadata_last_updated_ts,
+                ))
+            })
         else {
             return;
         };
@@ -637,7 +489,6 @@ impl UpdateManager {
                                 destination_owner,
                                 object_current_folder,
                                 object_current_owner,
-                                curr_permissions_ts,
                                 ctx,
                             );
                         }
@@ -1143,52 +994,22 @@ impl UpdateManager {
             )
         });
 
-        // Update sqlite.
-        self.save_to_db([ModelEvent::InsertObjectAction { object_action }]);
-
-        // Dais(Wave 4):原末尾入 SyncQueue 上报 RecordObjectAction,SyncQueue 整删后
-        // 本地 sqlite 记录即是“已完成”。
-        let _ = (id_and_type, action_type, data, action_timestamp);
+        // W3-d8: object_actions 云表已 DROP,ModelEvent::InsertObjectAction 变体
+        // 已删除;本地化后仅记录内存 action 供 UI 汇总展示。
+        let _ = object_action;
     }
 
-    fn maybe_overwrite_object_action_history(
+    /// Replace an object's data with its conflicting version. If the object does not have a
+    /// conflict, this has no effect.
+    ///
+    /// W3-d8: 云端冲突修订(RTC conflict revision)已随同步链路裁撤;本地对象不再产生
+    /// server conflict。notebook 冲突对话框仍有此调用点,保留为兼容 no-op。
+    pub fn replace_object_with_conflict(
         &mut self,
-        history: &ObjectActionHistory,
+        uid: &ObjectUid,
         ctx: &mut ModelContext<Self>,
     ) {
-        ObjectActions::handle(ctx).update(ctx, |object_actions_model, ctx| {
-            // Accept this action history if we don't have any actions for this object OR the server's latest action
-            // for this object is at least as recent as our latest synced action for this object
-            let latest_processed_at_ts =
-                object_actions_model.get_latest_processed_at_ts(&history.uid);
-            if latest_processed_at_ts
-                .is_none_or(|client_ts| client_ts <= history.latest_processed_at_timestamp)
-            {
-                // Overwrite the history for this object.
-                object_actions_model.overwrite_action_history_for_object(
-                    &history.uid,
-                    history.actions.clone(),
-                    ctx,
-                );
-            }
-        });
-    }
-
-    /// Overwrites the actions in SQLite for a specified set of objects with the actions that
-    /// are currently in the ObjectActions singleton model.
-    fn sync_actions_for_objects_to_sqlite(
-        &mut self,
-        object_uids: Vec<&ObjectUid>,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        // Retrieve the objects from the ObjectActions model
-        let actions = ObjectActions::handle(ctx).read(ctx, |object_actions_model, _ctx| {
-            object_actions_model.get_actions_for_objects(object_uids)
-        });
-
-        // Overwrite the actions for those objects in sqlite
-        let actions_to_sync: Vec<ObjectAction> = actions.values().flatten().cloned().collect();
-        self.save_to_db([ModelEvent::SyncObjectActions { actions_to_sync }]);
+        let _ = (uid, ctx);
     }
 
     /// Sets the notebooks current editor in memory. SQLite is not updated until we receive
@@ -1287,7 +1108,7 @@ impl UpdateManager {
         // 因为它的多个消费者(notebooks/env_vars/cloud_object/view)都 `.expect` server_id;
         // Drive UI 已经通过 mark_object_trashed_and_return_timestamps 内部
         // emit 的 ObjectStoreEvent::ObjectTrashed 收到通知。
-        let Some(server_id) = id.server_id() else {
+        let Some(_server_id) = id.server_id() else {
             let hashed_id = id.uid();
             self.mark_object_trashed_and_return_timestamps(&hashed_id, ctx);
             // Dais:本地对象永远没有服务端 ack 来清 has_pending_metadata_change。
@@ -1332,12 +1153,8 @@ impl UpdateManager {
                     .has_pending_metadata_change = false;
             }
 
-            let hashed_sqlite_id = server_id.sqlite_type_and_uid_hash(id.object_id_type());
-            self.save_in_memory_object_metadata_to_sqlite(
-                object_store_model,
-                &hashed_id,
-                &hashed_sqlite_id,
-            );
+            // W3-d8: object_metadata 云表已 DROP;本地持久化走 upsert 事件。
+            self.save_in_memory_object_to_sqlite(object_store_model, &hashed_id);
         });
 
         ctx.emit(UpdateManagerEvent::ObjectOperationComplete {

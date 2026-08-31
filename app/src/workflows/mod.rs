@@ -257,9 +257,6 @@ impl StoredObjectModel for WorkflowObjectModel {
         ModelEvent::UpsertWorkflows(objects.to_vec())
     }
 
-    fn should_update_after_server_conflict(&self) -> bool {
-        true
-    }
 
     fn serialized(&self) -> SerializedModel {
         SerializedModel::new(

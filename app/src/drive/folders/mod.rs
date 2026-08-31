@@ -64,10 +64,6 @@ impl StoredObjectModel for FolderObjectModel {
         ModelEvent::UpsertFolders(objects.to_vec())
     }
 
-    fn should_update_after_server_conflict(&self) -> bool {
-        false
-    }
-
     fn serialized(&self) -> SerializedModel {
         SerializedModel::new(self.name.to_owned())
     }

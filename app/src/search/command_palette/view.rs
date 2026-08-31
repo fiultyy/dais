@@ -1,5 +1,6 @@
 use crate::appearance::Appearance;
 use crate::drive::ObjectTypeAndId;
+use crate::root_view::OpenLaunchConfigArg;
 use crate::search::binding_source::{BindingFilterFn, BindingSource};
 use crate::search::command_palette::mixer::CommandPaletteItemAction;
 use crate::search::command_palette::SelectedItems;
@@ -8,8 +9,7 @@ use crate::search::search_bar::SelectionUpdate;
 use crate::search::search_bar::{SearchBar, SearchBarEvent, SearchBarState, SearchResultOrdering};
 use crate::search::QueryFilter;
 use crate::send_telemetry_from_ctx;
-use crate::server::telemetry::LaunchConfigUiLocation;
-use crate::server::telemetry::TelemetryEvent;
+use crate::server::telemetry::{LaunchConfigUiLocation, TelemetryEvent};
 use crate::settings::CtrlTabBehavior;
 use crate::terminal::keys_settings::KeysSettings;
 use crate::themes::theme::WarpTheme;
@@ -36,7 +36,6 @@ use std::sync::Arc;
 
 use crate::features::FeatureFlag;
 use crate::palette::PaletteMode;
-use crate::root_view::OpenLaunchConfigArg;
 use crate::search::command_palette::data_sources::DataSourceStore;
 use crate::server::ids::SyncId;
 use crate::session_management::SessionSource;
@@ -866,15 +865,15 @@ impl View {
                 });
             }
             CommandPaletteItemAction::OpenLaunchConfiguration {
-                open_in_active_window,
                 config,
+                open_in_active_window,
             } => {
                 ctx.dispatch_global_action(
                     "root_view:open_launch_config",
                     OpenLaunchConfigArg {
-                        open_in_active_window,
-                        launch_config: config.deref().clone(),
+                        launch_config: (*config).clone(),
                         ui_location: LaunchConfigUiLocation::CommandPalette,
+                        open_in_active_window,
                     },
                 );
             }

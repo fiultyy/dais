@@ -9,7 +9,7 @@ use crate::{
     ai::facts::{AIFact, AIFactObject, AIMemory},
     appearance::Appearance,
     cloud_object::StoredObjectMetadata,
-    drive::{index::DriveIndexAction, DriveObjectType, ObjectTypeAndId},
+    drive::{DriveObjectType, ObjectTypeAndId},
     themes::theme::Fill,
 };
 
@@ -55,9 +55,6 @@ impl WarpDriveItem for WarpDriveAIFact {
         None
     }
 
-    fn click_action(&self) -> Option<DriveIndexAction> {
-        Some(DriveIndexAction::OpenAIFactCollection)
-    }
 
     fn preview(&self, appearance: &Appearance) -> Option<Box<dyn Element>> {
         let title_to_render = match &self.ai_fact.model().string_model {

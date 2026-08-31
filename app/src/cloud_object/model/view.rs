@@ -182,36 +182,9 @@ impl ObjectStoreViewModel {
             // For now, users have full access to all objects in their own drives. We may introduce
             // drive-level ACLs in the future.
             Space::Personal | Space::Team { .. } => SharingAccessLevel::Full,
-            Space::Shared => {
-                let mut access_level = SharingAccessLevel::View;
-
-                // Check the default link-based access (if set, this is *at least* View).
-                if let Some(link_settings) = &object.permissions().anyone_with_link {
-                    access_level = link_settings.access_level;
-                }
-
-                let user_uid = AuthStateProvider::as_ref(app).get().user_id();
-                if let Some(user_uid) = user_uid {
-                    for guest in object.permissions().guests.iter() {
-                        if guest.subject.is_user(user_uid) {
-                            access_level = access_level.max(guest.access_level);
-                        }
-                    }
-                }
-
-                // If the user created an object in a shared space, they will be treated as a guest and not the owner.
-                // The guest permissions aren't fetched until the object is re-fetched, and this fixes this behavior
-                // by forcing edit access if they created the object.
-                if let (Some(creator_uid), Some(user_uid)) =
-                    (object.metadata().creator_uid.clone(), user_uid)
-                {
-                    if creator_uid == user_uid.as_string() {
-                        access_level = access_level.max(SharingAccessLevel::Edit);
-                    }
-                }
-
-                access_level
-            }
+            // W3-d8: 云端 ACL(guests / anyone_with_link)已随分享链路裁撤,
+            // 本地化后 Shared 空间对象一律只读。
+            Space::Shared => SharingAccessLevel::View,
         }
     }
 

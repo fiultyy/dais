@@ -4,7 +4,6 @@ cfg_if::cfg_if! {
     if #[cfg(feature = "local_fs")] {
         pub mod agent;
         mod block_list;
-        mod cloud_objects;
         mod sqlite;
         pub mod commands;
     }
@@ -24,8 +23,10 @@ use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
+use diesel::prelude::*;
+use persistence::schema::{project_rules, projects};
 use ai::project_context::model::ProjectRulePath;
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Local, NaiveDateTime, Utc};
 use uuid::Uuid;
 use warp_core::command::ExitCode;
 use warp_multi_agent_api as api;
@@ -34,11 +35,10 @@ use warpui::{AppContext, Entity, SingletonEntity};
 use crate::ai::blocklist::PersistedAIInput;
 use crate::ai::mcp::TemplatableMCPServerInstallation;
 use crate::app_state::AppState;
-use crate::auth::PersistedCurrentUserInformation;
 use crate::cloud_object::model::actions::ObjectAction;
 use crate::cloud_object::model::generic_string_model::StoredStringObject;
+use crate::cloud_object::{ObjectIdType, StoredObject};
 
-use crate::cloud_object::{ObjectIdType, StoredObject, StoredObjectMetadata};
 use crate::drive::folders::FolderObject;
 use crate::notebooks::NotebookObject;
 use crate::server::experiments::ServerExperiment;
@@ -51,7 +51,7 @@ use crate::workflows::WorkflowObject;
 use crate::workspaces::user_profiles::UserProfileWithUID;
 use crate::workspaces::workspace::{Workspace as WorkspaceMetadata, WorkspaceUid};
 
-use self::model::{AgentConversation, AgentConversationData, Project};
+use self::model::{AgentConversation, AgentConversationData};
 
 #[cfg(any(feature = "local_fs", feature = "integration_tests"))]
 pub use sqlite::database_file_path;
@@ -204,6 +204,43 @@ pub struct PersistedData {
     pub mcp_servers_to_restore: Vec<Uuid>,
 }
 
+/// S2 轮误删后本地恢复:原先位于 `crates/persistence/src/model.rs` 的
+/// `Project` 行模型。对应 sqlite `projects` 表(path 主键)。
+/// model.rs 不在本修复轮的独占域内, 故按任务约定放在 mod.rs 侧。
+#[derive(Default, Clone, Debug, PartialEq, Insertable, Queryable, AsChangeset)]
+#[diesel(table_name = projects)]
+pub struct Project {
+    pub path: String,
+    pub added_ts: NaiveDateTime,
+    pub last_opened_ts: Option<NaiveDateTime>,
+}
+
+impl Project {
+    pub fn last_used_at(&self) -> NaiveDateTime {
+        self.last_opened_ts.unwrap_or(self.added_ts)
+    }
+}
+
+/// S2 轮误删后本地恢复:`project_rules` 表行模型(原先位于
+/// `crates/persistence/src/model.rs`, sqlite.rs 的 project_rules 读写依赖)。
+#[cfg(feature = "local_fs")]
+#[derive(Clone, Identifiable, Insertable, Queryable, AsChangeset)]
+#[diesel(table_name = project_rules)]
+pub struct ProjectRules {
+    pub id: i32,
+    pub path: String,
+    pub project_root: String,
+}
+
+/// S2 轮误删后本地恢复:`project_rules` 表插入模型(同上)。
+#[cfg(feature = "local_fs")]
+#[derive(Clone, Debug, Insertable, AsChangeset)]
+#[diesel(table_name = project_rules)]
+pub struct NewProjectRules {
+    pub path: String,
+    pub project_root: String,
+}
+
 #[derive(Clone, Debug)]
 pub struct BlockCompleted {
     pub pane_id: Vec<u8>,
@@ -243,7 +280,6 @@ pub enum ModelEvent {
     UpsertWorkflows(Vec<WorkflowObject>),
     UpsertNotebooks(Vec<NotebookObject>),
     UpsertFolders(Vec<FolderObject>),
-    IncrementRetryCount(String),
     UpsertGenericStringObject {
         object: Box<dyn StoredStringObject>,
     },
@@ -260,31 +296,11 @@ pub enum ModelEvent {
     DeleteObjects {
         ids: Vec<(SyncId, ObjectIdType)>,
     },
-    UpsertWorkspace {
-        workspace: Box<WorkspaceMetadata>,
-    },
-    UpsertWorkspaces {
-        workspaces: Vec<WorkspaceMetadata>,
-    },
-    SetCurrentWorkspace {
-        workspace_uid: WorkspaceUid,
-    },
-    UpdateObjectMetadata {
-        id: String,
-        metadata: StoredObjectMetadata,
-    },
     InsertCommand {
         metadata: StartedCommandMetadata,
     },
     UpdateFinishedCommand {
         metadata: FinishedCommandMetadata,
-    },
-    UpsertUserProfiles {
-        profiles: Vec<UserProfileWithUID>,
-    },
-    ClearUserProfiles,
-    RecordTimeOfNextRefresh {
-        timestamp: DateTime<Utc>,
     },
     SaveExperiments {
         experiments: Vec<ServerExperiment>,
@@ -295,12 +311,6 @@ pub enum ModelEvent {
     PauseAndRemoveDatabase,
     #[cfg(feature = "local_fs")]
     ReconstructAndResume,
-    InsertObjectAction {
-        object_action: ObjectAction,
-    },
-    SyncObjectActions {
-        actions_to_sync: Vec<ObjectAction>,
-    },
     /// Close the SQLite writer thread when the app is about to quit.
     Terminate,
     UpsertAIQuery {
@@ -317,10 +327,6 @@ pub enum ModelEvent {
     },
     DeleteMultiAgentConversations {
         conversation_ids: Vec<String>,
-    },
-
-    UpsertCurrentUserInformation {
-        user_information: PersistedCurrentUserInformation,
     },
     UpsertProject {
         project: Project,

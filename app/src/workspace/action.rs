@@ -8,8 +8,6 @@ use crate::ai::agent::AIAgentExchangeId;
 use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::document::ai_document_model::{AIDocumentId, AIDocumentVersion};
 use crate::auth::LoginGatedFeature;
-use crate::drive::items::WarpDriveItemId;
-use crate::drive::ObjectTypeAndId;
 use crate::palette::PaletteMode;
 use crate::prompt::editor_modal::OpenSource as PromptEditorOpenSource;
 use crate::search;
@@ -169,7 +167,6 @@ pub enum WorkspaceAction {
         shell: AvailableShell,
         source: AddTabWithShellSource,
     },
-    AddGetStartedTab,
     /// Add a new tab that immediately enters agent view with a new conversation.
     AddAgentTab,
     /// Add a new terminal tab and launch a specific CLI agent.
@@ -245,7 +242,6 @@ pub enum WorkspaceAction {
     ExportLogsToPath,
     ToggleBlockSnackbar,
     CheckForUpdate,
-    ExportAllWarpDriveObjects,
     SetA11yVerbosityLevel(AccessibilityVerbosity),
     ToggleNotifications,
     ToggleTabColor {
@@ -284,11 +280,6 @@ pub enum WorkspaceAction {
     /// In Code Mode V2 this toggles the left panel which contains both the project explorer and
     /// Dais Drive. This happens as explicit action from the user.
     ToggleLeftPanel,
-    /// Toggles directly to the Dais Drive tab of the left panel in Code Mode V2
-    ToggleWarpDrive,
-    /// Unconditionally opens Dais Drive. This is used in the case of user lifecycle
-    /// events like new user onboarding or when the user joins a team.
-    DaisDrive,
     /// Toggles the Observatory panel (intercept sessions / orchestration viewer).
     #[cfg(not(target_family = "wasm"))]
     ToggleObservatory,
@@ -363,9 +354,6 @@ pub enum WorkspaceAction {
     FocusLeftPanel,
     /// Moves focus to the panel on the right
     FocusRightPanel,
-    /// An action to view a newly created/edited workflow in WD from the toast
-    ViewObjectInWarpDrive(WarpDriveItemId),
-    UndoTrash(ObjectTypeAndId),
     /// Open a local path in the file explorer.
     OpenInExplorer {
         path: PathBuf,
@@ -404,7 +392,6 @@ pub enum WorkspaceAction {
     /// information.
     #[cfg(target_os = "linux")]
     DismissWaylandCrashRecoveryBannerAndOpenLink,
-    OpenAIFactCollection,
     OpenMCPServerCollection,
     // Dais Wave 7-3:`OpenEnvironmentManagementPane` WorkspaceAction 随 ambient-agent UI
     // 子系统物理删。
@@ -521,12 +508,6 @@ pub enum WorkspaceAction {
     /// Reset the AWS Bedrock login banner dismissed state (for debugging).
     #[cfg(debug_assertions)]
     DebugResetAwsBedrockLoginBannerDismissed,
-    /// Open the Dais Launch Modal (for debugging)
-    #[cfg(debug_assertions)]
-    OpenDaisLaunchModal,
-    /// Reset the Dais launch modal dismissed state (for debugging)
-    #[cfg(debug_assertions)]
-    ResetDaisLaunchModalState,
     /// Install the opencode-warp plugin from GitHub into the global opencode config.
     #[cfg(debug_assertions)]
     InstallOpenCodeWarpPlugin,
@@ -578,9 +559,6 @@ pub enum WorkspaceAction {
     },
     ShowSessionConfigModal,
     DismissSessionConfigTabConfigChip,
-    /// Start the HOA onboarding flow (for debugging)
-    #[cfg(debug_assertions)]
-    ShowHoaOnboardingFlow,
     /// Open the "New worktree" modal for creating a reusable worktree tab config.
     OpenNewWorktreeModal,
     /// Open the native folder picker for the repo field in the new-worktree modal.
@@ -671,7 +649,6 @@ impl WorkspaceAction {
             | ToggleSshManager
             | ToggleSkillManager
             | AddTabWithShell { .. }
-            | AddGetStartedTab
             | AddAgentTab
             | AddSpecificAgentTab(_)
             | AddDefaultTabInRegion(_)
@@ -702,7 +679,6 @@ impl WorkspaceAction {
             | CopyVersion(_)
             | DownloadNewVersion
             | ConfigureKeybindingSettings { .. }
-            | ExportAllWarpDriveObjects
             | ShowSettings
             | ShowSettingsPage(_)
             | ShowSettingsPageWithSearch { .. }
@@ -749,12 +725,10 @@ impl WorkspaceAction {
             | OpenInExplorer { .. }
             | DragTab { .. }
             | StartTabDrag
-            | DaisDrive
             | ToggleLeftPanel
             // v3b: ToggleVerticalTabsPanel 已 no-op (左栏常驻),不再触发
             // needs-save。
             | ToggleVerticalTabsPanel
-            | ToggleWarpDrive
             | ClosePanel
             | ToggleRightPanel
             | OpenCodeReviewPanel(..)
@@ -801,13 +775,10 @@ impl WorkspaceAction {
             | RunCommand { .. }
             | InsertInInput { .. }
             | QueuePromptForConversation { .. }
-            | UndoTrash(_)
             | OpenFilePath { .. }
-            | ViewObjectInWarpDrive(_)
             | TerminateApp
             | TabHoverWidthStart { .. }
             | TabHoverWidthEnd
-            | OpenAIFactCollection
             | OpenMCPServerCollection
             | FocusTerminalViewInWorkspace { .. }
             | FocusPane(..)
@@ -838,14 +809,10 @@ impl WorkspaceAction {
             | TabConfigSidecarRemoveConfig { .. }
             | OpenSettingsFile
             | FixSettingsWithOz { .. } => false,
-            #[cfg(debug_assertions)]
-            ShowHoaOnboardingFlow => false,
             #[cfg(target_family = "wasm")]
             ToggleConversationTranscriptDetailsPanel => false,
             #[cfg(debug_assertions)]
             DebugResetAwsBedrockLoginBannerDismissed
-            | OpenDaisLaunchModal
-            | ResetDaisLaunchModalState
             | InstallOpenCodeWarpPlugin
             | UseLocalOpenCodeWarpPlugin => false,
             #[cfg(not(target_family = "wasm"))]

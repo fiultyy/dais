@@ -3,7 +3,7 @@ use warpui::{elements::MouseStateHandle, AppContext, Element};
 use crate::{
     appearance::Appearance,
     cloud_object::StoredObjectMetadata,
-    drive::{index::DriveIndexAction, DriveObjectType},
+    drive::DriveObjectType,
     server::ids::ClientId,
     themes::theme::Fill,
 };
@@ -42,9 +42,6 @@ impl WarpDriveItem for WarpDriveMCPServerCollection {
         None
     }
 
-    fn click_action(&self) -> Option<DriveIndexAction> {
-        Some(DriveIndexAction::OpenMCPServerCollection)
-    }
 
     fn preview(&self, _appearance: &Appearance) -> Option<Box<dyn Element>> {
         None

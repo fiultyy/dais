@@ -182,8 +182,6 @@ use crate::ai::agent::{
     FinishedAIAgentOutput, RenderableAIError, StaticQueryType,
 };
 use crate::ai::blocklist::agent_view::agent_input_footer::toolbar_item::AgentToolbarItemKind;
-use crate::ai::blocklist::suggested_agent_mode_workflow_modal::SuggestedAgentModeWorkflowAndId;
-use crate::ai::blocklist::suggested_rule_modal::SuggestedRuleAndId;
 use crate::ai::blocklist::{model::AIBlockModelImpl, ClientIdentifiers};
 use crate::ai::{
     agent::{
@@ -306,7 +304,7 @@ use crate::view_components::{DismissibleToast, ToastFlavor};
 use crate::workflows::workflow::Workflow;
 use crate::workflows::WorkflowSelectionSource;
 use crate::workspace::sync_inputs::SyncedInputState;
-use crate::workspace::{CommandSearchOptions, OneTimeModalModel, ToastStack, WorkspaceAction};
+use crate::workspace::{CommandSearchOptions, ToastStack, WorkspaceAction};
 use crate::workspace::{ForkAIConversationParams, ForkFromExchange, ForkedConversationDestination};
 use crate::workspaces::user_workspaces::UserWorkspaces;
 use crate::AIRequestUsageModel;
@@ -1622,16 +1620,6 @@ pub enum Event {
     // Tell the pane group to open the workflow modal with an unsaved workflow.
     OpenWorkflowModalWithTemporary(Box<Workflow>),
     DaisDriveObjectInPane(ObjectUid),
-    OpenSuggestedAgentModeWorkflowModal {
-        workflow_and_id: SuggestedAgentModeWorkflowAndId,
-    },
-    OpenSuggestedRuleDialog {
-        rule_and_id: SuggestedRuleAndId,
-    },
-    OpenAIFactCollection {
-        /// If set, open the fact collection to the specific rule.
-        sync_id: Option<SyncId>,
-    },
     ToggleAIDocumentPane {
         document_id: AIDocumentId,
         document_version: AIDocumentVersion,
@@ -11579,8 +11567,6 @@ impl TerminalView {
         let should_show_onboarding = FeatureFlag::AgentOnboarding.is_enabled()
             && !is_onboarded
             && !is_anonymous_or_logged_out;
-        let is_launch_modal_open = OneTimeModalModel::as_ref(ctx).is_dais_launch_modal_open();
-
         let has_plugin_instructions_block = self.rich_content_views.iter().any(|rc| {
             matches!(
                 rc.metadata(),
@@ -11593,7 +11579,6 @@ impl TerminalView {
             && !self.model.lock().block_list().is_restored_session()
             && !should_show_onboarding
             && self.onboarding_callout_view.is_none()
-            && !is_launch_modal_open
             && !is_subshell_or_ssh
             && !has_plugin_instructions_block
         {
@@ -18308,23 +18293,10 @@ impl TerminalView {
                     ctx.open_url(url);
                 }
             },
-            AIBlockEvent::OpenAIFactCollection { sync_id } => {
-                ctx.emit(Event::OpenAIFactCollection { sync_id: *sync_id });
-            }
             AIBlockEvent::OpenWorkflow { sync_id } => {
                 if let Some(object) = ObjectStoreModel::as_ref(ctx).get_workflow(sync_id) {
                     ctx.emit(Event::DaisDriveObjectInPane(object.uid()));
                 }
-            }
-            AIBlockEvent::OpenSuggestedAgentModeWorkflowModal { workflow_and_id } => {
-                ctx.emit(Event::OpenSuggestedAgentModeWorkflowModal {
-                    workflow_and_id: workflow_and_id.clone(),
-                });
-            }
-            AIBlockEvent::OpenSuggestedRuleDialog { rule_and_id } => {
-                ctx.emit(Event::OpenSuggestedRuleDialog {
-                    rule_and_id: rule_and_id.clone(),
-                });
             }
             AIBlockEvent::FocusTerminal => {
                 self.redetermine_global_focus(ctx);
@@ -18658,10 +18630,6 @@ impl TerminalView {
             // calls on_blur and closes the context menu when it is supposed
             // to open after closing the command palette
             // TODO: refactor in the future
-            return;
-        }
-
-        if OneTimeModalModel::as_ref(ctx).is_any_modal_open() {
             return;
         }
 
@@ -22505,7 +22473,7 @@ impl TerminalView {
                 ctx.notify();
             }
             Configure => {
-                ctx.emit(Event::OpenSettings(SettingsSection::Features));
+                ctx.emit(Event::OpenSettings(SettingsSection::AI));
             }
             Close => {
                 // Update settings to mark notifications as dismissed to prevent banner from showing again
@@ -22551,7 +22519,7 @@ impl TerminalView {
                 if FeatureFlag::SSHTmuxWrapper.is_enabled() {
                     ctx.emit(Event::OpenSettings(SettingsSection::Warpify));
                 } else {
-                    ctx.emit(Event::OpenSettings(SettingsSection::Features));
+                    ctx.emit(Event::OpenSettings(SettingsSection::AI));
                 }
             }
         }

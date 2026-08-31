@@ -3,7 +3,7 @@ use warpui::{elements::MouseStateHandle, Element};
 use crate::{
     appearance::Appearance,
     cloud_object::{Space, StoredObjectMetadata},
-    drive::{index::DriveIndexAction, DriveObjectType},
+    drive::DriveObjectType,
     themes::theme::Fill,
 };
 
@@ -38,9 +38,6 @@ impl WarpDriveItem for WarpDriveSpace {
         None
     }
 
-    fn click_action(&self) -> Option<DriveIndexAction> {
-        None
-    }
 
     fn preview(&self, _appearance: &Appearance) -> Option<Box<dyn Element>> {
         None
