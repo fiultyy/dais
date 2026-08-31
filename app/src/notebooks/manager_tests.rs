@@ -89,8 +89,6 @@ fn initialize_app(app: &mut App) -> TestState {
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
     app.add_singleton_model(AuthManager::new_for_test);
     app.add_singleton_model(|_| BlocklistAIHistoryModel::new_for_test());
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
 
     let (sender, receiver) = mpsc::sync_channel(10);
     app.add_singleton_model(|ctx| UpdateManager::new(Some(sender), ctx));

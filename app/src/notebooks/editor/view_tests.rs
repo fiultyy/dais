@@ -79,8 +79,6 @@ fn initialize_editor(
     app.add_singleton_model(TerminalKeybindings::new);
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
     app.add_singleton_model(|ctx| UserWorkspaces::mock(vec![], ctx));
 
     let (window, test_view) = app.add_window(WindowStyle::NotStealFocus, |ctx| {

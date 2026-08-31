@@ -194,3 +194,20 @@ cut 集中在 isolated/shared-file 类, 无 hub 被裁, 六个 cross-edge 当事
 - **编译**: `cargo check -p warp --all-targets` 0 error(R3 后复验)。
 - **flags**: 230→205, default 143→144(5 去门控项移出 default, 功能无条件编译)。
 - **提交卫生**: commit 前须 unstage `librust_out.rmeta`、`*.sqlite-shm/wal`(测试残渣)、`.workflowz-scan-order.tmp`; 须 add 两个新迁移目录 `2026-08-31-000000_drop_legacy_pane_tables/`、`2026-08-31-010000_drop_cloud_object_tables/`(untracked)。
+
+## R4: voice 砍 + fuzzy 删 + tantivy 转正 (2026-08-31d)
+
+**voice_input 反转砍**(b 轮浮面决策反转): crates/voice_input/ 整 crate + app/src/voice/ + editor/view/voice.rs 删; 30+ 文件 cfg 织入拆(terminal input/view/action/use_agent_footer/alt_screen/block_list + editor + settings + blocklist 等); default/feature/dep 声明三级清。
+
+**fuzzy 删 + tantivy 转正**: Fuzzy{Session,NewSession,Action}Searcher 三实现删; 4 个 data_source 硬编码 full_text(UseTantivySearch flag 分支结构与 flag 本体一并删); ImprovedPaletteSearch 100% 实验层删; searcher.rs 1316 行去 feature 门控无条件编译; tantivy 0.26 optional→正式依赖。索引源核实全本地(CommandBinding/SessionNavigationData/NewSessionOption, RAM 索引无云)。
+
+**V3 席位过切修复**(主控从 HEAD 恢复): EditorAction 18 个非 voice 变体 + ViewSnapshot.view_id + EditorView.is_ai_input + with_input_editor_icons 前两参。
+
+**验证**: cargo check -p warp --all-targets 0 errors (36→3→2→0); voice_input/fuzzy/UseTantivySearch 全仓 grep 零残留。features 205→204。
+
+
+### 终态快照 (2026-08-31d R4 后 reindex)
+
+- **索引**: moderate 重建, **113,635 节点 / 441,225 边**(演进: 116,906 → 114,076 → 113,803 → 113,635)。
+- **图验证**: voice/tantivy 相关仅剩 `app/src/ai/voice/mod.rs`(7 行墓碑注释) — 已物理删+mod 声明卸载, check 复验 0 err。
+- **工作区**: HEAD=bf0229b5(R3 已 commit), R4 改动 7 删/49 改未 commit。

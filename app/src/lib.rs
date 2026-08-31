@@ -93,7 +93,6 @@ mod user_config;
 pub mod util;
 mod view_components;
 mod vim_registers;
-mod voice;
 mod voltron;
 mod warp_managed_paths_watcher;
 mod workspaces;
@@ -150,10 +149,8 @@ use code::editor_management::CodeManager;
 use code::opened_files::OpenedFilesModel;
 use code_review::GlobalCodeReviewModel;
 use quit_warning::UnsavedStateSummary;
-// Dais(本地化,Phase 4):`ServerVoiceTranscriber` 原用于默认 VoiceTranscriber 注入,现走 `VoiceTranscriber::disabled()`,同名 import 暂收。
 #[cfg(feature = "local_fs")]
 use settings::import::model::ImportedConfigModel;
-use voice::transcriber::VoiceTranscriber;
 use warp_cli::GlobalOptions;
 use warp_cli::{agent::AgentCommand, CliCommand};
 
@@ -260,9 +257,6 @@ use self::features::FeatureFlag;
 use crate::app_state::AppState;
 use crate::cloud_object::model::persistence::ObjectStoreModel;
 use crate::drive::ObjectTypeAndId;
-// 仅在 use_tantivy_search 下使用 (见 set_enabled 探针), 同步 cfg 避免 unused import
-#[cfg(feature = "use_tantivy_search")]
-use crate::experiments::ImprovedPaletteSearch;
 pub use crate::global_resource_handles::{GlobalResourceHandles, GlobalResourceHandlesProvider};
 use crate::notification::NotificationContext;
 use crate::root_view::{
@@ -1018,13 +1012,6 @@ fn run_internal(mut launch_mode: LaunchMode) -> Result<()> {
             pre_init_errors,
         );
 
-        // 编译期: tantivy 可用 (use_tantivy_search) 才编译此探针;
-        // 运行期: 实验分组命中才真正启用 flag —— 两层 gate 正交
-        #[cfg(feature = "use_tantivy_search")]
-        if ImprovedPaletteSearch::improved_search_enabled(ctx) {
-            FeatureFlag::UseTantivySearch.set_enabled(true);
-        }
-
         launch(ctx, app_state, launch_mode);
     })
 }
@@ -1673,15 +1660,6 @@ fn initialize_app(
     #[cfg(windows)]
     ctx.add_singleton_model(util::traffic_lights::windows::RendererState::new);
 
-    #[cfg(feature = "voice_input")]
-    ctx.add_singleton_model(voice_input::VoiceInput::new);
-    ctx.add_singleton_model(|_| {
-        // Dais(本地化,Phase 4):原默认注入 `ServerVoiceTranscriber` 走云端 Wispr STT。
-        // 本地化场景下云端语音转写不可用,改为 `disabled()` 让上层 `transcriber()` 返 None,
-        // 语音输入 UI 变为只采集不转写(后续接入本地 STT 补上)。
-        VoiceTranscriber::disabled()
-    });
-
     timer.mark_interval_end("CORE_SINGLETONS_REGISTERED");
 
     let notebooks = cloud_objects
@@ -1943,21 +1921,6 @@ fn app_callbacks(is_integration_test: bool) -> warpui::platform::AppCallbacks {
             let active_window_id = ctx.windows().active_window();
             let update_quake_mode_arg = UpdateQuakeModeEventArg { active_window_id };
 
-            #[cfg(feature = "voice_input")]
-            {
-                if let voice_input::VoiceInputState::Listening { enabled_from, .. } =
-                    voice_input::VoiceInput::as_ref(ctx).state()
-                {
-                    // Abort the voice input if it's toggled from a key press, as we cannot listen to key events
-                    // if the user is focused on a different app - we could miss the release of the key.
-                    if matches!(
-                        *enabled_from,
-                        voice_input::VoiceInputToggledFrom::Key { .. }
-                    ) {
-                        ctx.dispatch_global_action("root_view:abort_voice_input", &());
-                    }
-                }
-            }
             ctx.dispatch_global_action("root_view:update_quake_mode_state", &update_quake_mode_arg);
         })),
         on_will_terminate: Some(Box::new(move |ctx| {
@@ -2542,8 +2505,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::CommandCorrectionKey,
         #[cfg(feature = "predict_am_queries")]
         FeatureFlag::PredictAMQueries,
-        #[cfg(feature = "use_tantivy_search")]
-        FeatureFlag::UseTantivySearch,
         #[cfg(feature = "grep_tool")]
         FeatureFlag::GrepTool,
         #[cfg(feature = "mcp_server")]

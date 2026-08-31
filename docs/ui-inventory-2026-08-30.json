@@ -3537,7 +3537,7 @@
       "status": "visible",
       "invoked_by": "terminal/input.rs:2621(输入框 workflow 搜索弹出)",
       "trim_verdict": "needs-review",
-      "verdict_reason": "上游遗留 UI,fork 是否保留待产品裁决",
+      "verdict_reason": "上游遗留 UI;R3 已裁决: 云分类(Team/SharedWithMe)砍除, 本地 YAML 分类保留",
       "coupling": {
         "kind": "isolated",
         "peers": "",
@@ -3546,7 +3546,7 @@
       },
       "verdict": "keep",
       "verdict_source": "manual",
-      "manual_note": "[R3 2026-08-31c: 云分类源(Team/SharedWithMe)已砍; 本地 YAML 分类保留, 实际状态=本地可用]",
+      "manual_note": "[R3 2026-08-31c: 云分类源(Team/SharedWithMe)已砍; 本地 YAML workflows 目录分类保留, 实际状态=本地可用]",
       "manual_verdict": "keep",
       "implementation": "kept"
     },
@@ -7695,7 +7695,10 @@
       "git_modified": 115,
       "cargo_check_all_targets": "0 errors",
       "stash_snapshot": "c979c16(已被后续 add 覆盖, 工作区即终态)",
-      "features": "230→220 flags, default 143→149"
+      "features": "205→204 (voice_input+use_tantivy_search 删)",
+      "r4": "voice 砍+fuzzy 删+tantivy 转正(2026-08-31d)",
+      "search_path": "tantivy 唯一(4 data_source 硬编码 full_text)",
+      "git_head": "bf0229b5(R3 commit)+R4 未提交(7删/49改)"
     },
     "cargo_features": {
       "passive_removed": [
@@ -7814,6 +7817,50 @@
           ]
         },
         "features": "230→205 (R3: 10 flag), default 143→149→144(5 项去门控后从 default 移除)"
+      }
+    },
+    "r4_voice_fuzzy": {
+      "date": "2026-08-31d",
+      "voice_cut": {
+        "note": "反转 b 轮浮面决策: voice_input 从 default 移除后彻底砍除",
+        "deleted": [
+          "crates/voice_input/ 整 crate",
+          "app/src/voice/ 模块",
+          "editor/view/voice.rs",
+          "default 列表项+feature 声明+dep 行(workspace/app)"
+        ],
+        "woven_out": "terminal(input/view/action/use_agent_footer/alt_screen/block_list_element/universal_developer_input)+editor(view 三件套)+settings_view/ai_page+settings/ai+blocklist+agent_tips+workspaces 等 30+ 文件 cfg 块",
+        "v3_overcut_repaired": "EditorAction 18 个非 voice 变体(Undo/Redo/Fold/CmdEnter 等)+ViewSnapshot.view_id+EditorView.is_ai_input+with_input_editor_icons 两参 — 主控从 HEAD 恢复"
+      },
+      "fuzzy_cut": {
+        "deleted": [
+          "FuzzySessionSearcher/FuzzyNewSessionSearcher/FuzzyActionSearcher",
+          "if UseTantivySearch 分支结构(4 data_source 硬编码 full_text)",
+          "ImprovedPaletteSearch 实验层",
+          "FeatureFlag::UseTantivySearch 变体"
+        ],
+        "wasm": "wasm 分支保留 fuzzy 兜底? 实际 wasm 分支同删, wasm 非目标平台"
+      },
+      "tantivy_promoted": {
+        "gates": "searcher.rs 顶行+tests cfg 去 feature 门控(仅留 wasm), mod.rs 无条件挂载",
+        "dep": "tantivy 0.26 optional → 正式依赖",
+        "cloud_residue": "无 — 4 个 full_text_searcher 索引源全本地(CommandBinding/SessionNavigationData/NewSessionOption), RAM 索引无持久化无远端"
+      },
+      "verified": "cargo check -p warp --all-targets = 0 errors (36→3→2→0); voice_input/fuzzy/UseTantivySearch grep 全仓零残留",
+      "reindex": {
+        "date": "2026-08-31d",
+        "mode": "moderate",
+        "nodes": 113635,
+        "edges": 441225,
+        "trend": {
+          "初版": "116,906/460,882",
+          "清理轮": "114,076/443,881",
+          "R3": "113,803/442,516",
+          "R4 voice砍+fuzzy删": "113,635/441,225"
+        },
+        "graph_verified": {
+          "voice/tantivy 文件": "1 命中(app/src/ai/voice/mod.rs 7行墓碑注释) — 已顺手物理删+卸载 mod 声明, 复验 check 0 err"
+        }
       }
     }
   }

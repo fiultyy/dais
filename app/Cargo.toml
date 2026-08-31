@@ -214,7 +214,6 @@ warp_ssh_manager.workspace = true
 dais_sftp = { path = "../crates/dais_sftp" }
 warp_util.workspace = true
 warpui = { workspace = true, features = ["schema_gen", "settings_value"] }
-voice_input = { workspace = true, optional = true }
 warpui_extras = { workspace = true, features = ["default", "user_preferences-toml"] }
 syntax_tree.workspace = true
 languages.workspace = true
@@ -297,9 +296,7 @@ is_executable = "1.0.1"
 gethostname = "1.1.0"
 watcher.workspace = true
 warp_files.workspace = true
-# Tantivy 全文搜索引擎: 改为 optional, 仅在 use_tantivy_search feature 下参与编译,
-# 缺省构建不再拉取这棵重型依赖树 (~90 个传递闭包)
-tantivy = { version = "0.26.0", optional = true }
+tantivy = { version = "0.26.0" }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 console_error_panic_hook = { version = "0.1.6" }
@@ -585,7 +582,6 @@ default = [
     "local_fs",
     "local_tty",
     "changelog",
-    "voice_input",
     "completions_v2",
 ]
 
@@ -699,8 +695,6 @@ skip_login = []
 # This feature should only be enabled when building a self-contained binary with the bundle script.
 standalone = []
 prompt_suggestions_via_maa = []
-voice_input = ["dep:voice_input"]
-tab_close_button_on_left = []
 # Feature enabled only when app is compiled for integration tests.
 integration_tests = [
     "warp_cli/integration_tests",
@@ -735,8 +729,7 @@ autoupdate_ui_revamp = []
 warp_packs = []
 suggested_rules = []
 command_correction_key = []
-# 挂载 optional 依赖 dep:tantivy; 开启后全文搜索路径参与编译, 缺省走 fuzzy 分支
-use_tantivy_search = ["dep:tantivy"]
+tab_close_button_on_left = []
 simulate_github_unauthed = []
 reload_stale_conversation_files = []
 nld_fasttext_model = ["input_classifier/fasttext"]

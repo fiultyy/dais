@@ -87,9 +87,6 @@ pub struct AltScreenElement {
 
     cli_subagent_view: Option<Box<dyn Element>>,
 
-    /// Voice input toggle key code for CLI agent footer integration.
-    #[cfg_attr(not(feature = "voice_input"), allow(unused))]
-    voice_input_toggle_key_code: Option<KeyCode>,
 }
 
 impl AltScreenElement {
@@ -158,7 +155,6 @@ impl AltScreenElement {
             max_scroll_top: None,
             cursor_hint_text,
             cli_subagent_view,
-            voice_input_toggle_key_code: None,
         }
     }
 
@@ -180,12 +176,6 @@ impl AltScreenElement {
         self
     }
 
-    /// Sets the voice input toggle key code for CLI agent footer integration.
-    #[cfg(feature = "voice_input")]
-    pub fn with_voice_input_toggle_key(mut self, key_code: Option<KeyCode>) -> Self {
-        self.voice_input_toggle_key_code = key_code;
-        self
-    }
 
     fn key_down(&mut self, chars: &str, ctx: &mut EventContext) -> bool {
         if self.is_terminal_focused && !chars.is_empty() && chars.chars().all(|c| c.is_control()) {
@@ -610,25 +600,6 @@ impl AltScreenElement {
         self.grid_render_params.size_info.cell_height_px()
     }
 
-    #[cfg(feature = "voice_input")]
-    fn maybe_handle_voice_toggle(
-        &self,
-        key_code: &KeyCode,
-        state: &KeyState,
-        ctx: &mut EventContext,
-    ) -> bool {
-        if let Some(voice_input_toggle_key_code) = self.voice_input_toggle_key_code {
-            if *key_code == voice_input_toggle_key_code {
-                ctx.dispatch_typed_action(TerminalAction::ToggleCLIAgentVoiceInput(
-                    voice_input::VoiceInputToggledFrom::Key { state: *state },
-                ));
-                return true;
-            }
-        }
-        false
-    }
-
-    #[cfg(not(feature = "voice_input"))]
     fn maybe_handle_voice_toggle(
         &self,
         _key_code: &KeyCode,
@@ -637,6 +608,7 @@ impl AltScreenElement {
     ) -> bool {
         false
     }
+
 }
 
 impl Element for AltScreenElement {

@@ -126,8 +126,6 @@ fn initialize_deps(app: &mut App) {
     app.add_singleton_model(|_| Appearance::mock());
     app.add_singleton_model(|ctx| UserWorkspaces::mock(vec![], ctx));
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
     initialize_settings_for_tests(app);
 }
 

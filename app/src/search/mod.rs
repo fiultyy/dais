@@ -16,9 +16,6 @@ mod palette_styles;
 pub mod result_renderer;
 pub mod search_bar;
 pub mod slash_command_menu;
-// 全文搜索引擎依赖 tantivy (optional dep): 仅在 use_tantivy_search feature 下编译,
-// 缺省时整个模块不存在, 数据源只走 fuzzy 分支
-#[cfg(feature = "use_tantivy_search")]
 pub mod searcher;
 mod workflows;
 

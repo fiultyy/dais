@@ -82,8 +82,6 @@ use warp_completer::meta::Span;
 
 use unindent::Unindent;
 
-#[cfg(feature = "voice_input")]
-use voice_input::VoiceInputToggledFrom;
 use warpui::platform::WindowStyle;
 use warpui::{App, ReadModel, UpdateView, WindowId};
 
@@ -150,8 +148,6 @@ pub fn initialize_app(app: &mut App) {
     app.add_singleton_model(RepoMetadataModel::new);
     app.add_singleton_model(FileSearchModel::new);
     // Dais:RepoOutlines 已删除,不再注册。
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
 
     app.add_singleton_model(|_| IgnoredSuggestionsModel::new(vec![]));
     app.add_singleton_model(|_| TemplatableMCPServerManager::default());
@@ -5424,101 +5420,6 @@ fn test_vim_escape_with_completions() {
     });
 }
 
-#[test]
-#[cfg(feature = "voice_input")]
-fn test_voice_input_toggle_preserves_lock_state() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let terminal = add_window_with_bootstrapped_terminal(
-            &mut app, None, /* history_file_commands */
-            None,
-        )
-        .await;
-        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
-
-        // Start in shell mode with input locked
-        input.update(&mut app, |input, ctx| {
-            input.ai_input_model().update(ctx, |ai_input, ctx| {
-                ai_input.set_input_config(
-                    InputConfig {
-                        input_type: InputType::Shell,
-                        is_locked: true,
-                    },
-                    true, /* is_input_buffer_empty */
-                    ctx,
-                );
-            });
-        });
-
-        // Verify we're in locked shell mode
-        let initial_config = input.read(&app, |input, _| {
-            app.read_model(input.ai_input_model(), |ai_input, _| {
-                ai_input.input_config()
-            })
-        });
-        assert_eq!(initial_config.input_type, InputType::Shell);
-        assert!(initial_config.is_locked);
-
-        // Toggle voice input (should switch to AI mode but preserve lock state)
-        input.update(&mut app, |input, ctx| {
-            input.handle_universal_developer_input_button_bar_event(
-                &UniversalDeveloperInputButtonBarEvent::ToggleVoiceInput(
-                    VoiceInputToggledFrom::Button,
-                ),
-                ctx,
-            );
-        });
-
-        // Verify we're now in AI mode but still locked
-        let after_voice_config = input.read(&app, |input, _| {
-            app.read_model(input.ai_input_model(), |ai_input, _| {
-                ai_input.input_config()
-            })
-        });
-        assert_eq!(after_voice_config.input_type, InputType::AI);
-        assert!(
-            after_voice_config.is_locked,
-            "Input mode lock state should be preserved when toggling voice input"
-        );
-
-        // Test the reverse: start unlocked and ensure it stays unlocked
-        input.update(&mut app, |input, ctx| {
-            input.ai_input_model().update(ctx, |ai_input, ctx| {
-                ai_input.set_input_config(
-                    InputConfig {
-                        input_type: InputType::Shell,
-                        is_locked: false, // Unlocked (auto-detection enabled)
-                    },
-                    true, /* is_input_buffer_empty */
-                    ctx,
-                );
-            });
-        });
-
-        // Toggle voice input again
-        input.update(&mut app, |input, ctx| {
-            input.handle_universal_developer_input_button_bar_event(
-                &UniversalDeveloperInputButtonBarEvent::ToggleVoiceInput(
-                    VoiceInputToggledFrom::Button,
-                ),
-                ctx,
-            );
-        });
-
-        // Verify we're in AI mode but still unlocked
-        let final_config = input.read(&app, |input, _| {
-            app.read_model(input.ai_input_model(), |ai_input, _| {
-                ai_input.input_config()
-            })
-        });
-        assert_eq!(final_config.input_type, InputType::AI);
-        assert!(
-            !final_config.is_locked,
-            "Input mode should remain unlocked (auto-detection) when toggling voice input"
-        );
-    });
-}
 
 #[test]
 fn test_input_type_button_explicit_lock() {
@@ -6407,86 +6308,6 @@ fn test_ai_context_menu_reuses_reference_after_deleted_text() {
     });
 }
 
-#[test]
-#[cfg(feature = "voice_input")]
-fn test_input_config_transitions() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let terminal = add_window_with_bootstrapped_terminal(
-            &mut app, None, /* history_file_commands */
-            None,
-        )
-        .await;
-        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
-
-        // Test sequence: Shell(locked) -> VoiceInput -> AutoDetection -> AgentMode(locked)
-
-        // Start in locked Shell mode
-        input.update(&mut app, |input, ctx| {
-            input.ai_input_model().update(ctx, |ai_input, ctx| {
-                ai_input.set_input_config(
-                    InputConfig {
-                        input_type: InputType::Shell,
-                        is_locked: true,
-                    },
-                    true, /* is_input_buffer_empty */
-                    ctx,
-                );
-            });
-        });
-
-        // Toggle voice input (should go to AI mode, preserve lock)
-        input.update(&mut app, |input, ctx| {
-            input.handle_universal_developer_input_button_bar_event(
-                &UniversalDeveloperInputButtonBarEvent::ToggleVoiceInput(
-                    VoiceInputToggledFrom::Button,
-                ),
-                ctx,
-            );
-        });
-
-        let config_after_voice = input.read(&app, |input, _| {
-            app.read_model(input.ai_input_model(), |ai_input, _| {
-                ai_input.input_config()
-            })
-        });
-        assert_eq!(config_after_voice.input_type, InputType::AI);
-        assert!(config_after_voice.is_locked);
-
-        // Toggle auto-detection (should unlock and switch to Shell mode for empty buffer)
-        input.update(&mut app, |input, ctx| {
-            input.handle_universal_developer_input_button_bar_event(
-                &UniversalDeveloperInputButtonBarEvent::EnableAutoDetection,
-                ctx,
-            );
-        });
-
-        let config_after_auto = input.read(&app, |input, _| {
-            app.read_model(input.ai_input_model(), |ai_input, _| {
-                ai_input.input_config()
-            })
-        });
-        assert_eq!(config_after_auto.input_type, InputType::Shell);
-        assert!(!config_after_auto.is_locked);
-
-        // Explicitly click AgentMode button (should lock in AI mode)
-        input.update(&mut app, |input, ctx| {
-            input.handle_universal_developer_input_button_bar_event(
-                &UniversalDeveloperInputButtonBarEvent::InputTypeSelected(InputType::AI),
-                ctx,
-            );
-        });
-
-        let final_config = input.read(&app, |input, _| {
-            app.read_model(input.ai_input_model(), |ai_input, _| {
-                ai_input.input_config()
-            })
-        });
-        assert_eq!(final_config.input_type, InputType::AI);
-        assert!(final_config.is_locked);
-    });
-}
 
 #[test]
 fn test_should_show_completions_in_ai_input() {

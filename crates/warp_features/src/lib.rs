@@ -232,9 +232,6 @@ pub enum FeatureFlag {
     /// Enables prediction of Agent Mode queries.
     PredictAMQueries,
 
-    /// If enabled, command palette searches will use Tantivy search instead of the default fuzzy search.
-    UseTantivySearch,
-
     /// Allows AI to call the grep tool.
     GrepTool,
 
