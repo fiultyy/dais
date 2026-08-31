@@ -7879,6 +7879,14 @@
       },
       "stale_docs_noted": "specs/APP-3909/TECH.md 引用 FuzzyActionSearcher 旧址(过期规格指针, 非代码); verifier 未改待用户定夺规格是否仍活跃",
       "verified": "cargo check -p warp --all-targets 0 errors; 悬空符号复扫全零"
+    },
+    "dependency_audit": {
+      "date": "2026-08-31f",
+      "cargo_deps": "app [dependencies] 198→192: 10 死依赖删(bitflags-serde-legacy/crc/email_address/getset/log-panics/lz4_flex/shlex/sys-locale/thousands/unic-langid)",
+      "grep_blindspot": "concat-idents 误删回滚 — define_settings_group! 宏在调用方 crate 展开引用, 源码 grep 不可见; 死依赖检测需以编译错误为准做二次验证",
+      "lock_orphans": "63 个全平台全 features 不可达条目逐类核实为合法条件链(AVIF/aws/wasm optional), 非悬空不删",
+      "native_libs": "macOS framework/win advapi32 为跨平台守卫, linux 全 vendored; check 通过=系统依赖满足",
+      "verified": "cargo check -p warp --all-targets 0 errors"
     }
   }
 }

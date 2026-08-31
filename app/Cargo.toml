@@ -30,6 +30,7 @@ test = false
 addr = "0.15.6"
 ai.workspace = true
 anyhow.workspace = true
+concat-idents.workspace = true
 arrayvec.workspace = true
 asset_cache.workspace = true
 asset_macro.workspace = true
@@ -44,7 +45,6 @@ base64.workspace = true
 bimap = "0.6.2"
 bincode.workspace = true
 bitflags.workspace = true
-bitflags-serde-legacy.workspace = true
 blocking.workspace = true
 bounded-vec-deque = "0.1"
 bytecount = "0.6.9"
@@ -58,9 +58,7 @@ command = { workspace = true }
 command-corrections.workspace = true
 command-signatures-v2 = { workspace = true, optional = true }
 computer_use.workspace = true
-crc.workspace = true
 content_inspector = "0.2.4"
-concat-idents.workspace = true
 csv = "1.3.1"
 dashmap.workspace = true
 deltae = "0.3.1"
@@ -71,7 +69,6 @@ difflib = { git = "https://github.com/warpdotdev/difflib.git", rev = "114177e7d8
 directories.workspace = true
 dirs.workspace = true
 dunce.workspace = true
-email_address = { git = "https://github.com/warpdotdev/rust-email_address", branch = "main" }
 embed_plist = "1.2"
 enclose = "1.1.8"
 enum-iterator.workspace = true
@@ -86,7 +83,6 @@ fuzzy_match.workspace = true
 harness_integration.workspace = true
 genai.workspace = true
 proxy_interceptor.workspace = true
-getset.workspace = true
 handlebars.workspace = true
 rusqlite = { version = "0.35", features = ["bundled"] }
 hex.workspace = true
@@ -116,9 +112,7 @@ lazy_static.workspace = true
 libc.workspace = true
 line-ending.workspace = true
 log.workspace = true
-log-panics = { version = "2.1.0", features = ["with-backtrace"] }
 warp_logging.workspace = true
-lz4_flex = "0.11"
 markdown_parser.workspace = true
 memchr.workspace = true
 memo-map.workspace = true
@@ -150,9 +144,7 @@ rust-embed.workspace = true
 i18n-embed.workspace = true
 i18n-embed-fl.workspace = true
 fluent.workspace = true
-unic-langid.workspace = true
 i18n.workspace = true
-sys-locale.workspace = true
 inventory = "0.3"
 schemars = { version = "1", features = ["uuid1"] }
 serde.workspace = true
@@ -169,7 +161,6 @@ sha2.workspace = true
 shellexpand.workspace = true
 shell-words = "1.1.0"
 shell-escape.workspace = true
-shlex = "1.3.0"
 siphasher = "0.3.11"
 similar.workspace = true
 simple_logger.workspace = true
@@ -181,7 +172,6 @@ sum_tree.workspace = true
 tabwriter = "1.4"
 tempfile.workspace = true
 thiserror.workspace = true
-thousands = "0.2.0"
 tikv-jemallocator = { version = "0.6", optional = true, features = [
     "override_allocator_on_supported_platforms",
 ] }
