@@ -4,6 +4,7 @@ members = [
   "app",
 ]
 resolver = "2"
+exclude = ["crates/vendor"]
 
 # Include all members except serve-wasm (since it's a helper helper for serving
 # wasm binaries and not something we want to regularly compile or run
@@ -543,6 +544,10 @@ core-foundation-sys = { git = "https://github.com/servo/core-foundation-rs", rev
 core-graphics = { git = "https://github.com/servo/core-foundation-rs", rev = "6f844cf1a1a18e25b70fcdf1bcdc458555bd2eff" }
 core-text = { git = "https://github.com/servo/core-foundation-rs", rev = "6f844cf1a1a18e25b70fcdf1bcdc458555bd2eff" }
 objc = { git = "https://github.com/warpdotdev/rust-objc.git", rev = "5b656827fa9f863ef0eb22e444a3fedac009e78a" }
+# fontconfig 0.8.0 UB 修复: FontSet::iter 在 nfont==0 时 from_raw_parts 空指针触发
+# rustc 1.88+ debug precondition panic(Linux debug 构建/example 全崩)。上游 0.9 已修,
+# 但与 font-kit fork 钉的 yeslogic-fontconfig-sys 5.0 links 冲突不可升,故 vendor 补丁。
+fontconfig = { path = "crates/vendor/fontconfig" }
 pathfinder_simd = { git = "https://github.com/warpdotdev/pathfinder.git", rev = "34128a129ca6aee168fbc5060a4f21b4f7e486a9" }
 yaml-rust = { git = "https://github.com/warpdotdev/yaml-rust.git", rev = "51684719d0102ca85ff4b21cec39877a0c669e19" }
 

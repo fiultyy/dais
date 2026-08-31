@@ -4970,8 +4970,6 @@ dependencies = [
 [[package]]
 name = "fontconfig"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9b79b619a4ae048ea79e927376b1d10294979bda195b0c052fc958be96c62d9"
 dependencies = [
  "yeslogic-fontconfig-sys",
 ]
@@ -15287,6 +15285,7 @@ dependencies = [
  "cfg-if",
  "cfg_aliases 0.2.1",
  "chrono",
+ "cockpit_model",
  "cocoa 0.26.0",
  "command",
  "core-foundation 0.10.1",
@@ -15322,6 +15321,7 @@ dependencies = [
  "memmap2",
  "metal",
  "native-dialog",
+ "nav",
  "nix 0.26.4",
  "notify-rust",
  "num-traits",
@@ -15345,6 +15345,7 @@ dependencies = [
  "vec1",
  "version-compare",
  "virtual-fs",
+ "warp_core",
  "warpui",
  "warpui_core",
  "wasm-bindgen",
