@@ -15345,6 +15345,7 @@ dependencies = [
  "vec1",
  "version-compare",
  "virtual-fs",
+ "warp",
  "warp_core",
  "warpui",
  "warpui_core",

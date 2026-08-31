@@ -139,6 +139,14 @@ use ::ai::project_context::model::ProjectContextModel;
 pub use ai::agent::{todos::AIAgentTodoList, AIAgentActionResultType, FileEdit, TodoOperation};
 #[cfg(feature = "orchestration")]
 pub use ai::orchestration::runtime_rpc;
+// cockpit-sandbox(app 的 warpui example)经此路径挂面板真身;
+// ai 模块本身对 crate 外私有,只有白名单 re-export 出去。
+#[cfg(not(target_family = "wasm"))]
+pub use ai::cockpit::view::CockpitPanelView;
+#[cfg(not(target_family = "wasm"))]
+pub use ai::observatory::model::ObservatoryModel;
+#[cfg(not(target_family = "wasm"))]
+pub use ai::observatory::view::ObservatoryPanelView;
 use ai::agent_conversations_model::AgentConversationsModel;
 use ai::blocklist::{BlocklistAIHistoryModel, BlocklistAIPermissions};
 use ai::execution_profiles::editor::ExecutionProfileEditorManager;

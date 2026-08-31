@@ -1,11 +1,13 @@
-//! cockpit-sandbox — 布局设计迭代沙盒(秒级编译,不碰 app crate)
+//! cockpit-sandbox — 布局设计迭代沙盒(秒级编译,复用 crate 层本体)
 //!
-//! 用途: cockpit 驾驶舱/nav 双栏布局的 1:1 迭代。直接 use crate 层本体:
-//!   - `nav::CockpitNavView`(与 app 同一份代码,非复刻)
-//!   - `cockpit_model::CockpitModel`(注入假快照)
+//! 用途: 各界面布局的 1:1 迭代预览。直接 use crate 层本体(与 app 同一份代码,
+//! 非复刻),多页切换:
+//!   - cockpit-nav: `nav::CockpitNavView`(左栏导航,注入假快照)
+//!   - observatory: `warp::ai::observatory::view::ObservatoryPanelView`(真身,读真实 harness_blocks.db)
+//!   - cockpit: `warp::ai::cockpit::view::CockpitPanelView`(真身,与 nav 共享 CockpitModel 快照)
 //!   - `Appearance::mock()` + app Dark 主题字面值(与 app/src/themes/default_themes.rs 同源)
 //!
-//! 迭代循环: 改布局 → `cargo run -p warpui --example cockpit-sandbox`
+//! 迭代循环: 改布局 → `dais-sandbox`(或 `cargo run -p warpui --example cockpit-sandbox`)
 //! 定稿: 把改动搬回 crates/nav 或 app/src 对应文件。
 
 use anyhow::{anyhow, Result};
@@ -32,6 +34,10 @@ impl AssetProvider for Assets {
 
 fn main() -> Result<()> {
     env_logger::init();
+    // sandbox 挂载 app 面板真身,其依赖路径(ActionButton/InterceptSessionsModel
+    // 等)会查询 FeatureFlag;debug 构建下未初始化即 assert。先按 app 启动链
+    // 同款初始化(全开 enabled_features + mark_initialized)。
+    warp::init_feature_flags();
     let app_builder =
         platform::AppBuilder::new(platform::AppCallbacks::default(), Box::new(ASSETS), None);
     let _ = app_builder.run(move |ctx| {

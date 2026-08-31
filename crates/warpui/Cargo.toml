@@ -64,6 +64,8 @@ warpui_core = { workspace = true, features = ["test-util"] }
 nav.workspace = true
 cockpit_model.workspace = true
 warp_core = { workspace = true, features = ["test-util"] }
+# 多页预览: observatory/cockpit 面板真身在 app crate(warp)
+warp = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block.workspace = true
