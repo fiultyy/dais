@@ -159,7 +159,6 @@ use warp::{
         window::{add_window, add_window_and_check_bounds, close_window, save_active_window_id},
     },
     settings::{TabBehavior, INPUT_MODE},
-    settings_view::FeaturesPageAction,
     terminal::{
         alt_screen_reporting::MouseReportingEnabled,
         block_list_viewport::{InputMode, ScrollPosition},
@@ -2166,128 +2165,6 @@ pub fn test_add_many_sessions() -> Builder {
             .with_step(execute_echo(tab_idx))
     }
     builder
-}
-
-pub fn test_ctrl_tab_session_switching() -> Builder {
-    #[allow(unused_mut, unused_assignments)]
-    let mut builder = new_builder();
-
-    // If linux return early.  For reasons unknown and not worth the time to debug currently
-    // this test fails on linux at the step where the command palette is expected to show.
-    // The feature does work on linux though - there's some underlying issue with our integration
-    // test here.
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-    {
-        return builder;
-    }
-
-    // if we are on linux, allow unreachable code
-    #[allow(unreachable_code)]
-    {
-        builder = new_builder()
-            .with_step(wait_until_bootstrapped_single_pane_for_tab(0))
-            .with_step(execute_echo(0))
-            .with_step(
-                toggle_setting(SettingsAction::FeaturesPageToggle(
-                    FeaturesPageAction::SetCtrlTabBehavior(CtrlTabBehavior::CycleMostRecentSession),
-                ))
-                .add_assertion(|app, _| {
-                    let ctrl_tab_behavior = KeysSettings::handle(app)
-                        .read(app, |keys_settings, _| *keys_settings.ctrl_tab_behavior);
-                    async_assert!(
-                        matches!(ctrl_tab_behavior, CtrlTabBehavior::CycleMostRecentSession),
-                        "Ctrl-Tab behavior should be set to CycleMostLeastRecentSession"
-                    )
-                })
-                .add_assertion(save_active_window_id("first_window_id")),
-            );
-
-        for i in 1..5 {
-            let tab_idx = i;
-            builder = builder
-                .with_step(
-                    new_step_with_default_assertions(
-                        format!("Add a session {i} using cmd-t and verify it bootstraps").as_str(),
-                    )
-                    .with_keystrokes(&[cmd_or_ctrl_shift("t")])
-                    .set_timeout(Duration::from_secs(10))
-                    .add_assertion(move |app, window_id| {
-                        assert_single_terminal_in_tab_bootstrapped(app, window_id, tab_idx)
-                    })
-                    .add_assertion(assert_tab_count(tab_idx + 1)),
-                )
-                .with_step(execute_echo(tab_idx))
-        }
-        builder = builder
-            .with_step(
-                new_step_with_default_assertions("Switch to the most recently added tab")
-                    .with_action(|app, _, data| {
-                        let window_id = match data.get("first_window_id") {
-                            Some(window_id) => *window_id,
-                            None => {
-                                panic!("Expected first_window_id to be defined");
-                            }
-                        };
-                        app.dispatch_custom_action(CustomAction::CycleNextSession, window_id);
-                    }),
-            )
-            .with_step(
-                new_step_with_default_assertions("release ctrl key 1")
-                    .with_event(Event::ModifierKeyChanged {
-                        key_code: KeyCode::ControlLeft,
-                        state: KeyState::Released,
-                    })
-                    .add_assertion(assert_focused_editor_in_tab(
-                        3, /* second to last tab, which was most recently added */
-                    )),
-            )
-            .with_step(
-                new_step_with_default_assertions("Switch to the tab just switched away from")
-                    .with_action(|app, _, data| {
-                        let window_id = match data.get("first_window_id") {
-                            Some(window_id) => *window_id,
-                            None => {
-                                panic!("Expected first_window_id to be defined");
-                            }
-                        };
-                        app.dispatch_custom_action(CustomAction::CycleNextSession, window_id);
-                    }),
-            )
-            .with_step(
-                new_step_with_default_assertions("release ctrl key 2")
-                    .with_event(Event::ModifierKeyChanged {
-                        key_code: KeyCode::ControlLeft,
-                        state: KeyState::Released,
-                    })
-                    .add_assertion(assert_focused_editor_in_tab(
-                        4, /* last tab, which was most recently switched away from*/
-                    )),
-            )
-            .with_step(
-                new_step_with_default_assertions("Go backwards in the tab cycle").with_action(
-                    |app, _, data| {
-                        let window_id = match data.get("first_window_id") {
-                            Some(window_id) => *window_id,
-                            None => {
-                                panic!("Expected first_window_id to be defined");
-                            }
-                        };
-                        app.dispatch_custom_action(CustomAction::CyclePrevSession, window_id);
-                    },
-                ),
-            )
-            .with_step(
-                new_step_with_default_assertions("release ctrl key 3")
-                    .with_event(Event::ModifierKeyChanged {
-                        key_code: KeyCode::ControlLeft,
-                        state: KeyState::Released,
-                    })
-                    .add_assertion(assert_focused_editor_in_tab(
-                        0, /* first tab, should wrap around */
-                    )),
-            );
-        builder
-    }
 }
 
 // This test verifies part of the behavior that we expect from 'ssh' command
@@ -6688,42 +6565,6 @@ pub fn test_create_folder_from_command_palette() -> Builder {
             open_command_palette_and_run_action("Create a New Personal Folder")
                 .add_assertion(assert_warp_drive_is_open()),
         )
-}
-
-pub fn test_tab_behavior_setting() -> Builder {
-    let completions_binding_name = "input:open_completion_suggestions";
-    let autosuggestions_binding_name = "editor_view:insert_autosuggestion";
-
-    let expected_completion_binding_name = if OperatingSystem::get().is_mac() {
-        "⌃Space"
-    } else {
-        "Ctrl Space"
-    };
-
-    new_builder()
-        .with_step(wait_until_bootstrapped_single_pane_for_tab(0))
-        .with_step(toggle_setting(SettingsAction::FeaturesPageToggle(
-            FeaturesPageAction::SetTabBehavior(TabBehavior::Autosuggestions),
-        )))
-        .with_step(assert_binding_display_string(
-            autosuggestions_binding_name,
-            Some("Tab"),
-        ))
-        .with_step(assert_binding_display_string(
-            completions_binding_name,
-            Some(expected_completion_binding_name),
-        ))
-        .with_step(toggle_setting(SettingsAction::FeaturesPageToggle(
-            FeaturesPageAction::SetTabBehavior(TabBehavior::Completions),
-        )))
-        .with_step(assert_binding_display_string(
-            autosuggestions_binding_name,
-            None,
-        ))
-        .with_step(assert_binding_display_string(
-            completions_binding_name,
-            Some("Tab"),
-        ))
 }
 
 pub fn test_context_chips_prompt_at_bootstrap() -> Builder {

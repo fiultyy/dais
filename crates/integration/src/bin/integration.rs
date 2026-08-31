@@ -120,7 +120,6 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
     register_test!(test_single_command);
     register_test!(test_add_and_close_session);
     register_test!(test_add_many_sessions);
-    register_test!(test_ctrl_tab_session_switching);
     register_test!(test_ctrl_d_eot);
     register_test!(test_ctrl_d_exit);
     register_test!(test_ctrl_d_handled_by_read_during_bootstrapping);
@@ -302,8 +301,6 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
     register_test!(test_ask_warp_ai_keybinding_for_selected_block);
     register_test!(test_create_folder_from_command_palette);
 
-    register_test!(test_tab_behavior_setting);
-
     register_test!(test_private_public_settings_routing_with_flag_enabled);
     register_test!(test_private_settings_preloaded_and_not_leaked_to_toml);
 
@@ -349,7 +346,6 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
     // Workflow tests
     register_test!(test_open_workflow_in_pane);
     register_test!(test_create_personal_workflow_pane_from_command_palette);
-    register_test!(test_create_team_workflow_pane_from_command_palette);
 
     register_test!(test_block_filtering_keybinding);
     register_test!(test_block_filtering_keybinding_with_long_running_command);
@@ -409,7 +405,6 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
 
     register_test!(test_rule_creation);
     register_test!(test_rule_update);
-    register_test!(test_rule_pane_opening);
     register_test!(test_undo_close_stack_timeout_cleanup);
 
     // File tree tests

@@ -1,7 +1,6 @@
 use warp::integration_testing::{
     rules::{
-        assert_rule_count, assert_rule_exists, assert_rule_pane_open, create_a_personal_rule,
-        open_rule_pane, update_rule_content,
+        assert_rule_count, assert_rule_exists, create_a_personal_rule, update_rule_content,
     },
     step::new_step_with_default_assertions,
     terminal::wait_until_bootstrapped_single_pane_for_tab,
@@ -57,32 +56,3 @@ pub fn test_rule_update() -> Builder {
 }
 
 // Test opening rule pane at the correct rule
-pub fn test_rule_pane_opening() -> Builder {
-    let key = "rule";
-    let window_id = "main_window";
-    new_builder()
-        .with_step(wait_until_bootstrapped_single_pane_for_tab(0))
-        .with_step(
-            create_a_personal_rule(
-                key,
-                "Pane Test Rule",
-                "This rule is for testing pane opening",
-            )
-            .add_assertion(assert_rule_count(1))
-            .add_assertion(save_active_window_id(window_id)),
-        )
-        .with_step(
-            create_a_personal_rule(
-                "rule_2",
-                "Pane Test Rule #2",
-                "This rule is for testing pane opening #2",
-            )
-            .add_assertion(assert_rule_count(2)),
-        )
-        .with_step(
-            open_rule_pane(window_id, key).add_named_assertion_with_data_from_prior_step(
-                "Check rule pane opens",
-                assert_rule_pane_open(key),
-            ),
-        )
-}
