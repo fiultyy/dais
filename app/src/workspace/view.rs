@@ -264,8 +264,6 @@ use crate::terminal::view::{
 use crate::terminal::{BlockListSettings, TerminalModel};
 use crate::themes::theme::{AnsiColorIdentifier, RespectSystemTheme, ThemeKind};
 use crate::themes::theme_chooser::{ThemeChooser, ThemeChooserEvent, ThemeChooserMode};
-use crate::themes::theme_creator_modal::{ThemeCreatorModal, ThemeCreatorModalEvent};
-use crate::themes::theme_deletion_modal::{ThemeDeletionModal, ThemeDeletionModalEvent};
 use crate::ui_components::buttons::{combo_inner_button, icon_button_with_color};
 use warpui::ui_components::button::ButtonTooltipPosition;
 #[cfg(feature = "local_fs")]
@@ -913,17 +911,10 @@ pub struct Workspace {
     mouse_states: WorkspaceMouseStates,
     settings_pane: ViewHandle<SettingsView>,
     theme_chooser_view: ViewHandle<ThemeChooser>,
-    previous_theme: Option<ThemeKind>,
-    /// The per-window theme override selected for this window via the theme
-    /// chooser's "This window" scope, if any. Source of truth that feeds
-    /// `WindowSnapshot` at save time and is re-applied on restore. `None` when
-    /// the window follows the global theme.
+    /// Legacy per-window theme override. The chooser no longer creates
+    /// overrides, but old window snapshots may still carry one; it is
+    /// restored (values that no longer deserialize fall back to `None`).
     theme_override: Option<ThemeKind>,
-    /// The per-window theme override that was active when the theme chooser was
-    /// opened. Lets a cancelled preview (the `revert_theme` path) restore this
-    /// window's override, mirroring how `clear_transient_theme` reverts the
-    /// global preview. `None` means the window had no override at open time.
-    previous_theme_override: Option<ThemeKind>,
     pub(crate) current_workspace_state: WorkspaceState,
     previous_workspace_state: Option<WorkspaceState>,
     model_event_sender: Option<mpsc::SyncSender<ModelEvent>>,
@@ -958,8 +949,6 @@ pub struct Workspace {
     header_toolbar_editor_modal: ViewHandle<HeaderToolbarEditorModal>,
     header_toolbar_context_menu: ViewHandle<Menu<WorkspaceAction>>,
     show_header_toolbar_context_menu: Option<Vector2F>,
-    theme_creator_modal: ViewHandle<ThemeCreatorModal>,
-    theme_deletion_modal: ViewHandle<ThemeDeletionModal>,
     toast_stack: ViewHandle<DismissibleToastStack<WorkspaceAction>>,
     agent_toast_stack: ViewHandle<AgentToastStack>,
     /// 通知中心信箱(标题栏右上角 Inbox 按钮的下拉浮层)。
@@ -1474,12 +1463,9 @@ impl Workspace {
 
     fn build_settings_views(
         _global_resource_handles: GlobalResourceHandles,
-        tips_completed: ModelHandle<TipsCompleted>,
         ctx: &mut ViewContext<Self>,
     ) -> (ViewHandle<SettingsView>, ViewHandle<ThemeChooser>) {
-        let theme_chooser_view =
-            ctx.add_typed_action_view(|ctx| ThemeChooser::new(ctx, tips_completed));
-
+        let theme_chooser_view = ctx.add_typed_action_view(ThemeChooser::new);
         ctx.subscribe_to_view(&theme_chooser_view, |me, _, event, ctx| {
             me.handle_theme_chooser_event(event, ctx);
         });
@@ -1537,26 +1523,6 @@ impl Workspace {
             }
         }
     }
-
-
-    fn build_theme_creator_modal(ctx: &mut ViewContext<Self>) -> ViewHandle<ThemeCreatorModal> {
-        let theme_creator_modal = ctx.add_typed_action_view(ThemeCreatorModal::new);
-        ctx.subscribe_to_view(&theme_creator_modal, move |me, _, event, ctx| {
-            me.handle_theme_creator_modal_event(event, ctx);
-        });
-
-        theme_creator_modal
-    }
-
-    fn build_theme_deletion_modal(ctx: &mut ViewContext<Self>) -> ViewHandle<ThemeDeletionModal> {
-        let theme_deletion_modal = ctx.add_typed_action_view(ThemeDeletionModal::new);
-        ctx.subscribe_to_view(&theme_deletion_modal, move |me, _, event, ctx| {
-            me.handle_theme_deletion_modal_event(event, ctx);
-        });
-
-        theme_deletion_modal
-    }
-
 
     fn build_close_session_confirmation_dialog(
         ctx: &mut ViewContext<Self>,
@@ -2383,7 +2349,7 @@ impl Workspace {
         });
 
         let (settings_pane, theme_chooser_view) =
-            Self::build_settings_views(global_resource_handles, tips_completed.clone(), ctx);
+            Self::build_settings_views(global_resource_handles, ctx);
 
         let resource_center_view =
             Self::build_resource_center_view(ctx, tips_completed.clone(), changelog_model.clone());
@@ -2391,10 +2357,6 @@ impl Workspace {
         let require_login_modal = Self::build_require_login_modal(ctx);
 
         let auth_override_warning_modal = Self::build_auth_override_warning_modal(ctx);
-
-        let theme_creator_modal = Self::build_theme_creator_modal(ctx);
-
-        let theme_deletion_modal = Self::build_theme_deletion_modal(ctx);
 
         let launch_config_save_modal = Self::build_launch_config_save_modal(ctx);
 
@@ -2744,10 +2706,8 @@ impl Workspace {
             changelog_model,
             palette,
             ctrl_tab_palette,
-            mouse_states: Default::default(),
-            previous_theme: None,
             theme_override: None,
-            previous_theme_override: None,
+            mouse_states: Default::default(),
             settings_pane,
             theme_chooser_view,
             current_workspace_state: Default::default(),
@@ -2776,8 +2736,6 @@ impl Workspace {
             ai_assistant_close_warm_welcome_mouse_state_handle: Default::default(),
             auth_override_warning_modal,
             require_login_modal,
-            theme_creator_modal,
-            theme_deletion_modal,
             window_id: ctx.window_id(),
             toast_stack,
             agent_toast_stack,
@@ -9247,56 +9205,6 @@ impl Workspace {
         }
     }
 
-    fn handle_theme_creator_modal_event(
-        &mut self,
-        event: &ThemeCreatorModalEvent,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        match event {
-            ThemeCreatorModalEvent::Close => {
-                self.current_workspace_state.is_theme_creator_modal_open = false;
-                ctx.notify();
-            }
-            ThemeCreatorModalEvent::SetCustomTheme { theme } => {
-                self.theme_chooser_view
-                    .update(ctx, |theme_chooser_view, ctx| {
-                        theme_chooser_view.reload_and_set_custom_theme(theme.clone(), ctx);
-                    });
-            }
-            ThemeCreatorModalEvent::ShowErrorToast { message } => {
-                self.toast_stack.update(ctx, |view, ctx| {
-                    let new_toast = DismissibleToast::error(message.clone());
-                    view.add_ephemeral_toast(new_toast, ctx);
-                });
-            }
-        }
-    }
-
-    fn handle_theme_deletion_modal_event(
-        &mut self,
-        event: &ThemeDeletionModalEvent,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        match event {
-            ThemeDeletionModalEvent::Close => {
-                self.current_workspace_state.is_theme_deletion_modal_open = false;
-                ctx.notify();
-            }
-            ThemeDeletionModalEvent::ShowErrorToast { message } => {
-                self.toast_stack.update(ctx, |view, ctx| {
-                    let new_toast = DismissibleToast::error(message.clone());
-                    view.add_ephemeral_toast(new_toast, ctx);
-                });
-            }
-            ThemeDeletionModalEvent::DeleteCurrentTheme => {
-                self.theme_chooser_view
-                    .update(ctx, |theme_chooser_view, ctx| {
-                        // Reset theme to Dark if we are deleting the current theme
-                        theme_chooser_view.select_and_save_theme(&ThemeKind::Dark, ctx);
-                    });
-            }
-        }
-    }
 
     /// Returns the pane group with the matching EntityId, or None if it doesn't exist.
     fn get_pane_group_view_with_id(&self, id: EntityId) -> Option<&ViewHandle<PaneGroup>> {
@@ -12631,13 +12539,6 @@ impl Workspace {
         });
     }
 
-    pub fn is_theme_creator_modal_open(&self) -> bool {
-        self.current_workspace_state.is_theme_creator_modal_open
-    }
-
-    pub fn is_theme_deletion_modal_open(&self) -> bool {
-        self.current_workspace_state.is_theme_deletion_modal_open
-    }
 
     pub fn is_palette_open(&self) -> bool {
         self.current_workspace_state.is_palette_open
@@ -13543,7 +13444,7 @@ impl Workspace {
                 });
             }
             pane_group::Event::OpenThemeChooser => {
-                self.show_theme_chooser_for_custom_theme(ctx);
+                self.show_theme_chooser(None, ctx);
             }
             pane_group::Event::OpenConversationHistory => {
                 self.open_palette_action(
@@ -13736,20 +13637,9 @@ impl Workspace {
     ) {
         match event {
             ThemeChooserEvent::Click => self.focus_theme_chooser(ctx),
-            ThemeChooserEvent::Close(mode) => {
-                self.save_theme_chooser(mode, ctx);
+            ThemeChooserEvent::Close(_) => {
+                self.close_theme_chooser(ctx);
                 self.restore_previous_workspace_state(ctx);
-            }
-            ThemeChooserEvent::OpenThemeCreatorModal => {
-                self.open_theme_creator_modal(ctx);
-            }
-            ThemeChooserEvent::OpenThemeDeletionModal(theme_kind) => {
-                self.open_theme_deletion_modal(theme_kind.clone(), ctx);
-            }
-            ThemeChooserEvent::WindowThemeOverride(theme_kind) => {
-                // Record (or clear) this window's per-window theme override so it
-                // is persisted in the window snapshot and re-applied on restart.
-                self.theme_override = theme_kind.clone();
             }
         };
     }
@@ -14662,65 +14552,14 @@ impl Workspace {
         }
     }
 
-    fn should_keep_theme(system_theme: SystemTheme, ctx: &mut ViewContext<Self>) -> bool {
-        if system_theme == ctx.system_theme() {
-            let respect_system_theme = respect_system_theme(ThemeSettings::as_ref(ctx));
-            if let RespectSystemTheme::On { .. } = respect_system_theme {
-                return true;
-            }
-        }
-        false
-    }
 
-    fn save_theme_chooser(&mut self, mode: &ThemeChooserMode, ctx: &mut ViewContext<Self>) {
-        let keep_theme = match mode {
-            ThemeChooserMode::SystemAgnostic => true,
-            ThemeChooserMode::SystemLight => Workspace::should_keep_theme(SystemTheme::Light, ctx),
-            ThemeChooserMode::SystemDark => Workspace::should_keep_theme(SystemTheme::Dark, ctx),
-        };
-        if keep_theme {
-            self.keep_theme(ctx);
-        } else {
-            self.revert_theme(ctx);
-        }
-    }
-
-    fn revert_theme(&mut self, ctx: &mut ViewContext<Self>) {
-        // Mirror the transient revert for the per-window override: a "This
-        // window" preview writes directly into the override map (there is no
-        // transient layer for it), so restore this window to whatever override
-        // it had when the chooser opened instead of leaving the preview behind.
-        let window_id = ctx.window_id();
-        let restored = self.previous_theme_override.take();
+    /// 选择即提交:chooser 关闭时无需回滚/落盘,仅清掉残留的 transient 预览层
+    /// (老 chooser 的遗留机制)并复位状态。
+    fn close_theme_chooser(&mut self, ctx: &mut ViewContext<Self>) {
         AppearanceManager::handle(ctx).update(ctx, |appearance_manager, ctx| {
             appearance_manager.clear_transient_theme(ctx);
-            match &restored {
-                Some(theme_kind) => {
-                    appearance_manager.set_window_theme(window_id, theme_kind.clone(), ctx)
-                }
-                None => appearance_manager.clear_window_theme(window_id, ctx),
-            }
-        });
-        self.theme_override = restored;
-        self.current_workspace_state.is_theme_chooser_open = false;
-        self.previous_theme = None;
-        ctx.notify();
-    }
-
-    fn keep_theme(&mut self, ctx: &mut ViewContext<Self>) {
-        // 关闭时把 per-window override map 同步回已提交的 self.theme_override,抵消打开时
-        // select_theme 在 ThisWindow scope 下写入的预览覆盖(否则重开后 override 会丢失)。
-        let window_id = ctx.window_id();
-        let committed = self.theme_override.clone();
-        AppearanceManager::handle(ctx).update(ctx, |appearance_manager, ctx| match &committed {
-            Some(theme_kind) => {
-                appearance_manager.set_window_theme(window_id, theme_kind.clone(), ctx)
-            }
-            None => appearance_manager.clear_window_theme(window_id, ctx),
         });
         self.current_workspace_state.is_theme_chooser_open = false;
-        self.previous_theme = None;
-        self.previous_theme_override = None;
         ctx.notify();
     }
 
@@ -14895,18 +14734,12 @@ impl Workspace {
         self.show_theme_chooser(Some(ThemeChooserMode::for_active_theme(ctx)), ctx)
     }
 
-    pub fn show_theme_chooser_for_custom_theme(&mut self, ctx: &mut ViewContext<Self>) {
-        self.show_theme_chooser(None, ctx)
-    }
-
     /// Shows the theme chooser so the user can change a specific theme.
     pub fn show_theme_chooser(
         &mut self,
         theme_chooser_mode: Option<ThemeChooserMode>,
         ctx: &mut ViewContext<Self>,
     ) {
-        let current_theme = active_theme_kind(ThemeSettings::as_ref(ctx), ctx);
-
         self.close_tab_bar_overflow_menu(ctx);
 
         self.current_workspace_state.close_all_left_panels();
@@ -14919,16 +14752,10 @@ impl Workspace {
         self.current_workspace_state.is_ai_assistant_panel_open = false;
         self.current_workspace_state.is_theme_chooser_open = true;
 
-        self.previous_theme = Some(current_theme);
-        self.previous_theme_override = self.theme_override.clone();
-
         self.theme_chooser_view.update(ctx, |view, ctx| {
-            view.record_open_theme(ctx);
             if let Some(theme_chooser_mode) = theme_chooser_mode {
                 view.select_theme(theme_chooser_mode.into_theme_kind(ctx), ctx);
                 view.set_mode(theme_chooser_mode);
-            } else {
-                view.reload_and_set_latest_theme(ctx);
             }
         });
 
@@ -15361,21 +15188,6 @@ impl Workspace {
         ctx.focus(&self.agent_toolbar_editor_modal);
     }
 
-    fn open_theme_creator_modal(&mut self, ctx: &mut ViewContext<Self>) {
-        self.current_workspace_state.is_theme_creator_modal_open = true;
-        ctx.focus(&self.theme_creator_modal);
-        ctx.notify();
-    }
-
-    fn open_theme_deletion_modal(&mut self, theme_kind: ThemeKind, ctx: &mut ViewContext<Self>) {
-        self.current_workspace_state.is_theme_deletion_modal_open = true;
-        self.theme_deletion_modal
-            .update(ctx, |theme_deletion_modal, ctx| {
-                theme_deletion_modal.set_theme_kind(theme_kind, ctx);
-            });
-        ctx.focus(&self.theme_deletion_modal);
-        ctx.notify();
-    }
 
     // Dais:删除 open_shared_objects_creation_denied_modal(云端 Drive 配额拒绝弹窗)
 
@@ -21295,14 +21107,6 @@ impl View for Workspace {
 
         if self.current_workspace_state.is_auth_override_modal_open {
             stack.add_child(ChildView::new(&self.auth_override_warning_modal).finish());
-        }
-
-        if self.current_workspace_state.is_theme_creator_modal_open {
-            stack.add_child(ChildView::new(&self.theme_creator_modal).finish());
-        }
-
-        if self.current_workspace_state.is_theme_deletion_modal_open {
-            stack.add_child(ChildView::new(&self.theme_deletion_modal).finish());
         }
 
         if self.launch_config_save_modal.is_open() {

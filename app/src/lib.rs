@@ -1600,8 +1600,6 @@ fn initialize_app(
     workflows::init(ctx);
     notifications::init(ctx);
     themes::theme_chooser::init(ctx);
-    themes::theme_creator_modal::init(ctx);
-    themes::theme_deletion_modal::init(ctx);
     root_view::init(ctx);
     voltron::init(ctx);
     auth::init(ctx);
@@ -2497,8 +2495,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::KittyImages,
         #[cfg(feature = "warp_packs")]
         FeatureFlag::WarpPacks,
-        #[cfg(feature = "default_adeberry_theme")]
-        FeatureFlag::DefaultAdeberryTheme,
         #[cfg(feature = "agent_mode_primary_xml")]
         FeatureFlag::AgentModePrimaryXML,
         #[cfg(feature = "agent_mode_pre_plan_xml")]

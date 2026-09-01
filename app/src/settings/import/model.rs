@@ -15,7 +15,6 @@ use warpui::SingletonEntity;
 #[cfg(target_os = "macos")]
 use super::config::HotkeyError;
 use super::config::SettingType;
-use super::config::ThemeType;
 
 #[derive(Clone, Copy, Debug, EnumDiscriminants, Eq, Hash, PartialEq)]
 #[strum_discriminants(derive(EnumIter, Hash, Serialize))]
@@ -244,15 +243,6 @@ impl ImportedConfigModel {
             SettingType::CopyOnSelect => config.copy_on_select.should_import,
             SettingType::CursorBlinking => config.cursor_blinking.should_import,
         }
-    }
-
-    pub fn write_theme(&self, profile: &TerminalTypeAndProfile) -> Option<ThemeType> {
-        self.config(profile)
-            .map(|config| config.write_theme())
-            .unwrap_or_else(|| {
-                log::warn!("Attempted to write the theme from an invalid profile.");
-                None
-            })
     }
 
     pub fn finished_searching_for_settings(&self) -> bool {

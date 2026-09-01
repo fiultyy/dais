@@ -1001,8 +1001,8 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
                     .agent_management_filters
                     .as_ref()
                     .and_then(|f| serde_json::to_string(f).ok()),
-                // Serialize with serde (not Display) so the `ThemeKind::Custom`
-                // variant round-trips.
+                // Serialize with serde (not Display); unknown legacy values
+                // fall back to `ThemeKind::Dark` on deserialize.
                 theme_override: window
                     .theme_override
                     .as_ref()

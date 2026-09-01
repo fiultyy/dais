@@ -140,16 +140,6 @@ impl WarpConfig {
         ctx.emit(WarpConfigUpdateEvent::Themes);
     }
 
-    pub fn add_new_theme_to_config(
-        &mut self,
-        theme_name: ThemeKind,
-        theme: WarpTheme,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        self.theme_config.add_new_theme(theme_name, theme);
-        ctx.emit(WarpConfigUpdateEvent::Themes);
-    }
-
     /// Eagerly removes a tab config by its source path and emits a `TabConfigs` event.
     /// (Used after deleting the file on disk so the menu updates immediately
     /// rather than waiting for the filesystem watcher.)

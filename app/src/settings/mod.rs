@@ -520,10 +520,7 @@ impl Settings {
     }
 
     pub fn theme_for_theme_kind(theme_kind: &ThemeKind, ctx: &mut AppContext) -> WarpTheme {
-        match theme_kind {
-            ThemeKind::InMemory(in_memory_theme) => in_memory_theme.theme(),
-            _ => WarpConfig::as_ref(ctx).theme_config().theme(theme_kind),
-        }
+        WarpConfig::as_ref(ctx).theme_config().theme(theme_kind)
     }
 }
 

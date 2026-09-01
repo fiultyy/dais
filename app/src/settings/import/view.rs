@@ -33,14 +33,12 @@ use crate::{
         alt_screen_reporting::AltScreenReporting, keys_settings::KeysSettings,
         session_settings::SessionSettings,
     },
-    themes::theme::{CustomTheme, SelectedSystemThemes, ThemeKind},
     ui_components::blended_colors,
-    user_config::{self, WarpConfig},
     window_settings::WindowSettings,
     GlobalResourceHandlesProvider, TelemetryEvent,
 };
 
-use super::config::{QuakeModeWindow, ThemeType};
+use super::config::QuakeModeWindow;
 
 // UI does not scale, so we set a fixed size for all text.
 const DROPDOWN_BORDER_RADIUS: f32 = 8.;
@@ -757,64 +755,6 @@ impl SettingsImportView {
         ctx.notify();
     }
 
-    fn set_theme(
-        ctx: &mut warpui::ViewContext<Self>,
-        theme_type: ThemeType,
-        terminal_name: &String,
-    ) {
-        let dir = user_config::themes_dir();
-        match theme_type {
-            ThemeType::LightAndDark { light, dark } => {
-                let light_path = dir.join(format!("{terminal_name}_light_theme.yaml"));
-
-                let light_kind = ThemeKind::Custom(CustomTheme::new(
-                    light.name().unwrap_or_default(),
-                    light_path,
-                ));
-
-                let dark_path = dir.join(format!("{terminal_name}_dark_theme.yaml"));
-
-                let dark_kind =
-                    ThemeKind::Custom(CustomTheme::new(dark.name().unwrap_or_default(), dark_path));
-                ThemeSettings::handle(ctx).update(ctx, |theme_settings, ctx| {
-                    report_if_error!(theme_settings.selected_system_themes.set_value(
-                        SelectedSystemThemes {
-                            light: light_kind.clone(),
-                            dark: dark_kind.clone(),
-                        },
-                        ctx,
-                    ));
-                    report_if_error!(theme_settings.use_system_theme.set_value(true, ctx));
-                });
-                WarpConfig::handle(ctx).update(ctx, |config, ctx| {
-                    config.add_new_theme_to_config(dark_kind, dark, ctx)
-                });
-                WarpConfig::handle(ctx).update(ctx, |config, ctx| {
-                    config.add_new_theme_to_config(light_kind, light, ctx)
-                });
-            }
-            ThemeType::Single(theme) => {
-                let theme_path = dir.join(format!("{terminal_name}_theme.yaml"));
-
-                let theme_kind = ThemeKind::Custom(CustomTheme::new(
-                    theme.name().unwrap_or_default(),
-                    theme_path,
-                ));
-                ThemeSettings::handle(ctx).update(ctx, |theme_settings, ctx| {
-                    report_if_error!(theme_settings
-                        .theme_kind
-                        .set_value(theme_kind.clone(), ctx,));
-                    report_if_error!(theme_settings.use_system_theme.set_value(false, ctx));
-                });
-                WarpConfig::handle(ctx).update(ctx, |config, ctx| {
-                    config.add_new_theme_to_config(theme_kind, theme, ctx)
-                });
-            }
-        }
-
-        ctx.notify();
-    }
-
     fn remove_old_keybindings(
         &self,
         ctx: &mut ModelContext<KeysSettings>,
@@ -1083,19 +1023,8 @@ impl TypedActionView for SettingsImportView {
                 // set_preferences should not fail because it is writing directly to Dais's preferences.
                 self.set_preferences(ctx, terminal_type_and_profile);
 
-                // write_theme can fail because we write themes in a separate directory.
-                if let Some(theme_type) =
-                    ImportedConfigModel::as_ref(ctx).write_theme(terminal_type_and_profile)
-                {
-                    SettingsImportView::set_theme(
-                        ctx,
-                        theme_type,
-                        &self.configs[selected_idx].config_name,
-                    );
-                    ctx.emit(SettingsImportEvent::Completed(true));
-                } else {
-                    ctx.emit(SettingsImportEvent::Completed(false));
-                }
+                // 主题不再支持自定义导入(主题精简为 Dark/Light),跳过主题写盘。
+                ctx.emit(SettingsImportEvent::Completed(false));
                 self.state = State::Completed {
                     imported_idx: self.radio_button_state.get_selected_idx(),
                 };

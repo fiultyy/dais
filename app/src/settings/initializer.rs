@@ -8,9 +8,8 @@ use crate::{
     auth::AuthState,
     report_if_error,
     settings::input::InputBoxType,
-    settings::{InputSettings, PrivacySettings, ThemeSettings},
+    settings::{InputSettings, PrivacySettings},
     terminal::session_settings::SessionSettings,
-    themes::theme::ThemeKind,
 };
 
 pub struct SettingsInitializer;
@@ -45,14 +44,6 @@ impl SettingsInitializer {
                 settings.disable_default_regex_trigger(ctx);
             });
 
-            if FeatureFlag::DefaultAdeberryTheme.is_enabled() {
-                log::debug!("Setting default theme to Adeberry for new user");
-                ThemeSettings::handle(ctx).update(ctx, |settings, ctx| {
-                    if *settings.theme_kind.value() == ThemeKind::Phenomenon {
-                        report_if_error!(settings.theme_kind.set_value(ThemeKind::Adeberry, ctx));
-                    }
-                });
-            }
 
             if cfg!(windows) {
                 log::debug!("Setting default font size to 16px (12pt) for a new Windows user");

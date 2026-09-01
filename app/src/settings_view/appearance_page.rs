@@ -1421,7 +1421,6 @@ impl AppearanceSettingsPageView {
         let mut categories = vec![Category::new(
             Box::leak(crate::t!("settings-appearance-category-themes").into_boxed_str()),
             vec![
-                Box::new(CreateCustomThemeWidget::default()),
                 Box::new(ThemeSelectWidget::default()),
             ],
         )];
@@ -3103,43 +3102,6 @@ fn render_group(
     .with_margin_top(-4.)
     .with_margin_bottom(HEADER_PADDING)
     .finish()
-}
-
-#[derive(Default)]
-struct CreateCustomThemeWidget {
-    mouse_state: MouseStateHandle,
-}
-
-impl SettingsWidget for CreateCustomThemeWidget {
-    type View = AppearanceSettingsPageView;
-
-    fn search_terms(&self) -> &str {
-        "create theme create custom theme"
-    }
-
-    fn render(
-        &self,
-        _view: &Self::View,
-        appearance: &Appearance,
-        _app: &AppContext,
-    ) -> Box<dyn Element> {
-        Align::new(
-            appearance
-                .ui_builder()
-                .link(
-                    crate::t!("settings-appearance-theme-create-custom"),
-                    Some("".to_string()),
-                    None,
-                    self.mouse_state.clone(),
-                )
-                .soft_wrap(false)
-                .build()
-                .with_margin_bottom(10.)
-                .finish(),
-        )
-        .left()
-        .finish()
-    }
 }
 
 #[derive(Default)]

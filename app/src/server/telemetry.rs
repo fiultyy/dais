@@ -1229,9 +1229,6 @@ pub enum TelemetryEvent {
     CursorDisplayType {
         cursor: String,
     },
-    OpenThemeCreatorModal,
-    CreateCustomTheme,
-    DeleteCustomTheme,
     SplitPane,
     UnableToAutoUpdateToNewVersion,
     /// An update was successfully installed, and we're attempting to relaunch the app.
@@ -3547,9 +3544,6 @@ impl TelemetryEvent {
             | TelemetryEvent::JumpToPreviousCommand
             | TelemetryEvent::TabSingleResultAutocompletion
             | TelemetryEvent::OpenThemeChooser
-            | TelemetryEvent::OpenThemeCreatorModal
-            | TelemetryEvent::CreateCustomTheme
-            | TelemetryEvent::DeleteCustomTheme
             | TelemetryEvent::SplitPane
             | TelemetryEvent::UnableToAutoUpdateToNewVersion
             | TelemetryEvent::LoggedOutStartup
@@ -4081,9 +4075,6 @@ impl TelemetryEvent {
             | TelemetryEvent::ThemeSelection { .. }
             | TelemetryEvent::AppIconSelection { .. }
             | TelemetryEvent::CursorDisplayType { .. }
-            | TelemetryEvent::OpenThemeCreatorModal
-            | TelemetryEvent::CreateCustomTheme
-            | TelemetryEvent::DeleteCustomTheme
             | TelemetryEvent::SplitPane
             | TelemetryEvent::UnableToAutoUpdateToNewVersion
             | TelemetryEvent::AutoupdateRelaunchAttempt { .. }

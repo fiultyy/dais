@@ -63,8 +63,6 @@ pub struct WorkspaceState {
     pub is_palette_open: bool,
     pub is_ctrl_tab_palette_open: bool,
     pub is_theme_chooser_open: bool,
-    pub is_theme_creator_modal_open: bool,
-    pub is_theme_deletion_modal_open: bool,
     pub is_changelog_modal_open: bool,
     pub is_tab_being_dragged: bool,
     pub is_launch_config_save_modal_open: bool,
@@ -105,9 +103,7 @@ impl WorkspaceState {
     }
 
     pub fn is_any_non_palette_modal_open(&self, app: &AppContext) -> bool {
-        self.is_theme_creator_modal_open
-            || self.is_theme_deletion_modal_open
-            || self.is_changelog_modal_open
+        self.is_changelog_modal_open
             || self.tab_being_renamed.is_some()
             || self.pane_being_renamed.is_some()
             || self.is_launch_config_save_modal_open
@@ -133,9 +129,6 @@ impl WorkspaceState {
     pub fn close_all_modals(&mut self) {
         self.is_palette_open = false;
         self.is_ctrl_tab_palette_open = false;
-        self.is_theme_creator_modal_open = false;
-        self.is_theme_deletion_modal_open = false;
-        self.is_changelog_modal_open = false;
         self.tab_being_renamed = None;
         self.pane_being_renamed = None;
         self.is_launch_config_save_modal_open = false;
