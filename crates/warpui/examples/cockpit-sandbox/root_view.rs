@@ -97,6 +97,12 @@ impl RootView {
         // 4) 假快照: 两组项目 × 多状态卡片, 覆盖 nav 三态渲染路径(nav 与
         //    cockpit 面板共享同一 CockpitModel 单例,面板页同享这份假数据)
         inject_mock_snapshot(ctx);
+        // 5) ObservatoryModel 单例提前注册: ObservatoryPanelView 内部多处
+        //    ObservatoryModel::handle(ctx),未注册即 panic(app 启动链在
+        //    lib.rs:1728 注册,沙盒无该链,自补)
+        ctx.add_singleton_model(warp::ObservatoryModel::new);
+        // 同理: observatory view 的代理 tab 订阅 InterceptSessionsModel 单例
+        ctx.add_singleton_model(warp::terminal::intercept_sessions::InterceptSessionsModel::new);
         let nav = CockpitNavView::init(ctx);
         // 5) app 面板真身按需挂载(构造即注册 action handler,成本高,首次切到再建)
         let me = Self {
@@ -123,6 +129,7 @@ impl RootView {
             });
             self.observatory = Some(view);
         }
+        // (ObservatoryModel 单例已在 new() 注册,此处只建 view)
         if self.cockpit_panel.is_none() {
             let model = cockpit_model::CockpitModel::handle(ctx);
             let view = ctx.add_typed_action_view(|ctx| {
