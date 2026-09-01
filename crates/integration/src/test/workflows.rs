@@ -1,7 +1,7 @@
 use std::time::Duration;
-use warp::integration_testing::workflow::{
+use dais::integration_testing::workflow::{
 };
-use warp::{
+use dais::{
     integration_testing::{
         self,
         assertions::{go_offline, go_online, join_a_workspace},

@@ -37,7 +37,7 @@ pub fn test_preview_config_dir_migration() -> Builder {
             // integration channel is Integration, not Preview, so the public
             // entry point would no-op.
             let new_dir = home.join(".warp-preview");
-            warp::integration_testing::preview_config_migration::run_config_dir_symlink_migration(
+            dais::integration_testing::preview_config_migration::run_config_dir_symlink_migration(
                 &old_dir, &new_dir,
             );
         })

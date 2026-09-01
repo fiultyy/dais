@@ -21,7 +21,7 @@ pub static NvOptimusEnablement: u32 = 1;
 #[used]
 pub static AmdPowerXpressRequestHighPerformance: u32 = 1;
 
-// Dais OSS 构建的入口,简单包一层 warp::run()。
+// Dais OSS 构建的入口,简单包一层 dais::run()。
 fn main() -> Result<()> {
     // ── "serve" 快路径 ──
     // `dais serve` 启动一个轻量级无头 RPC 服务器，处理
@@ -72,7 +72,7 @@ fn main() -> Result<()> {
     ]);
     ChannelState::set(state);
 
-    warp::run()
+    dais::run()
 }
 
 
@@ -81,7 +81,7 @@ fn main() -> Result<()> {
 /// (no GPUI needed). Blocks until Ctrl-C.
 #[cfg(all(unix, feature = "orchestration"))]
 fn run_serve() -> Result<()> {
-    use warp::runtime_rpc::{
+    use dais::runtime_rpc::{
         self, clear_metadata, RuntimeMetadata,
     };
 

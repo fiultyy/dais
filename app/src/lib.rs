@@ -107,7 +107,7 @@ mod window_settings;
 //
 // If you feel the need to export a module so that a type or function within it
 // can be used by an integration test, you should define a new assertion function
-// in the warp::integration_testing::assertions module (or a sub-module).  These
+// in the dais::integration_testing::assertions module (or a sub-module).  These
 // functions will allow us to keep types internal to this crate and expose a
 // simpler API for integration tests to consume.
 pub mod ai_assistant;

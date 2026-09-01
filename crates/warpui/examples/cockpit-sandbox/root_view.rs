@@ -63,8 +63,8 @@ struct Page {
 
 pub struct RootView {
     nav: ViewHandle<CockpitNavView>,
-    observatory: Option<ViewHandle<warp::ObservatoryPanelView>>,
-    cockpit_panel: Option<ViewHandle<warp::CockpitPanelView>>,
+    observatory: Option<ViewHandle<dais::ObservatoryPanelView>>,
+    cockpit_panel: Option<ViewHandle<dais::CockpitPanelView>>,
     current: PageId,
     tab_handles: Vec<MouseStateHandle>,
     font_family: FamilyId,
@@ -100,9 +100,9 @@ impl RootView {
         // 5) ObservatoryModel 单例提前注册: ObservatoryPanelView 内部多处
         //    ObservatoryModel::handle(ctx),未注册即 panic(app 启动链在
         //    lib.rs:1728 注册,沙盒无该链,自补)
-        ctx.add_singleton_model(warp::ObservatoryModel::new);
+        ctx.add_singleton_model(dais::ObservatoryModel::new);
         // 同理: observatory view 的代理 tab 订阅 InterceptSessionsModel 单例
-        ctx.add_singleton_model(warp::terminal::intercept_sessions::InterceptSessionsModel::new);
+        ctx.add_singleton_model(dais::terminal::intercept_sessions::InterceptSessionsModel::new);
         let nav = CockpitNavView::init(ctx);
         // 5) app 面板真身按需挂载(构造即注册 action handler,成本高,首次切到再建)
         let me = Self {
@@ -119,13 +119,13 @@ impl RootView {
     /// 惰性挂载 app 面板真身。
     fn ensure_panels(&mut self, ctx: &mut ViewContext<Self>) {
         if self.observatory.is_none() {
-            let model = warp::ObservatoryModel::handle(ctx);
+            let model = dais::ObservatoryModel::handle(ctx);
             model.update(ctx, |m, ctx| {
                 m.set_panel_open(true, ctx);
                 m.refresh(ctx);
             });
             let view = ctx.add_typed_action_view(|ctx| {
-                warp::ObservatoryPanelView::new(model.clone(), ctx)
+                dais::ObservatoryPanelView::new(model.clone(), ctx)
             });
             self.observatory = Some(view);
         }
@@ -133,7 +133,7 @@ impl RootView {
         if self.cockpit_panel.is_none() {
             let model = cockpit_model::CockpitModel::handle(ctx);
             let view = ctx.add_typed_action_view(|ctx| {
-                warp::CockpitPanelView::new(model.clone(), ctx)
+                dais::CockpitPanelView::new(model.clone(), ctx)
             });
             self.cockpit_panel = Some(view);
         }

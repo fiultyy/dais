@@ -7,18 +7,18 @@ use pathfinder_geometry::{
     vector::{vec2f, Vector2F},
 };
 use settings::Setting as _;
-use warp::integration_testing::terminal::{
+use dais::integration_testing::terminal::{
     assert_command_executed_for_single_terminal_in_tab, assert_focused_editor_in_tab,
     assert_long_running_block_executing_for_single_terminal_in_tab,
 };
-use warp::integration_testing::view_getters::{terminal_view, workspace_view};
-use warp::integration_testing::window::{
+use dais::integration_testing::view_getters::{terminal_view, workspace_view};
+use dais::integration_testing::window::{
     add_and_save_window, assert_num_windows_open, save_active_window_id,
 };
-use warp::integration_testing::workspace::{
+use dais::integration_testing::workspace::{
     assert_focused_tab_index, assert_tab_count, press_native_modal_button,
 };
-use warp::{
+use dais::{
     cmd_or_ctrl_shift,
     integration_testing::{
         pane_group::assert_focused_pane_index,

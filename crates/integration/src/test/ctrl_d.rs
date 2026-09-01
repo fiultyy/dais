@@ -1,6 +1,6 @@
 //! Integration tests for CTRL-D / EOT behaviour.
 
-use warp::{
+use dais::{
     integration_testing::{
         step::new_step_with_default_assertions,
         terminal::{

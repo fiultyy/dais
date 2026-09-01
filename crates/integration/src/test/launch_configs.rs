@@ -4,19 +4,19 @@ use warpui::integration::AssertionOutcome;
 
 use super::{assert_approx_eq, new_builder, TEST_ONLY_ASSETS};
 use crate::Builder;
-use warp::integration_testing::{
+use dais::integration_testing::{
     pane_group::assert_focused_pane_index,
     window::assert_num_windows_open,
     workspace::{assert_focused_tab_index, assert_tab_count},
 };
-use warp::integration_testing::{
+use dais::integration_testing::{
     step::new_step_with_default_assertions,
     terminal::{validate_block_output, wait_until_bootstrapped_single_pane_for_tab},
 };
-use warp::workspace::NEW_TAB_BUTTON_POSITION_ID;
-use warp::{features::FeatureFlag, integration_testing::settings::set_window_custom_size};
-use warp::integration_testing::type_getters::get_launch_config_ui_location;
-use warp::integration_testing;
+use dais::workspace::NEW_TAB_BUTTON_POSITION_ID;
+use dais::{features::FeatureFlag, integration_testing::settings::set_window_custom_size};
+use dais::integration_testing::type_getters::get_launch_config_ui_location;
+use dais::integration_testing;
 
 pub fn test_with_launch_config() -> Builder {
     new_builder()
@@ -30,9 +30,9 @@ pub fn test_with_launch_config() -> Builder {
                 move |app, _, _| {
                     app.dispatch_global_action(
                         "root_view:open_launch_config",
-                        warp::root_view::OpenLaunchConfigArg {
+                        dais::root_view::OpenLaunchConfigArg {
                             launch_config:
-                                warp::launch_configs::launch_config::make_mock_single_window_launch_config(),
+                                dais::launch_configs::launch_config::make_mock_single_window_launch_config(),
                             ui_location: get_launch_config_ui_location(),
                             open_in_active_window: false,
                         },
@@ -90,7 +90,7 @@ pub fn test_open_launch_config_from_add_tab_menu_legacy() -> Builder {
 }
 
 pub fn test_launch_config_single_child_branch() -> Builder {
-    use warp::launch_configs::launch_config::{
+    use dais::launch_configs::launch_config::{
         LaunchConfig, PaneMode, PaneTemplateType, SplitDirection, TabTemplate, WindowTemplate,
     };
     use warpui::actions::StandardAction;
@@ -127,7 +127,7 @@ pub fn test_launch_config_single_child_branch() -> Builder {
                 .with_action(move |app, _, _| {
                     app.dispatch_global_action(
                         "root_view:open_launch_config",
-                        warp::root_view::OpenLaunchConfigArg {
+                        dais::root_view::OpenLaunchConfigArg {
                             launch_config: create_launch_config(),
                             ui_location: get_launch_config_ui_location(),
                             open_in_active_window: false,
@@ -159,9 +159,9 @@ pub fn test_open_launch_config_with_custom_size() -> Builder {
                 move |app, _, _| {
                     app.dispatch_global_action(
                         "root_view:open_launch_config",
-                        warp::root_view::OpenLaunchConfigArg {
+                        dais::root_view::OpenLaunchConfigArg {
                             launch_config:
-                                warp::launch_configs::launch_config::make_mock_single_window_launch_config(),
+                                dais::launch_configs::launch_config::make_mock_single_window_launch_config(),
                             ui_location: get_launch_config_ui_location(),
                             open_in_active_window: false,
                         },
@@ -199,9 +199,9 @@ pub fn test_open_launch_config_in_active_window() -> Builder {
                 move |app, _, _| {
                     app.dispatch_global_action(
                         "root_view:open_launch_config",
-                        warp::root_view::OpenLaunchConfigArg {
+                        dais::root_view::OpenLaunchConfigArg {
                             launch_config:
-                                warp::launch_configs::launch_config::make_mock_single_window_launch_config(),
+                                dais::launch_configs::launch_config::make_mock_single_window_launch_config(),
                             ui_location: get_launch_config_ui_location(),
                             open_in_active_window: true,
                         },
@@ -220,7 +220,7 @@ pub fn test_open_launch_config_in_active_window() -> Builder {
 }
 
 pub fn test_with_launch_config_with_active_tab_index() -> Builder {
-    use warp::launch_configs::launch_config::{
+    use dais::launch_configs::launch_config::{
         LaunchConfig, PaneMode, PaneTemplateType, SplitDirection, TabTemplate, WindowTemplate,
     };
 
@@ -262,7 +262,7 @@ pub fn test_with_launch_config_with_active_tab_index() -> Builder {
                 move |app, _, _| {
                     app.dispatch_global_action(
                         "root_view:open_launch_config",
-                        warp::root_view::OpenLaunchConfigArg {
+                        dais::root_view::OpenLaunchConfigArg {
                             launch_config: create_launch_config(),
                             ui_location: get_launch_config_ui_location(),
                             open_in_active_window: false,
@@ -279,7 +279,7 @@ pub fn test_with_launch_config_with_active_tab_index() -> Builder {
 }
 
 pub fn test_with_launch_config_with_active_pane() -> Builder {
-    use warp::launch_configs::launch_config::{
+    use dais::launch_configs::launch_config::{
         LaunchConfig, PaneMode, PaneTemplateType, SplitDirection, TabTemplate, WindowTemplate,
     };
 
@@ -339,7 +339,7 @@ pub fn test_with_launch_config_with_active_pane() -> Builder {
                 move |app, _, _| {
                     app.dispatch_global_action(
                         "root_view:open_launch_config",
-                        warp::root_view::OpenLaunchConfigArg {
+                        dais::root_view::OpenLaunchConfigArg {
                             launch_config: create_launch_config(),
                             ui_location: get_launch_config_ui_location(),
                             open_in_active_window: false,
@@ -357,7 +357,7 @@ pub fn test_with_launch_config_with_active_pane() -> Builder {
 }
 
 pub fn test_with_launch_config_with_no_active_pane() -> Builder {
-    use warp::launch_configs::launch_config::{
+    use dais::launch_configs::launch_config::{
         LaunchConfig, PaneMode, PaneTemplateType, SplitDirection, TabTemplate, WindowTemplate,
     };
 
@@ -417,7 +417,7 @@ pub fn test_with_launch_config_with_no_active_pane() -> Builder {
                 move |app, _, _| {
                     app.dispatch_global_action(
                         "root_view:open_launch_config",
-                        warp::root_view::OpenLaunchConfigArg {
+                        dais::root_view::OpenLaunchConfigArg {
                             launch_config: create_launch_config(),
                             ui_location: get_launch_config_ui_location(),
                             open_in_active_window: false,

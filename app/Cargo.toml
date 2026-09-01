@@ -4,13 +4,13 @@ default-run = "dais"
 description = "The local-first agentic terminal"
 edition = "2021"
 autobins = false
-name = "warp"
+name = "dais"
 version = "0.1.0"
 publish.workspace = true
 license.workspace = true
 
 [lib]
-name = "warp"
+name = "dais"
 path = "src/lib.rs"
 
 # Zap 只保留两个 bin:打包用的 dais,以及构建期工具 generate_settings_schema。

@@ -1,7 +1,7 @@
-use warp::integration_testing::terminal::{
+use dais::integration_testing::terminal::{
     initialize_secret_regexes, open_context_menu_for_selected_block,
 };
-use warp::{
+use dais::{
     integration_testing::{
         clipboard::assert_clipboard_contains_string,
         secret_redaction::{assert_secret_tooltip_open, assert_secrets_redacted_for_ai},

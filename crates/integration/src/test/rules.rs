@@ -1,4 +1,4 @@
-use warp::integration_testing::{
+use dais::integration_testing::{
     rules::{
         assert_rule_count, assert_rule_exists, create_a_personal_rule, update_rule_content,
     },
