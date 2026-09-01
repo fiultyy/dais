@@ -3,17 +3,7 @@ use std::{borrow::Cow, fmt, str::FromStr};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use derivative::Derivative;
-use pathfinder_geometry::vector::vec2f;
 use serde::{Deserialize, Serialize};
-use warp_core::ui::{appearance::Appearance, theme::Fill, Icon};
-use warpui::{
-    elements::{
-        Align, ChildAnchor, ConstrainedBox, Hoverable, MouseStateHandle, OffsetPositioning,
-        ParentAnchor, ParentElement, ParentOffsetBounds, Stack,
-    },
-    ui_components::components::UiComponent,
-    Element,
-};
 
 use crate::{
     auth::UserUid,
@@ -244,20 +234,6 @@ impl From<Owner> for Option<ServerId> {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct NumInFlightRequests(pub usize);
-
-#[derive(Clone, Debug)]
-pub enum StoredObjectSyncStatus {
-    NoLocalChanges,
-    InFlight(NumInFlightRequests),
-    InConflict,
-    Errored,
-}
-
-const SYNC_ICON_DIMENSIONS: f32 = 16.;
-const SYNC_STATUS_TOOLTIP_ERROR: &str = "Failed to save";
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoredObjectPermissions {
     pub owner: Owner,
@@ -279,7 +255,6 @@ pub struct StoredObjectMetadata {
     pub revision: Option<Revision>,
     pub metadata_last_updated_ts: Option<ServerTimestamp>,
     pub current_editor_uid: Option<String>,
-    pub pending_changes_statuses: StoredObjectStatuses,
     pub trashed_ts: Option<ServerTimestamp>,
     pub folder_id: Option<SyncId>,
     pub is_welcome_object: bool,
@@ -295,7 +270,6 @@ impl StoredObjectMetadata {
             revision: Some(Revision::now()),
             current_editor_uid: None,
             metadata_last_updated_ts: Some(Utc::now().into()),
-            pending_changes_statuses: StoredObjectStatuses::mock(),
             trashed_ts: None,
             folder_id: None,
             is_welcome_object: false,
@@ -305,112 +279,8 @@ impl StoredObjectMetadata {
         }
     }
 
-    pub fn has_pending_content_changes(&self) -> bool {
-        !matches!(
-            self.pending_changes_statuses.content_sync_status,
-            StoredObjectSyncStatus::NoLocalChanges | StoredObjectSyncStatus::InConflict
-        )
-    }
-
-    pub fn is_errored(&self) -> bool {
-        matches!(
-            self.pending_changes_statuses.content_sync_status,
-            StoredObjectSyncStatus::Errored
-        )
-    }
-
-    pub fn has_pending_online_only_change(&self) -> bool {
-        self.pending_changes_statuses.has_pending_permissions_change
-            || self.pending_changes_statuses.has_pending_metadata_change
-            || self.pending_changes_statuses.pending_untrash
-            || self.pending_changes_statuses.pending_delete
-    }
-
     pub fn set_current_editor(&mut self, editor_uid: Option<String>) {
         self.current_editor_uid = editor_uid;
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct StoredObjectStatuses {
-    pub content_sync_status: StoredObjectSyncStatus,
-    pub has_pending_permissions_change: bool,
-    pub has_pending_metadata_change: bool,
-    pub pending_untrash: bool,
-    pub pending_delete: bool,
-}
-
-impl StoredObjectStatuses {
-    #[cfg(test)]
-    pub fn mock() -> Self {
-        Self {
-            content_sync_status: StoredObjectSyncStatus::NoLocalChanges,
-            has_pending_permissions_change: false,
-            has_pending_metadata_change: false,
-            pending_untrash: false,
-            pending_delete: false,
-        }
-    }
-
-    pub fn render_icon(
-        &self,
-        _sync_queue_is_dequeueing: bool,
-        hover_state: MouseStateHandle,
-        appearance: &Appearance,
-    ) -> Option<Box<dyn Element>> {
-        let theme = appearance.theme();
-        let should_show_error_indicator = matches!(
-            self.content_sync_status,
-            StoredObjectSyncStatus::Errored | StoredObjectSyncStatus::InConflict
-        );
-
-        let icon_and_tooltip_text = if should_show_error_indicator {
-            Some((
-                Icon::AlertTriangle.to_warpui_icon(Fill::Solid(theme.ui_error_color())),
-                SYNC_STATUS_TOOLTIP_ERROR,
-            ))
-        } else {
-            None
-        };
-
-        if let Some((icon, tooltip_text)) = icon_and_tooltip_text {
-            return Some(
-                Align::new(
-                    Hoverable::new(hover_state, move |hover_state| {
-                        let mut stack = Stack::new().with_child(
-                            ConstrainedBox::new(icon.finish())
-                                .with_height(SYNC_ICON_DIMENSIONS)
-                                .with_width(SYNC_ICON_DIMENSIONS)
-                                .finish(),
-                        );
-
-                        if hover_state.is_hovered() {
-                            let tooltip = appearance
-                                .ui_builder()
-                                .tool_tip(tooltip_text.to_string())
-                                .build()
-                                .finish();
-
-                            stack.add_positioned_overlay_child(
-                                tooltip,
-                                OffsetPositioning::offset_from_parent(
-                                    vec2f(0., -24.),
-                                    ParentOffsetBounds::Unbounded,
-                                    ParentAnchor::Center,
-                                    ChildAnchor::Center,
-                                ),
-                            );
-                        }
-
-                        stack.finish()
-                    })
-                    .finish(),
-                )
-                .finish(),
-            );
-        }
-
-        None
     }
 }
 

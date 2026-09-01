@@ -23,7 +23,7 @@ use crate::{
     ai::blocklist::block::secret_redaction::find_secrets_in_text_with_levels,
     objects::{
         model::persistence::{ObjectStoreEvent, ObjectStoreModel},
-        update_manager::UpdateManager,
+        object_store::ObjectStore,
         Owner, StoredObjectEventEntrypoint,
     },
     drive::{items::WarpDriveItemId, sharing::ContentEditability},
@@ -805,9 +805,9 @@ impl EnvVarCollectionView {
         match active_env_var_collection {
             // If the EVC has already been committed, then update the local
             // memory and server data via update manager
-            ActiveEnvVarCollection::CommittedEnvVarCollection(id) => UpdateManager::handle(ctx)
-                .update(ctx, |update_manager, ctx| {
-                    update_manager.update_env_var_collection(
+            ActiveEnvVarCollection::CommittedEnvVarCollection(id) => ObjectStore::handle(ctx)
+                .update(ctx, |object_store, ctx| {
+                    object_store.update_env_var_collection(
                         new_env_var_collection,
                         id,
                         self.active_env_var_collection_data
@@ -819,8 +819,8 @@ impl EnvVarCollectionView {
             // manager, and update the active EVC
             ActiveEnvVarCollection::NewEnvVarCollection(env_var_collection) => {
                 if let Some(client_id) = env_var_collection.id.into_client() {
-                    UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                        update_manager.create_env_var_collection(
+                    ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                        object_store.create_env_var_collection(
                             client_id,
                             env_var_collection.permissions.owner,
                             env_var_collection.metadata.folder_id,

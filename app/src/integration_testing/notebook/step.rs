@@ -9,7 +9,7 @@ use warpui::{
 
 use crate::{
     objects::{
-        model::persistence::ObjectStoreModel, update_manager::UpdateManager, Space,
+        model::persistence::ObjectStoreModel, object_store::ObjectStore, Space,
         StoredObjectEventEntrypoint,
     },
     integration_testing::view_getters::{notebook_view, workspace_view},
@@ -36,8 +36,8 @@ pub fn create_a_personal_notebook(key: impl Into<String>, title: impl Into<Strin
         .with_action(move |app, _, data| {
             let client_id = ClientId::new();
             let sync_id = SyncId::ClientId(client_id);
-            UpdateManager::handle(app).update(app, |update_manager, ctx| {
-                update_manager.create_notebook(
+            ObjectStore::handle(app).update(app, |object_store, ctx| {
+                object_store.create_notebook(
                     client_id,
                     UserWorkspaces::as_ref(ctx)
                         .personal_drive(ctx)
@@ -50,7 +50,7 @@ pub fn create_a_personal_notebook(key: impl Into<String>, title: impl Into<Strin
                 );
 
                 // Set a title so that the notebook is not considered empty.
-                update_manager.update_notebook_title(title.clone(), sync_id, ctx);
+                object_store.update_notebook_title(title.clone(), sync_id, ctx);
             });
 
             data.insert(key.clone(), sync_id);

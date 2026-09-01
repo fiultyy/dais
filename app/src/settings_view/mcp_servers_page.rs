@@ -11,7 +11,7 @@ use crate::{
         TemplatableMCPServer, TemplatableMCPServerInstallation, TemplatableMCPServerManager,
     },
     appearance::Appearance,
-    objects::update_manager::InitiatedBy,
+    objects::object_store::InitiatedBy,
     objects::Space,
     settings_view::{
         mcp_servers::{

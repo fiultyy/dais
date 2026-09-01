@@ -18,7 +18,7 @@ use crate::{
     auth::{AuthState, AuthStateProvider},
     objects::{
         model::persistence::{ObjectStoreEvent, ObjectStoreModel},
-        update_manager::UpdateManager,
+        object_store::ObjectStore,
         ContainingObject, ObjectType, Owner, Revision, Space, StoredObject,
         StoredObjectEventEntrypoint,
     },
@@ -1261,7 +1261,7 @@ impl WorkflowView {
             WorkflowViewMode::supported_view_mode(Some(self.workflow_id), ctx);
         // always reset with the ObjectStoreModel version whether or not we successfully
         // transition to the view mode. This reset doesn't always set the correct revision_ts
-        // we rely on the load called when we handle the update_manager's change event.
+        // we rely on the load called when we handle the object_store's change event.
         self.reset(ctx);
         self.update_editors_interactivity(ctx);
         ctx.notify()
@@ -1448,8 +1448,8 @@ impl WorkflowView {
 
         match self.workflow_view_mode {
             WorkflowViewMode::Edit => {
-                UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                    update_manager.update_workflow(
+                ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                    object_store.update_workflow(
                         workflow.clone(),
                         self.workflow_id,
                         self.revision_ts.clone(),
@@ -1477,8 +1477,8 @@ impl WorkflowView {
                 };
 
                 if let Some(space) = self.owner {
-                    UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                        update_manager.create_workflow(
+                    ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                        object_store.create_workflow(
                             workflow.clone(),
                             space,
                             self.initial_folder_id,
@@ -1836,8 +1836,8 @@ impl WorkflowView {
             return;
         }
 
-        UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-            update_manager.duplicate_object(
+        ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+            object_store.duplicate_object(
                 &ObjectTypeAndId::from_id_and_type(self.workflow_id, ObjectType::Workflow),
                 ctx,
             );
@@ -1852,8 +1852,8 @@ impl WorkflowView {
 
         self.close(ctx);
 
-        UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-            update_manager.trash_object(
+        ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+            object_store.trash_object(
                 ObjectTypeAndId::from_id_and_type(self.workflow_id, ObjectType::Workflow),
                 ctx,
             );
@@ -1865,8 +1865,8 @@ impl WorkflowView {
             return;
         }
 
-        UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-            update_manager.untrash_object(
+        ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+            object_store.untrash_object(
                 ObjectTypeAndId::from_id_and_type(self.workflow_id, ObjectType::Workflow),
                 ctx,
             );

@@ -1,6 +1,6 @@
 use crate::{
     objects::{
-        model::persistence::ObjectStoreModel, update_manager::UpdateManager, GenericStoredObject,
+        model::persistence::ObjectStoreModel, object_store::ObjectStore, GenericStoredObject,
         Revision, Space, StoredObjectEventEntrypoint, StoredObjectLocation, StoredObjectModel,
     },
     network::{NetworkStatus, NetworkStatusKind},
@@ -98,8 +98,8 @@ pub fn join_a_workspace() -> TestStep {
 pub fn create_a_personal_workflow() -> TestStep {
     TestStep::new("Create a personal workflow")
         .with_action(move |app, _, _| {
-            UpdateManager::handle(app).update(app, |update_manager, ctx| {
-                update_manager.create_workflow(
+            ObjectStore::handle(app).update(app, |object_store, ctx| {
+                object_store.create_workflow(
                     Workflow::new("My first workflow", "ls"),
                     UserWorkspaces::as_ref(ctx)
                         .personal_drive(ctx)

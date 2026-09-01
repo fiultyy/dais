@@ -6,8 +6,8 @@ use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
 use crate::{
     auth::{AuthStateProvider, UserUid},
     objects::{
-        update_manager::{
-            ObjectOperation, OperationSuccessType, UpdateManager, UpdateManagerEvent,
+        object_store::{
+            ObjectOperation, OperationSuccessType, ObjectStore, ObjectStoreMutationEvent,
         },
         Space, StoredObject, StoredObjectLocation,
     },
@@ -73,13 +73,10 @@ pub enum ObjectStoreViewModelEvent {
 
 impl ObjectStoreViewModel {
     pub fn new(ctx: &mut ModelContext<Self>) -> Self {
+        ctx.subscribe_to_model(&ObjectStoreModel::handle(ctx), Self::handle_model_event);
         ctx.subscribe_to_model(
-            &ObjectStoreModel::handle(ctx),
+            &ObjectStore::handle(ctx),
             Self::handle_object_store_event,
-        );
-        ctx.subscribe_to_model(
-            &UpdateManager::handle(ctx),
-            Self::handle_update_manager_event,
         );
         Self {
             folder_timestamp_cache: Default::default(),
@@ -287,7 +284,7 @@ impl ObjectStoreViewModel {
         }
     }
 
-    fn handle_object_store_event(
+    fn handle_model_event(
         &mut self,
         event: &ObjectStoreEvent,
         ctx: &mut ModelContext<Self>,
@@ -352,12 +349,12 @@ impl ObjectStoreViewModel {
         }
     }
 
-    fn handle_update_manager_event(
+    fn handle_object_store_event(
         &mut self,
-        event: &UpdateManagerEvent,
+        event: &ObjectStoreMutationEvent,
         ctx: &mut ModelContext<Self>,
     ) {
-        let UpdateManagerEvent::ObjectOperationComplete { result } = event else {
+        let ObjectStoreMutationEvent::ObjectOperationComplete { result } = event else {
             return;
         };
 

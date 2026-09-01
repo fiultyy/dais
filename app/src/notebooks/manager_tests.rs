@@ -8,7 +8,7 @@ use warpui::{
 use crate::{
     ai::blocklist::BlocklistAIHistoryModel,
     auth::{AuthManager, AuthStateProvider},
-    objects::update_manager::UpdateManager,
+    objects::object_store::ObjectStore,
     objects::{
         model::{
             actions::ObjectActions, persistence::ObjectStoreModel, view::ObjectStoreViewModel,
@@ -91,7 +91,7 @@ fn initialize_app(app: &mut App) -> TestState {
     app.add_singleton_model(|_| BlocklistAIHistoryModel::new_for_test());
 
     let (sender, receiver) = mpsc::sync_channel(10);
-    app.add_singleton_model(|ctx| UpdateManager::new(Some(sender), ctx));
+    app.add_singleton_model(|ctx| ObjectStore::new(Some(sender), ctx));
     // Dais(Wave 4):SyncQueue 整删,原 `sync_queue.start_dequeueing(ctx)` 已不适用。
 
     app.add_singleton_model(ObjectStoreViewModel::mock);

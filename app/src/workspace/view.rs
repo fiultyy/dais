@@ -195,8 +195,8 @@ use crate::remote_server::manager::RemoteServerManagerEvent;
 use crate::terminal::keys_settings::KeysSettings;
 
 use crate::ai::blocklist::agent_view::editor::{AgentToolbarEditorEvent, AgentToolbarEditorModal};
-use crate::objects::update_manager::{
-    ObjectOperation, OperationSuccessType, UpdateManager, UpdateManagerEvent,
+use crate::objects::object_store::{
+    ObjectOperation, OperationSuccessType, ObjectStore, ObjectStoreMutationEvent,
 };
 use crate::prompt::editor_modal::{
     EditorModal as PromptEditorModal, EditorModalEvent as PromptEditorModalEvent,
@@ -2600,9 +2600,9 @@ impl Workspace {
             },
         );
 
-        let update_manager = UpdateManager::handle(ctx);
-        ctx.subscribe_to_model(&update_manager, |me, _handle, event, ctx| {
-            me.handle_update_manager_event(event, ctx);
+        let object_store = ObjectStore::handle(ctx);
+        ctx.subscribe_to_model(&object_store, |me, _handle, event, ctx| {
+            me.handle_object_store_event(event, ctx);
         });
 
         let cached_keybindings = KEYBINDINGS_TO_CACHE
@@ -14460,12 +14460,12 @@ impl Workspace {
         }
     }
 
-    fn handle_update_manager_event(
+    fn handle_object_store_event(
         &mut self,
-        event: &UpdateManagerEvent,
+        event: &ObjectStoreMutationEvent,
         ctx: &mut ViewContext<Self>,
     ) {
-        let UpdateManagerEvent::ObjectOperationComplete { result } = event else {
+        let ObjectStoreMutationEvent::ObjectOperationComplete { result } = event else {
             return;
         };
 

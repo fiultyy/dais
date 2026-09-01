@@ -5,7 +5,7 @@ use crate::ai::execution_profiles::{AIExecutionProfile, ActionPermission};
 use crate::ai::mcp::TemplatableMCPServerManager;
 use crate::auth::AuthStateProvider;
 use crate::objects::model::persistence::ObjectStoreModel;
-use crate::objects::update_manager::UpdateManager;
+use crate::objects::object_store::ObjectStore;
 use crate::network::NetworkStatus;
 use crate::settings::PrivacySettings;
 use crate::test_util::settings::initialize_settings_for_tests;
@@ -18,7 +18,7 @@ fn install_singletons(app: &mut App, auth_state: AuthStateProvider) {
     initialize_settings_for_tests(app);
     app.add_singleton_model(|_| auth_state);
     app.add_singleton_model(|_| NetworkStatus::new());
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(|_| TemplatableMCPServerManager::default());
     app.add_singleton_model(PrivacySettings::mock);

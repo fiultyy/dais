@@ -7,7 +7,7 @@ mod tests {
     use crate::auth::AuthStateProvider;
     use crate::objects::model::persistence::ObjectStoreModel;
     use crate::objects::model::view::ObjectStoreViewModel;
-    use crate::objects::update_manager::UpdateManager;
+    use crate::objects::object_store::ObjectStore;
     use crate::objects::{Revision, StoredObjectMetadata, StoredObjectPermissions};
     use crate::notebooks::manager::NotebookManager;
     use crate::notebooks::{NotebookObject, NotebookObjectModel};
@@ -44,7 +44,7 @@ mod tests {
         app.add_singleton_model(|_| SystemStats::new());
         app.add_singleton_model(|ctx| UserWorkspaces::mock(vec![], ctx));
         app.add_singleton_model(ObjectStoreModel::mock);
-        app.add_singleton_model(|ctx| UpdateManager::new(None, ctx));
+        app.add_singleton_model(|ctx| ObjectStore::new(None, ctx));
         app.add_singleton_model(|_| UserProfiles::new(Vec::new()));
         app.add_singleton_model(ObjectStoreViewModel::new);
         app.add_singleton_model(NotebookManager::mock);

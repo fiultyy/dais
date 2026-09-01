@@ -14,7 +14,7 @@ use crate::objects::model::persistence::ObjectStoreEvent;
 use crate::{send_telemetry_from_ctx, LaunchMode, TelemetryEvent};
 
 use crate::ai::mcp::TemplatableMCPServerManager;
-use crate::objects::update_manager::UpdateManager;
+use crate::objects::object_store::ObjectStore;
 use crate::objects::{GenericStringObjectFormat, JsonObjectType};
 use crate::drive::ObjectTypeAndId;
 use crate::server::ids::SyncId;
@@ -269,10 +269,10 @@ impl AIExecutionProfilesModel {
         new_profile.is_default_profile = false;
         new_profile.autosync_plans_to_warp_drive = true;
 
-        let update_manager = UpdateManager::handle(ctx);
+        let object_store = ObjectStore::handle(ctx);
         let client_id = ClientId::default();
-        update_manager.update(ctx, |update_manager, ctx| {
-            update_manager.create_ai_execution_profile(new_profile, client_id, owner, ctx);
+        object_store.update(ctx, |object_store, ctx| {
+            object_store.create_ai_execution_profile(new_profile, client_id, owner, ctx);
         });
 
         self.profile_id_to_sync_id
@@ -301,9 +301,9 @@ impl AIExecutionProfilesModel {
 
         self.profile_id_to_sync_id.remove(&profile_id);
 
-        let update_manager = UpdateManager::handle(ctx);
-        update_manager.update(ctx, |update_manager, ctx| {
-            update_manager.delete_ai_execution_profile(sync_id, ctx);
+        let object_store = ObjectStore::handle(ctx);
+        object_store.update(ctx, |object_store, ctx| {
+            object_store.delete_ai_execution_profile(sync_id, ctx);
         });
 
         send_telemetry_from_ctx!(TelemetryEvent::AIExecutionProfileDeleted, ctx);
@@ -1278,10 +1278,10 @@ impl AIExecutionProfilesModel {
                 }
 
                 if let Some(owner) = UserWorkspaces::as_ref(ctx).personal_drive(ctx) {
-                    let update_manager = UpdateManager::handle(ctx);
+                    let object_store = ObjectStore::handle(ctx);
                     let client_id = ClientId::default();
-                    update_manager.update(ctx, |update_manager, ctx| {
-                        update_manager.create_ai_execution_profile(
+                    object_store.update(ctx, |object_store, ctx| {
+                        object_store.create_ai_execution_profile(
                             new_profile,
                             client_id,
                             owner,
@@ -1331,9 +1331,9 @@ impl AIExecutionProfilesModel {
                 if !value_changed {
                     return false;
                 }
-                let update_manager = UpdateManager::handle(ctx);
-                update_manager.update(ctx, |update_manager, ctx| {
-                    update_manager.update_ai_execution_profile(data, *sync_id, None, ctx);
+                let object_store = ObjectStore::handle(ctx);
+                object_store.update(ctx, |object_store, ctx| {
+                    object_store.update_ai_execution_profile(data, *sync_id, None, ctx);
                 });
 
                 log::info!("Edited execution profile with id: {profile_id:?}");

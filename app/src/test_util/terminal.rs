@@ -35,7 +35,7 @@ use crate::workspace::WorkspaceRegistry;
 use crate::{
     ai::{blocklist::BlocklistAIHistoryModel, AIRequestUsageModel},
     objects::model::persistence::ObjectStoreModel,
-    objects::update_manager::UpdateManager,
+    objects::object_store::ObjectStore,
     context_chips::prompt::Prompt,
     experiments,
     network::NetworkStatus,
@@ -68,7 +68,7 @@ pub fn initialize_app_for_terminal_view(app: &mut App) {
     app.add_singleton_model(|_| Prompt::mock());
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(UserWorkspaces::default_mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(MCPGalleryManager::new);
     app.add_singleton_model(|_| Appearance::mock());
     app.add_singleton_model(PrivacySettings::mock);

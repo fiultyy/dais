@@ -83,7 +83,7 @@ pub struct ObjectOperationResult {
 }
 
 #[derive(Debug)]
-pub enum UpdateManagerEvent {
+pub enum ObjectStoreMutationEvent {
     ObjectOperationComplete { result: ObjectOperationResult },
     PreferencesUpdated { updated: Vec<Preference> },
 }
@@ -108,15 +108,15 @@ where
     pub entrypoint: StoredObjectEventEntrypoint,
 }
 
-/// The UpdateManager is responsible for delegating work
+/// The ObjectStore is responsible for delegating work
 /// when there is an update to a local object (e.g. via a user interaction). Specifically, it will
 /// - write to SQLite
 /// - interact with the ObjectStoreModel to update the in-memory state used by the object views
-pub struct UpdateManager {
+pub struct ObjectStore {
     model_event_sender: Option<SyncSender<ModelEvent>>,
 }
 
-impl UpdateManager {
+impl ObjectStore {
     pub fn new(
         model_event_sender: Option<SyncSender<ModelEvent>>,
         _ctx: &mut ModelContext<Self>,
@@ -284,19 +284,10 @@ impl UpdateManager {
         _current_metadata_last_updated_ts: Option<ServerTimestamp>,
         ctx: &mut ModelContext<Self>,
     ) {
-        // Dais:云端移动 RPC 已删除,这里折叠为本地直写并清
-        // has_pending_metadata_change 位。
+        // Dais:云端移动 RPC 已删除,这里折叠为本地直写。
         let _ = (object_type, owner, destination_folder);
-        ObjectStoreModel::handle(ctx).update(ctx, |object_store_model, ctx| {
-            if let Some(obj) = object_store_model.get_mut_by_uid(&server_id.uid()) {
-                obj.metadata_mut()
-                    .pending_changes_statuses
-                    .has_pending_metadata_change = false;
-            }
-            ctx.notify();
-        });
         self.save_in_memory_object_to_sqlite(ObjectStoreModel::as_ref(ctx), &server_id.uid());
-        ctx.emit(UpdateManagerEvent::ObjectOperationComplete {
+        ctx.emit(ObjectStoreMutationEvent::ObjectOperationComplete {
             result: ObjectOperationResult {
                 success_type: OperationSuccessType::Success,
                 operation: ObjectOperation::MoveToFolder,
@@ -311,7 +302,7 @@ impl UpdateManager {
     /// Attempts to move the object identified by `object_id`
     /// to the root of the drive identified by `destination_owner`.
     /// Dais(Wave 6-7):原远端腿调用 `transfer_*_owner` 系列 stub,永 `Ok(true)`,
-    /// 跑一圈后清 has_pending_permissions_change + emit Success toast。这里折叠为本地直写。
+    /// 跑一圈后 emit Success toast。这里折叠为本地直写。
     /// `move_object_to_drive_failed` / `revert_workflow_on_failed_move` 随之退役。
     #[allow(clippy::too_many_arguments)]
     fn move_object_to_drive(
@@ -329,16 +320,8 @@ impl UpdateManager {
             let _ = self.copy_workflow_enums_to_drive(server_id, destination_owner, ctx);
         }
 
-        ObjectStoreModel::handle(ctx).update(ctx, |object_store_model, ctx| {
-            if let Some(obj) = object_store_model.get_mut_by_uid(&server_id.uid()) {
-                obj.metadata_mut()
-                    .pending_changes_statuses
-                    .has_pending_permissions_change = false;
-            }
-            ctx.notify();
-        });
         self.save_in_memory_object_to_sqlite(ObjectStoreModel::as_ref(ctx), &server_id.uid());
-        ctx.emit(UpdateManagerEvent::ObjectOperationComplete {
+        ctx.emit(ObjectStoreMutationEvent::ObjectOperationComplete {
             result: ObjectOperationResult {
                 success_type: OperationSuccessType::Success,
                 operation: ObjectOperation::MoveToDrive,
@@ -430,26 +413,19 @@ impl UpdateManager {
             return;
         };
 
-        let Some((object_current_owner, object_current_folder, object_type, has_pending_online_only_change, curr_metadata_ts)) =
+        let Some((object_current_owner, object_current_folder, object_type, curr_metadata_ts)) =
             ObjectStoreModel::handle(ctx).read(ctx, |model, _| {
                 let object = model.get_by_uid(&uid)?;
                 Some((
                     object.permissions().owner,
                     object.metadata().folder_id,
                     object.into(),
-                    object.metadata().has_pending_online_only_change(),
                     object.metadata().metadata_last_updated_ts,
                 ))
             })
         else {
             return;
         };
-
-        // We disallow stacked online-only changes so early return
-        // if there's already one pending for this object.
-        if has_pending_online_only_change {
-            return;
-        }
 
         // Apply a pending, optimistic update and then try to sync the move with the server.
         // We only update the in-memory data but don't persist anything in sqlite until the server confirms the move.
@@ -1065,8 +1041,8 @@ impl UpdateManager {
         }
     }
 
-    /// Optimistically marks the object as trashed, updates the metadata sync status to pending, and returns both
-    /// the metadata timestamp and the newly-set trashed timestamp. We need to check the metadata timestamp
+    /// Optimistically marks the object as trashed and returns both the metadata timestamp
+    /// and the newly-set trashed timestamp. We need to check the metadata timestamp
     /// in the case where we need to revert this (i.e. if there was a rtc message in the meantime, we shouldn't
     /// overwrite the values and don't need to).
     // TODO: we currently set trashed_ts here with the client's clock, but we should revise this metadata flow
@@ -1083,10 +1059,6 @@ impl UpdateManager {
                 // the canonical version of the timestamp once it receives an rtc message from the server.
 
                 object.metadata_mut().trashed_ts = Some(timestamp);
-                object
-                    .metadata_mut()
-                    .pending_changes_statuses
-                    .has_pending_metadata_change = true;
                 ctx.emit(ObjectStoreEvent::ObjectTrashed {
                     type_and_id: object.object_type_and_id(),
                     source: UpdateSource::Local,
@@ -1111,17 +1083,8 @@ impl UpdateManager {
         let Some(_server_id) = id.server_id() else {
             let hashed_id = id.uid();
             self.mark_object_trashed_and_return_timestamps(&hashed_id, ctx);
-            // Dais:本地对象永远没有服务端 ack 来清 has_pending_metadata_change。
-            // 必须在落 sqlite 前手动清掉,否则 upsert_stored_object 中
-            // `if !has_pending_metadata_change` 分支会跳过 trashed_ts 字段写入,
-            // 导致重启后从 sqlite 加载到的 trashed_ts 为 NULL,对象重新出现在 PERSONAL。
+            // Dais:本地对象直接落 sqlite。原 pending 位清位逻辑随死状态机删除。
             ObjectStoreModel::handle(ctx).update(ctx, |object_store_model, _| {
-                if let Some(object) = object_store_model.get_mut_by_uid(&hashed_id) {
-                    object
-                        .metadata_mut()
-                        .pending_changes_statuses
-                        .has_pending_metadata_change = false;
-                }
                 self.save_in_memory_object_to_sqlite(object_store_model, &hashed_id);
             });
             ctx.notify();
@@ -1129,35 +1092,14 @@ impl UpdateManager {
         };
 
         let hashed_id = id.uid();
-        // If there's a pending online-only operation for this object, don't trash it.
-        let Some(has_pending_online_only_operation) =
-            ObjectStoreModel::handle(ctx).read(ctx, |model, _| {
-                model
-                    .get_by_uid(&hashed_id)
-                    .map(|object| object.metadata().has_pending_online_only_change())
-            })
-        else {
-            return;
-        };
-
-        if has_pending_online_only_operation {
-            return;
-        }
 
         self.mark_object_trashed_and_return_timestamps(&hashed_id, ctx);
         ObjectStoreModel::handle(ctx).update(ctx, |object_store_model, _| {
-            if let Some(object) = object_store_model.get_mut_by_uid(&hashed_id) {
-                object
-                    .metadata_mut()
-                    .pending_changes_statuses
-                    .has_pending_metadata_change = false;
-            }
-
             // W3-d8: object_metadata 云表已 DROP;本地持久化走 upsert 事件。
             self.save_in_memory_object_to_sqlite(object_store_model, &hashed_id);
         });
 
-        ctx.emit(UpdateManagerEvent::ObjectOperationComplete {
+        ctx.emit(ObjectStoreMutationEvent::ObjectOperationComplete {
             result: ObjectOperationResult {
                 success_type: OperationSuccessType::Success,
                 operation: ObjectOperation::Trash,
@@ -1174,16 +1116,10 @@ impl UpdateManager {
         // 不 emit ObjectOperationComplete(同 trash_object 的注释)。
         let Some(server_id) = id.server_id() else {
             let hashed_id = id.uid();
-            // Dais:本地对象 untrash —— 清 trashed_ts 同时把
-            // has_pending_metadata_change 清掉(本地分支无服务端 ack),
-            // 否则 upsert_stored_object 跳过 trashed_ts 写入,sqlite 仍为旧值。
+            // Dais:本地对象 untrash —— 清 trashed_ts + emit + 写 sqlite。
             ObjectStoreModel::handle(ctx).update(ctx, |object_store_model, ctx| {
                 if let Some(object) = object_store_model.get_mut_by_uid(&hashed_id) {
                     object.metadata_mut().trashed_ts = None;
-                    object
-                        .metadata_mut()
-                        .pending_changes_statuses
-                        .has_pending_metadata_change = false;
                     ctx.emit(ObjectStoreEvent::ObjectUntrashed {
                         type_and_id: object.object_type_and_id(),
                         source: UpdateSource::Local,
@@ -1198,33 +1134,10 @@ impl UpdateManager {
         };
 
         let hashed_id = id.uid();
-        // If there's a pending online-only operation for this object, don't untrash it.
-        let Some(has_pending_online_only_operation) =
-            ObjectStoreModel::handle(ctx).read(ctx, |model, _| {
-                model
-                    .get_by_uid(&hashed_id)
-                    .map(|object| object.metadata().has_pending_online_only_change())
-            })
-        else {
-            return;
-        };
-
-        if has_pending_online_only_operation {
-            return;
-        }
-
-        // Dais:云端 untrash RPC 已删除,这里折叠为本地直写并清 pending_untrash 位。
+        // Dais:云端 untrash RPC 已删除,这里折叠为本地直写。
         ObjectStoreModel::handle(ctx).update(ctx, |object_store_model, ctx| {
             if let Some(object) = object_store_model.get_mut_by_uid(&hashed_id) {
                 object.metadata_mut().trashed_ts = None;
-                object
-                    .metadata_mut()
-                    .pending_changes_statuses
-                    .has_pending_metadata_change = false;
-                object
-                    .metadata_mut()
-                    .pending_changes_statuses
-                    .pending_untrash = false;
                 ctx.emit(ObjectStoreEvent::ObjectUntrashed {
                     type_and_id: object.object_type_and_id(),
                     source: UpdateSource::Local,
@@ -1235,7 +1148,7 @@ impl UpdateManager {
 
         let _ = server_id;
 
-        ctx.emit(UpdateManagerEvent::ObjectOperationComplete {
+        ctx.emit(ObjectStoreMutationEvent::ObjectOperationComplete {
             result: ObjectOperationResult {
                 success_type: OperationSuccessType::Success,
                 operation: ObjectOperation::Untrash,
@@ -1263,28 +1176,10 @@ impl UpdateManager {
         };
 
         let uid = id.uid();
-        // If there's a pending online-only operation for this object, don't delete it.
-        let Some((has_pending_online_only_operation, has_pending_delete)) =
-            ObjectStoreModel::handle(ctx).read(ctx, |model, _| {
-                model.get_by_uid(&uid).map(|object| {
-                    (
-                        object.metadata().has_pending_online_only_change(),
-                        object.metadata().pending_changes_statuses.pending_delete,
-                    )
-                })
-            })
-        else {
-            return;
-        };
-
-        if has_pending_online_only_operation || has_pending_delete {
-            return;
-        }
-
         // Dais:云端 delete RPC 已删除,这里折叠为本地直接清除。
         let num_deleted_objects =
             self.on_object_delete_success(vec![SyncId::ServerId(server_id)], ctx);
-        ctx.emit(UpdateManagerEvent::ObjectOperationComplete {
+        ctx.emit(ObjectStoreMutationEvent::ObjectOperationComplete {
             result: ObjectOperationResult {
                 success_type: OperationSuccessType::Success,
                 operation: ObjectOperation::Delete { initiated_by },
@@ -1331,7 +1226,7 @@ impl UpdateManager {
             OperationSuccessType::Success
         };
 
-        ctx.emit(UpdateManagerEvent::ObjectOperationComplete {
+        ctx.emit(ObjectStoreMutationEvent::ObjectOperationComplete {
             result: ObjectOperationResult {
                 success_type,
                 operation: ObjectOperation::EmptyTrash,
@@ -1346,7 +1241,7 @@ impl UpdateManager {
     pub fn on_object_delete_success(
         &mut self,
         deleted_ids: Vec<SyncId>,
-        ctx: &mut ModelContext<'_, UpdateManager>,
+        ctx: &mut ModelContext<'_, ObjectStore>,
     ) -> i32 {
         let object_store_model_handle = ObjectStoreModel::handle(ctx);
         let all_object_uids: Vec<ObjectUid> = deleted_ids.iter().map(|&id| id.uid()).collect();
@@ -1425,13 +1320,13 @@ pub fn get_duplicate_object_name(original_name: &str) -> String {
     }
 }
 
-impl Entity for UpdateManager {
-    type Event = UpdateManagerEvent;
+impl Entity for ObjectStore {
+    type Event = ObjectStoreMutationEvent;
 }
 
-impl SingletonEntity for UpdateManager {}
+impl SingletonEntity for ObjectStore {}
 
 // Phase 2c-2 删除 `update_manager_test.rs`(7500+ 行云端同步行为测试):
 // `update_object` Dais 本地化后,云端断言全部失效;本文件原属 Phase 2d-4a
 // 整文件删除范围,提前删避免 12 个 `#[ignore]` 累积。`server/objectss/`
-// 其余消费者(listener / update_manager 本体)在 2d-4a 整片下线。
+// 其余消费者(listener / object_store 本体)在 2d-4a 整片下线。

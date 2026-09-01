@@ -3,7 +3,7 @@ use warp_core::context_flag::ContextFlag;
 use warpui::{keymap::Trigger, SingletonEntity, ViewContext, ViewHandle};
 
 use crate::{
-    objects::update_manager::UpdateManager,
+    objects::object_store::ObjectStore,
     objects::{GenericStringObjectFormat, Space, StoredObject},
     drive::{
         drive_helpers::has_feature_gated_anonymous_user_reached_env_var_limit,
@@ -425,8 +425,8 @@ impl EnvVarCollectionView {
                 return;
             }
 
-            UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                update_manager.untrash_object(
+            ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                object_store.untrash_object(
                     ObjectTypeAndId::GenericStringObject {
                         object_type: GenericStringObjectFormat::Json(
                             crate::objects::JsonObjectType::EnvVarCollection,
@@ -444,8 +444,8 @@ impl EnvVarCollectionView {
         if let Some(env_var_collection_id) = self.env_var_collection_id(ctx) {
             self.close_env_var_collection(ctx);
 
-            UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                update_manager.trash_object(
+            ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                object_store.trash_object(
                     ObjectTypeAndId::from_generic_string_object(
                         GenericStringObjectFormat::Json(
                             crate::objects::JsonObjectType::EnvVarCollection,
@@ -461,8 +461,8 @@ impl EnvVarCollectionView {
 
     pub(super) fn duplicate_env_var_collection(&self, ctx: &mut ViewContext<Self>) {
         if let Some(env_var_collection_id) = self.env_var_collection_id(ctx) {
-            UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                update_manager.duplicate_object(
+            ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                object_store.duplicate_object(
                     &ObjectTypeAndId::from_generic_string_object(
                         GenericStringObjectFormat::Json(
                             crate::objects::JsonObjectType::EnvVarCollection,

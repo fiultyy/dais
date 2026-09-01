@@ -332,7 +332,7 @@ impl ObjectStoreModel {
     }
 
     /// Update an object's location (folder and owner). This is an implementation detail of
-    /// `UpdateManager` to keep local state in sync with optimistic moves. It does not validate
+    /// `ObjectStore` to keep local state in sync with optimistic moves. It does not validate
     /// that the move is valid and MUST not be used elsewhere.
     ///
     /// If `new_space` is `None`, the space is unchanged.
@@ -662,30 +662,17 @@ impl ObjectStoreModel {
         ctx.notify();
     }
 
-    /// Number of local objects with pending content changes.
+    /// 本地即时写盘(sqlite)后无"未保存"概念;云同步状态机已删,恒 0。
     pub fn num_unsaved_objects(&self) -> usize {
-        self.objects_by_id
-            .values()
-            .filter(|object| object.metadata().has_pending_content_changes())
-            .count()
+        0
     }
 
-    /// Number of local objects with pending content changes that require a user warning before quitting.
     pub fn num_unsaved_objects_to_warn_about_before_quitting(&self) -> usize {
-        self.objects_by_id
-            .values()
-            .filter(|object| {
-                object.warn_if_unsaved_at_quit() && object.metadata().has_pending_content_changes()
-            })
-            .count()
+        0
     }
 
-    /// 已进入错误状态且会显示在 Dais Drive index 中的本地对象数量。
     pub fn num_visible_errored_objects(&self) -> usize {
-        self.objects_by_id
-            .values()
-            .filter(|object| object.renders_in_warp_drive() && object.metadata().is_errored())
-            .count()
+        0
     }
 
     pub fn has_objects(&self) -> bool {

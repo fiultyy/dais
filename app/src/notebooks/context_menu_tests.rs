@@ -13,7 +13,7 @@ use crate::pane_group::{BackingView as _, PaneId};
 use crate::terminal::keys::TerminalKeybindings;
 use crate::{
     objects::model::{persistence::ObjectStoreModel, view::ObjectStoreViewModel},
-    objects::update_manager::UpdateManager,
+    objects::object_store::ObjectStore,
     editor::InteractionState,
     network::NetworkStatus,
     notebooks::{editor::keys::NotebookKeybindings, notebook::NotebookView},
@@ -34,7 +34,7 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| Appearance::mock());
 
     app.add_singleton_model(UserWorkspaces::default_mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(ObjectStoreViewModel::mock);
     app.add_singleton_model(|_| UserProfiles::new(vec![]));
     app.add_singleton_model(|_| ActiveSession::default());

@@ -16,8 +16,6 @@ use crate::objects::model::view::EDITOR_TIMEOUT_DURATION_MINUTES;
 use crate::objects::Owner;
 use crate::objects::StoredObjectMetadata;
 use crate::objects::StoredObjectPermissions;
-use crate::objects::StoredObjectStatuses;
-use crate::objects::StoredObjectSyncStatus;
 use crate::drive::folders::FolderObjectModel;
 use crate::features::FeatureFlag;
 use crate::notebooks::NotebookObjectModel;
@@ -33,7 +31,7 @@ use crate::workspaces::workspace::Workspace;
 
 use crate::workspaces::workspace::WorkspaceUid;
 use crate::NetworkStatus;
-use crate::UpdateManager;
+use crate::ObjectStore;
 
 use super::*;
 
@@ -72,7 +70,7 @@ fn initialize_app(app: &mut App, cached_objects: Vec<Box<dyn StoredObject>>) {
     app.add_singleton_model(AuthManager::new_for_test);
     app.add_singleton_model(|ctx| UserWorkspaces::mock(vec![TEST_WORKSPACE.clone()], ctx));
     app.add_singleton_model(|_ctx| ObjectStoreModel::new(None, cached_objects, None));
-    app.add_singleton_model(|ctx| UpdateManager::new(None, ctx));
+    app.add_singleton_model(|ctx| ObjectStore::new(None, ctx));
     app.add_singleton_model(|_| UserProfiles::new(Vec::new()));
     app.add_singleton_model(ObjectStoreViewModel::new);
     app.add_singleton_model(|_| ObjectActions::new(Vec::new()));
@@ -100,13 +98,6 @@ fn mock_cloud_folder(id: SyncId, name: String, folder_id: Option<SyncId>) -> Fol
             is_warp_pack: false,
         },
         StoredObjectMetadata {
-            pending_changes_statuses: StoredObjectStatuses {
-                content_sync_status: StoredObjectSyncStatus::NoLocalChanges,
-                has_pending_metadata_change: false,
-                has_pending_permissions_change: false,
-                pending_untrash: false,
-                pending_delete: false,
-            },
             folder_id,
             revision: Default::default(),
             metadata_last_updated_ts: Default::default(),
@@ -131,13 +122,6 @@ fn mock_cloud_notebook(id: SyncId, title: String, folder_id: Option<SyncId>) -> 
             conversation_id: None,
         },
         StoredObjectMetadata {
-            pending_changes_statuses: StoredObjectStatuses {
-                content_sync_status: StoredObjectSyncStatus::NoLocalChanges,
-                has_pending_metadata_change: false,
-                has_pending_permissions_change: false,
-                pending_untrash: false,
-                pending_delete: false,
-            },
             folder_id,
             revision: Default::default(),
             metadata_last_updated_ts: Default::default(),
@@ -163,7 +147,7 @@ fn folder_from_object_store_model(model: &ObjectStoreModel, id: SyncId) -> &Fold
 }
 
 /// Mock receiving an RTC update. These tests update objects by mocking RTC messages so that they
-/// don't need to mock the server API for updates. The unit tests for [`UpdateManager`] ensure that
+/// don't need to mock the server API for updates. The unit tests for [`ObjectStore`] ensure that
 /// updates from both RTC and client actions emit the same events.
 // Dais(本地化,Phase 2d-4a-1):RTC 入口 `received_message_from_server` 随 `Listener`
 // 一并物理删除,以下依赖 `receive_rtc_update` / `move_object` helper 的 4 个
@@ -185,13 +169,6 @@ fn test_create_json_object() {
             .expect("error creating preference"),
         ),
         StoredObjectMetadata {
-            pending_changes_statuses: StoredObjectStatuses {
-                content_sync_status: StoredObjectSyncStatus::NoLocalChanges,
-                has_pending_metadata_change: false,
-                has_pending_permissions_change: false,
-                pending_untrash: false,
-                pending_delete: false,
-            },
             folder_id: Default::default(),
             revision: Default::default(),
             metadata_last_updated_ts: Default::default(),
@@ -567,7 +544,8 @@ fn test_unshared_team_object() {
                 .get_notebook(&shared_notebook_id)
                 .expect("Notebook is in ObjectStoreModel")
                 .space(ctx);
-            assert_eq!(space, Space::Team { team_uid });
+            // Dais 本地化:Team owner 统一折叠进 Shared 空间(无团队概念)。
+            assert_eq!(space, Space::Shared);
         });
     });
 }

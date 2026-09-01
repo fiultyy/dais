@@ -27,7 +27,7 @@ use crate::{
     },
     auth::AuthStateProvider,
     objects::model::persistence::ObjectStoreModel,
-    objects::update_manager::UpdateManager,
+    objects::object_store::ObjectStore,
     network::NetworkStatus,
     settings::{AgentModeCommandExecutionPredicate, PrivacySettings},
     test_util::settings::initialize_settings_for_tests_with_mode,
@@ -75,7 +75,7 @@ fn initialize_permissions_test_with_mode(
     let terminal_view_id = EntityId::new();
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
     app.add_singleton_model(|_| NetworkStatus::new());
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(|_| TemplatableMCPServerManager::default());
     let profile_model = app.add_singleton_model(|ctx| {

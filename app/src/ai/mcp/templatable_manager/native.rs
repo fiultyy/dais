@@ -22,7 +22,7 @@ use crate::ai::mcp::parsing::resolve_json;
 use crate::ai::mcp::TemplatableMCPServer;
 use crate::auth::AuthStateProvider;
 use crate::objects::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
-use crate::objects::update_manager::{InitiatedBy, UpdateManager};
+use crate::objects::object_store::{InitiatedBy, ObjectStore};
 use crate::objects::{Space, StoredObject, StoredObjectLocation, StoredObjectMetadataExt};
 use crate::server::ids::{ClientId, ServerId};
 use crate::server::telemetry::{
@@ -320,7 +320,7 @@ impl TemplatableMCPServerManager {
             }
         }
 
-        // Migrate legacy MCPs to be templatables on app start. Uses UpdateManager
+        // Migrate legacy MCPs to be templatables on app start. Uses ObjectStore
         let servers_to_restart: HashSet<Uuid> =
             running_legacy_server_uuids.iter().cloned().collect();
         me.convert_all_legacy_to_templatable(servers_to_restart, ctx);
@@ -445,10 +445,10 @@ impl TemplatableMCPServerManager {
     ) {
         let owner = UserWorkspaces::as_ref(ctx).space_to_owner(space, ctx);
         if let Some(owner) = owner {
-            let update_manager = UpdateManager::handle(ctx);
-            update_manager.update(ctx, |update_manager, ctx| {
+            let object_store = ObjectStore::handle(ctx);
+            object_store.update(ctx, |object_store, ctx| {
                 let client_id = ClientId::default();
-                update_manager.create_templatable_mcp_server(
+                object_store.create_templatable_mcp_server(
                     templatable_mcp_server.clone(),
                     client_id,
                     owner,
@@ -474,9 +474,9 @@ impl TemplatableMCPServerManager {
         let templatable_mcp_server_object =
             self.get_templatable_mcp_server_object(template_server.uuid);
         if let Some(templatable_mcp_server_object) = templatable_mcp_server_object {
-            let update_manager = UpdateManager::handle(ctx);
-            update_manager.update(ctx, |update_manager, ctx| {
-                update_manager.update_templatable_mcp_server(
+            let object_store = ObjectStore::handle(ctx);
+            object_store.update(ctx, |object_store, ctx| {
+                object_store.update_templatable_mcp_server(
                     template_server,
                     templatable_mcp_server_object.id,
                     templatable_mcp_server_object.metadata.revision.clone(),
@@ -502,9 +502,9 @@ impl TemplatableMCPServerManager {
                 id: templatable_mcp_server_object.id,
             };
 
-            let update_manager = UpdateManager::handle(ctx);
-            update_manager.update(ctx, |update_manager, ctx| {
-                update_manager.delete_object_by_user(object_type_and_id, ctx);
+            let object_store = ObjectStore::handle(ctx);
+            object_store.update(ctx, |object_store, ctx| {
+                object_store.delete_object_by_user(object_type_and_id, ctx);
             });
         }
     }
@@ -523,9 +523,9 @@ impl TemplatableMCPServerManager {
             id: sync_id,
         };
 
-        let update_manager = UpdateManager::handle(ctx);
-        update_manager.update(ctx, |update_manager, ctx| {
-            update_manager.delete_object_with_initiated_by(object_type_and_id, initiated_by, ctx);
+        let object_store = ObjectStore::handle(ctx);
+        object_store.update(ctx, |object_store, ctx| {
+            object_store.delete_object_with_initiated_by(object_type_and_id, initiated_by, ctx);
         });
     }
 
@@ -1455,8 +1455,8 @@ impl TemplatableMCPServerManager {
                     ),
                     id: sync_id,
                 };
-                UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                    update_manager.move_object_to_location(
+                ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                    object_store.move_object_to_location(
                         object_type_and_id,
                         StoredObjectLocation::Space(Space::Team { team_uid }),
                         ctx,
@@ -1492,8 +1492,8 @@ impl TemplatableMCPServerManager {
                 object_type: GenericStringObjectFormat::Json(JsonObjectType::TemplatableMCPServer),
                 id: sync_id,
             };
-            UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                update_manager.move_object_to_location(
+            ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                object_store.move_object_to_location(
                     object_type_and_id,
                     StoredObjectLocation::Space(Space::Personal),
                     ctx,

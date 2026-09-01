@@ -204,7 +204,7 @@ use crate::autoupdate::{AutoupdateState, RelaunchModel};
 use crate::changelog_model::ChangelogModel;
 use crate::objects::model::actions::ObjectActions;
 use crate::objects::model::view::ObjectStoreViewModel;
-use crate::objects::update_manager::UpdateManager;
+use crate::objects::object_store::ObjectStore;
 use crate::code::global_buffer_model::GlobalBufferModel;
 use crate::context_chips::prompt::Prompt;
 use crate::default_terminal::DefaultTerminal;
@@ -1749,8 +1749,8 @@ fn initialize_app(
 
     ctx.add_singleton_model(|_| AudibleBell::new());
 
-    // Dais:UpdateManager 只负责本地 cloud object 的内存/SQLite 同步,不再注入云端 client。
-    ctx.add_singleton_model(|ctx| UpdateManager::new(persistence_writer.sender(), ctx));
+    // Dais:ObjectStore 只负责本地 cloud object 的内存/SQLite 同步,不再注入云端 client。
+    ctx.add_singleton_model(|ctx| ObjectStore::new(persistence_writer.sender(), ctx));
 
     let toml_file_path = settings::user_preferences_toml_file_path();
     // Dais(本地化,Phase 5):`PreferencesSyncer` 已物理删除。原同步器负责本地
@@ -1770,7 +1770,7 @@ fn initialize_app(
     ctx.add_singleton_model(FileMCPWatcher::new);
     ctx.add_singleton_model(FileBasedMCPManager::new);
 
-    // TemplatableMCPServerManager must be registered after UpdateManager and MCPServerManager so it can migrate legacy MCPs on start up
+    // TemplatableMCPServerManager must be registered after ObjectStore and MCPServerManager so it can migrate legacy MCPs on start up
     // It should also be registered after FileBasedMCPManager so it can receive file-based server updates.
     ctx.add_singleton_model(|ctx| {
         TemplatableMCPServerManager::new(
@@ -1781,21 +1781,21 @@ fn initialize_app(
         )
     });
 
-    // MCPGalleryManager subscribes to UpdateManager so that it can be notified when gallery items are updated locally.
-    // The registration of this singleton must be after UpdateManager is registered.
+    // MCPGalleryManager subscribes to ObjectStore so that it can be notified when gallery items are updated locally.
+    // The registration of this singleton must be after ObjectStore is registered.
     ctx.add_singleton_model(MCPGalleryManager::new);
 
     // SkillManager is used to cache SKILL.md files for all active terminal views and their working directories
     ctx.add_singleton_model(SkillManager::new);
 
-    // ObjectStoreViewModel subscribes to UpdateManager so that it can be notified when objects are
+    // ObjectStoreViewModel subscribes to ObjectStore so that it can be notified when objects are
     // created or mutated in the local object store.
     ctx.add_singleton_model(ObjectStoreViewModel::new);
 
-    // AIDocumentModel subscribes to UpdateManager so that it can be notified when notebooks are created locally.
+    // AIDocumentModel subscribes to ObjectStore so that it can be notified when notebooks are created locally.
     ctx.add_singleton_model(AIDocumentModel::new);
 
-    // AgentConversationsModel subscribes to UpdateManager events that still flow through the local updater.
+    // AgentConversationsModel subscribes to ObjectStore events that still flow through the local updater.
     ctx.add_singleton_model(AgentConversationsModel::new);
 
     // ByoLlmAuthBannerSessionState tracks dismissal of the BYO LLM auth banner (e.g., AWS Bedrock login).
@@ -1870,7 +1870,7 @@ fn initialize_app(
 
     ctx.add_singleton_model(move |_| IgnoredSuggestionsModel::new(persisted_ignored_suggestions));
 
-    // Subscribe WorkflowAliases to the UpdateManager so that it can be notified when objects are
+    // Subscribe WorkflowAliases to the ObjectStore so that it can be notified when objects are
     // trashed.
     WorkflowAliases::handle(ctx).update(ctx, |aliases, ctx| {
         aliases.connect(ctx);

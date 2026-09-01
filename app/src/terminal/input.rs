@@ -128,7 +128,7 @@ use crate::{
         model::{
             actions::ObjectActionType, persistence::ObjectStoreModel, view::ObjectStoreViewModel,
         },
-        update_manager::UpdateManager,
+        object_store::ObjectStore,
         Space, StoredObject,
     },
     cmd_or_ctrl_shift,
@@ -12326,8 +12326,8 @@ impl Input {
                     ctx
                 );
 
-                UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                    update_manager.record_object_action(
+                ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                    object_store.record_object_action(
                         workflow.object_type_and_id(),
                         ObjectActionType::Execute,
                         None,

@@ -4,7 +4,7 @@ use warpui::{AppContext, SingletonEntity, ViewHandle};
 
 use crate::{
     objects::{
-        model::persistence::ObjectStoreModel, update_manager::UpdateManager, Owner,
+        model::persistence::ObjectStoreModel, object_store::ObjectStore, Owner,
         StoredObjectEventEntrypoint,
     },
     editor::EditorView,
@@ -168,8 +168,8 @@ pub fn save_enum<V>(
     match enum_data.id {
         SyncId::ClientId(client_id) => {
             if let Some(owner) = owner {
-                UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                    update_manager.create_workflow_enum(
+                ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                    object_store.create_workflow_enum(
                         workflow_enum,
                         owner,
                         client_id,
@@ -182,8 +182,8 @@ pub fn save_enum<V>(
         }
         SyncId::ServerId(_) => {
             // We will issue enum update requests here
-            UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                update_manager.update_workflow_enum(
+            ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                object_store.update_workflow_enum(
                     workflow_enum,
                     enum_data.id,
                     enum_data.revision_ts.clone(),

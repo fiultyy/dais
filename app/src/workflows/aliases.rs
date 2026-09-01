@@ -43,7 +43,7 @@ pub struct WorkflowAlias {
 }
 
 impl WorkflowAliases {
-    /// Call once to subscribe to UpdateManager notifications that a workflow has been deleted.
+    /// Call once to subscribe to ObjectStore notifications that a workflow has been deleted.
     pub fn connect(&self, ctx: &mut ModelContext<Self>) {
         ctx.subscribe_to_model(&ObjectStoreModel::handle(ctx), |me, event, ctx| {
             let result = match event {

@@ -39,8 +39,8 @@ pub enum WorkflowOpenSource {
 
 impl WorkflowManager {
     pub fn new(_ctx: &mut ModelContext<Self>) -> Self {
-        // Dais:无云端 = 无 client_id→server_id 转换事件,原 UpdateManager
-        // 订阅 + handle_update_manager_event 为死代码,Phase 2c‑1 删除。
+        // Dais:无云端 = 无 client_id→server_id 转换事件,原 ObjectStore
+        // 订阅 + handle_object_store_event 为死代码,Phase 2c‑1 删除。
         WorkflowManager {
             panes_by_hashed_id: HashMap::new(),
         }

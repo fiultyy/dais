@@ -17,7 +17,7 @@ use crate::{
             persistence::ObjectStoreModel,
             view::{Editor, EditorState, ObjectStoreViewModel},
         },
-        update_manager::UpdateManager,
+        object_store::ObjectStore,
         Owner, StoredObjectMetadata, StoredObjectPermissions,
     },
     drive::DaisDriveObjectSettings,
@@ -65,7 +65,7 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(TerminalKeybindings::new);
     app.add_singleton_model(PrivacySettings::mock);
     app.add_singleton_model(UserWorkspaces::default_mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(ObjectStoreViewModel::mock);
     app.add_singleton_model(|_| UserProfiles::new(vec![]));
     app.add_singleton_model(|_| ActiveSession::default());
@@ -571,9 +571,7 @@ fn test_close_unmodified() {
             let object = ObjectStoreModel::as_ref(ctx)
                 .get_by_uid(&notebook_id.uid())
                 .expect("Notebook should exist");
-            assert!(!object.metadata().has_pending_content_changes());
-
-            // Dais(Wave 4):SyncQueue 整删,原 `sync_queue.is_empty()` 断言不适用。
+            // Dais(Wave 4):SyncQueue/同步状态机已删,原 pending/sync_queue 断言不适用。
         })
     });
 }

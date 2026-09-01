@@ -4,7 +4,7 @@
 //! (which subscribes to several singletons) and instead use [`BlocklistAIContextModel::new_for_test`]
 //! together with [`super::agent_view::AgentViewController::new`]. That keeps the fixture small
 //! enough to focus on the lock logic without standing up `BlocklistAIHistoryModel`,
-//! `LLMPreferences`, `ObjectStoreModel`, `UpdateManager`, or `AppExecutionMode`.
+//! `LLMPreferences`, `ObjectStoreModel`, `ObjectStore`, or `AppExecutionMode`.
 
 use std::sync::Arc;
 
@@ -16,7 +16,7 @@ use super::{BlocklistAIContextModel, PendingAttachment, PendingFile};
 use crate::ai::agent::{AIAgentAttachment, ImageContext};
 use crate::ai::blocklist::agent_view::{AgentViewController, EphemeralMessageModel};
 use crate::objects::model::persistence::ObjectStoreModel;
-use crate::objects::update_manager::UpdateManager;
+use crate::objects::object_store::ObjectStore;
 use crate::terminal::color::{self, Colors};
 use crate::terminal::event_listener::ChannelEventListener;
 use crate::terminal::model::test_utils::block_size;
@@ -57,7 +57,7 @@ fn build_test_context_model(app: &mut App) -> ModelHandle<BlocklistAIContextMode
     let terminal_view_id = EntityId::new();
 
     app.add_singleton_model(ObjectStoreModel::mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
 
     let ambient_agent_view_model =
         app.add_model(|ctx| AmbientAgentViewModel::new(terminal_view_id, false, ctx));

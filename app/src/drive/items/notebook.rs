@@ -89,15 +89,11 @@ impl WarpDriveItem for WarpDriveNotebook {
 
     fn sync_status_icon(
         &self,
-        sync_queue_is_dequeueing: bool,
-        hover_state: MouseStateHandle,
-        appearance: &Appearance,
+        _sync_queue_is_dequeueing: bool,
+        _hover_state: MouseStateHandle,
+        _appearance: &Appearance,
     ) -> Option<Box<dyn Element>> {
-        self.notebook.metadata.pending_changes_statuses.render_icon(
-            sync_queue_is_dequeueing,
-            hover_state,
-            appearance,
-        )
+        None
     }
 
     fn action_summary(&self, _app: &AppContext) -> Option<String> {

@@ -2,7 +2,7 @@ use warpui::{platform::WindowStyle, App};
 
 use crate::{
     auth::{AuthManager, AuthStateProvider}, objects::model::persistence::ObjectStoreModel,
-    objects::update_manager::UpdateManager, network::NetworkStatus,
+    objects::object_store::ObjectStore, network::NetworkStatus,
     settings_view::keybindings::KeybindingChangedNotifier, system::SystemStats,
     test_util::settings::initialize_settings_for_tests,
     workspaces::user_workspaces::UserWorkspaces,
@@ -19,7 +19,7 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| SystemStats::new());
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(UserWorkspaces::default_mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(|_| Appearance::mock());
     app.add_singleton_model(|_| ResizableData::default());
     app.add_singleton_model(|_| KeybindingChangedNotifier::mock());

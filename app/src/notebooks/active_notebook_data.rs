@@ -167,9 +167,7 @@ impl ActiveNotebookData {
     pub fn has_conflicts(&self, ctx: &AppContext) -> bool {
         self.id()
             .and_then(|id| ObjectStoreModel::as_ref(ctx).get_by_uid(&id.uid()))
-            .is_some_and(|object| {
-                object.has_conflicting_changes() && !object.metadata().has_pending_content_changes()
-            })
+            .is_some_and(|object| object.has_conflicting_changes())
     }
 
     pub fn feature_not_available(&self) -> bool {

@@ -211,7 +211,7 @@ use crate::auth::AuthStateProvider;
 use crate::autoupdate::{self, get_update_state, AutoupdateStage};
 use crate::objects::model::actions::ObjectActionType;
 use crate::objects::model::persistence::ObjectStoreModel;
-use crate::objects::update_manager::UpdateManager;
+use crate::objects::object_store::ObjectStore;
 use crate::objects::{GenericStringObjectFormat, JsonObjectType, StoredObject};
 #[cfg(feature = "local_fs")]
 use crate::code::editor_management::CodeSource;
@@ -10259,8 +10259,8 @@ impl TerminalView {
                     // If the block was a cloud workflow, record the workflow execution as an object action.
                     if let Some(cloud_workflow_id) = cloud_workflow_id {
                         let id_and_type = ObjectTypeAndId::Workflow(*cloud_workflow_id);
-                        UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                            update_manager.record_object_action(
+                        ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                            object_store.record_object_action(
                                 id_and_type,
                                 ObjectActionType::Execute,
                                 Some(exit_code_data.clone()),
@@ -10277,8 +10277,8 @@ impl TerminalView {
 
                             id: *cloud_env_var_collection_id,
                         };
-                        UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                            update_manager.record_object_action(
+                        ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                            object_store.record_object_action(
                                 id_and_type,
                                 ObjectActionType::Execute,
                                 Some(exit_code_data.clone()),
@@ -22650,8 +22650,8 @@ impl TerminalView {
                         },
                     }));
 
-                    UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                        update_manager.record_object_action(
+                    ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                        object_store.record_object_action(
                             object_type_and_id,
                             ObjectActionType::Execute,
                             None,
@@ -22859,8 +22859,8 @@ impl TerminalView {
         self.set_and_execute_subshell_command(&shell_path_string, shell_type, ctx);
 
         // Ok to update the execution record here because we auto-execute when in subshell
-        UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-            update_manager.record_object_action(
+        ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+            object_store.record_object_action(
                 cloud_env_var_collection.object_type_and_id(),
                 ObjectActionType::Execute,
                 None,

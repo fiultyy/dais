@@ -3,7 +3,7 @@
 //! 本模块在上游 Dais 中承担 "云对象" 抽象,统一描述 Notebook / Workflow / EnvVar /
 //! Fact / MCP / ExecutionProfile / AIDocument 等需要在多设备间同步的对象类型。
 //!
-//! 在 Dais 中云端同步链路(RTC / UpdateManager / SyncQueue / ServerApiProvider)
+//! 在 Dais 中云端同步链路(RTC / ObjectStore / SyncQueue / ServerApiProvider)
 //! 已被剥离(详见 `docs/zap-cloud-removal-plan.md`),本模块**变为纯本地对象抽象**:
 //!
 //! - `StoredObject` trait → 实际语义是 "本地领域对象 trait",承载 metadata / permissions /
@@ -12,7 +12,7 @@
 //! - `GenericStoredObject<K, M>` → 本地领域对象的泛型承载结构。
 //! - `StoredObjectModel` trait → 本地对象类型描述。
 //! - `ObjectStoreModel`(`model/persistence.rs`)→ 进程内本地对象全局存储 + SQLite 背存。
-//! - `ObjectStoreEvent` → 本地模型变更事件总线,被本地 UI 视图订阅。
+//! - `ObjectStoreMutationEvent` → 变更结果事件(ObjectStore 发出),被 workspace 等订阅。
 //! - `ObjectTypeAndId` → 本地 ID 判别式,被 Drive UI / search 等 60+ 处使用。
 //!
 //! 之所以采用 "保留原名 + 文档注释" 而非物理重命名(`StoredObject` → `LocalObject`),
@@ -55,7 +55,7 @@ use warpui::{AppContext, SingletonEntity};
 
 pub mod model;
 mod server_types;
-pub mod update_manager;
+pub mod object_store;
 
 pub use server_types::*;
 
@@ -402,56 +402,6 @@ pub trait StoredObject: Debug {
     /// Updates the object to deal with any conflict status.
     fn replace_object_with_conflict(&mut self);
 
-    /// Sets the content sync status of this object to `InFlight` (if it wasn't already) and
-    /// increments the number of in flight requests tracked in the `InFlight` enum.
-    fn increment_in_flight_request_count(&mut self) {
-        let new_reqs = match &self.metadata().pending_changes_statuses.content_sync_status {
-            StoredObjectSyncStatus::InFlight(reqs) => reqs.0 + 1,
-            _ => 1,
-        };
-
-        self.set_pending_content_changes_status(StoredObjectSyncStatus::InFlight(
-            NumInFlightRequests(new_reqs),
-        ))
-    }
-
-    /// Decrements the number of in flight requests tracked in this object's `InFlight` enum. If
-    /// that number becomes 0, it's no longer in flight, so it will be set to `status_if_no_reqs`.
-    /// Returns true if the object is no longer in flight.
-    fn decrement_in_flight_request_count(
-        &mut self,
-        status_if_no_reqs: StoredObjectSyncStatus,
-    ) -> bool {
-        match &self.metadata().pending_changes_statuses.content_sync_status {
-            StoredObjectSyncStatus::InFlight(reqs) => {
-                if reqs.0 - 1 == 0 {
-                    self.set_pending_content_changes_status(status_if_no_reqs);
-                    return true;
-                } else {
-                    self.set_pending_content_changes_status(StoredObjectSyncStatus::InFlight(
-                        NumInFlightRequests(reqs.0 - 1),
-                    ));
-                    return false;
-                }
-            }
-            _ => log::error!(
-                "called decrement_in_flight_request_count with a non-`InFlight` stored-object status"
-            ),
-        }
-
-        true
-    }
-
-    /// Sets the content change status on this object's metadata
-    fn set_pending_content_changes_status(
-        &mut self,
-        pending_content_changes_status: StoredObjectSyncStatus,
-    ) {
-        self.metadata_mut()
-            .pending_changes_statuses
-            .content_sync_status = pending_content_changes_status;
-    }
-
     /// Whether or not this object can be exported.
     fn can_export(&self) -> bool;
 
@@ -703,8 +653,6 @@ where
         let mut new_conflict = ConflictStatus::NoConflicts;
         std::mem::swap(&mut new_conflict, &mut self.conflict_status);
 
-        self.set_pending_content_changes_status(StoredObjectSyncStatus::NoLocalChanges);
-
         let _ = new_conflict;
         self.conflict_status = ConflictStatus::NoConflicts;
     }
@@ -841,13 +789,6 @@ where
             id: SyncId::ClientId(client_id),
             model: model.into(),
             metadata: StoredObjectMetadata {
-                pending_changes_statuses: StoredObjectStatuses {
-                    content_sync_status: StoredObjectSyncStatus::InFlight(NumInFlightRequests(1)),
-                    has_pending_metadata_change: false,
-                    has_pending_permissions_change: false,
-                    pending_untrash: false,
-                    pending_delete: false,
-                },
                 folder_id: initial_folder_id,
                 revision: Default::default(),
                 metadata_last_updated_ts: Default::default(),

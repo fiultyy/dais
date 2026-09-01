@@ -37,7 +37,7 @@ use crate::{
         },
     },
     banner::{Banner, BannerTextContent},
-    objects::{update_manager::InitiatedBy, Space, StoredObject},
+    objects::{object_store::InitiatedBy, Space, StoredObject},
     code::editor::view::{CodeEditorRenderOptions, CodeEditorView},
     persistence::ModelEvent,
     server::telemetry::{MCPTemplateCreationSource, TelemetryEvent},

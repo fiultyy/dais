@@ -6,7 +6,7 @@ use crate::{
     objects::model::{
         actions::ObjectActions, persistence::ObjectStoreModel, view::ObjectStoreViewModel,
     },
-    objects::update_manager::UpdateManager,
+    objects::object_store::ObjectStore,
     env_vars::{
         active_env_var_collection_data::SavingStatus,
         view::env_var_collection::EnvVarCollectionView,
@@ -29,7 +29,7 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| Appearance::mock());
 
     app.add_singleton_model(UserWorkspaces::default_mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(ObjectStoreViewModel::mock);
     app.add_singleton_model(|_| UserProfiles::new(vec![]));
     app.add_singleton_model(|_| ActiveSession::default());

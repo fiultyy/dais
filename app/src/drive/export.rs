@@ -23,7 +23,7 @@ use warpui::{
 
 #[cfg(feature = "local_fs")]
 use crate::{
-    objects::update_manager::get_duplicate_object_name, notebooks::export_notebook,
+    objects::object_store::get_duplicate_object_name, notebooks::export_notebook,
     view_components::ToastLink, workflows::export_workflow::export_serialize,
     workspace::WorkspaceAction,
 };

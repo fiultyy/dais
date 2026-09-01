@@ -31,7 +31,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use watcher::HomeDirectoryWatcher;
 
-use crate::objects::update_manager::UpdateManager;
+use crate::objects::object_store::ObjectStore;
 use crate::server::experiments::ServerExperiments;
 
 use crate::settings::PrivacySettings;
@@ -90,7 +90,7 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(UserWorkspaces::default_mock);
     app.add_singleton_model(|_ctx| UserProfiles::new(Vec::new()));
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(MCPGalleryManager::new);
     app.add_singleton_model(ObjectStoreViewModel::mock);
     app.add_singleton_model(|_| Appearance::mock());

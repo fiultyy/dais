@@ -45,7 +45,7 @@ use crate::{
             persistence::{ObjectStoreEvent, ObjectStoreModel, UpdateSource},
             view::EditorState,
         },
-        update_manager::UpdateManager,
+        object_store::ObjectStore,
         ObjectType, Owner, Space, StoredObject, StoredObjectEventEntrypoint,
     },
     cmd_or_ctrl_shift,
@@ -716,7 +716,7 @@ impl NotebookView {
         self.input.as_ref(ctx).markdown(ctx)
     }
 
-    /// Saves the notebook's current Markdown content, via the [`UpdateManager`].
+    /// Saves the notebook's current Markdown content, via the [`ObjectStore`].
     fn save_content(&mut self, ctx: &mut ViewContext<Self>) {
         self.send_edit_telemetry = true;
         let content = Arc::new(self.content(ctx));
@@ -748,16 +748,16 @@ impl NotebookView {
         match active_notebook {
             // If the notebook has already been committed, then update the local
             // memory and server data via update manager
-            ActiveNotebook::CommittedNotebook(id) => UpdateManager::handle(ctx)
-                .update(ctx, move |update_manager, ctx| {
-                    update_manager.update_notebook_data(content, id, ctx)
+            ActiveNotebook::CommittedNotebook(id) => ObjectStore::handle(ctx)
+                .update(ctx, move |object_store, ctx| {
+                    object_store.update_notebook_data(content, id, ctx)
                 }),
             // If the notebook hasn't been committed yet, create the notebook through update
             // manager, and update the active notebook
             ActiveNotebook::NewNotebook(notebook) => {
                 if let Some(client_id) = notebook.id.into_client() {
-                    UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                        update_manager.create_notebook(
+                    ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                        object_store.create_notebook(
                             client_id,
                             notebook.permissions.owner,
                             notebook.metadata.folder_id,
@@ -830,9 +830,9 @@ impl NotebookView {
     /// are, then sets the current editor to be None both locally and on the server
     fn try_give_up_edit_access(&self, ctx: &mut ViewContext<Self>) {
         let id = self.active_notebook_data.as_ref(ctx).id();
-        UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
+        ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
             if let Some(id) = id {
-                update_manager.give_up_notebook_edit_access(id, ctx);
+                object_store.give_up_notebook_edit_access(id, ctx);
             }
         });
         ctx.notify();
@@ -1047,9 +1047,9 @@ impl NotebookView {
         }
 
         let id = active_notebook.id();
-        UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
+        ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
             if let Some(id) = id {
-                update_manager.grab_notebook_edit_access(id, optimistically_grant_access, ctx);
+                object_store.grab_notebook_edit_access(id, optimistically_grant_access, ctx);
             }
         });
 
@@ -1129,8 +1129,8 @@ impl NotebookView {
 
     fn duplicate_object(&mut self, ctx: &mut ViewContext<Self>) {
         if let Some(notebook_id) = self.notebook_id(ctx) {
-            UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                update_manager.duplicate_object(
+            ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                object_store.duplicate_object(
                     &ObjectTypeAndId::from_id_and_type(notebook_id, ObjectType::Notebook),
                     ctx,
                 );
@@ -1143,8 +1143,8 @@ impl NotebookView {
         if let Some(notebook_id) = self.notebook_id(ctx) {
             self.close(ctx);
 
-            UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                update_manager.trash_object(
+            ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                object_store.trash_object(
                     ObjectTypeAndId::from_id_and_type(notebook_id, ObjectType::Notebook),
                     ctx,
                 );
@@ -1158,8 +1158,8 @@ impl NotebookView {
                 return;
             }
 
-            UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                update_manager.untrash_object(
+            ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                object_store.untrash_object(
                     ObjectTypeAndId::from_id_and_type(notebook_id, ObjectType::Notebook),
                     ctx,
                 );
@@ -1215,8 +1215,8 @@ impl NotebookView {
             return;
         };
 
-        UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-            update_manager.create_notebook(
+        ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+            object_store.create_notebook(
                 copy_client_id,
                 personal_drive,
                 None,
@@ -1516,16 +1516,16 @@ impl NotebookView {
         match active_notebook {
             // If the notebook has already been committed, then update the local
             // memory and server data via update manager
-            ActiveNotebook::CommittedNotebook(id) => UpdateManager::handle(ctx)
-                .update(ctx, |update_manager, ctx| {
-                    update_manager.update_notebook_title(title.clone(), id, ctx)
+            ActiveNotebook::CommittedNotebook(id) => ObjectStore::handle(ctx)
+                .update(ctx, |object_store, ctx| {
+                    object_store.update_notebook_title(title.clone(), id, ctx)
                 }),
             // If the notebook hasn't been committed yet, create the notebook through update
             // manager, and update the active notebook
             ActiveNotebook::NewNotebook(notebook) => {
                 if let Some(client_id) = notebook.id.into_client() {
-                    UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                        update_manager.create_notebook(
+                    ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                        object_store.create_notebook(
                             client_id,
                             notebook.permissions.owner,
                             notebook.metadata.folder_id,
@@ -1602,8 +1602,8 @@ impl NotebookView {
             return;
         };
 
-        UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-            update_manager.replace_object_with_conflict(&id.uid(), ctx);
+        ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+            object_store.replace_object_with_conflict(&id.uid(), ctx);
         });
 
         // Load the server's version of the notebook now that the object store has been updated.
