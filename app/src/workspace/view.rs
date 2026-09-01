@@ -2829,6 +2829,17 @@ impl Workspace {
             }
         });
         ws.cockpit_nav_view = Some(cockpit_nav);
+        // `--ui-preview <name>`:启动链走完后首个 Workspace 直接打开指定全屏面板。
+        if let Some(name) = crate::take_ui_preview() {
+            match name.as_str() {
+                #[cfg(not(target_family = "wasm"))]
+                "observatory" => ws.toggle_observatory(ctx),
+                #[cfg(not(target_family = "wasm"))]
+                "cockpit" => ws.toggle_cockpit(ctx),
+                "settings" => ws.open_settings_pane(None, None, ctx),
+                other => log::warn!("unknown --ui-preview panel: {other:?} (observatory|cockpit|settings)"),
+            }
+        }
 
         ws
     }

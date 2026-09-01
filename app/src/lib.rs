@@ -527,6 +527,26 @@ fn apply_scroll_multiplier(event: &mut Event, app: &AppContext) {
 }
 
 /// Runs the app. If a subcommand was requested, it'll be run instead of the main application.
+/// `--ui-preview <name>` 的落地槽:首个 Workspace 首帧消费一次(CAS 防多窗口重复打开)。
+static UI_PREVIEW: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+static UI_PREVIEW_APPLIED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// 记录 `--ui-preview` 请求的面板名(observatory|cockpit|settings)。
+fn set_ui_preview(name: &str) {
+    let _ = UI_PREVIEW.set(name.to_lowercase());
+}
+
+/// 首个 Workspace 首帧取走 ui-preview 请求;后续调用返回 None。
+pub fn take_ui_preview() -> Option<String> {
+    let name = UI_PREVIEW.get()?;
+    if UI_PREVIEW_APPLIED
+        .swap(true, std::sync::atomic::Ordering::SeqCst)
+    {
+        return None;
+    }
+    Some(name.clone())
+}
+
 pub fn run() -> Result<()> {
     // POSIX locale 兜底:在 LANG/LC_* 全部未设置时,给依赖这些环境变量的 C/Rust 库
     // (chrono 数字格式化、libc strftime 等) 一个合理的 UTF-8 默认值。Windows 上特意跳过
@@ -555,6 +575,10 @@ pub fn run() -> Result<()> {
 
     // Parse command-line arguments.
     let args = warp_cli::Args::from_env();
+
+    if let Some(name) = args.app_args().ui_preview.as_deref() {
+        set_ui_preview(name);
+    }
 
     if let Some(command) = args.command() {
         #[cfg(windows)]
