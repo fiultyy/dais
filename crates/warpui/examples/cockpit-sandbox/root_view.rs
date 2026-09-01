@@ -183,7 +183,7 @@ impl View for RootView {
             let page_id = page.id;
             let content = move |hovered: bool| {
                 let mut col = Flex::column()
-                    .with_main_axis_size(MainAxisSize::Max)
+                    .with_main_axis_size(MainAxisSize::Min)
                     .with_cross_axis_alignment(CrossAxisAlignment::Center)
                     .with_spacing(2.);
                 col.add_child(
@@ -244,7 +244,7 @@ impl View for RootView {
         let mut canvas_col = Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch);
-        canvas_col.add_child(content_pane);
+        canvas_col.add_child(Shrinkable::new(1., content_pane).finish());
         let canvas = Container::new(canvas_col.finish())
             .with_background_color(theme.surface_2().into())
             .finish();

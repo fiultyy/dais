@@ -395,6 +395,7 @@ impl CockpitNavView {
         let card_handles = self.card_handles.borrow().clone();
 
         let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Min)
             .with_main_axis_alignment(MainAxisAlignment::Start)
             .with_cross_axis_alignment(CrossAxisAlignment::Start)
             .with_spacing(GROUP_GAP);
@@ -883,6 +884,7 @@ impl View for CockpitNavView {
         let model = self.model.as_ref(app);
 
         let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Max)
             .with_main_axis_alignment(MainAxisAlignment::Start)
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
             .with_spacing(SPACING);
