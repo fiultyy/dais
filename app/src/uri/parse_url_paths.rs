@@ -1,4 +1,4 @@
-use crate::cloud_object::ObjectType;
+use crate::objects::ObjectType;
 use crate::drive::{DaisDriveObjectArgs, DaisDriveObjectSettings};
 use crate::server::ids::ServerId;
 use crate::ChannelState;
@@ -15,7 +15,7 @@ pub enum WarpWebLink {
 /// Intended use is deriving metadata from links such that Dais objects
 /// can be opened natively in Dais with no web interaction.
 ///
-/// W3-d8: 原 `cloud_object::extract_server_id_and_object_type_from_warp_drive_link`
+/// W3-d8: 原 `objects::extract_server_id_and_object_type_from_warp_drive_link`
 /// 随云端链路裁剪删除;uri 域是唯一消费者,故在此本地化实现。
 fn extract_server_id_and_object_type_from_warp_drive_link(
     url: &Url,

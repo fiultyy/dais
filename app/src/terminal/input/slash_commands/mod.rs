@@ -22,7 +22,7 @@ use crate::ai::blocklist::agent_view::{
 };
 use crate::ai::blocklist::drive_object_attachment_for_reference;
 use crate::ai::blocklist::{BlocklistAIHistoryModel, SlashCommandRequest};
-use crate::cloud_object::{model::persistence::ObjectStoreModel, ObjectType};
+use crate::objects::{model::persistence::ObjectStoreModel, ObjectType};
 use crate::code_review::telemetry_event::CodeReviewPaneEntrypoint;
 use crate::search::slash_command_menu::static_commands::commands::{self, COMMAND_REGISTRY};
 use crate::search::slash_command_menu::static_commands::Availability;

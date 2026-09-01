@@ -6,7 +6,7 @@ use warpui::{
 
 use crate::{
     ai::facts::{view::AIFactPage, AIFactObjectModel},
-    cloud_object::model::{
+    objects::model::{
         generic_string_model::GenericStringObjectId, persistence::ObjectStoreModel,
     },
     integration_testing::view_getters::workspace_view,

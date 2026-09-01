@@ -6,7 +6,7 @@ use crate::{
         AppState, CodePaneSnapShot, CodePaneTabSnapshot, LeafContents, LeafSnapshot,
         PaneNodeSnapshot, TabSnapshot, TerminalPaneSnapshot, WindowSnapshot,
     },
-    cloud_object::Owner,
+    objects::Owner,
     code::editor_management::CodeSource,
     notebooks::{NotebookObject, NotebookObjectModel},
     persistence::{BlockCompleted, ModelEvent},

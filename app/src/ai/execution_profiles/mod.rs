@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use crate::cloud_object::UniquePer;
+use crate::objects::UniquePer;
 use crate::settings::AISettings;
 use crate::{
-    cloud_object::{
+    objects::{
         model::{
             generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel},
             json_model::{JsonModel, JsonSerializer},

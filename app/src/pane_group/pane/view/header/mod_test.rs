@@ -7,7 +7,7 @@ use warpui::{
 use crate::{
     ai::blocklist::BlocklistAIHistoryModel,
     auth::AuthStateProvider,
-    cloud_object::model::persistence::ObjectStoreModel,
+    objects::model::persistence::ObjectStoreModel,
     menu::MenuItemFields,
     pane_group::{focus_state::PaneFocusHandle, BackingView, PaneConfiguration, PaneId, PaneView},
     settings_view::keybindings::KeybindingChangedNotifier,

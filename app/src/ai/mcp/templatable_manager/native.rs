@@ -21,9 +21,9 @@ use crate::ai::mcp::{
 use crate::ai::mcp::parsing::resolve_json;
 use crate::ai::mcp::TemplatableMCPServer;
 use crate::auth::AuthStateProvider;
-use crate::cloud_object::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
-use crate::cloud_object::update_manager::{InitiatedBy, UpdateManager};
-use crate::cloud_object::{Space, StoredObject, StoredObjectLocation, StoredObjectMetadataExt};
+use crate::objects::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
+use crate::objects::update_manager::{InitiatedBy, UpdateManager};
+use crate::objects::{Space, StoredObject, StoredObjectLocation, StoredObjectMetadataExt};
 use crate::server::ids::{ClientId, ServerId};
 use crate::server::telemetry::{
     MCPServerModel, MCPServerTelemetryError, MCPServerTelemetryTransportType,
@@ -35,7 +35,7 @@ use crate::{
         logs, templatable::TemplatableMCPServerObject, templatable_installation::VariableValue,
         MCPServer, StaticEnvVar, TemplatableMCPServerInstallation, TransportType,
     },
-    cloud_object::{GenericStringObjectFormat, JsonObjectType},
+    objects::{GenericStringObjectFormat, JsonObjectType},
     drive::ObjectTypeAndId,
     persistence::ModelEvent,
     send_telemetry_from_ctx,

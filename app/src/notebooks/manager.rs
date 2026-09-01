@@ -9,7 +9,7 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::{
+    objects::{
         model::persistence::{ObjectStoreEvent, ObjectStoreModel},
         Owner,
     },

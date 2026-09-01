@@ -13,8 +13,8 @@ use crate::ai::ai_document_view::AIDocumentView;
 use crate::ai::execution_profiles::profiles::ClientProfileId;
 use crate::ai::restored_conversations::RestoredAgentConversations;
 #[cfg(target_family = "wasm")]
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::cloud_object::Space;
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::Space;
 #[cfg(feature = "local_fs")]
 use crate::code::editor_management::CodeSource;
 use crate::code::view::CodeViewAction;

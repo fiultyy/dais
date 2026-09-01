@@ -7,7 +7,7 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    cloud_object::StoredObjectMetadata,
+    objects::StoredObjectMetadata,
     drive::{DriveObjectType, ObjectTypeAndId},
     notebooks::NotebookObject,
     themes::theme::Fill,

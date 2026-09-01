@@ -21,7 +21,7 @@ use warpui::{
 
 use crate::{
     ai::blocklist::block::secret_redaction::find_secrets_in_text_with_levels,
-    cloud_object::{
+    objects::{
         model::persistence::{ObjectStoreEvent, ObjectStoreModel},
         update_manager::UpdateManager,
         Owner, StoredObjectEventEntrypoint,
@@ -597,7 +597,7 @@ impl EnvVarCollectionView {
         ctx: &mut ViewContext<Self>,
     ) {
         let initial_load_complete =
-            crate::cloud_object::model::persistence::ObjectStoreModel::as_ref(ctx)
+            crate::objects::model::persistence::ObjectStoreModel::as_ref(ctx)
                 .initial_load_complete();
         ctx.spawn(initial_load_complete, move |me, _, ctx| {
             let env_var_collection = ObjectStoreModel::as_ref(ctx)
@@ -643,7 +643,7 @@ impl EnvVarCollectionView {
         self.set_pane_title(&title, ctx);
         // TODO(zap-cloud-removal Phase 5): sharing UI 已退役,
         // env_var_collection 的 ShareableObject 注入移除;ServerId 路径保留待
-        // cloud_object 整体退役。
+        // objects 整体退役。
         let _ = env_var_collection.id;
 
         let description = collection.description.clone().unwrap_or_default();
@@ -1263,7 +1263,7 @@ impl View for EnvVarCollectionView {
 
         content.extend(self.render_trash_banner(access_level, app));
 
-        // Dais(W3-d8): 面包屑行随 cloud_object::breadcrumbs 裁撤, 不再渲染。
+        // Dais(W3-d8): 面包屑行随 objects::breadcrumbs 裁撤, 不再渲染。
 
         if let TrashStatus::Active = self
             .active_env_var_collection_data

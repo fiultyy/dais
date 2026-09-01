@@ -9,7 +9,7 @@ use crate::env_vars::EnvVarValue;
 use crate::notebooks::NotebookObjectModel;
 use crate::terminal::shell::ShellType;
 use crate::{
-    ai::agent::AIAgentCitation, cloud_object::model::persistence::ObjectStoreModel,
+    ai::agent::AIAgentCitation, objects::model::persistence::ObjectStoreModel,
     workflows::command_parser::command_matches_workflow,
 };
 use markdown_parser::{parse_markdown, FormattedTextLine};

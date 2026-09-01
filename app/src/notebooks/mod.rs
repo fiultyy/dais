@@ -16,7 +16,7 @@ use warpui::AppContext;
 use crate::{
     ai::document::ai_document_model::AIDocumentId,
     appearance::Appearance,
-    cloud_object::{GenericStoredObject, ObjectType, Owner, StoredObjectModel},
+    objects::{GenericStoredObject, ObjectType, Owner, StoredObjectModel},
     drive::{
         items::{notebook::WarpDriveNotebook, WarpDriveItem},
         ObjectTypeAndId,
@@ -25,7 +25,7 @@ use crate::{
     server::ids::{ServerId, SyncId},
 };
 
-use crate::cloud_object::SerializedModel;
+use crate::objects::SerializedModel;
 
 /// Serialized representation of a notebook stored in local object persistence.
 /// The AIDocumentID and ConversationID stay grouped with notebook content.

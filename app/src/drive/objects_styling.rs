@@ -10,9 +10,9 @@ use crate::ui_components::blended_colors;
 
 pub fn warp_drive_icon_color(
     appearance: &Appearance,
-    cloud_object_type: DriveObjectType,
+    objects_type: DriveObjectType,
 ) -> ColorU {
-    match cloud_object_type {
+    match objects_type {
         DriveObjectType::Workflow => {
             let color: Fill = appearance.theme().terminal_colors().normal.red.into();
             color

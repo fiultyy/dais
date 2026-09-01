@@ -7,8 +7,8 @@ use crate::ai::restored_conversations::RestoredAgentConversations;
 use crate::ai::skills::SkillManager;
 use crate::ai::AIRequestUsageModel;
 use crate::auth::UserUid;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::cloud_object::model::view::ObjectStoreViewModel;
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::model::view::ObjectStoreViewModel;
 use crate::context_chips::prompt::Prompt;
 use crate::editor::Event;
 use crate::editor::ReplicaId;
@@ -31,7 +31,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use watcher::HomeDirectoryWatcher;
 
-use crate::cloud_object::update_manager::UpdateManager;
+use crate::objects::update_manager::UpdateManager;
 use crate::server::experiments::ServerExperiments;
 
 use crate::settings::PrivacySettings;

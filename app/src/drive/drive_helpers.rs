@@ -2,7 +2,7 @@ use warpui::{SingletonEntity, ViewContext};
 
 use crate::{
     auth::{AuthManager, AuthStateProvider},
-    cloud_object::{
+    objects::{
         model::persistence::ObjectStoreModel, GenericStringObjectFormat, JsonObjectType,
         ObjectType, Space,
     },

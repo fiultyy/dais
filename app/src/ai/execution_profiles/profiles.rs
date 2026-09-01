@@ -10,19 +10,19 @@ use warpui::{AppContext, Entity, EntityId, ModelContext, SingletonEntity};
 
 use crate::ai::llms::LLMId;
 use crate::ai::mcp::templatable_manager::TemplatableMCPServerManagerEvent;
-use crate::cloud_object::model::persistence::ObjectStoreEvent;
+use crate::objects::model::persistence::ObjectStoreEvent;
 use crate::{send_telemetry_from_ctx, LaunchMode, TelemetryEvent};
 
 use crate::ai::mcp::TemplatableMCPServerManager;
-use crate::cloud_object::update_manager::UpdateManager;
-use crate::cloud_object::{GenericStringObjectFormat, JsonObjectType};
+use crate::objects::update_manager::UpdateManager;
+use crate::objects::{GenericStringObjectFormat, JsonObjectType};
 use crate::drive::ObjectTypeAndId;
 use crate::server::ids::SyncId;
 use crate::settings::AgentModeCommandExecutionPredicate;
 use crate::workspaces::user_workspaces::UserWorkspaces;
 use crate::ObjectStoreModel;
 use crate::{
-    cloud_object::model::generic_string_model::GenericStringObjectId, server::ids::ClientId,
+    objects::model::generic_string_model::GenericStringObjectId, server::ids::ClientId,
 };
 
 use super::{

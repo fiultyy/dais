@@ -39,7 +39,7 @@ use crate::{
         },
     },
     appearance::Appearance,
-    cloud_object::model::generic_string_model::StringModel,
+    objects::model::generic_string_model::StringModel,
     context_chips::{
         display_chip::{udi_font_size, udi_icon_size},
         spacing,

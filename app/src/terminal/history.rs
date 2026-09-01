@@ -14,7 +14,7 @@ use super::{
     shell::ShellType,
 };
 use crate::{
-    cloud_object::{
+    objects::{
         model::{persistence::ObjectStoreModel, view::ObjectStoreViewModel},
         Space,
     },

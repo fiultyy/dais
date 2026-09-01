@@ -3,7 +3,7 @@ use std::sync::Arc;
 use futures_lite::future::yield_now;
 use warpui::{AppContext, SingletonEntity};
 
-use crate::cloud_object::{model::persistence::ObjectStoreModel, Space};
+use crate::objects::{model::persistence::ObjectStoreModel, Space};
 use crate::search::async_snapshot_data_source::AsyncSnapshotDataSource;
 use crate::search::command_search::searcher::CommandSearchItemAction;
 use crate::search::data_source::{Query, QueryResult};

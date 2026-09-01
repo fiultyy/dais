@@ -341,7 +341,7 @@ impl AuthState {
     /// Dais 本地用户永不会撞 Free Tier 限额。
     pub fn is_anonymous_user_past_object_limit(
         &self,
-        _object_type: crate::cloud_object::ObjectType,
+        _object_type: crate::objects::ObjectType,
         _num_objects: usize,
     ) -> Option<bool> {
         Some(false)

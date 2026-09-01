@@ -31,7 +31,7 @@ use crate::test_util::settings::initialize_settings_for_tests;
 use crate::workspace::ActiveSession;
 use crate::UserWorkspaces;
 use crate::{
-    cloud_object::model::persistence::ObjectStoreModel, search::files::model::FileSearchModel,
+    objects::model::persistence::ObjectStoreModel, search::files::model::FileSearchModel,
     GlobalResourceHandles, GlobalResourceHandlesProvider,
 };
 

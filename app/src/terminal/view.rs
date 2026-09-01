@@ -209,10 +209,10 @@ use crate::ai::{
 use crate::auth::AuthState;
 use crate::auth::AuthStateProvider;
 use crate::autoupdate::{self, get_update_state, AutoupdateStage};
-use crate::cloud_object::model::actions::ObjectActionType;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::cloud_object::update_manager::UpdateManager;
-use crate::cloud_object::{GenericStringObjectFormat, JsonObjectType, StoredObject};
+use crate::objects::model::actions::ObjectActionType;
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::update_manager::UpdateManager;
+use crate::objects::{GenericStringObjectFormat, JsonObjectType, StoredObject};
 #[cfg(feature = "local_fs")]
 use crate::code::editor_management::CodeSource;
 use crate::context_chips::prompt::Prompt;

@@ -3,7 +3,7 @@ use super::items::WarpDriveItem;
 use super::ObjectTypeAndId;
 use crate::{
     appearance::Appearance,
-    cloud_object::{GenericStoredObject, ObjectType, SerializedModel, Space, StoredObjectModel},
+    objects::{GenericStoredObject, ObjectType, SerializedModel, Space, StoredObjectModel},
     persistence::ModelEvent,
     server::ids::SyncId,
 };

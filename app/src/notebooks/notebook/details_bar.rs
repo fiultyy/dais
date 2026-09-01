@@ -13,7 +13,7 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    cloud_object::model::view::{Editor, EditorState},
+    objects::model::view::{Editor, EditorState},
     drive::sharing::ContentEditability,
     notebooks::{active_notebook_data::Mode, styles},
     ui_components::{

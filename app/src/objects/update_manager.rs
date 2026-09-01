@@ -6,7 +6,7 @@ use crate::{
         facts::{AIFact, AIFactObjectModel},
     },
     auth::TEST_USER_UID,
-    cloud_object::{
+    objects::{
         model::{
             actions::{ObjectActionType, ObjectActions},
             generic_string_model::{
@@ -147,8 +147,8 @@ impl UpdateManager {
         object_store_model: &ObjectStoreModel,
         uid: &ObjectUid,
     ) {
-        if let Some(cloud_object) = object_store_model.get_by_uid(uid) {
-            self.save_to_db([cloud_object.upsert_event()]);
+        if let Some(objects) = object_store_model.get_by_uid(uid) {
+            self.save_to_db([objects.upsert_event()]);
         }
     }
 
@@ -747,20 +747,20 @@ impl UpdateManager {
 
     fn get_next_duplicate_object_name(
         &self,
-        original_cloud_object: &dyn StoredObject,
+        original_objects: &dyn StoredObject,
         object_store_model: &ObjectStoreModel,
         app: &AppContext,
     ) -> String {
-        let original_name = original_cloud_object.display_name();
+        let original_name = original_objects.display_name();
 
         // Iterate through items in the same folder as the original object that are of the
         // same type, and populate a hashset with those names.
         let same_type_and_folder_names = object_store_model
-            .active_cloud_objects_in_location_without_descendents(
-                original_cloud_object.location(object_store_model, app),
+            .active_objectss_in_location_without_descendents(
+                original_objects.location(object_store_model, app),
                 app,
             )
-            .filter(|&object| object.object_type() == original_cloud_object.object_type())
+            .filter(|&object| object.object_type() == original_objects.object_type())
             .map(|object| object.display_name())
             .collect::<HashSet<String>>();
 
@@ -1105,7 +1105,7 @@ impl UpdateManager {
     pub fn trash_object(&mut self, id: ObjectTypeAndId, ctx: &mut ModelContext<Self>) {
         // Dais(去中心化分支):本地对象(无 server_id)走纯本地 trash —
         // 标记 trashed_ts + 写 sqlite。**不 emit ObjectOperationComplete**,
-        // 因为它的多个消费者(notebooks/env_vars/cloud_object/view)都 `.expect` server_id;
+        // 因为它的多个消费者(notebooks/env_vars/objects/view)都 `.expect` server_id;
         // Drive UI 已经通过 mark_object_trashed_and_return_timestamps 内部
         // emit 的 ObjectStoreEvent::ObjectTrashed 收到通知。
         let Some(_server_id) = id.server_id() else {
@@ -1315,7 +1315,7 @@ impl UpdateManager {
         let deleted_ids: Vec<SyncId> =
             object_store_model_handle.read(ctx, |object_store_model, _| {
                 object_store_model
-                    .cloud_objects()
+                    .objectss()
                     .filter(|object| {
                         object.permissions().owner == owner && object.is_trashed(object_store_model)
                     })
@@ -1433,5 +1433,5 @@ impl SingletonEntity for UpdateManager {}
 
 // Phase 2c-2 删除 `update_manager_test.rs`(7500+ 行云端同步行为测试):
 // `update_object` Dais 本地化后,云端断言全部失效;本文件原属 Phase 2d-4a
-// 整文件删除范围,提前删避免 12 个 `#[ignore]` 累积。`server/cloud_objects/`
+// 整文件删除范围,提前删避免 12 个 `#[ignore]` 累积。`server/objectss/`
 // 其余消费者(listener / update_manager 本体)在 2d-4a 整片下线。

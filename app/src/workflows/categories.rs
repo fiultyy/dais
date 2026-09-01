@@ -11,8 +11,8 @@ use warpui::{
 };
 
 use crate::appearance::Appearance;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::cloud_object::Space;
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::Space;
 use crate::util::bindings::CustomAction;
 use crate::voltron::{VoltronFeatureViewMeta, VoltronMetadata};
 use crate::workflows::WorkflowType;

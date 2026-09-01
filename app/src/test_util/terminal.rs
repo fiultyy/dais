@@ -34,8 +34,8 @@ use crate::undo_close::UndoCloseStack;
 use crate::workspace::WorkspaceRegistry;
 use crate::{
     ai::{blocklist::BlocklistAIHistoryModel, AIRequestUsageModel},
-    cloud_object::model::persistence::ObjectStoreModel,
-    cloud_object::update_manager::UpdateManager,
+    objects::model::persistence::ObjectStoreModel,
+    objects::update_manager::UpdateManager,
     context_chips::prompt::Prompt,
     experiments,
     network::NetworkStatus,

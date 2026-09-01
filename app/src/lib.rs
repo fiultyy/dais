@@ -13,7 +13,7 @@ mod autoupdate;
 mod banner;
 mod changelog_model;
 mod chip_configurator;
-mod cloud_object;
+mod objects;
 mod code;
 mod code_review;
 mod coding_entrypoints;
@@ -202,9 +202,9 @@ use crate::ai::skills::SkillManager;
 use crate::ai::AIRequestUsageModel;
 use crate::autoupdate::{AutoupdateState, RelaunchModel};
 use crate::changelog_model::ChangelogModel;
-use crate::cloud_object::model::actions::ObjectActions;
-use crate::cloud_object::model::view::ObjectStoreViewModel;
-use crate::cloud_object::update_manager::UpdateManager;
+use crate::objects::model::actions::ObjectActions;
+use crate::objects::model::view::ObjectStoreViewModel;
+use crate::objects::update_manager::UpdateManager;
 use crate::code::global_buffer_model::GlobalBufferModel;
 use crate::context_chips::prompt::Prompt;
 use crate::default_terminal::DefaultTerminal;
@@ -263,7 +263,7 @@ use warpui::{integration::TestDriver, App, AssetProvider, Event};
 
 use self::features::FeatureFlag;
 use crate::app_state::AppState;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
+use crate::objects::model::persistence::ObjectStoreModel;
 use crate::drive::ObjectTypeAndId;
 pub use crate::global_resource_handles::{GlobalResourceHandles, GlobalResourceHandlesProvider};
 use crate::notification::NotificationContext;
@@ -1253,7 +1253,7 @@ fn initialize_app(
     });
 
     let (
-        cloud_objects,
+        objectss,
         cached_workspaces,
         current_workspace_uid,
         app_state,
@@ -1272,7 +1272,7 @@ fn initialize_app(
     ) = sqlite_data
         .map(|sqlite_data| {
             (
-                sqlite_data.cloud_objects,
+                sqlite_data.objectss,
                 sqlite_data.workspaces,
                 sqlite_data.current_workspace_uid,
                 Some(sqlite_data.app_state),
@@ -1668,7 +1668,7 @@ fn initialize_app(
 
     timer.mark_interval_end("CORE_SINGLETONS_REGISTERED");
 
-    let notebooks = cloud_objects
+    let notebooks = objectss
         .iter()
         .filter_map(|object| {
             let notebook: Option<&NotebookObject> = object.into();
@@ -1680,7 +1680,7 @@ fn initialize_app(
     let object_store_model = ctx.add_singleton_model(|_ctx| {
         ObjectStoreModel::new(
             persistence_writer.sender(),
-            cloud_objects,
+            objectss,
             time_of_next_force_object_refresh,
         )
     });
@@ -1808,7 +1808,7 @@ fn initialize_app(
     ctx.add_singleton_model(NotebookKeybindings::new);
     ctx.add_singleton_model(TerminalKeybindings::new);
     ctx.add_singleton_model(|_| ActiveSession::default());
-    // Dais(本地化,Phase 2d-4a-1):原 `Listener` singleton 负责云端 cloud_objects RTC WebSocket,
+    // Dais(本地化,Phase 2d-4a-1):原 `Listener` singleton 负责云端 objectss RTC WebSocket,
     // 2b-1 后 `start_listener` 已是 no-op,本班整个文件与 singleton 注入一起物理删除。
 
     #[cfg(all(not(target_family = "wasm"), feature = "local_tty"))]

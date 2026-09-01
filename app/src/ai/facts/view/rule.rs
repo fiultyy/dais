@@ -1,6 +1,6 @@
-use crate::cloud_object::model::generic_string_model::GenericStringObjectId;
-use crate::cloud_object::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
-use crate::cloud_object::update_manager::UpdateManager;
+use crate::objects::model::generic_string_model::GenericStringObjectId;
+use crate::objects::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
+use crate::objects::update_manager::UpdateManager;
 use crate::editor::{
     EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions,
     TextOptions,

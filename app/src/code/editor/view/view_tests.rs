@@ -7,7 +7,7 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::model::persistence::ObjectStoreModel,
+    objects::model::persistence::ObjectStoreModel,
     editor::InteractionState,
     notebooks::editor::keys::NotebookKeybindings,
     settings_view::keybindings::KeybindingChangedNotifier,

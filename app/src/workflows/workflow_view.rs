@@ -16,14 +16,14 @@ use crate::{
     ai::blocklist::secret_redaction::find_secrets_in_text,
     appearance::Appearance,
     auth::{AuthState, AuthStateProvider},
-    cloud_object::{
+    objects::{
         model::persistence::{ObjectStoreEvent, ObjectStoreModel},
         update_manager::UpdateManager,
         ContainingObject, ObjectType, Owner, Revision, Space, StoredObject,
         StoredObjectEventEntrypoint,
     },
     drive::{
-        cloud_object_styling::warp_drive_icon_color,
+        objects_styling::warp_drive_icon_color,
         drive_helpers::has_feature_gated_anonymous_user_reached_workflow_limit,
         items::WarpDriveItemId,
         workflows::{
@@ -557,7 +557,7 @@ impl WorkflowView {
         ctx: &mut ViewContext<Self>,
     ) {
         let initial_load_complete =
-            crate::cloud_object::model::persistence::ObjectStoreModel::as_ref(ctx)
+            crate::objects::model::persistence::ObjectStoreModel::as_ref(ctx)
                 .initial_load_complete();
         let settings = settings.clone();
         ctx.spawn(initial_load_complete, move |me, _, ctx| {
@@ -627,8 +627,8 @@ impl WorkflowView {
             pane_config.update(ctx, |pane_config, ctx| {
                 pane_config.set_title(workflow_name, ctx);
                 // TODO(zap-cloud-removal Phase 5): sharing UI 已退役,
-                // workflow ShareableObject 注入移除;workflow.id 仍为 cloud_object id,
-                // Phase 5 退役 cloud_object 时一并清。
+                // workflow ShareableObject 注入移除;workflow.id 仍为 objects id,
+                // Phase 5 退役 objects 时一并清。
                 let _ = workflow.id;
             });
         }

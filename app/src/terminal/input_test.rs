@@ -15,7 +15,7 @@ use crate::ai::AIRequestUsageModel;
 use crate::auth::AuthManager;
 use crate::auth::AuthStateProvider;
 use crate::changelog_model::ChangelogModel;
-use crate::cloud_object::{
+use crate::objects::{
     model::persistence::ObjectStoreModel, GenericStringObjectFormat, JsonObjectType, ObjectType,
     Owner,
 };
@@ -31,7 +31,7 @@ use repo_metadata::watcher::DirectoryWatcher;
 use repo_metadata::RepoMetadataModel;
 use watcher::HomeDirectoryWatcher;
 
-use crate::cloud_object::update_manager::UpdateManager;
+use crate::objects::update_manager::UpdateManager;
 use crate::editor::{EditorAction, TextStyleOperation};
 use crate::input_suggestions::{HistoryOrder, Item};
 use crate::network::NetworkStatus;
@@ -116,7 +116,7 @@ pub fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| Prompt::mock());
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(
-        |_| crate::cloud_object::model::actions::ObjectActions::new(Vec::new()),
+        |_| crate::objects::model::actions::ObjectActions::new(Vec::new()),
     );
     app.add_singleton_model(ImportedConfigModel::new);
     app.add_singleton_model(UserWorkspaces::default_mock);

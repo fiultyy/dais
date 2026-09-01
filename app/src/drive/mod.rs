@@ -1,4 +1,4 @@
-pub mod cloud_object_styling;
+pub mod objects_styling;
 pub mod drive_helpers;
 pub mod export;
 pub mod folders;
@@ -14,7 +14,7 @@ use warp_core::user_preferences::GetUserPreferences as _;
 use warpui::AppContext;
 
 use crate::{
-    cloud_object::{
+    objects::{
         model::view::{ObjectStoreViewModel, UpdateTimestamp},
         GenericStringObjectFormat, ObjectIdType, ObjectType, StoredObject,
     },
@@ -42,8 +42,8 @@ pub enum DriveObjectType {
 }
 
 impl From<DriveObjectType> for Icon {
-    fn from(cloud_object_type: DriveObjectType) -> Icon {
-        match cloud_object_type {
+    fn from(objects_type: DriveObjectType) -> Icon {
+        match objects_type {
             DriveObjectType::Workflow => Icon::Workflow,
             DriveObjectType::AgentModeWorkflow => Icon::Prompt,
             DriveObjectType::AIFact => Icon::BookOpen,
@@ -267,7 +267,7 @@ pub enum DriveSortOrder {
 
 impl DriveSortOrder {
     /// Returns the comparator that can be used for sorting items returned by
-    /// ObjectStoreModel::cloud_objects_in_space, for example (so more specifically, on the iterator of
+    /// ObjectStoreModel::objectss_in_space, for example (so more specifically, on the iterator of
     /// type Iterator<Item = &'_ dyn StoredObject>)
     pub fn sort_by<'a>(
         &self,

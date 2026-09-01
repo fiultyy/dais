@@ -30,7 +30,7 @@ use crate::ai::predict::generate_ai_input_suggestions::GenerateAIInputSuggestion
 use crate::ai::predict::generate_ai_input_suggestions::GenerateAIInputSuggestionsResponseV2;
 use crate::ai::predict::next_command_model::HistoryBasedAutosuggestionState;
 use crate::auth::LoginGatedFeature;
-use crate::cloud_object::{
+use crate::objects::{
     model::generic_string_model::GenericStringObjectId, GenericStringObjectFormat, ObjectType,
     Space,
 };

@@ -2,7 +2,7 @@ use super::{WarpDriveItem, WarpDriveItemId};
 use crate::{
     ai::mcp::MCPServerObject,
     appearance::Appearance,
-    cloud_object::StoredObjectMetadata,
+    objects::StoredObjectMetadata,
     drive::{DriveObjectType, ObjectTypeAndId},
     themes::theme::Fill,
 };

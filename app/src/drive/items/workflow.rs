@@ -7,7 +7,7 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    cloud_object::{
+    objects::{
         model::actions::{ObjectActionType, ObjectActions},
         StoredObjectMetadata,
     },

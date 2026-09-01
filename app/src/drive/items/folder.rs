@@ -3,9 +3,9 @@ use warpui::{elements::MouseStateHandle, AppContext, Element};
 
 use crate::{
     appearance::Appearance,
-    cloud_object::StoredObjectMetadata,
+    objects::StoredObjectMetadata,
     drive::{
-        cloud_object_styling::warp_drive_icon_color, folders::FolderObject,
+        objects_styling::warp_drive_icon_color, folders::FolderObject,
             DriveObjectType, ObjectTypeAndId,
     },
     themes::theme::Fill,

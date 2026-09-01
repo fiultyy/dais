@@ -19,7 +19,7 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    cloud_object::{model::persistence::ObjectStoreModel, StoredObject},
+    objects::{model::persistence::ObjectStoreModel, StoredObject},
     completer::SessionAgnosticContext,
     notebooks::{
         styles::block_footer_action_button,

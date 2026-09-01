@@ -11,7 +11,7 @@ use warpui::{AppContext, SingletonEntity};
 use std::{collections::HashMap, fmt, result::Result, str::FromStr};
 
 use crate::{
-    cloud_object::model::persistence::ObjectStoreModel,
+    objects::model::persistence::ObjectStoreModel,
     server::ids::{ClientId, SyncId},
 };
 

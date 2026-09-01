@@ -17,7 +17,7 @@ use crate::util::openable_file_type::{
 };
 use crate::workspace::active_terminal_in_window;
 use crate::workspace::{Workspace, WorkspaceAction, WorkspaceRegistry};
-use crate::{cloud_object::ObjectType, workspace::ToastStack};
+use crate::{objects::ObjectType, workspace::ToastStack};
 use crate::{drive::DaisDriveObjectArgs, view_components::DismissibleToast};
 
 use crate::ai::ambient_agents::github_auth_notifier::GitHubAuthNotifier;

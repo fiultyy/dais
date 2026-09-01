@@ -5,7 +5,7 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::{
+    objects::{
         model::persistence::{ObjectStoreEvent, ObjectStoreModel},
         GenericStringObjectFormat, JsonObjectType, StoredObject as _,
     },

@@ -10,7 +10,7 @@ use warp_core::{
 use warpui::{AppContext, ModelContext, SingletonEntity};
 
 use crate::{
-    cloud_object::{
+    objects::{
         model::persistence::{ObjectStoreEvent, ObjectStoreModel},
         StoredObject as _,
     },

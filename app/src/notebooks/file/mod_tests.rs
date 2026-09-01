@@ -13,7 +13,7 @@ use warpui::{platform::WindowStyle, App, SingletonEntity, View};
 use crate::terminal::keys::TerminalKeybindings;
 use crate::{
     auth::{AuthManager, AuthStateProvider},
-    cloud_object::model::persistence::ObjectStoreModel,
+    objects::model::persistence::ObjectStoreModel,
     notebooks::{editor::keys::NotebookKeybindings, file::is_markdown_file},
     search::files::model::FileSearchModel,
     settings_view::keybindings::KeybindingChangedNotifier,

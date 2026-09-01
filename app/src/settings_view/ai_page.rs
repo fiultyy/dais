@@ -12,10 +12,10 @@ use crate::ai::execution_profiles::{AIExecutionProfile, ActionPermission, WriteT
 use crate::ai::llms::{LLMContextWindow, LLMId, LLMPreferences, LLMPreferencesEvent};
 use crate::ai::mcp::TemplatableMCPServerManager;
 use crate::ai::paths::host_native_absolute_path;
-use crate::cloud_object::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
-use crate::cloud_object::GenericStringObjectFormat::Json;
-use crate::cloud_object::JsonObjectType;
-use crate::cloud_object::ObjectType;
+use crate::objects::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
+use crate::objects::GenericStringObjectFormat::Json;
+use crate::objects::JsonObjectType;
+use crate::objects::ObjectType;
 
 use crate::editor::{EditorOptions, InteractionState, SingleLineEditorOptions, TextColors};
 use crate::settings::InputSettings;

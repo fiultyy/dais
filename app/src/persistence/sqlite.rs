@@ -55,7 +55,7 @@ use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::mcp::templatable_installation::VariableValue;
 use crate::ai::mcp::{TemplatableMCPServer, TemplatableMCPServerInstallation};
 use crate::auth::{user_uid::UserUid, AuthStateProvider};
-use crate::cloud_object::model::generic_string_model::{GenericStringObjectId, StoredStringObject};
+use crate::objects::model::generic_string_model::{GenericStringObjectId, StoredStringObject};
 use crate::drive::folders::FolderObject;
 use crate::app_state::{
     AmbientAgentPaneSnapshot, EnvVarCollectionPaneSnapshot, LeftPanelSnapshot,
@@ -66,7 +66,7 @@ use crate::drive::DaisDriveObjectSettings;
 use crate::notebooks::{NotebookId, NotebookObject};
 use crate::persistence::agent::read_agent_conversations;
 use crate::persistence::block_list::{get_all_restored_blocks, read_ai_queries};
-use crate::cloud_object::{ObjectIdType, ObjectType};
+use crate::objects::{ObjectIdType, ObjectType};
 use crate::persistence::model::NewGenericStringObject;
 use crate::persistence::{NewProjectRules, Project, ProjectRules};
 use crate::server::experiments::ServerExperiment;
@@ -2539,13 +2539,13 @@ fn read_sqlite_data(
         block_lists: Arc::new(block_lists),
         running_mcp_servers: load_active_mcp_servers(conn)?,
     };
-    // Dais(云表裁剪): object_metadata/object_actions/cloud_objects_refreshes 已 DROP,
+    // Dais(云表裁剪): object_metadata/object_actions/objectss_refreshes 已 DROP,
     // 本地 stored object 不再经 sqlite 恢复与持久化, 启动时 ObjectStoreModel 为空。
     // note: note/workflow 重启恢复断链由 sync-engine 轮重建本地持久化路径。
 
     Ok(PersistedData {
         app_state,
-        cloud_objects: Vec::new(),
+        objectss: Vec::new(),
         workspaces,
         current_workspace_uid,
         command_history: commands,

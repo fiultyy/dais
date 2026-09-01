@@ -8,7 +8,7 @@ use warp_core::ui::appearance::Appearance;
 use warpui::{AppContext, SingletonEntity as _};
 
 use crate::{
-    cloud_object::{
+    objects::{
         model::{
             generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel},
             json_model::{JsonModel, JsonSerializer},

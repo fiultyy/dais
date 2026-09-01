@@ -34,8 +34,8 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::{model::persistence::ObjectStoreModel, StoredObject},
-    drive::{cloud_object_styling::warp_drive_icon_color, DriveObjectType},
+    objects::{model::persistence::ObjectStoreModel, StoredObject},
+    drive::{objects_styling::warp_drive_icon_color, DriveObjectType},
     server::ids::{HashableId, ToServerId},
     ui_components::icons::Icon,
     workflows::{workflow::Workflow, WorkflowId, WorkflowObject},
@@ -467,7 +467,7 @@ impl RenderableEmbeddedWorkflow {
             )
         };
         let workflow_icon = ConstrainedBox::new(
-            icon.to_warpui_icon(icon_color.into())
+            icon.to_warpui_icon(warp_core::ui::theme::Fill::from(icon_color))
                 .with_opacity(1.0)
                 .finish(),
         )

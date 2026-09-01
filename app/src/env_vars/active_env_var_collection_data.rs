@@ -1,5 +1,5 @@
 use crate::{
-    cloud_object::{
+    objects::{
         model::{persistence::ObjectStoreEvent, view::ObjectStoreViewModel},
         Owner, Revision, Space, StoredObject,
     },
@@ -63,7 +63,7 @@ impl ActiveEnvVarCollectionData {
         _ctx: &mut ModelContext<Self>,
     ) {
         if let ObjectStoreEvent::ObjectMoved { type_and_id, .. } = event {
-            // Dais(W3-d8): 面包屑刷新随 cloud_object::breadcrumbs 裁撤,
+            // Dais(W3-d8): 面包屑刷新随 objects::breadcrumbs 裁撤,
             // ObjectMoved 不再触发 BreadcrumbsChanged。
             let _ = type_and_id;
         }
@@ -167,7 +167,7 @@ impl ActiveEnvVarCollectionData {
         self.id() == Some(env_var_collection_id)
     }
 
-    // Dais(W3-d8): `breadcrumbs()` 已随 cloud_object::breadcrumbs 裁撤;
+    // Dais(W3-d8): `breadcrumbs()` 已随 objects::breadcrumbs 裁撤;
     // containing_objects_path 仍由 StoredObject trait 提供。
 
     pub fn trash_status(&self, ctx: &AppContext) -> TrashStatus {

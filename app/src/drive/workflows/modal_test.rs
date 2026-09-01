@@ -4,7 +4,7 @@ use warpui::{platform::WindowStyle, App, ViewHandle};
 use super::WorkflowModal;
 use crate::auth::AuthStateProvider;
 use crate::{
-    cloud_object::model::persistence::ObjectStoreModel,
+    objects::model::persistence::ObjectStoreModel,
     editor::PlainTextEditorViewAction as EditorAction,
     settings_view::keybindings::KeybindingChangedNotifier,
     test_util::settings::initialize_settings_for_tests,

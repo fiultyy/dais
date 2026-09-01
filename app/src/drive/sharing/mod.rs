@@ -4,13 +4,13 @@ use crate::{auth::UserUid, server::ids::ServerId};
 // `dialog/` 与全部触发入口已在 Phase 2a 删除;本轮按消费方盘点裁掉零引用符号
 // (SubjectExt/UserKindExt/TeamKindExt/ShareableObject/头像助手/style.rs,以及
 // 仅服务 persistence 编解码的 FromStr/to_serializable_value/serde derive、
-// LinkSharingSubjectType 与 Subject::AnyoneWithLink — persistence/cloud_objects.rs
+// LinkSharingSubjectType 与 Subject::AnyoneWithLink — persistence/objectss.rs
 // 与其测试已由 S2 删,零引用)。
 // 仍保留的符号均有存活消费方:
 // - `SharingAccessLevel`/`ContentEditability` → notebooks / env_vars / workflows
-//   的只读判定与 trash 权限(cloud_object/model/view.rs 的
+//   的只读判定与 trash 权限(objects/model/view.rs 的
 //   access_level/editability 链)。
-// - `Subject`/`UserKind`/`TeamKind` → cloud_object/server_types.rs 的
+// - `Subject`/`UserKind`/`TeamKind` → objects/server_types.rs 的
 //   StoredObjectPermissions 结构(keep 骨架)及 view.rs 的 access_level 判定。
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]

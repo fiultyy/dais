@@ -1,5 +1,5 @@
 use crate::ai::execution_profiles::AIExecutionProfileObject;
-use crate::cloud_object::{
+use crate::objects::{
     GenericStoredObject, GenericStringObjectFormat, JsonObjectType, ObjectIdType, ObjectType,
     Owner, Revision, Space, StoredObjectLocation, StoredObjectModel,
 };
@@ -23,7 +23,7 @@ use std::sync::mpsc::SyncSender;
 
 use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
 
-use crate::cloud_object::StoredObject;
+use crate::objects::StoredObject;
 use crate::util::sync::Condition;
 use chrono::{DateTime, Duration, Utc};
 use rand::Rng;
@@ -223,11 +223,11 @@ impl ObjectStoreModel {
         self.objects_by_id.get_mut(uid)
     }
 
-    pub fn cloud_objects(&self) -> impl Iterator<Item = &Box<dyn StoredObject>> {
+    pub fn objectss(&self) -> impl Iterator<Item = &Box<dyn StoredObject>> {
         self.objects_by_id.values()
     }
 
-    pub fn cloud_objects_mut(&mut self) -> impl Iterator<Item = &mut Box<dyn StoredObject>> {
+    pub fn objectss_mut(&mut self) -> impl Iterator<Item = &mut Box<dyn StoredObject>> {
         self.objects_by_id.values_mut()
     }
 
@@ -434,10 +434,10 @@ impl ObjectStoreModel {
             + 'static,
         M: StoredObjectModel<IdType = K, StoredObjectType = GenericStoredObject<K, M>> + 'static,
     {
-        if let Some(cloud_object) = self.get_object_of_type_mut(&object_id) {
-            cloud_object.set_model(model);
+        if let Some(objects) = self.get_object_of_type_mut(&object_id) {
+            objects.set_model(model);
             ctx.emit(ObjectStoreEvent::ObjectUpdated {
-                type_and_id: cloud_object.object_type_and_id(),
+                type_and_id: objects.object_type_and_id(),
                 source: UpdateSource::Local,
             });
             ctx.notify();
@@ -573,7 +573,7 @@ impl ObjectStoreModel {
             folder_ids.push(folder_id);
         }
 
-        self.active_cloud_objects_in_location_without_descendents(location, app)
+        self.active_objectss_in_location_without_descendents(location, app)
             .for_each(|object| {
                 let folder: Option<&FolderObject> = object.into();
                 if let Some(folder) = folder {
@@ -819,7 +819,7 @@ impl ObjectStoreModel {
         space: Space,
         app: &'a AppContext,
     ) -> impl Iterator<Item = &'a WorkflowObject> + 'a {
-        self.active_cloud_objects_in_space(space, app)
+        self.active_objectss_in_space(space, app)
             .filter_map(|object| object.into())
     }
 
@@ -829,7 +829,7 @@ impl ObjectStoreModel {
         space: Space,
         app: &'a AppContext,
     ) -> impl Iterator<Item = &'a WorkflowObject> + 'a {
-        self.active_non_welcome_cloud_objects_in_space(space, app)
+        self.active_non_welcome_objectss_in_space(space, app)
             .filter_map(|object| object.into())
     }
 
@@ -839,7 +839,7 @@ impl ObjectStoreModel {
         space: Space,
         app: &'a AppContext,
     ) -> impl Iterator<Item = &'a NotebookObject> + 'a {
-        self.active_cloud_objects_in_space(space, app)
+        self.active_objectss_in_space(space, app)
             .filter_map(|object| object.into())
     }
 
@@ -849,7 +849,7 @@ impl ObjectStoreModel {
         space: Space,
         app: &'a AppContext,
     ) -> impl Iterator<Item = &'a NotebookObject> + 'a {
-        self.active_non_welcome_cloud_objects_in_space(space, app)
+        self.active_non_welcome_objectss_in_space(space, app)
             .filter_map(|object| object.into())
     }
 
@@ -859,7 +859,7 @@ impl ObjectStoreModel {
         space: Space,
         app: &'a AppContext,
     ) -> impl Iterator<Item = &'a EnvVarCollectionObject> + 'a {
-        self.active_non_welcome_cloud_objects_in_space(space, app)
+        self.active_non_welcome_objectss_in_space(space, app)
             .filter_map(|object| object.into())
     }
 
@@ -970,7 +970,7 @@ impl ObjectStoreModel {
     pub fn current_revision(&self, id: &SyncId) -> Option<&Revision> {
         self.objects_by_id
             .get(&id.uid())
-            .and_then(|warp_cloud_object| warp_cloud_object.metadata().revision.as_ref())
+            .and_then(|warp_objects| warp_objects.metadata().revision.as_ref())
     }
 
     /// Returns only active (not trashed) notebooks in object store.
@@ -989,7 +989,7 @@ impl ObjectStoreModel {
     }
 
     #[cfg(test)]
-    pub fn as_cloud_objects(&self) -> impl Iterator<Item = &'_ Box<dyn StoredObject>> {
+    pub fn as_objectss(&self) -> impl Iterator<Item = &'_ Box<dyn StoredObject>> {
         self.objects_by_id.values()
     }
 
@@ -1054,7 +1054,7 @@ impl ObjectStoreModel {
 
     /// 给定 StoredObjectLocation(folder 或 space),返回直接位于该位置且未被 trashed 的本地对象。
     /// 这个函数不会递归 nested folders。
-    pub fn active_cloud_objects_in_location_without_descendents<'a>(
+    pub fn active_objectss_in_location_without_descendents<'a>(
         &'a self,
         location: StoredObjectLocation,
         app: &'a AppContext,
@@ -1069,7 +1069,7 @@ impl ObjectStoreModel {
 
     /// 给定 StoredObjectLocation(folder 或 space),返回直接位于该位置且已 trashed 的本地对象。
     /// 这个函数不会递归 nested folders。
-    pub fn trashed_cloud_objects_in_location_without_descendents<'a>(
+    pub fn trashed_objectss_in_location_without_descendents<'a>(
         &'a self,
         location: StoredObjectLocation,
         app: &'a AppContext,
@@ -1080,13 +1080,13 @@ impl ObjectStoreModel {
             .map(|object| object.as_ref())
     }
 
-    pub fn trashed_cloud_object_types_in_location_with_descendants(
+    pub fn trashed_objects_types_in_location_with_descendants(
         &self,
         location: StoredObjectLocation,
         app: &AppContext,
     ) -> Vec<ObjectType> {
         let mut trashed_objects: Vec<ObjectType> = Vec::new();
-        self.trashed_cloud_object_types_in_location_with_descendants_helper(
+        self.trashed_objects_types_in_location_with_descendants_helper(
             location,
             &mut trashed_objects,
             app,
@@ -1094,23 +1094,23 @@ impl ObjectStoreModel {
         trashed_objects
     }
 
-    /// Helper function for trashed_cloud_objects_in_location_with_descendants.
+    /// Helper function for trashed_objectss_in_location_with_descendants.
     /// Recursively traverses through descendants, adding object types of any trashed
     /// objects found to the trashed_objects mutable vector reference.
-    fn trashed_cloud_object_types_in_location_with_descendants_helper(
+    fn trashed_objects_types_in_location_with_descendants_helper(
         &self,
         location: StoredObjectLocation,
         trashed_objects: &mut Vec<ObjectType>,
         app: &AppContext,
     ) {
         // Fetch direct descendants of the location
-        self.trashed_cloud_objects_in_location_without_descendents(location, app)
+        self.trashed_objectss_in_location_without_descendents(location, app)
             .for_each(|object| {
                 trashed_objects.push(object.object_type());
                 let folder: Option<&FolderObject> = object.into();
                 // If any of the direct descendants are folders, recursively traverse through them
                 if let Some(folder) = folder {
-                    self.trashed_cloud_object_types_in_location_with_descendants_helper(
+                    self.trashed_objects_types_in_location_with_descendants_helper(
                         StoredObjectLocation::Folder(folder.id),
                         trashed_objects,
                         app,
@@ -1121,7 +1121,7 @@ impl ObjectStoreModel {
 
     /// 给定 StoredObjectLocation(folder 或 space),返回直接位于该位置、因父级被 trashed 而进入
     /// trash、但未被用户显式 trashed 的本地对象。这个函数不会递归 nested folders。
-    pub fn indirectly_trashed_cloud_objects_in_location_without_descendents<'a>(
+    pub fn indirectly_trashed_objectss_in_location_without_descendents<'a>(
         &'a self,
         location: StoredObjectLocation,
         app: &'a AppContext,
@@ -1137,7 +1137,7 @@ impl ObjectStoreModel {
     }
 
     /// 返回指定 space 中所有 active(未 trashed)本地对象。
-    pub fn active_cloud_objects_in_space<'a>(
+    pub fn active_objectss_in_space<'a>(
         &'a self,
         space: Space,
         app: &'a AppContext,
@@ -1149,7 +1149,7 @@ impl ObjectStoreModel {
     }
 
     /// 返回指定 space 中所有 active(未 trashed)且非 welcome 的本地对象。
-    pub fn active_non_welcome_cloud_objects_in_space<'a>(
+    pub fn active_non_welcome_objectss_in_space<'a>(
         &'a self,
         space: Space,
         app: &'a AppContext,
@@ -1165,7 +1165,7 @@ impl ObjectStoreModel {
     }
 
     // Returns all objects, trashed or otherwise, in the space.
-    pub fn all_cloud_objects_in_space<'a>(
+    pub fn all_objectss_in_space<'a>(
         &'a self,
         space: Space,
         app: &'a AppContext,
@@ -1177,7 +1177,7 @@ impl ObjectStoreModel {
     }
 
     /// 返回指定 space 中所有 trashed 本地对象。
-    pub fn trashed_cloud_objects_in_space<'a>(
+    pub fn trashed_objectss_in_space<'a>(
         &'a self,
         space: Space,
         app: &'a AppContext,
@@ -1189,7 +1189,7 @@ impl ObjectStoreModel {
     }
 
     /// 返回指定 space 中所有被用户显式 trashed 的本地对象。
-    pub fn directly_trashed_cloud_objects_in_space<'a>(
+    pub fn directly_trashed_objectss_in_space<'a>(
         &'a self,
         space: Space,
         app: &'a AppContext,
@@ -1203,7 +1203,7 @@ impl ObjectStoreModel {
     }
 
     /// Returns a map of how many active (not trashed) objects reside within specified spaces.
-    pub fn num_active_cloud_objects_per_space<'a, I>(
+    pub fn num_active_objectss_per_space<'a, I>(
         &self,
         spaces: I,
         app: &AppContext,
@@ -1215,14 +1215,14 @@ impl ObjectStoreModel {
             .map(|space| {
                 (
                     *space,
-                    self.active_cloud_objects_in_space(*space, app).count(),
+                    self.active_objectss_in_space(*space, app).count(),
                 )
             })
             .collect::<HashMap<_, _>>()
     }
 
     /// Returns a map of how many trashed objects reside within specified spaces.
-    pub fn num_trashed_cloud_objects_per_space<'a, I>(
+    pub fn num_trashed_objectss_per_space<'a, I>(
         &self,
         spaces: I,
         app: &AppContext,
@@ -1234,7 +1234,7 @@ impl ObjectStoreModel {
             .map(|space| {
                 (
                     *space,
-                    self.trashed_cloud_objects_in_space(*space, app).count(),
+                    self.trashed_objectss_in_space(*space, app).count(),
                 )
             })
             .collect::<HashMap<_, _>>()
@@ -1262,7 +1262,7 @@ impl ObjectStoreModel {
     }
 
     /// 下一次本地 object-store refresh 是否需要强制全量遍历对象。
-    pub fn cloud_objects_force_refresh_pending(&self) -> bool {
+    pub fn objectss_force_refresh_pending(&self) -> bool {
         // If there's no stated time for the next refresh, assume we should do one now. Otherwise,
         // check if we're at or past the time of the next refresh.
         self.time_of_next_force_refresh
@@ -1271,7 +1271,7 @@ impl ObjectStoreModel {
 
     /// After a successful force refresh, mark the state as completed by picking a
     /// time for the next refresh.
-    pub fn mark_cloud_objects_refresh_as_completed(&mut self) -> DateTime<Utc> {
+    pub fn mark_objectss_refresh_as_completed(&mut self) -> DateTime<Utc> {
         // In order to offset when clients are performing the force refresh, we introduce
         // a small amount of randomness into the calculation. This is intended to distribute
         // server load to whatever extent possible.

@@ -2,7 +2,7 @@ use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
 
 use crate::{
     ai::document::ai_document_model::AIDocumentId,
-    cloud_object::{
+    objects::{
         model::{
             persistence::ObjectStoreModel,
             view::{Editor, ObjectStoreViewModel},
@@ -126,7 +126,7 @@ impl ActiveNotebookData {
         )
     }
 
-    // Dais(W3-d8): `breadcrumbs()` 已随 cloud_object::breadcrumbs 裁撤;
+    // Dais(W3-d8): `breadcrumbs()` 已随 objects::breadcrumbs 裁撤;
     // containing_objects_path 仍由 StoredObject trait 提供。
 
     /// The space that the active notebook is shown in for this user.

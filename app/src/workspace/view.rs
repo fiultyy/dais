@@ -171,7 +171,7 @@ use crate::autoupdate::{
 use crate::banner::BannerState;
 use crate::changelog_model::{ChangelogModel, ChangelogRequestType, Event as ChangelogEvent};
 use crate::channel::Channel;
-use crate::cloud_object::{
+use crate::objects::{
     GenericStringObjectFormat, JsonObjectType, ObjectType, Owner, Space, StoredObject,
 };
 use crate::experiments::{BlockOnboarding, Experiment};
@@ -195,7 +195,7 @@ use crate::remote_server::manager::RemoteServerManagerEvent;
 use crate::terminal::keys_settings::KeysSettings;
 
 use crate::ai::blocklist::agent_view::editor::{AgentToolbarEditorEvent, AgentToolbarEditorModal};
-use crate::cloud_object::update_manager::{
+use crate::objects::update_manager::{
     ObjectOperation, OperationSuccessType, UpdateManager, UpdateManagerEvent,
 };
 use crate::prompt::editor_modal::{
@@ -368,7 +368,7 @@ use super::util::{
     PaneViewLocator, TabMovement, TerminalSessionFallbackBehavior, WorkspaceMouseStates,
     WorkspaceState,
 };
-use crate::cloud_object::model::persistence::ObjectStoreModel;
+use crate::objects::model::persistence::ObjectStoreModel;
 use crate::launch_configs::save_modal::{LaunchConfigModalEvent, LaunchConfigSaveModal};
 use crate::tab_configs::action_sidecar::SidecarItemKind;
 use crate::tab_configs::remove_confirmation_dialog::{
@@ -3483,7 +3483,7 @@ impl Workspace {
             // * The user is new to Dais, and went through the overall onboarding flow
             // * The user is on the web, so we can't open a terminal session.
             let initial_load_complete =
-                crate::cloud_object::model::persistence::ObjectStoreModel::as_ref(ctx)
+                crate::objects::model::persistence::ObjectStoreModel::as_ref(ctx)
                     .initial_load_complete();
             ctx.spawn(initial_load_complete, move |me, _, ctx| {
                 // New Dais users can have non-welcome objects if they were directly invited OR if
@@ -3496,7 +3496,7 @@ impl Workspace {
                     if show_warp_home {
                         let object_store_model = ObjectStoreModel::as_ref(ctx);
                         let candidate_objects = object_store_model
-                            .cloud_objects()
+                            .objectss()
                             .filter(|object| {
                                 !object.is_trashed(object_store_model)
                                     && object.renders_in_warp_drive()
@@ -3508,7 +3508,7 @@ impl Workspace {
                         // supported object.
                         let target_object_pane = candidate_objects
                             .into_iter()
-                            .find_map(|object_id| me.create_cloud_object_pane(object_id, ctx));
+                            .find_map(|object_id| me.create_objects_pane(object_id, ctx));
 
                         if let Some((target_object_pane, placeholder_pane)) =
                             target_object_pane.zip(placeholder_pane)
@@ -6940,14 +6940,14 @@ impl Workspace {
     /// Create a pane from a cloud object. Returns `None` if the object cannot be opened in a
     /// pane. The pane will not be associated with any tab - the caller is responsible for
     /// inserting it.
-    fn create_cloud_object_pane(
+    fn create_objects_pane(
         &self,
-        cloud_object: ObjectTypeAndId,
+        objects: ObjectTypeAndId,
         ctx: &mut ViewContext<Self>,
     ) -> Option<Box<dyn AnyPaneContent>> {
         let window_id = ctx.window_id();
         let object_settings = DaisDriveObjectSettings::default();
-        match cloud_object {
+        match objects {
             ObjectTypeAndId::Notebook(sync_id) => Some(Box::new(
                 NotebookManager::handle(ctx).update(ctx, |notebook_manager, ctx| {
                     notebook_manager.create_pane(
@@ -14485,7 +14485,7 @@ impl Workspace {
             }
         }
 
-        // Dais(W3-d8): StoredObjectToastMessage 已随 cloud_object toast 模块裁撤。
+        // Dais(W3-d8): StoredObjectToastMessage 已随 objects toast 模块裁撤。
         // If this was a successful update on a workflow - caused by this client - then we may need
         // to update the contents of the workflow info box to represent the new synced state.
         if result.success_type == OperationSuccessType::Success
@@ -14511,7 +14511,7 @@ impl Workspace {
                 .and_then(|id| ObjectStoreModel::as_ref(ctx).get_by_uid(&id.uid()))
             {
                 // TODO(zap-cloud-removal Phase 5): drive sharing onboarding
-                // block 已退;`created_object` 仍是 cloud_object 创建结果,
+                // block 已退;`created_object` 仍是 objects 创建结果,
                 // StoredObject 模型本身在后续 phase 一并退役。
                 let _ = created_object;
             }

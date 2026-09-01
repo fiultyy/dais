@@ -4,7 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use uuid::Uuid;
 
-use crate::cloud_object::ObjectIdType;
+use crate::objects::ObjectIdType;
 
 /// Convert ID enums into and from a hashed UUID.
 pub trait HashableId: Sized + Send + Sync {

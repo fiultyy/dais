@@ -1,5 +1,5 @@
 use crate::{
-    cloud_object::{model::persistence::ObjectStoreModel, Owner},
+    objects::{model::persistence::ObjectStoreModel, Owner},
     env_vars::view::env_var_collection::EnvVarCollectionView,
     pane_group::{EnvVarCollectionPane, PaneContent},
     safe_warn,

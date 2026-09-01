@@ -11,8 +11,8 @@ use crate::{
         TemplatableMCPServer, TemplatableMCPServerInstallation, TemplatableMCPServerManager,
     },
     appearance::Appearance,
-    cloud_object::update_manager::InitiatedBy,
-    cloud_object::Space,
+    objects::update_manager::InitiatedBy,
+    objects::Space,
     settings_view::{
         mcp_servers::{
             edit_page::{MCPServersEditPageView, MCPServersEditPageViewEvent},

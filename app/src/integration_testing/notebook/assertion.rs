@@ -8,7 +8,7 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::model::{
+    objects::model::{
         generic_string_model::GenericStringObjectId, persistence::ObjectStoreModel,
     },
     integration_testing::{

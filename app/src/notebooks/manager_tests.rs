@@ -8,8 +8,8 @@ use warpui::{
 use crate::{
     ai::blocklist::BlocklistAIHistoryModel,
     auth::{AuthManager, AuthStateProvider},
-    cloud_object::update_manager::UpdateManager,
-    cloud_object::{
+    objects::update_manager::UpdateManager,
+    objects::{
         model::{
             actions::ObjectActions, persistence::ObjectStoreModel, view::ObjectStoreViewModel,
         },

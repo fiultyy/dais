@@ -16,7 +16,7 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::model::persistence::{ObjectStoreEvent, ObjectStoreModel},
+    objects::model::persistence::{ObjectStoreEvent, ObjectStoreModel},
     debounce::debounce,
     editor::InteractionState,
     notebooks::telemetry::BlockInfo,

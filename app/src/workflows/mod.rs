@@ -17,10 +17,10 @@ pub mod workflow_enum;
 pub mod workflow_view;
 
 use crate::appearance::Appearance;
-use crate::cloud_object::model::view::ObjectStoreViewModel;
-use crate::cloud_object::{GenericStoredObject, ObjectType, StoredObjectModel};
+use crate::objects::model::view::ObjectStoreViewModel;
+use crate::objects::{GenericStoredObject, ObjectType, StoredObjectModel};
 
-use crate::cloud_object::SerializedModel;
+use crate::objects::SerializedModel;
 use crate::drive::items::workflow::WarpDriveWorkflow;
 use crate::drive::items::WarpDriveItem;
 use crate::drive::ObjectTypeAndId;

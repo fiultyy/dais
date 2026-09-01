@@ -3,10 +3,10 @@ use warpui::{platform::WindowStyle, App, ViewHandle};
 
 use crate::auth::AuthStateProvider;
 use crate::{
-    cloud_object::model::{
+    objects::model::{
         actions::ObjectActions, persistence::ObjectStoreModel, view::ObjectStoreViewModel,
     },
-    cloud_object::update_manager::UpdateManager,
+    objects::update_manager::UpdateManager,
     env_vars::{
         active_env_var_collection_data::SavingStatus,
         view::env_var_collection::EnvVarCollectionView,
@@ -55,7 +55,7 @@ fn test_variable_row_addition_and_removal() {
 
         env_var_collection_view.update(&mut app, |view, ctx| {
             view.open_new_env_var_collection(
-                crate::cloud_object::Owner::mock_current_user(),
+                crate::objects::Owner::mock_current_user(),
                 None,
                 ctx,
             );

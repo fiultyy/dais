@@ -5,7 +5,7 @@ use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
 
 use crate::{
     auth::{AuthStateProvider, UserUid},
-    cloud_object::{
+    objects::{
         update_manager::{
             ObjectOperation, OperationSuccessType, UpdateManager, UpdateManagerEvent,
         },
@@ -261,7 +261,7 @@ impl ObjectStoreViewModel {
                 .and_then(|cache| cache.get(&folder.id).cloned())
                 .or_else(|| {
                     let max_child_timestamp = object_store_model
-                        .active_cloud_objects_in_location_without_descendents(
+                        .active_objectss_in_location_without_descendents(
                             StoredObjectLocation::Folder(folder.id),
                             app,
                         )

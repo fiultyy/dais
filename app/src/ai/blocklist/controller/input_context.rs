@@ -18,7 +18,7 @@ use crate::{
         facts::AIFactObjectModel,
         skills::list_skills,
     },
-    cloud_object::{
+    objects::{
         model::{
             generic_string_model::{GenericStringObjectId, StoredStringObject},
             persistence::ObjectStoreModel,

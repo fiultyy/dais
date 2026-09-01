@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use warpui::{AppContext, SingletonEntity, ViewHandle};
 
 use crate::{
-    cloud_object::{
+    objects::{
         model::persistence::ObjectStoreModel, update_manager::UpdateManager, Owner,
         StoredObjectEventEntrypoint,
     },

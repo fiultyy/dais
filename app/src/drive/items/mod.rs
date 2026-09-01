@@ -2,12 +2,12 @@ use warpui::{elements::MouseStateHandle, AppContext, Element};
 
 use crate::{
     appearance::Appearance,
-    cloud_object::{Space, StoredObjectMetadata},
+    objects::{Space, StoredObjectMetadata},
     themes::theme::Fill,
     ui_components::icons::Icon,
 };
 
-use super::{cloud_object_styling::warp_drive_icon_color, DriveObjectType, ObjectTypeAndId};
+use super::{objects_styling::warp_drive_icon_color, DriveObjectType, ObjectTypeAndId};
 
 pub mod ai_fact;
 pub mod ai_fact_collection;

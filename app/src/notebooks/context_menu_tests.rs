@@ -12,8 +12,8 @@ use crate::pane_group::focus_state::{PaneFocusHandle, PaneGroupFocusState};
 use crate::pane_group::{BackingView as _, PaneId};
 use crate::terminal::keys::TerminalKeybindings;
 use crate::{
-    cloud_object::model::{persistence::ObjectStoreModel, view::ObjectStoreViewModel},
-    cloud_object::update_manager::UpdateManager,
+    objects::model::{persistence::ObjectStoreModel, view::ObjectStoreViewModel},
+    objects::update_manager::UpdateManager,
     editor::InteractionState,
     network::NetworkStatus,
     notebooks::{editor::keys::NotebookKeybindings, notebook::NotebookView},

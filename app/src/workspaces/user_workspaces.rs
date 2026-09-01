@@ -9,7 +9,7 @@ use crate::{
     ai::llms::LLMModelHost,
     auth::{UserUid, TEST_USER_UID},
     channel::ChannelState,
-    cloud_object::{
+    objects::{
         model::persistence::ObjectStoreModel, ObjectType, Owner, Space, StoredObjectEventEntrypoint,
     },
     server::ids::ServerId,

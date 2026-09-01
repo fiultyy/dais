@@ -3,7 +3,7 @@ use serde_json::Value;
 use warp_workflows;
 
 use crate::{
-    cloud_object::model::generic_string_model::GenericStringObjectId, server::ids::SyncId,
+    objects::model::generic_string_model::GenericStringObjectId, server::ids::SyncId,
 };
 
 /// Workflow model to be used inside of `warp-internal`

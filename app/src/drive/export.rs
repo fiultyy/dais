@@ -23,12 +23,12 @@ use warpui::{
 
 #[cfg(feature = "local_fs")]
 use crate::{
-    cloud_object::update_manager::get_duplicate_object_name, notebooks::export_notebook,
+    objects::update_manager::get_duplicate_object_name, notebooks::export_notebook,
     view_components::ToastLink, workflows::export_workflow::export_serialize,
     workspace::WorkspaceAction,
 };
 use crate::{
-    cloud_object::{model::persistence::ObjectStoreModel, Space},
+    objects::{model::persistence::ObjectStoreModel, Space},
     safe_warn,
     view_components::DismissibleToast,
     workspace::{active_terminal_in_window, ToastStack},
@@ -111,8 +111,8 @@ impl ExportManager {
                 Some(obj) if !obj.can_export() => {
                     log::warn!("Tried to export un-exportable object {object:?}")
                 }
-                Some(cloud_object) => {
-                    let id = ExportId(*object, cloud_object.space(ctx));
+                Some(objects) => {
+                    let id = ExportId(*object, objects.space(ctx));
                     ids.push(id);
                     match self.exports.entry(id) {
                         Entry::Occupied(_) => {

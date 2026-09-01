@@ -1,6 +1,6 @@
 use super::{workflow::Workflow, WorkflowObjectModel};
 use crate::{
-    cloud_object::{model::persistence::ObjectStoreModel, GenericStoredObject, Owner},
+    objects::{model::persistence::ObjectStoreModel, GenericStoredObject, Owner},
     drive::DaisDriveObjectSettings,
     pane_group::{PaneContent, WorkflowPane},
     safe_warn,

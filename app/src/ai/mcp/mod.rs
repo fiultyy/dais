@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 #[cfg(not(target_family = "wasm"))]
 use crate::persistence::model::MCPEnvironmentVariables;
 use crate::{
-    cloud_object::{
+    objects::{
         model::{
             generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel},
             json_model::{JsonModel, JsonSerializer},

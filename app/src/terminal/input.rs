@@ -124,7 +124,7 @@ use crate::{
     ai_assistant::execution_context::WarpAiExecutionContext,
     appearance::{Appearance, AppearanceEvent},
     channel::{Channel, ChannelState},
-    cloud_object::{
+    objects::{
         model::{
             actions::ObjectActionType, persistence::ObjectStoreModel, view::ObjectStoreViewModel,
         },

@@ -1,5 +1,5 @@
 use crate::{
-    cloud_object::{
+    objects::{
         model::persistence::ObjectStoreModel, update_manager::UpdateManager, GenericStoredObject,
         Revision, Space, StoredObjectEventEntrypoint, StoredObjectLocation, StoredObjectModel,
     },
@@ -116,7 +116,7 @@ pub fn create_a_personal_workflow() -> TestStep {
             ObjectStoreModel::handle(app).read(app, |object_store_model, ctx| {
                 async_assert!(
                     object_store_model
-                        .active_cloud_objects_in_location_without_descendents(
+                        .active_objectss_in_location_without_descendents(
                             StoredObjectLocation::Space(Space::Personal),
                             ctx,
                         )
@@ -150,7 +150,7 @@ pub fn assert_binding_display_string(
 /// Asserts metadata exists for the object with the given key and that the revision in that
 /// metadata matches the given expected revision.
 ///
-/// Dais(本地化):原位于 integration_testing/cloud_object/assertion.rs,该目录已随 Drive 云对象
+/// Dais(本地化):原位于 integration_testing/objects/assertion.rs,该目录已随 Drive 云对象
 /// UI 删除;此泛型助手被 notebook/workflow 元数据断言引用,迁移至此。
 pub fn assert_metadata_revision<K, M>(id: &str, expected_revision: i64) -> AssertionCallback
 where

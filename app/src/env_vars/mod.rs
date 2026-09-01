@@ -9,7 +9,7 @@ pub mod manager;
 pub mod view;
 
 use crate::{
-    cloud_object::{
+    objects::{
         model::{
             generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel},
             json_model::{JsonModel, JsonSerializer},

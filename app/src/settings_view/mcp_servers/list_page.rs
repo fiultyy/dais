@@ -28,7 +28,7 @@ use crate::{
         FileBasedMCPManager, MCPGalleryManager, MCPProvider, TemplatableMCPServerInstallation,
     },
     appearance::Appearance,
-    cloud_object::{
+    objects::{
         model::persistence::{ObjectStoreEvent, ObjectStoreModel},
         GenericStringObjectFormat, JsonObjectType,
     },

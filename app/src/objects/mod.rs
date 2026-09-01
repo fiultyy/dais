@@ -94,7 +94,7 @@ impl From<&str> for SerializedModel {
 // Encapsulates an object that can contain other objects, and keeps
 // information necessary to show breadcrumbs.
 //
-// W3-d8: 原 `cloud_object::breadcrumbs` 模块已裁撤, 类型本地化到此。
+// W3-d8: 原 `objects::breadcrumbs` 模块已裁撤, 类型本地化到此。
 #[derive(Clone, Debug)]
 pub struct ContainingObject {
     pub name: String,
@@ -463,13 +463,13 @@ pub trait StoredObject: Debug {
 
     /// Returns the trait object as a concrete type reference by downcasting it.
     /// Returns None if the downcast fails.
-    fn as_model_type<K, M>(cloud_object: &dyn StoredObject) -> Option<&GenericStoredObject<K, M>>
+    fn as_model_type<K, M>(objects: &dyn StoredObject) -> Option<&GenericStoredObject<K, M>>
     where
         Self: Sized,
         K: HashableId + ToServerId + Debug + Into<String> + Clone + 'static,
         M: StoredObjectModel<IdType = K, StoredObjectType = GenericStoredObject<K, M>> + 'static,
     {
-        cloud_object
+        objects
             .as_any()
             .downcast_ref::<GenericStoredObject<K, M>>()
     }
@@ -477,14 +477,14 @@ pub trait StoredObject: Debug {
     /// Returns the trait object as a concrete mutable type reference by downcasting it.
     /// Returns None if the downcast fails.
     fn as_model_type_mut<K, M>(
-        cloud_object: &mut dyn StoredObject,
+        objects: &mut dyn StoredObject,
     ) -> Option<&mut GenericStoredObject<K, M>>
     where
         Self: Sized,
         K: HashableId + ToServerId + Debug + Into<String> + Clone + 'static,
         M: StoredObjectModel<IdType = K, StoredObjectType = GenericStoredObject<K, M>> + 'static,
     {
-        cloud_object
+        objects
             .as_any_mut()
             .downcast_mut::<GenericStoredObject<K, M>>()
     }

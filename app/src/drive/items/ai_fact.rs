@@ -8,7 +8,7 @@ use warpui::{
 use crate::{
     ai::facts::{AIFact, AIFactObject, AIMemory},
     appearance::Appearance,
-    cloud_object::StoredObjectMetadata,
+    objects::StoredObjectMetadata,
     drive::{DriveObjectType, ObjectTypeAndId},
     themes::theme::Fill,
 };

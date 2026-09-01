@@ -11,7 +11,7 @@ use repo_metadata::RepoMetadataModel;
 use crate::{
     appearance::Appearance,
     auth::AuthStateProvider,
-    cloud_object::model::persistence::ObjectStoreModel,
+    objects::model::persistence::ObjectStoreModel,
     notebooks::{
         editor::keys::NotebookKeybindings,
         link::{NotebookLinks, SessionSource},

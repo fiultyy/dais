@@ -4,7 +4,7 @@ use crate::search::ai_context_menu::view::AIContextMenu;
 use crate::settings::InputSettings;
 use crate::{
     ai::{blocklist::block::cli_controller::CLISubagentController, llms::LLMPreferences},
-    cloud_object::model::generic_string_model::StringModel,
+    objects::model::generic_string_model::StringModel,
     settings::AISettingsChangedEvent,
     terminal::profile_model_selector::{
         calculate_max_profile_name_width, calculate_scaled_font_size,

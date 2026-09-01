@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::{
     appearance::Appearance,
-    cloud_object::{
+    objects::{
         GenericStoredObject, GenericStringObjectFormat, GenericStringObjectUniqueKey, ObjectType,
         SerializedModel, StoredObject, StoredObjectModel,
     },

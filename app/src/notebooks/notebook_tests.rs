@@ -11,7 +11,7 @@ use warpui::{
 
 use crate::{
     auth::{AuthManager, AuthStateProvider, UserUid, TEST_USER_EMAIL, TEST_USER_UID},
-    cloud_object::{
+    objects::{
         model::{
             actions::ObjectActions,
             persistence::ObjectStoreModel,
@@ -161,7 +161,7 @@ async fn initial_load(app: &mut App, updated_notebooks: impl Into<Vec<NotebookOb
         }
     });
     let load_complete = app.read(|ctx| {
-        crate::cloud_object::model::persistence::ObjectStoreModel::as_ref(ctx)
+        crate::objects::model::persistence::ObjectStoreModel::as_ref(ctx)
             .initial_load_complete()
     });
     load_complete.await

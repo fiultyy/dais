@@ -9,8 +9,8 @@ use warpui::text_layout::ClipConfig;
 use warpui::{AppContext, Element, Entity, ModelContext, SingletonEntity as _};
 
 use crate::appearance::Appearance;
-use crate::cloud_object::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
-use crate::cloud_object::StoredObject;
+use crate::objects::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
+use crate::objects::StoredObject;
 use crate::search::data_source::{DataSourceSearchError, Query, QueryResult};
 use crate::search::mixer::DataSourceRunErrorWrapper;
 use crate::search::result_renderer::ItemHighlightState;
@@ -46,7 +46,7 @@ impl PromptsMenuDataSource {
     pub fn new(ctx: &mut ModelContext<Self>) -> Self {
         ctx.subscribe_to_model(
             &ObjectStoreModel::handle(ctx),
-            Self::handle_cloud_object_updated,
+            Self::handle_objects_updated,
         );
         let mut workflows = HashMap::new();
         for workflow in ObjectStoreModel::as_ref(ctx).get_all_active_workflows() {
@@ -55,7 +55,7 @@ impl PromptsMenuDataSource {
         Self { workflows }
     }
 
-    fn handle_cloud_object_updated(
+    fn handle_objects_updated(
         &mut self,
         event: &ObjectStoreEvent,
         ctx: &mut ModelContext<Self>,

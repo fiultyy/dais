@@ -7,7 +7,7 @@ use warpui::{AppContext, ModelHandle, SingletonEntity, ViewContext, ViewHandle};
 
 use crate::{
     app_state::{LeafContents, NotebookPaneSnapshot},
-    cloud_object::Space,
+    objects::Space,
     drive::{items::WarpDriveItemId, ObjectTypeAndId, DaisDriveObjectSettings},
     notebooks::{
         link::{LinkEvent, NotebookLinks},

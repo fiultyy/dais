@@ -7,17 +7,17 @@ use crate::auth::AuthManager;
 use crate::auth::AuthStateProvider;
 use crate::auth::UserUid;
 use crate::auth::TEST_USER_UID;
-use crate::cloud_object::model::actions::ObjectActions;
-use crate::cloud_object::model::generic_string_model::GenericStringModel;
-use crate::cloud_object::model::view::EditorState;
-use crate::cloud_object::model::view::ObjectStoreViewModel;
-use crate::cloud_object::model::view::UpdateTimestamp;
-use crate::cloud_object::model::view::EDITOR_TIMEOUT_DURATION_MINUTES;
-use crate::cloud_object::Owner;
-use crate::cloud_object::StoredObjectMetadata;
-use crate::cloud_object::StoredObjectPermissions;
-use crate::cloud_object::StoredObjectStatuses;
-use crate::cloud_object::StoredObjectSyncStatus;
+use crate::objects::model::actions::ObjectActions;
+use crate::objects::model::generic_string_model::GenericStringModel;
+use crate::objects::model::view::EditorState;
+use crate::objects::model::view::ObjectStoreViewModel;
+use crate::objects::model::view::UpdateTimestamp;
+use crate::objects::model::view::EDITOR_TIMEOUT_DURATION_MINUTES;
+use crate::objects::Owner;
+use crate::objects::StoredObjectMetadata;
+use crate::objects::StoredObjectPermissions;
+use crate::objects::StoredObjectStatuses;
+use crate::objects::StoredObjectSyncStatus;
 use crate::drive::folders::FolderObjectModel;
 use crate::features::FeatureFlag;
 use crate::notebooks::NotebookObjectModel;
@@ -621,23 +621,23 @@ fn test_shared_object_in_unshared_folder() {
 
             // Check that iteration APIs include the notebook where it's expected.
             assert!(object_store_model
-                .active_cloud_objects_in_space(Space::Shared, ctx)
+                .active_objectss_in_space(Space::Shared, ctx)
                 .any(|obj| obj.uid() == notebook.uid()));
             assert!(object_store_model
-                .active_cloud_objects_in_location_without_descendents(
+                .active_objectss_in_location_without_descendents(
                     StoredObjectLocation::Space(Space::Shared),
                     ctx
                 )
                 .any(|obj| obj.uid() == notebook.uid()));
             assert_eq!(
                 object_store_model
-                    .trashed_cloud_objects_in_space(Space::Shared, ctx)
+                    .trashed_objectss_in_space(Space::Shared, ctx)
                     .count(),
                 0
             );
             assert_eq!(
                 object_store_model
-                    .trashed_cloud_objects_in_location_without_descendents(
+                    .trashed_objectss_in_location_without_descendents(
                         StoredObjectLocation::Space(Space::Shared),
                         ctx
                     )
@@ -648,13 +648,13 @@ fn test_shared_object_in_unshared_folder() {
             let folder_location = StoredObjectLocation::Folder(unshared_folder_id);
             assert_eq!(
                 object_store_model
-                    .active_cloud_objects_in_location_without_descendents(folder_location, ctx)
+                    .active_objectss_in_location_without_descendents(folder_location, ctx)
                     .count(),
                 0
             );
             assert_eq!(
                 object_store_model
-                    .trashed_cloud_objects_in_location_without_descendents(folder_location, ctx)
+                    .trashed_objectss_in_location_without_descendents(folder_location, ctx)
                     .count(),
                 0
             );
@@ -665,7 +665,7 @@ fn test_shared_object_in_unshared_folder() {
 /// Helper: compute active UIDs using the naive (non-memoized) is_trashed approach.
 fn naive_active_object_uids(model: &ObjectStoreModel) -> HashSet<String> {
     model
-        .as_cloud_objects()
+        .as_objectss()
         .filter(|obj| !obj.is_trashed(model))
         .map(|obj| obj.uid())
         .collect()

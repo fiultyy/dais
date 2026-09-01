@@ -35,9 +35,9 @@ use warpui::{AppContext, Entity, SingletonEntity};
 use crate::ai::blocklist::PersistedAIInput;
 use crate::ai::mcp::TemplatableMCPServerInstallation;
 use crate::app_state::AppState;
-use crate::cloud_object::model::actions::ObjectAction;
-use crate::cloud_object::model::generic_string_model::StoredStringObject;
-use crate::cloud_object::{ObjectIdType, StoredObject};
+use crate::objects::model::actions::ObjectAction;
+use crate::objects::model::generic_string_model::StoredStringObject;
+use crate::objects::{ObjectIdType, StoredObject};
 
 use crate::drive::folders::FolderObject;
 use crate::notebooks::NotebookObject;
@@ -187,7 +187,7 @@ pub struct PersistedData {
     pub app_state: AppState,
 
     /// Shareable objects.
-    pub cloud_objects: Vec<Box<dyn StoredObject>>,
+    pub objectss: Vec<Box<dyn StoredObject>>,
     pub workspaces: Vec<WorkspaceMetadata>,
     pub current_workspace_uid: Option<WorkspaceUid>,
     pub command_history: Vec<PersistedCommand>,

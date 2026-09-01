@@ -2,7 +2,7 @@ use warpui::{elements::MouseStateHandle, Element};
 
 use crate::{
     appearance::Appearance,
-    cloud_object::{Space, StoredObjectMetadata},
+    objects::{Space, StoredObjectMetadata},
     drive::DriveObjectType,
     themes::theme::Fill,
 };

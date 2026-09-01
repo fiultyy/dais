@@ -5,10 +5,10 @@ mod tests {
     use warpui::{App, SingletonEntity};
 
     use crate::auth::AuthStateProvider;
-    use crate::cloud_object::model::persistence::ObjectStoreModel;
-    use crate::cloud_object::model::view::ObjectStoreViewModel;
-    use crate::cloud_object::update_manager::UpdateManager;
-    use crate::cloud_object::{Revision, StoredObjectMetadata, StoredObjectPermissions};
+    use crate::objects::model::persistence::ObjectStoreModel;
+    use crate::objects::model::view::ObjectStoreViewModel;
+    use crate::objects::update_manager::UpdateManager;
+    use crate::objects::{Revision, StoredObjectMetadata, StoredObjectPermissions};
     use crate::notebooks::manager::NotebookManager;
     use crate::notebooks::{NotebookObject, NotebookObjectModel};
     use crate::search::ai_context_menu::notebooks::data_source::NotebookDataSource;

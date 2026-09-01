@@ -40,7 +40,7 @@ use crate::{
         document::ai_document_model::AIDocumentId,
     },
     appearance::Appearance,
-    cloud_object::{
+    objects::{
         model::{
             persistence::{ObjectStoreEvent, ObjectStoreModel, UpdateSource},
             view::EditorState,
@@ -1357,7 +1357,7 @@ impl NotebookView {
         ctx: &mut ViewContext<Self>,
     ) {
         let initial_load_complete =
-            crate::cloud_object::model::persistence::ObjectStoreModel::as_ref(ctx)
+            crate::objects::model::persistence::ObjectStoreModel::as_ref(ctx)
                 .initial_load_complete();
         let settings = settings.clone();
         ctx.spawn(initial_load_complete, move |me, _, ctx| {
@@ -1397,7 +1397,7 @@ impl NotebookView {
         self.set_content(&notebook, ctx);
 
         // TODO(zap-cloud-removal Phase 5): sharing UI 已退役,notebook
-        // ShareableObject 注入移除;cloud_object server_id 路径保留待 Phase 5。
+        // ShareableObject 注入移除;objects server_id 路径保留待 Phase 5。
         let _ = notebook.id;
 
         self.active_notebook_data.update(ctx, |data, ctx| {
@@ -1409,7 +1409,7 @@ impl NotebookView {
         );
 
         // Once we've received metadata from the server, check if we can eagerly edit the notebook.
-        let has_metadata = crate::cloud_object::model::persistence::ObjectStoreModel::as_ref(ctx)
+        let has_metadata = crate::objects::model::persistence::ObjectStoreModel::as_ref(ctx)
             .initial_load_complete();
         let baton_future = ctx.spawn(has_metadata, |me, _, ctx| {
             let active_notebook_data = me.active_notebook_data.as_ref(ctx);

@@ -8,8 +8,8 @@ use crate::ai::execution_profiles::{
 };
 use crate::ai::mcp::templatable_manager::TemplatableMCPServerManager;
 use crate::auth::AuthStateProvider;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::cloud_object::update_manager::UpdateManager;
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::update_manager::UpdateManager;
 use crate::network::NetworkStatus;
 use crate::test_util::settings::initialize_settings_for_tests;
 use crate::workspaces::user_workspaces::UserWorkspaces;

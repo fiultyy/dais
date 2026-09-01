@@ -3,8 +3,8 @@ use warp_core::context_flag::ContextFlag;
 use warpui::{keymap::Trigger, SingletonEntity, ViewContext, ViewHandle};
 
 use crate::{
-    cloud_object::update_manager::UpdateManager,
-    cloud_object::{GenericStringObjectFormat, Space, StoredObject},
+    objects::update_manager::UpdateManager,
+    objects::{GenericStringObjectFormat, Space, StoredObject},
     drive::{
         drive_helpers::has_feature_gated_anonymous_user_reached_env_var_limit,
         export::ExportManager, ObjectTypeAndId,
@@ -429,7 +429,7 @@ impl EnvVarCollectionView {
                 update_manager.untrash_object(
                     ObjectTypeAndId::GenericStringObject {
                         object_type: GenericStringObjectFormat::Json(
-                            crate::cloud_object::JsonObjectType::EnvVarCollection,
+                            crate::objects::JsonObjectType::EnvVarCollection,
                         ),
                         id: env_var_collection_id,
                     },
@@ -448,7 +448,7 @@ impl EnvVarCollectionView {
                 update_manager.trash_object(
                     ObjectTypeAndId::from_generic_string_object(
                         GenericStringObjectFormat::Json(
-                            crate::cloud_object::JsonObjectType::EnvVarCollection,
+                            crate::objects::JsonObjectType::EnvVarCollection,
                         ),
                         env_var_collection_id,
                     ),
@@ -465,7 +465,7 @@ impl EnvVarCollectionView {
                 update_manager.duplicate_object(
                     &ObjectTypeAndId::from_generic_string_object(
                         GenericStringObjectFormat::Json(
-                            crate::cloud_object::JsonObjectType::EnvVarCollection,
+                            crate::objects::JsonObjectType::EnvVarCollection,
                         ),
                         env_var_collection_id,
                     ),
@@ -484,7 +484,7 @@ impl EnvVarCollectionView {
                     window_id,
                     &[ObjectTypeAndId::from_generic_string_object(
                         GenericStringObjectFormat::Json(
-                            crate::cloud_object::JsonObjectType::EnvVarCollection,
+                            crate::objects::JsonObjectType::EnvVarCollection,
                         ),
                         env_var_collection_id,
                     )],
