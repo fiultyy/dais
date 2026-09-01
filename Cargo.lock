@@ -15293,7 +15293,6 @@ dependencies = [
  "core-text",
  "cosmic-text",
  "ctrlc",
- "dais",
  "dashmap",
  "derivative",
  "derive_more 0.99.20",
