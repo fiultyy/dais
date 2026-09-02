@@ -3989,6 +3989,7 @@ dependencies = [
  "tabwriter",
  "tantivy",
  "tempfile",
+ "terminal_model",
  "thiserror 2.0.18",
  "tikv-jemallocator",
  "tokio",
@@ -12222,17 +12223,22 @@ dependencies = [
  "env_vars_ui",
  "futures",
  "fuzzy_match",
+ "i18n",
+ "i18n-embed-fl",
  "instant",
  "itertools 0.14.0",
  "log",
+ "num-traits",
  "ordered-float 3.9.2",
  "parking_lot",
+ "regex",
  "serde_json",
  "settings",
  "sha2 0.10.9",
  "string-offset",
  "strum_macros 0.27.2",
  "tantivy",
+ "warp_ripgrep",
  "warpui",
  "workflows_ui",
 ]
@@ -13637,6 +13643,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "terminal_model"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "byte-unit",
+ "cfg-if",
+ "flate2",
+ "hex",
+ "itertools 0.14.0",
+ "lazy_static",
+ "log",
+ "pathfinder_geometry",
+ "rand 0.8.6",
+ "regex",
+ "regex-automata",
+ "serde",
+ "thiserror 2.0.18",
+ "warp_completer",
+ "warp_terminal",
+ "warp_util",
+ "warpui",
 ]
 
 [[package]]

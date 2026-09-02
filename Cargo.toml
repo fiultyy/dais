@@ -37,6 +37,9 @@ asset_macro = { path = "crates/asset_macro" }
 channel_versions = { path = "crates/channel_versions", default-features = false }
 cockpit_model = { path = "crates/cockpit_model" }
 tantivy = "0.26.0"
+byte-unit = "5.1.4"
+flate2 = "1.0.17"
+regex-automata = "0.4.6"
 nav = { path = "crates/nav" }
 drive_ui = { path = "crates/drive_ui" }
 notebooks_model = { path = "crates/notebooks_model" }
@@ -44,6 +47,7 @@ ssh_manager_ui = { path = "crates/ssh_manager_ui" }
 sftp_manager_ui = { path = "crates/sftp_manager_ui" }
 code_review_model = { path = "crates/code_review_model" }
 workspace_model = { path = "crates/workspace_model" }
+terminal_model = { path = "crates/terminal_model" }
 code_model = { path = "crates/code_model" }
 context_chips_ui = { path = "crates/context_chips_ui" }
 search_ui = { path = "crates/search_ui" }
