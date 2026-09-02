@@ -9,27 +9,16 @@
 # SECTION: common (Owner: foundation)
 # =============================================================================
 
-app-name = Dais
-app-tagline = 個人とチームのためのローカルファーストなターミナル
-
 common-ok = OK
 common-cancel = キャンセル
-common-apply = 適用
 common-save = 保存
 common-delete = 削除
 common-confirm = 確認
 common-close = 閉じる
-common-reset = リセット
 common-back = 戻る
 code-review-title = コードレビュー
 common-next = 次へ
-common-yes = はい
-common-no = いいえ
-common-continue = 続行
-common-approve = 承認
-common-deny = 拒否
 common-import = インポート
-common-upgrade = アップグレード
 common-default = デフォルト
 common-editing = 編集中
 common-viewing = 表示中
@@ -41,18 +30,12 @@ common-send-feedback = フィードバックを送信
 common-something-went-wrong = 問題が発生しました
 common-no-results-found = 結果が見つかりません。
 common-edit = 編集
-common-add = 追加
 common-remove = 削除
-common-rename = 名前変更
 common-copy = コピー
 common-paste = 貼り付け
 common-search = 検索
 common-view = 表示
 common-loading = 読み込み中…
-common-error = エラー
-common-warning = 警告
-common-info = 情報
-common-success = 成功
 common-all = すべて
 common-none = なし
 common-unknown = 不明
@@ -63,9 +46,7 @@ common-export = エクスポート
 common-trash = ゴミ箱
 common-copy-link = リンクをコピー
 common-untitled = 無題
-common-retry = 再試行
 common-maximize = 最大化
-common-discard = 破棄
 common-undo = 元に戻す
 common-commit = コミット
 common-push = プッシュ
@@ -75,25 +56,18 @@ common-configure = 構成
 common-dismiss = 閉じる
 common-manage = 管理
 common-failed = 失敗
-common-done = 完了
-common-working = 処理中
 common-cut = 切り取り
 common-previous = 前へ
-common-suggested = 推奨
 common-copied-to-clipboard = クリップボードにコピーしました
-common-new = 新規
 common-no-results = 結果なし
 common-learn-more = 詳細
 common-skip = スキップ
 common-get-warping = Dais を始める
 common-try-again = もう一度試す
 common-settings = 設定
-common-premium = プレミアム
 common-recommended = おすすめ
 common-enabled = 有効
 common-disabled = 無効
-common-free = 無料
-common-subscribe = 購読
 common-list-prefix = {" - "}
 common-current-directory = 現在のディレクトリ
 
@@ -101,48 +75,6 @@ common-current-directory = 現在のディレクトリ
 # =============================================================================
 # SECTION: agent-management (Owner: agent-i18n-remaining)
 # Files: app/src/ai/agent_management/**
-# =============================================================================
-
-agent-management-filter-all-tooltip = 自分のエージェントタスクと共有チームタスクをすべて表示
-agent-management-filter-personal = 個人
-agent-management-filter-personal-tooltip = 自分が作成したエージェントタスクを表示
-agent-management-get-started = はじめる
-agent-management-view-agents = エージェントを表示
-agent-management-clear-filters = フィルターをクリア
-agent-management-clear-all = すべてクリア
-agent-management-new-agent = 新規エージェント
-agent-management-status = ステータス
-agent-management-source = ソース
-agent-management-created-on = 作成日
-agent-management-has-artifact = アーティファクトあり
-agent-management-harness = ハーネス
-agent-management-environment = 環境
-agent-management-created-by = 作成者
-agent-management-last-24-hours = 過去 24 時間
-agent-management-past-3-days = 過去 3 日間
-agent-management-last-week = 先週
-agent-management-artifact-pull-request = プルリクエスト
-agent-management-artifact-plan = プラン
-agent-management-artifact-screenshot = スクリーンショット
-agent-management-artifact-file = ファイル
-agent-management-source-scheduled = スケジュール
-agent-management-source-local-agent = Dais (ローカルエージェント)
-agent-management-source-cloud-agent = Dais (ローカルエージェント)
-agent-management-source-oz-web = Oz Web
-agent-management-source-github-action = GitHub Action
-agent-management-no-session-available = 利用可能なセッションがありません
-agent-management-session-expired = セッション期限切れ
-agent-management-session-expired-tooltip = セッションは 1 週間で期限切れとなり、開けなくなります。
-agent-management-metadata-source = ソース: { $source }
-agent-management-metadata-harness = ハーネス: { $harness }
-agent-management-metadata-run-time = 実行時間: { $run_time }
-agent-management-metadata-credits-used = 使用クレジット: { $usage }
-agent-management-environment-selected = 環境: { $environment }
-agent-management-loading-cloud-runs = エージェントの実行を読み込み中
-
-# =============================================================================
-# SECTION: workspace-runtime (Owner: agent-i18n-remaining)
-# Files: app/src/workspace/view.rs
 # =============================================================================
 
 workspace-menu-update-warp-manually = Dais を手動で更新
@@ -160,8 +92,6 @@ workspace-toast-no-terminal-pane-for-context = ターミナルペインが開い
 workspace-toast-plan-already-in-context = このプランは既にコンテキストに含まれています。
 workspace-toast-command-still-running = このセッションでコマンドがまだ実行中です。
 workspace-toast-cannot-open-terminal-session = 新しいターミナルセッションを開けません
-workspace-toast-out-of-ai-credits = AI クレジットが不足しているようです。
-workspace-toast-upgrade-more-credits = アップグレードしてクレジットを追加。
 workspace-toast-disabled-synchronized-inputs = すべての同期入力を無効化しました。
 workspace-toast-conversation-deleted = 会話を削除しました
 workspace-search-repos-placeholder = リポジトリを検索
@@ -171,7 +101,6 @@ terminal-onekey-search-no-results = 一致する SSH 認証情報がありませ
 workspace-rearrange-toolbar-items = ツールバー項目を並べ替え
 workspace-new-session-agent = エージェント
 workspace-new-session-terminal = ターミナル
-workspace-new-session-cloud-oz = Ambient Agent
 workspace-new-session-local-docker-sandbox = ローカル Docker サンドボックス
 workspace-new-worktree-config = 新規 worktree 設定
 workspace-new-tab-config = 新規タブ設定
@@ -179,13 +108,6 @@ workspace-reopen-closed-session = 閉じたセッションを再度開く
 workspace-update-and-relaunch-warp = Dais を更新して再起動
 workspace-updating-to-version = ({ $version }) に更新中
 workspace-update-warp-manually = Dais を手動で更新
-pane-get-started-title = はじめる
-pane-new-tab-title = 新規タブ
-# =============================================================================
-# SECTION: terminal-runtime (Owner: agent-i18n-remaining)
-# Files: app/src/terminal/view.rs
-# =============================================================================
-
 terminal-banner-completions-not-working-prefix = 補完が機能していないようです (
 terminal-banner-more-info-lower = 詳細
 terminal-banner-more-info = 詳細
@@ -199,26 +121,18 @@ terminal-toast-powershell-subshells-not-supported = PowerShell サブシェル�
 terminal-dont-ask-again = 次回から確認しない
 terminal-clear-upload = アップロードをクリア
 terminal-manage-defaults = デフォルトを管理
-terminal-free-credits = 無料クレジット
 terminal-cloud-agent-run = エージェント実行
 terminal-agent-header-for-terminal = ターミナル用
 ai-document-show-version-history = 履歴を表示
 ai-document-update-agent = エージェントを更新
-ai-document-save-and-sync-tooltip = この計画を Dais Drive に保存して自動同期
-ai-document-show-in-warp-drive = Dais Drive で表示
 ai-document-save-as-markdown-file = Markdown ファイルとして保存
 ai-document-attach-to-active-session = アクティブセッションに添付
 ai-document-copy-plan-id = プランIDをコピー
 ai-document-plan-id-copied = プランIDをクリップボードにコピーしました
-ai-conversation-view-in-oz = Oz で表示
-ai-conversation-view-in-oz-tooltip = この実行を Oz Web アプリで表示
-ai-artifact-prepare-download-failed = ファイルダウンロードの準備に失敗しました。
 ai-block-open-in-github = GitHub で開く
 ai-block-open-in-code-review = コードレビューで開く
-ai-block-manage-rules = ルールを管理
 ai-block-review-changes = 変更をレビュー
 ai-block-open-all-in-code-review = すべてコードレビューで開く
-ai-block-dont-show-again = 次回から表示しない
 ai-block-rewind = 巻き戻し
 ai-block-rewind-tooltip = このブロックの直前まで巻き戻す
 ai-block-remove-queued-prompt = キュー中のプロンプトを削除
@@ -232,8 +146,6 @@ ai-block-show-credit-usage-details = クレジット使用詳細を表示
 ai-block-follow-up-existing-conversation = 既存の会話でフォローアップ
 ai-block-accept = 承認
 ai-block-auto-approve = 自動承認
-ai-rule-add-rule = ルールを追加
-ai-rule-edit-rule = ルールを編集
 ai-rule-delete-rule = ルールを削除
 ai-aws-refresh-credentials = AWS 認証情報を更新
 ai-footer-enable-notifications = 通知を有効化
@@ -245,7 +157,6 @@ ai-footer-plugin-update-available-tooltip = Warp プラグインの新バージ�
 ai-footer-plugin-update-instructions = プラグイン更新手順
 ai-footer-plugin-update-instructions-tooltip = Warp プラグインの更新手順を表示
 ai-footer-context-window-usage-tooltip = コンテキストウィンドウ使用量
-ai-footer-choose-environment-tooltip = 環境を選択
 ai-footer-reasoning-depth-tooltip = 推論の深さ
 ai-footer-file-explorer = ファイルエクスプローラー
 ai-footer-open-file-explorer = ファイルエクスプローラーを開く
@@ -258,7 +169,6 @@ ai-ask-user-answered-question = 質問に回答済み
 ai-ask-user-answered-all-questions = { $total } 個の質問すべてに回答済み
 ai-ask-user-answered-count = { $total } 個中 { $answered_count } 個の質問に回答済み
 ai-code-diff-requested-edit-title = リクエストされた編集
-ai-cloud-setup-visit-oz = Oz を開く
 ai-inline-code-diff-review-changes = 変更をレビュー
 ai-execution-profile-name-placeholder = 例: "YOLO code"
 ai-execution-profile-delete-profile = プロファイルを削除
@@ -269,12 +179,10 @@ code-copy-file-path = ファイルパスをコピー
 code-select-all = すべて選択
 code-replace-all = すべて置換
 code-goto-line-placeholder = 行番号:列
-code-open-file-unavailable-remote-tooltip = リモートセッションではファイルを開けません
 code-view-markdown-preview = Markdown プレビューを表示
 code-review-commit-and-create-pr = コミットして PR を作成
 notebook-link-text-placeholder = テキスト
 notebook-link-url-placeholder = リンク (Web またはファイル)
-notebook-block-embed = 埋め込み
 notebook-block-divider = 区切り線
 notebook-insert-block-tooltip = ブロックを挿入
 notebook-refresh-notebook = ノートブックを更新
@@ -284,19 +192,6 @@ notebook-sign-in-to-edit = 編集にはサインイン
 editor-custom-keybinding = カスタム...
 editor-change-keybinding = キーバインドを変更
 autosuggestion-ignore-this-suggestion = この提案を無視
-codex-use-latest-model = 最新の codex モデルを使用
-dais-launch-visit-repo = リポジトリを見る
-dais-launch-title = Dais がオープンソースになりました
-dais-launch-description = コミュニティの皆さんがエージェントファーストのワークフローで Dais の構築に参加できます。
-dais-launch-contribute-title = コントリビュート
-dais-launch-contribute-description = Dais のクライアントコードがオープンソースになりました。/feedback スキルで Issue を作成し、こちらのコントリビューションガイドラインに従ってください。
-dais-launch-contribute-link-text = こちら
-dais-launch-oad-title = Open Automated Development
-dais-launch-oad-description = Dais リポジトリは、Oz のローカルエージェント体験を活用したエージェントファーストワークフローで管理されています。
-dais-launch-auto-model-title = 'auto (open-weights)' 登場
-dais-launch-auto-model-description = タスクに最適なオープンウェイトモデル (Kimi、MiniMax など) を選ぶ新しい auto モデルを追加しました。
-hoa-see-whats-new = 新着情報を見る
-hoa-finish = 完了
 session-config-get-warping = Warping を開始
 uri-custom-uri-invalid = カスタム URI が無効です。
 context-node-install-nvm = nvm をインストール
@@ -315,10 +210,6 @@ settings-ai-default-placeholder = デフォルト
 settings-working-directory-path-placeholder = ディレクトリパス
 settings-startup-shell-executable-path-placeholder = 実行ファイルパス
 settings-agent-providers-base-url-placeholder = https://api.deepseek.com/v1
-drive-sharing-only-people-invited = 招待された人のみ
-drive-sharing-anyone-with-link = リンクを知っている全員
-drive-sharing-only-invited-teammates = ローカルアクセスのみ
-drive-sharing-teammates-with-link = リンクを知っているローカルアクセス
 terminal-warpify-subshell = サブシェルを Warpify
 terminal-warpify-subshell-tooltip = このセッションで Dais シェル統合を有効化
 terminal-use-agent = エージェントを使う
@@ -336,15 +227,11 @@ terminal-fork-conversation-locally-tooltip = この会話をローカルでフ�
 terminal-open-in-warp = Dais で開く
 terminal-open-conversation-in-warp-tooltip = この会話を Dais デスクトップアプリで開く
 terminal-stop-sharing = 共有を停止
-terminal-copy-session-sharing-link = セッション共有リンクをコピー
-terminal-shared-session-make-editor = 編集者にする
-terminal-shared-session-make-viewer = 閲覧者にする
 terminal-shared-session-change-role = 役割を変更
 terminal-choose-execution-profile-tooltip = AI 実行プロファイルを選択
 terminal-choose-agent-model-tooltip = エージェントモデルを選択
 terminal-input-cli-agent-rich-input-hint = 作りたいものをエージェントに伝える...
 terminal-input-enter-prompt-for-agent = { $agent } へのプロンプトを入力...
-terminal-input-cloud-agent-hint = エージェントを起動
 terminal-input-a11y-label = コマンド入力。
 terminal-input-a11y-helper = シェルコマンドを入力し、Enter で実行。Cmd+↑ で過去に実行したコマンドの出力に移動。Cmd+L でコマンド入力に再フォーカス。
 terminal-input-ai-command-search-hint = '#' を入力して AI コマンド候補を表示
@@ -424,8 +311,6 @@ code-review-add-diff-set-context = diff セットをコンテキストに追加
 code-review-show-saved-comment = 保存済みコメントを表示
 code-review-add-comment = コメントを追加
 code-review-discard-all = すべて破棄
-code-review-initialize-codebase = コードベースを初期化
-code-review-initialize-codebase-tooltip = コードベースのインデックス化と WARP.md を有効化します
 code-review-open-repository = リポジトリを開く
 code-review-open-repository-tooltip = リポジトリに移動してコーディング用に初期化します
 code-review-open-file = ファイルを開く
@@ -454,7 +339,6 @@ drive-toast-finished-exporting = オブジェクトのエクスポートが完�
 # Files: app/src/settings_view/**, app/src/tab_configs/**, app/src/env_vars/**
 # =============================================================================
 
-settings-environment-delete-button = 環境を削除
 settings-language-system-default = システム既定
 settings-language-english = English
 tab-config-open-tab = タブを開く
@@ -516,16 +400,10 @@ language-restart-required-body = Dais の UI 言語が更新されました。�
 settings-section-about = 概要
 # Dais: settings-section-account は Account 設定ページとともに削除。
 settings-section-mcp-servers = MCP サーバー
-settings-section-billing-and-usage = 請求と使用状況
 settings-section-appearance = 外観
-settings-section-features = 機能
 settings-section-keybindings = キーボードショートカット
-settings-section-referrals = 紹介
-settings-section-shared-blocks = 共有ブロック
-settings-section-warp-drive = Dais Drive
 settings-section-warpify = Warpify
 settings-section-network = ネットワーク
-settings-section-cloud-sync = クラウド同期
 settings-section-ai = AI
 settings-section-warp-agent = Dais エージェント
 settings-section-agent-profiles = プロファイル
@@ -535,8 +413,6 @@ settings-section-knowledge = ナレッジ
 settings-section-third-party-cli-agents = サードパーティ CLI エージェント
 settings-section-code = コード
 settings-section-editor-and-code-review = エディタとコードレビュー
-settings-section-cloud-environments = 環境
-settings-section-oz-cloud-api-keys = エージェント API キー
 settings-title = 設定
 
 # Context menu items (split / close pane)
@@ -567,33 +443,25 @@ settings-about-export-logs-failure = ログのエクスポートに失敗しま�
 
 # Dais: main_page.rs 関連の文字列は Account 設定ページとともに削除された。
 
-
 # --- ANCHOR-SUB-MCP (agent-settings-mcp) ---
 # 此锚点下放 settings_view/mcp_servers_page.rs 字符串
 # 命名前缀:settings-mcp-*
 settings-mcp-page-title = MCP サーバー
 settings-mcp-logout-success-named = {$name} MCP サーバーからログアウトしました
 settings-mcp-logout-success = MCP サーバーからログアウトしました
-settings-mcp-install-modal-busy = 別のインストールリンクを開く前に、現在の MCP インストールを完了してください。
 settings-mcp-unknown-server = 不明な MCP サーバー '{$name}'
 settings-mcp-install-from-link-failed = このリンクから MCP サーバー '{$name}' をインストールできません。
 
 # ---- destructive_mcp_confirmation_dialog.rs ----
 settings-mcp-confirm-delete-local-title = MCP サーバーを削除しますか?
 settings-mcp-confirm-delete-local-description = この MCP サーバーをこのデバイスからアンインストールして削除します。
-settings-mcp-confirm-delete-shared-title = MCP サーバーを削除しますか?
-settings-mcp-confirm-delete-shared-description = 保存済みの MCP サーバーをこのデバイスから削除します。
-settings-mcp-confirm-unshare-title = 保存済みの MCP サーバーを削除しますか?
-settings-mcp-confirm-unshare-description = 保存済みの MCP サーバーをこのデバイスから削除します。
 settings-mcp-confirm-delete-button = MCP を削除
-settings-mcp-confirm-remove-from-team-button = 保存済みコピーを削除
 settings-mcp-confirm-cancel-button = キャンセル
 
 # ---- edit_page.rs ----
 settings-mcp-edit-save = 保存
 settings-mcp-edit-edit-variables = 変数を編集
 settings-mcp-edit-delete = MCP を削除
-settings-mcp-edit-remove-from-team = 保存済みコピーを削除
 settings-mcp-edit-editing-disabled-banner = この画面ではこの MCP サーバーを編集できません。
 settings-mcp-edit-add-new-title = MCP サーバーを追加
 settings-mcp-edit-edit-named-title = { $name } MCP サーバーを編集
@@ -604,14 +472,6 @@ settings-mcp-edit-no-server-error = MCP サーバーが指定されていませ�
 settings-mcp-edit-multiple-servers-error = 単一サーバー編集中に複数の MCP サーバーを追加できません。
 
 # ---- installation_modal.rs ----
-settings-mcp-install-modal-title = { $name } をインストール
-settings-mcp-install-modal-source-shared = 保存済みプリセット
-settings-mcp-install-modal-source-other-device = 別のデバイスから
-settings-mcp-install-modal-cancel = キャンセル
-settings-mcp-install-modal-install = インストール
-settings-mcp-install-modal-no-server = MCP サーバーが選択されていません
-
-# ---- list_page.rs ----
 settings-mcp-list-description = MCP サーバーを追加して Dais エージェントの機能を拡張します。MCP サーバーは標準化されたインターフェースを通じてデータソースやツールをエージェントに公開し、プラグインのように動作します。カスタムサーバーを追加するか、プリセットを使用して人気のサーバーから始められます。
 settings-mcp-list-learn-more = 詳細はこちら。
 settings-mcp-list-empty-state = MCP サーバーを追加するとここに表示されます。
@@ -625,13 +485,10 @@ settings-mcp-list-template-available-to-install = インストール可能
 settings-mcp-list-file-based-detected = 設定ファイルから検出
 settings-mcp-list-toast-server-updated = MCP サーバーを更新しました
 settings-mcp-list-section-my-mcps = マイ MCP
-settings-mcp-list-section-shared-by-warp-and-team = Dais と { $name } から利用可能
 settings-mcp-list-section-shared-by-warp-and-other-devices = Dais および別のデバイスから共有
 settings-mcp-list-section-shared-from-warp = Dais から共有
 settings-mcp-list-section-detected-from = { $provider } から検出
 settings-mcp-list-chip-global = グローバル
-settings-mcp-list-chip-shared-by-creator = 共有者: { $creator }
-settings-mcp-list-chip-shared-by-team-member = 保存済みプリセット
 settings-mcp-list-chip-from-another-device = 別のデバイスから
 
 # ---- server_card.rs ----
@@ -639,7 +496,6 @@ settings-mcp-card-tooltip-show-logs = ログを表示
 settings-mcp-card-tooltip-log-out = ログアウト
 settings-mcp-card-tooltip-share-server = サーバーを共有
 settings-mcp-card-tooltip-edit = 編集
-settings-mcp-card-tooltip-update-available = サーバー更新あり
 settings-mcp-card-button-view-logs = ログを表示
 settings-mcp-card-button-edit-config = 設定を編集
 settings-mcp-card-button-set-up = セットアップ
@@ -651,57 +507,6 @@ settings-mcp-card-status-authenticating = 認証中...
 settings-mcp-card-status-shutting-down = シャットダウン中...
 
 # ---- update_modal.rs ----
-settings-mcp-update-modal-default-name = サーバー
-settings-mcp-update-modal-title = { $name } を更新
-settings-mcp-update-modal-description = このサーバーには { $count } 件の更新があります。どれで進めますか?
-settings-mcp-update-modal-publisher-another-device = 別のデバイス
-settings-mcp-update-modal-publisher-team-member = ローカルソース
-settings-mcp-update-modal-update-from = { $publisher } から更新
-settings-mcp-update-modal-version = バージョン { $version }
-settings-mcp-update-modal-cancel = キャンセル
-settings-mcp-update-modal-update = 更新
-settings-mcp-update-modal-no-updates = 利用可能な更新はありません
-
-# --- ANCHOR-SUB-PLATFORM (agent-settings-platform) ---
-# 此锚点下放 settings_view/platform_page.rs 字符串
-# 命名前缀:settings-platform-*
-settings-platform-section-title = エージェント API キー
-settings-platform-description = API キーを作成・管理して、ローカルエージェントから Dais アカウントへのアクセスを許可します。
-    詳細は次を参照
-settings-platform-documentation-link = ドキュメント。
-settings-platform-create-button = + API キーを作成
-settings-platform-modal-title-new = 新しい API キー
-settings-platform-modal-title-save = キーを保存
-settings-platform-toast-deleted = API キーを削除しました
-settings-platform-column-name = 名前
-settings-platform-column-key = キー
-settings-platform-column-scope = スコープ
-settings-platform-column-created = 作成日
-settings-platform-column-last-used = 最終使用
-settings-platform-column-expires-at = 有効期限
-settings-platform-value-never = なし
-settings-platform-scope-personal = 個人
-settings-platform-scope-team = チーム
-settings-platform-zero-state-title = API キーがありません
-settings-platform-zero-state-description = キーを作成して Dais への外部アクセスを管理します
-settings-platform-create-api-key-description-personal = この API キーはユーザーに紐付き、Dais アカウントに対するリクエストを実行できます。
-settings-platform-create-api-key-description-team = この API キーはチームに紐付き、チームを代理してリクエストを実行できます。
-settings-platform-create-api-key-name-placeholder = Dais API キー
-settings-platform-create-api-key-expiration-one-day = 1 日
-settings-platform-create-api-key-expiration-thirty-days = 30 日
-settings-platform-create-api-key-expiration-ninety-days = 90 日
-settings-platform-create-api-key-label-type = 種別
-settings-platform-create-api-key-label-expiration = 有効期限
-settings-platform-create-api-key-error-no-current-team = 現在のチームが存在しないため、チーム API キーを作成できません。
-settings-platform-create-api-key-error-create-failed = API キーの作成に失敗しました。再試行してください。
-settings-platform-create-api-key-secret-once = このシークレットキーは一度しか表示されません。コピーして安全に保管してください。
-settings-platform-create-api-key-copied = コピー済み
-settings-platform-create-api-key-done = 完了
-settings-platform-create-api-key-creating = 作成中…
-settings-platform-create-api-key-create = キーを作成
-settings-platform-create-api-key-toast-secret-copied = シークレットキーをコピーしました。
-
-# --- ANCHOR-SUB-KEYBINDINGS (agent-settings-keybindings) ---
 settings-keybindings-search-placeholder = 名前またはキーで検索 (例: "cmd d")
 settings-keybindings-conflict-warning = このショートカットは他のキーバインドと競合しています
 settings-keybindings-button-default = デフォルト
@@ -717,36 +522,6 @@ settings-keybindings-subheader = キーボードショートカットを設定
 settings-keybindings-command-column = コマンド
 
 # --- ANCHOR-SUB-REFERRALS (agent-settings-referrals) ---
-settings-referrals-page-title = 友人を Dais に招待
-settings-referrals-anonymous-header = ローカル Dais ビルドでは紹介プログラムを利用できません
-settings-referrals-sign-up = ローカルでは利用不可
-settings-referrals-link-label = リンク
-settings-referrals-email-label = メール
-settings-referrals-link-error = 紹介コードの読み込みに失敗しました。
-settings-referrals-loading = 読み込み中...
-settings-referrals-copy-link-button = リンクをコピー
-settings-referrals-email-send-button = 送信
-settings-referrals-email-sending-button = 送信中...
-settings-referrals-link-copied-toast = リンクをコピーしました。
-settings-referrals-email-success-toast = メールを送信しました。
-settings-referrals-email-failure-toast = メール送信に失敗しました。再試行してください。
-settings-referrals-email-empty-error = メールアドレスを入力してください。
-settings-referrals-email-invalid-error = 次のメールアドレスが有効か確認してください: { $email }
-settings-referrals-reward-intro = 紹介で Dais 限定グッズを獲得*
-settings-referrals-claimed-count-singular = 現在の紹介数
-settings-referrals-claimed-count-plural = 現在の紹介数
-settings-referrals-terms-link = 一部制限が適用されます。
-settings-referrals-terms-contact = { " " }紹介プログラムについてのご質問は referrals@warp.dev までご連絡ください。
-settings-referrals-reward-theme = 限定テーマ
-settings-referrals-reward-keycaps = キーキャップ + ステッカー
-settings-referrals-reward-tshirt = T シャツ
-settings-referrals-reward-notebook = ノートブック
-settings-referrals-reward-cap = キャップ
-settings-referrals-reward-hoodie = パーカー
-settings-referrals-reward-hydroflask = プレミアム Hydro Flask
-settings-referrals-reward-backpack = バックパック
-
-# --- ANCHOR-SUB-WARPIFY (agent-settings-warpify) ---
 settings-warpify-page-title = Warpify
 settings-warpify-description-prefix = Dais が特定のシェルを「Warpify」(ブロック・入力モード等のサポートを追加) するかを設定します。
 settings-warpify-learn-more = 詳細
@@ -801,53 +576,6 @@ settings-network-test-failed-http = ❌ 接続失敗: {$error}
 
 # --- ANCHOR-SUB-CLOUD-SYNC (agent-settings-cloud-sync) ---
 # クラウド同期設定ページ
-settings-cloud-sync-description = GitHub Gist または Gitee Gist を介してクラウド同期を設定します。設定は暗号化され、シークレット Gist として保存されます。
-settings-cloud-sync-scope-note = 現在、SSH管理サーバーの設定データのみ同期しています。
-settings-cloud-sync-platform-label = 同期プラットフォーム
-settings-cloud-sync-platform-description = 同期に使用するクラウドサービスを選択
-settings-cloud-sync-token-label = アクセストークン
-settings-cloud-sync-token-description = gist 権限のある個人アクセストークン
-settings-cloud-sync-token-placeholder = アクセストークンを入力...
-settings-cloud-sync-operations-header = 同期操作
-settings-cloud-sync-upload-label = アップロード
-settings-cloud-sync-download-label = ダウンロード
-settings-cloud-sync-status-header = 同期ステータス
-settings-cloud-sync-local-version-label = ローカルバージョン
-settings-cloud-sync-last-time-label = 最終同期時刻
-settings-cloud-sync-last-platform-label = 最終同期プラットフォーム
-settings-cloud-sync-local-version = ローカルバージョン: {$version}
-settings-cloud-sync-last-time = 最終同期時刻: {$time}
-settings-cloud-sync-last-platform = 最終同期プラットフォーム: {$platform}
-settings-cloud-sync-na = N/A
-settings-cloud-sync-never = 未同期
-settings-cloud-sync-syncing-upload = {$platform} にアップロード中...
-settings-cloud-sync-syncing-download = {$platform} からダウンロード中...
-settings-cloud-sync-success-upload = {$platform} へのアップロード成功（バージョン v{$version}）
-settings-cloud-sync-success-download = {$platform} からのダウンロード成功（バージョン v{$version}）
-settings-cloud-sync-already-up-to-date = 最新バージョンです（v{$version}）、同期不要
-settings-cloud-sync-failed = 失敗: {$error}
-settings-cloud-sync-conflict-status = 競合: ローカル v{$local} vs リモート v{$remote}
-settings-cloud-sync-conflict-status-equal = バージョンが一致: ローカル v{$local} = リモート v{$remote}
-settings-cloud-sync-token-not-configured = {$platform} Token が設定されていません
-settings-cloud-sync-conflict-title = バージョン競合
-settings-cloud-sync-conflict-description = リモートバージョン（v{$remote}）がローカル（v{$local}）より新しいです。強制アップロードするとリモートデータが上書きされます。
-settings-cloud-sync-conflict-description-equal = リモートバージョンとローカルバージョンが同一です。強制アップロードするとリモートデータが上書きされます。
-settings-cloud-sync-force-upload = 強制アップロード
-settings-cloud-sync-download-confirm-title = ダウンロードの確認
-settings-cloud-sync-download-confirm-description = ダウンロードすると、ローカルのすべてのSSHサーバー設定がリモートバージョンに置き換えられます。この操作は元に戻せません。
-settings-cloud-sync-download-confirm-button = ダウンロードを確認
-settings-cloud-sync-upload-confirm-title = アップロードの確認
-settings-cloud-sync-upload-confirm-description = アップロードすると、リモートのすべての SSH サーバー設定がローカルバージョンで上書きされます。Gist は履歴を保持しないため、この操作は元に戻せません。
-settings-cloud-sync-upload-confirm-button = アップロードを確認
-settings-cloud-sync-clear = クリア
-settings-cloud-sync-validating = トークンを検証中...
-settings-cloud-sync-token-valid = トークン有効（{$username}）
-settings-cloud-sync-token-invalid = 無効なトークン：{$error}
-settings-cloud-sync-auto-sync-label = 自動同期
-settings-cloud-sync-auto-sync-description = 設定変更時に自動アップロード、アプリ起動時に自動ダウンロード
-
-# --- ANCHOR-SUB-AI-PAGE (agent-settings-ai-page) ---
-# Section / sub-headers
 settings-ai-warp-agent-header = Dais エージェント
 settings-ai-active-ai-section = アクティブな AI
 settings-ai-input-section = 入力
@@ -856,7 +584,6 @@ settings-ai-knowledge-section = ナレッジ
 settings-ai-voice-section = 音声
 settings-ai-other-section = その他
 settings-ai-third-party-cli-section = サードパーティ CLI エージェント
-settings-ai-experimental-section = 実験的機能
 settings-ai-aws-bedrock-section = AWS Bedrock
 settings-ai-agents-header = エージェント
 settings-ai-profiles-header = プロファイル
@@ -903,16 +630,11 @@ settings-ai-info-banner-managed-by-workspace = 一部の権限はワークスペ
 settings-ai-base-model = ベースモデル
 settings-ai-base-model-description = このモデルは Dais エージェントの中心エンジンとして機能します。ほとんどのやり取りを担い、必要に応じて計画やコード生成などのタスクで他のモデルを呼び出します。Dais はモデルの可用性や、会話要約などの補助タスクに応じて自動的に別のモデルへ切り替えることがあります。
 settings-ai-show-model-picker-in-prompt = プロンプトにモデル選択を表示
-settings-ai-codebase-context = コードベースのコンテキスト
-settings-ai-codebase-context-description = Dais エージェントによるコードベースの概要生成を許可し、コンテキストとして利用します。コードがサーバーに保存されることはありません。
 settings-ai-add-profile = プロファイルを追加
 settings-ai-agents-description = エージェントの動作範囲を設定します。アクセスできる対象、自律性のレベル、承認を求めるタイミングを選択できます。自然言語入力、コードベース認識などの動作も細かく調整できます。
 settings-ai-profiles-description = プロファイルでは、エージェントが実行できるアクションや承認が必要なタイミング、コーディングや計画などのタスクで使用するモデルなど、エージェントの動作を定義できます。プロジェクトごとにスコープを限定することもできます。
 
 # Anonymous / org gates
-settings-ai-sign-up = ローカル AI を有効化
-settings-ai-anonymous-create-account = ローカル AI 機能にアカウントは必要ありません。
-settings-ai-org-enforced-tooltip = この項目は組織の設定で強制されており、変更できません。
 settings-ai-restricted-billing = 請求の問題により制限中
 settings-ai-unlimited = 無制限
 
@@ -926,21 +648,16 @@ settings-ai-autodetect-terminal-commands = エージェント入力中のター�
 settings-ai-natural-language-detection = 自然言語の検出
 settings-ai-natural-language-denylist = 自然言語拒否リスト
 settings-ai-natural-language-denylist-description = ここに登録したコマンドは自然言語検出をトリガーしません。
-settings-ai-let-us-know = フィードバックを送る
-
-# MCP Servers
 settings-ai-learn-more = 詳細を見る
 settings-ai-add-server = サーバーを追加
 settings-ai-manage-mcp-servers = MCP サーバーを管理
 settings-ai-file-based-mcp-toggle = サードパーティエージェントからサーバーを自動起動
-settings-ai-file-based-mcp-supported-providers = 対応プロバイダを見る。
 settings-ai-mcp-dropdown-header = MCP サーバーを選択
 
 # Knowledge / Rules
 settings-ai-rules-label = ルール
 settings-ai-suggested-rules-label = ルールの提案
 settings-ai-suggested-rules-description = やり取りに基づいて保存するルールを AI に提案させます。
-settings-ai-manage-rules = ルールを管理
 settings-ai-rules-description = ルールは、Dais エージェントがコードベースや特定のワークフローのお作法に沿うよう導きます。
 
 # Voice
@@ -970,7 +687,6 @@ settings-ai-toolbar-commands-description = マッチするコマンドでコー�
 settings-ai-per-agent-section = インストール済みエージェント
 settings-ai-per-agent-scanning = インストール済みエージェントを検索しています...
 settings-ai-per-agent-empty = インストール済み CLI エージェントが見つかりません。
-settings-ai-per-agent-agent-col = エージェント
 settings-ai-per-agent-toolbar-col = ツールバー
 settings-ai-per-agent-tab-menu-col = タブメニュー
 settings-ai-per-agent-titlebar-col = タイトルバー
@@ -978,10 +694,6 @@ settings-ai-coding-agent-other = その他
 settings-ai-coding-agent-select-header = コーディングエージェントを選択
 
 # Experimental / Agent
-settings-ai-cloud-agent-computer-use = エージェントでのコンピュータ操作
-settings-ai-cloud-agent-computer-use-description = Dais アプリから開始したエージェント会話でコンピュータ操作を有効化します。
-
-# AWS Bedrock
 settings-ai-aws-bedrock-toggle = AWS Bedrock の認証情報を使用
 settings-ai-aws-bedrock-description = Dais はローカルの AWS CLI 認証情報を読み込み、Bedrock 対応モデルへ送信します。
 settings-ai-aws-bedrock-description-managed = Dais はローカルの AWS CLI 認証情報を読み込み、Bedrock 対応モデルへ送信します。この設定は組織によって管理されています。
@@ -994,153 +706,16 @@ settings-ai-refresh = 更新
 # --- ANCHOR-SUB-FEATURES (agent-settings-features) ---
 # settings_view/features_page.rs P0 + P1(category + toggle labels)
 # 命名前缀:settings-features-*
-settings-features-category-general = 一般
-settings-features-category-session = セッション
-settings-features-category-keys = キー
-settings-features-category-text-editing = テキスト編集
-settings-features-category-terminal-input = ターミナル入力
-settings-features-category-terminal = ターミナル
-settings-features-category-notifications = 通知
-settings-features-category-workflows = ワークフロー
-settings-features-category-system = システム
-settings-features-open-links-in-desktop = リンクをデスクトップアプリで開く
-settings-features-open-links-in-desktop-tooltip = 可能な限りリンクを自動的にデスクトップアプリで開きます。
-settings-features-restore-session = 起動時にウィンドウ・タブ・ペインを復元
-settings-features-persist-conversations = エージェント会話をローカル履歴に保存
-settings-features-show-sticky-command-header = 固定コマンドヘッダを表示
-settings-features-show-link-tooltip = リンククリック時にツールチップを表示
-settings-features-show-quit-warning = 終了/ログアウト前に警告を表示
-settings-features-quit-on-last-window-closed = すべてのウィンドウを閉じたら終了
-settings-features-show-changelog-after-update = アップデート後にチェンジログのトーストを表示
-settings-features-mouse-scroll-multiplier = マウスホイール 1 回でスクロールする行数
-settings-features-auto-open-code-review = コードレビューパネルを自動で開く
-settings-features-max-rows-per-block = ブロック内の最大行数
-settings-features-ssh-wrapper = Dais SSH ラッパー
-settings-features-ssh-auto-discovery = SSH ホストの自動検出
-settings-features-receive-desktop-notifications = Dais からのデスクトップ通知を受信
-settings-features-show-in-app-agent-notifications = アプリ内エージェント通知を表示
-settings-features-confirm-close-shared-session = 読み取り専用セッションを閉じる前に確認
-settings-features-global-hotkey-label = グローバルホットキー:
-settings-features-global-hotkey-not-supported-on-wayland = Wayland では未対応です。
-settings-features-autocomplete-symbols = クォート・括弧・カッコを自動補完
-settings-features-error-underlining = コマンドのエラー下線
-settings-features-syntax-highlighting = コマンドの構文ハイライト
-settings-features-completions-while-typing = 入力中に補完メニューを開く
-settings-features-command-corrections = 修正コマンドの提案
-settings-features-expand-aliases = 入力中にエイリアスを展開
-settings-features-middle-click-paste = 中クリックで貼り付け
-settings-features-vim-mode = Vim キーバインドでコードとコマンドを編集
-settings-features-at-context-menu = ターミナルモードで '@' コンテキストメニューを有効化
-settings-features-slash-commands-in-terminal = ターミナルモードでスラッシュコマンドを有効化
-settings-features-outline-codebase-symbols = '@' コンテキストメニュー用にコードベースのシンボルをアウトライン化
-settings-features-show-input-message-bar = ターミナル入力メッセージ行を表示
-settings-features-show-autosuggestion-hint = オートサジェストのキーバインドヒントを表示
-settings-features-show-autosuggestion-ignore = オートサジェストの無視ボタンを表示
-settings-features-enable-mouse-reporting = マウスレポートを有効化
-settings-features-enable-scroll-reporting = スクロールレポートを有効化
-settings-features-enable-focus-reporting = フォーカスレポートを有効化
-settings-features-use-audible-bell = 可聴ベルを使用
-settings-features-double-click-smart-selection = ダブルクリックでスマート選択
-settings-features-show-help-block-in-new-sessions = 新規セッションでヘルプブロックを表示
-settings-features-copy-on-select = 選択でコピー
-settings-features-show-global-workflows-in-command-search = コマンド検索 (ctrl-r) にグローバルワークフローを表示
-settings-features-linux-selection-clipboard = Linux 選択クリップボードを尊重
-settings-features-prefer-low-power-gpu = 新規ウィンドウは内蔵 GPU (低消費電力) で描画する
-settings-features-use-wayland = ウィンドウ管理に Wayland を使用
-settings-features-use-wayland-tooltip = Wayland の使用を有効化します
-settings-features-ctrl-tab-behavior-label = Ctrl+Tab の動作:
-settings-features-extra-meta-key-left-mac = 左 Option キーを Meta にする
-settings-features-extra-meta-key-right-mac = 右 Option キーを Meta にする
-settings-features-extra-meta-key-left-other = 左 Alt キーを Meta にする
-settings-features-extra-meta-key-right-other = 右 Alt キーを Meta にする
-settings-features-default-shell-header = 新規セッションの既定シェル
-settings-features-working-directory-header = 新規セッションの作業ディレクトリ
-settings-features-notify-agent-task-completed = エージェントがタスクを完了したら通知
-settings-features-notify-needs-attention = コマンドやエージェントが続行のために注意を必要とするときに通知
-settings-features-play-notification-sounds = 通知音を鳴らす
-settings-features-default-session-mode = 新規セッションの既定モード
-settings-features-block-rows-description = 上限を 10 万行を超えて設定するとパフォーマンスに影響する場合があります。サポートされる最大行数は { $max_rows } です。
-settings-features-toast-duration-label = トースト通知を表示し続ける時間
-settings-features-tab-key-behavior = Tab キーの動作
-settings-features-graphics-backend-label = 優先するグラフィックスバックエンド
-settings-features-graphics-backend-current = 現在のバックエンド: { $backend }
 settings-features-working-dir-home = ホームディレクトリ
 settings-features-working-dir-previous = 前回セッションのディレクトリ
 settings-features-working-dir-custom = カスタムディレクトリ
 settings-features-undo-close-enable = 閉じたセッションの再オープンを有効化
 settings-features-undo-close-grace-period = 猶予期間 (秒)
-settings-features-configure-global-hotkey = グローバルホットキーを設定
-settings-features-make-default-terminal = Dais を既定のターミナルにする
-settings-features-pin-top = 上に固定
-settings-features-pin-bottom = 下に固定
-settings-features-pin-left = 左に固定
-settings-features-pin-right = 右に固定
-settings-features-default-option = 既定
-settings-features-tab-behavior-completions = 補完メニューを開く
-settings-features-tab-behavior-autosuggestions = オートサジェストを採用
-settings-features-tab-behavior-user-defined = ユーザー定義
-settings-features-new-tab-placement-all = すべてのタブの後ろ
-settings-features-new-tab-placement-current = 現在のタブの後ろ
-settings-features-width-percent = 幅 %
-settings-features-height-percent = 高さ %
-settings-features-autohide-on-focus-loss = キーボードフォーカスを失ったら自動非表示
-settings-features-long-running-prefix = コマンドの完了に
-settings-features-long-running-suffix = 秒以上かかるとき
-settings-features-keybinding-label = キーバインド
-settings-features-click-set-global-hotkey = クリックしてグローバルホットキーを設定
-settings-features-cancel = キャンセル
-settings-features-save = 保存
-settings-features-press-new-shortcut = 新しいショートカットキーを押してください
-settings-features-change-keybinding = キーバインドを変更
-settings-features-active-screen = アクティブな画面
-settings-features-wayland-window-restore-warning = Wayland ではウィンドウ位置は復元されません。
-settings-features-see-docs = ドキュメントを参照。
-settings-features-allowed-values-1-20 = 許容値: 1〜20
-settings-features-supports-floating-1-20 = 1〜20 の浮動小数点値に対応します。
-settings-features-auto-open-code-review-description = この設定が有効な場合、会話で最初に受け入れた差分でコードレビューパネルが開きます
-settings-features-default-terminal-current = Dais が既定のターミナルです
-settings-features-takes-effect-new-sessions = この変更は新規セッションから有効になります
-settings-features-seconds = 秒
-settings-features-vim-system-clipboard = 無名レジスタをシステムクリップボードに設定
-settings-features-vim-status-bar = Vim ステータスバーを表示
-settings-features-tab-behavior-right-arrow-accepts = → でオートサジェストを採用します。
-settings-features-tab-behavior-key-accepts = { $keybinding } でオートサジェストを採用します。
-settings-features-completions-open-while-typing-sentence = 入力に応じて補完が開きます。
-settings-features-completions-open-while-typing-or-key = 入力に応じて補完が開きます ({ $keybinding } でも可)。
-settings-features-open-completions-unbound = 補完メニューを開く操作は割り当てられていません。
-settings-features-tab-behavior-key-opens-completions = { $keybinding } で補完メニューを開きます。
-settings-features-word-characters-label = 単語の一部とみなす文字
-settings-features-new-tab-placement = 新規タブの配置
-settings-features-linux-selection-clipboard-tooltip = Linux のプライマリクリップボードをサポートするかどうか。
-settings-features-changes-apply-new-windows = 変更は新規ウィンドウに適用されます。
-settings-features-wayland-description = この設定を有効にするとグローバルホットキーは使えなくなります。無効の場合、Wayland コンポジタが分数スケーリング (例: 125%) を使用しているとテキストがぼやけることがあります。
-settings-features-restart-warp-to-apply = 変更を反映するには Dais を再起動してください。
-
-# --- ANCHOR-SUB-SETTINGS-PAGE-NAV (agent-settings-page-nav) ---
-# 此锚点下放 settings_view/{settings_page,nav,delete_environment_confirmation_dialog,directory_color_add_picker,pane_manager}.rs 字符串
-# 命名前缀:settings-page-* / settings-nav-* / settings-confirm-* / settings-color-picker-*
-
-# ---- settings_page.rs ----
 settings-page-info-icon-tooltip = クリックしてドキュメントで詳細を見る
 settings-page-local-only-icon-tooltip = この設定は他のデバイスとは同期されません
 settings-page-reset-to-default = 既定値に戻す
 
 # ---- delete_environment_confirmation_dialog.rs ----
-settings-confirm-cancel = キャンセル
-settings-confirm-delete-environment-button = 環境を削除
-settings-confirm-delete-environment-title = 環境を削除しますか？
-settings-confirm-delete-environment-description = { $name } 環境を削除してもよろしいですか？
-
-# ---- directory_color_add_picker.rs ----
-settings-color-picker-add-directory-footer = + ディレクトリを追加…
-settings-color-picker-add-directory-color = ディレクトリの色を追加
-
-# ---- settings_file_footer.rs ----
-settings-footer-open-file = 設定ファイルを開く
-settings-footer-alert-open-file = ファイルを開く
-settings-footer-alert-fix-with-oz = Oz で修正
-
-# --- ANCHOR-SUB-CODE (agent-settings-code) ---
 settings-code-auto-open-review-panel = コードレビューパネルを自動で開く
 settings-code-auto-open-review-panel-desc = この設定が有効な場合、会話で最初に承認された差分時にコードレビューパネルが開きます
 settings-code-show-code-review-button = コードレビューボタンを表示
@@ -1229,47 +804,6 @@ settings-exec-profile-editor-mcp-denylist = MCP 拒否リスト
 settings-exec-profile-editor-mcp-denylist-desc = Oz による呼び出しが許可されない MCP サーバー。
 
 # ---- agent_assisted_environment_modal ----
-settings-env-modal-add-repo = リポジトリを追加
-settings-env-modal-cancel = キャンセル
-settings-env-modal-create-environment = 環境を作成
-settings-env-modal-selected-repos = 選択済みリポジトリ
-settings-env-modal-no-repos-selected = まだリポジトリが選択されていません
-settings-env-modal-available-repos = 利用可能なインデックス済みリポジトリ
-settings-env-modal-loading = ローカルでインデックス化されたリポジトリを読み込み中…
-settings-env-modal-empty-no-indexed = ローカルでインデックス化されたリポジトリが見つかりません。リポジトリをインデックス化してから再試行してください。
-settings-env-modal-unavailable-build = このビルドではローカルリポジトリの選択は利用できません。
-settings-env-modal-all-selected = ローカルでインデックス化されたすべてのリポジトリは既に選択されています。
-settings-env-modal-unknown-repo-name = (不明)
-settings-env-modal-not-git-repo = 選択したフォルダは Git リポジトリではありません: { $path }
-settings-env-modal-no-directory-selected = ディレクトリが選択されていません
-settings-env-modal-dialog-title = 環境用のリポジトリを選択
-settings-env-modal-dialog-description-indexed = 環境作成エージェントへ文脈を提供するため、ローカルでインデックス化されたリポジトリを選択してください。
-settings-env-modal-dialog-description-default = 環境作成エージェントへ文脈を提供するため、リポジトリを選択してください。
-
-# ---- show_blocks_view ----
-settings-show-blocks-page-title = 共有ブロック
-settings-show-blocks-unshare-menu-item = 共有解除
-settings-show-blocks-copy-link = リンクをコピー
-settings-show-blocks-deleting = 削除中...
-settings-show-blocks-executed-on = 実行日時: { $time }
-settings-show-blocks-empty = 共有ブロックはまだありません。
-settings-show-blocks-loading = ブロックを取得中...
-settings-show-blocks-load-failed = ブロックの読み込みに失敗しました。再試行してください。
-settings-show-blocks-link-copied = リンクをコピーしました。
-settings-show-blocks-unshare-success = ブロックを共有解除しました。
-settings-show-blocks-unshare-failed = ブロックの共有解除に失敗しました。再試行してください。
-settings-show-blocks-confirm-dialog-title = ブロックを共有解除
-settings-show-blocks-confirm-dialog-text = このブロックを共有解除してもよろしいですか?
-
-    リンク経由でアクセスできなくなり、Dais サーバーから完全に削除されます。
-settings-show-blocks-confirm-cancel = キャンセル
-settings-show-blocks-confirm-unshare = 共有解除
-
-# --- ANCHOR-SUB-APPEARANCE (agent-settings-appearance) ---
-# 此锚点下放 settings_view/appearance_page.rs 剩余字符串(不含已完成的 Language widget)
-# 命名前缀:settings-appearance-*
-
-# Categories
 settings-appearance-category-themes = テーマ
 settings-appearance-category-language = 言語
 settings-appearance-category-icon = アイコン
@@ -1375,8 +909,6 @@ settings-appearance-tab-preserve-active-color-label = 新規タブにアクテ�
 settings-appearance-tab-vertical-layout-label = 垂直タブレイアウトを使用
 settings-appearance-tab-show-vertical-panel-in-restored-windows-label = 復元されたウィンドウで垂直タブパネルを表示
 settings-appearance-tab-show-vertical-panel-in-restored-windows-description = 有効にすると、ウィンドウの再オープン・復元時に、最後の保存時に垂直タブパネルが閉じていても開いて表示します。
-settings-appearance-tab-show-title-bar-search-bar-label = タイトルバーに検索バーを表示
-settings-appearance-tab-show-title-bar-search-bar-description = タイトルバー中央に「セッション、エージェント、ファイルを検索…」検索バーを表示します。クリックでコマンドパレットが開きます。無効化するとスロットが空になります。垂直タブレイアウトのみに適用されます。
 settings-appearance-tab-use-prompt-as-title-label = タブ名に最新のユーザープロンプトを会話タイトルとして使用
 settings-appearance-tab-use-prompt-as-title-description = 垂直タブのビルトイン AI およびサードパーティエージェントセッションで、生成された会話タイトルの代わりに最新のユーザープロンプトを表示します。
 settings-appearance-tab-toolbar-layout-label = ヘッダーツールバーレイアウト
@@ -1397,54 +929,6 @@ settings-appearance-zoom-label = ズーム
 settings-appearance-zoom-secondary = すべてのウィンドウの既定ズームレベルを調整します
 
 # --- ANCHOR-SUB-ENVIRONMENTS (agent-settings-environments) ---
-settings-environments-page-title = 環境
-settings-environments-page-description = 環境はアンビエントエージェントが実行される場所を定義します。GitHub (推奨)、Dais 支援セットアップ、または手動構成で数分で設定できます。
-settings-environments-search-placeholder = 環境を検索...
-settings-environments-no-matches = 検索条件に一致する環境はありません。
-settings-environments-section-personal = 個人
-settings-environments-section-team-default = Dais とこのデバイスから提供
-settings-environments-section-team-named = Dais と { $team } で共有
-settings-environments-env-id-prefix = 環境 ID: { $id }
-settings-environments-detail-image = イメージ: { $image }
-settings-environments-detail-repos = リポジトリ: { $repos }
-settings-environments-detail-setup-commands = セットアップコマンド: { $commands }
-settings-environments-last-edited = 最終編集: { $time }
-settings-environments-last-used = 最終使用: { $time }
-settings-environments-last-used-never = 最終使用: なし
-settings-environments-view-my-runs = 自分の実行を表示
-settings-environments-tooltip-share = 共有
-settings-environments-tooltip-edit = 編集
-settings-environments-empty-header = まだ環境がセットアップされていません。
-settings-environments-empty-subheader = 環境のセットアップ方法を選択してください:
-settings-environments-empty-quick-setup-title = クイックセットアップ
-settings-environments-empty-suggested-badge = 推奨
-settings-environments-empty-quick-setup-subtitle = 作業したい GitHub リポジトリを選択すると、ベースイメージと構成を提案します
-settings-environments-empty-use-agent-title = エージェントを使用
-settings-environments-empty-use-agent-subtitle = ローカルでセットアップ済みのプロジェクトを選択すると、それに基づいた環境セットアップを支援します
-settings-environments-button-loading = 読み込み中...
-settings-environments-button-retry = 再試行
-settings-environments-button-authorize = 認可
-settings-environments-button-get-started = 開始
-settings-environments-button-launch-agent = エージェント起動
-settings-environments-toast-update-success = 環境を更新しました
-settings-environments-toast-create-success = 環境を作成しました
-settings-environments-toast-delete-success = 環境を削除しました
-settings-environments-toast-share-success = 環境を共有しました
-settings-environments-toast-share-failure = チームへの環境共有に失敗しました
-settings-environments-toast-create-not-logged-in = 環境を作成できません: ログインしていません。
-settings-environments-toast-save-not-found = 保存できません: 環境が存在しません。
-settings-environments-toast-share-no-team = 環境を共有できません: 現在チームに所属していません。
-settings-environments-toast-share-not-synced = 環境を共有できません: 環境がまだ同期されていません。
-settings-update-environment-name-placeholder = 環境名
-settings-update-environment-docker-image-placeholder = 例: python:3.11、node:20-alpine
-settings-update-environment-repos-placeholder-authed = リポジトリを入力 (owner/repo 形式)
-settings-update-environment-repos-placeholder-unauthenticated = リポジトリ URL を貼り付け
-settings-update-environment-setup-command-placeholder = 例: cd my-repo && pip install -r requirements.txt
-settings-update-environment-description-placeholder = 例: この環境はフロントエンド中心のエージェント全般用です
-
-# --- ANCHOR-SUB-AGENT-PROVIDERS (agent-settings-agent-providers) ---
-# 此锚点下放 settings_view/agent_providers_widget.rs 字符串
-# 命名前缀:settings-agent-providers-*
 settings-agent-providers-title = エージェントプロバイダー
 settings-agent-providers-description = OpenAI 互換 (DeepSeek、Zhipu GLM、Moonshot、DashScope、SiliconFlow、OpenRouter など)、Anthropic、Gemini、ローカル Ollama など、複数プロトコルにまたがるカスタムエージェントプロバイダーを構成します。モデルは手動 (表示名 + モデル ID マッピング) または API から自動取得で追加できます。プロバイダーのメタデータはローカルの settings.toml に保存され、API キーはシステムキーチェーンに安全に保存されます。
 settings-agent-providers-empty = プロバイダーがまだ構成されていません。右上の [+ プロバイダー追加] をクリックして追加してください。
@@ -1482,10 +966,6 @@ settings-agent-providers-sync-models-dev = models.dev から同期
 settings-agent-providers-remove = 削除
 
 # ---- AI page (settings_view/ai_page.rs) ----
-settings-ai-title = AI
-settings-ai-active-ai = アクティブ AI
-settings-ai-input-autodetection = エージェント入力でのターミナルコマンド自動検出
-settings-ai-input-autodetection-legacy = 自然言語検出
 settings-ai-next-command-description = コマンド履歴、出力、一般的なワークフローに基づき、次に実行するコマンドを AI に提案させます。
 settings-ai-prompt-suggestions-description = 最近のコマンドと出力に基づき、入力欄のインラインバナーとして AI に自然言語プロンプトを提案させます。
 settings-ai-suggested-code-banners-description = 最近のコマンドと出力に基づき、ブロック一覧のインラインバナーとして AI にコード差分とクエリを提案させます。
@@ -1547,51 +1027,6 @@ banner-dont-show-again = 今後表示しない
 # =============================================================================
 
 # ---- Dialog titles ----
-quit-warning-title-pane = ペインを閉じますか?
-quit-warning-title-tab-singular = タブを閉じますか?
-quit-warning-title-tab-plural = タブを閉じますか?
-quit-warning-title-window = ウィンドウを閉じますか?
-quit-warning-title-app = Dais を終了しますか?
-quit-warning-title-editor-tab = 変更を保存しますか?
-
-# ---- Buttons ----
-quit-warning-button-confirm-close = はい、閉じる
-quit-warning-button-confirm-quit = はい、終了
-quit-warning-button-save = 保存
-quit-warning-button-discard = 保存しない
-quit-warning-button-show-processes = 実行中のプロセスを表示
-quit-warning-button-cancel = キャンセル
-
-# ---- Warning body lines ----
-# Suffix appended to each warning line, indicating the scope.
-quit-warning-suffix-tab = { " " }(このタブ内)。
-quit-warning-suffix-window = { " " }(このウィンドウ内)。
-quit-warning-suffix-pane = { " " }(このペイン内)。
-quit-warning-suffix-default = 。
-
-# Process info: "{count} process(es) running" with optional window/tab qualifier.
-quit-warning-processes-running = { $count } { $count ->
-        [one] 個のプロセスが実行中
-       *[other] 個のプロセスが実行中
-    }です
-quit-warning-processes-in-windows = { " " }({ $count } 個のウィンドウ)
-quit-warning-processes-in-tabs = { " " }({ $count } 個のタブ)
-
-# Shared sessions line.
-quit-warning-shared-sessions = { $count } { $count ->
-        [one] 個のセッション
-       *[other] 個のセッション
-    }を共有中です
-
-# Unsaved code changes (generic scope).
-quit-warning-unsaved-changes = 未保存のファイル変更があります
-
-# Unsaved code changes for a specific editor tab.
-quit-warning-unsaved-editor-tab = { $file } への変更を保存しますか? 保存しない場合、変更は破棄されます。
-quit-warning-unsaved-editor-tab-fallback-name = このファイル
-
-# --- ANCHOR-SUB-RULES-PAGE (agent-rules-page) ---
-# Manage Rules 页面(Dais Drive 中的 AI Fact Collection)。
 rules-collection-name = ルール
 
 # --- ANCHOR-SUB-KEYBINDING-DESC (agent-keybinding-descriptions) ---
@@ -1654,9 +1089,6 @@ keybinding-desc-workspace-create-personal-folder-menu = 新規個人フォルダ
 keybinding-desc-workspace-new-tab = 新規タブを作成
 keybinding-desc-workspace-new-terminal-tab = 新規ターミナルタブ
 keybinding-desc-workspace-new-agent-tab = 新規エージェントタブ
-keybinding-desc-workspace-new-cloud-agent-tab = 新規エージェントタブ
-
-# Left / right panel toggles
 keybinding-desc-workspace-toggle-left-panel = 左パネルを開く
 keybinding-desc-workspace-toggle-right-panel = コードレビューを切り替え
 keybinding-desc-workspace-toggle-right-panel-menu = コードレビューを切り替え
@@ -1665,12 +1097,9 @@ keybinding-desc-workspace-toggle-vertical-tabs-menu = 縦タブパネルを切�
 keybinding-desc-workspace-left-panel-agent-conversations = 左パネル: エージェント会話
 keybinding-desc-workspace-left-panel-project-explorer = 左パネル: プロジェクトエクスプローラー
 keybinding-desc-workspace-left-panel-global-search = 左パネル: グローバル検索
-keybinding-desc-workspace-left-panel-warp-drive = 左パネル: Dais Drive
 keybinding-desc-workspace-left-panel-ssh-manager = 左パネル: SSH マネージャー
 keybinding-desc-workspace-open-global-search = グローバル検索を開く
 keybinding-desc-workspace-open-global-search-menu = グローバル検索
-keybinding-desc-workspace-toggle-warp-drive = Dais Drive を切り替え
-keybinding-desc-workspace-toggle-warp-drive-menu = Dais Drive
 keybinding-desc-workspace-toggle-conversation-list-view = エージェント会話リストビューを切り替え
 keybinding-desc-workspace-toggle-conversation-list-view-menu = エージェント会話リストビュー
 keybinding-desc-workspace-close-panel = フォーカス中のパネルを閉じる
@@ -1713,7 +1142,6 @@ keybinding-desc-workspace-view-changelog = 最新の changelog を表示
 
 # Resource center / Drive export / CLI
 keybinding-desc-workspace-toggle-resource-center = リソースセンターを切り替え
-keybinding-desc-workspace-export-all-warp-drive-objects = すべての Dais Drive オブジェクトをエクスポート
 keybinding-desc-workspace-install-cli = Oz CLI コマンドをインストール
 keybinding-desc-workspace-uninstall-cli = Oz CLI コマンドをアンインストール
 
@@ -1734,7 +1162,6 @@ keybinding-desc-workspace-import-to-personal-drive = 個人 Drive にインポ�
 # Drive / repository / AI rules / MCP
 keybinding-desc-workspace-open-repository = リポジトリを開く
 keybinding-desc-workspace-open-repository-menu = リポジトリを開く
-keybinding-desc-workspace-open-ai-fact-collection = AI ルールを開く
 keybinding-desc-workspace-open-mcp-servers = MCP サーバーを開く
 keybinding-desc-workspace-jump-to-latest-toast = 最新のエージェントタスクへジャンプ
 keybinding-desc-workspace-toggle-notification-mailbox = 通知メールボックスを切り替え
@@ -1745,9 +1172,6 @@ keybinding-desc-workspace-show-settings-menu = 設定
 # Dais: keybinding-desc-workspace-show-settings-account は Account 設定ページとともに削除。
 keybinding-desc-workspace-show-settings-appearance = 設定を開く: 外観
 keybinding-desc-workspace-show-settings-appearance-menu = 外観...
-keybinding-desc-workspace-show-settings-features = 設定を開く: 機能
-keybinding-desc-workspace-show-settings-shared-blocks = 設定を開く: 共有ブロック
-keybinding-desc-workspace-show-settings-shared-blocks-menu = 共有ブロックを表示...
 keybinding-desc-workspace-show-settings-keyboard-shortcuts = 設定を開く: キーボードショートカット
 keybinding-desc-workspace-show-settings-keyboard-shortcuts-menu = キーボードショートカットを設定...
 keybinding-desc-workspace-show-settings-about = 設定を開く: バージョン情報
@@ -1756,8 +1180,6 @@ keybinding-desc-workspace-show-settings-warpify = 設定を開く: Warpify
 keybinding-desc-workspace-show-settings-warpify-menu = Warpify を設定...
 keybinding-desc-workspace-show-settings-ai = 設定を開く: AI
 keybinding-desc-workspace-show-settings-code = 設定を開く: コード
-keybinding-desc-workspace-show-settings-referrals = 設定を開く: リファラル
-keybinding-desc-workspace-show-settings-environments = 設定を開く: 環境
 keybinding-desc-workspace-show-settings-mcp-servers = 設定を開く: MCP サーバー
 keybinding-desc-workspace-open-settings-file = 設定ファイルを開く
 
@@ -1774,7 +1196,6 @@ keybinding-desc-input-edit-prompt = プロンプトを編集
 keybinding-desc-terminal-attach-block-as-context = 選択ブロックをエージェントコンテキストとして添付
 keybinding-desc-terminal-attach-text-as-context = 選択テキストをエージェントコンテキストとして添付
 keybinding-desc-terminal-attach-as-context-menu = 選択をエージェントコンテキストとして添付
-keybinding-desc-workspace-init-project = warp 用にプロジェクトを初期化
 keybinding-desc-workspace-add-current-folder = 現在のフォルダをプロジェクトとして追加
 
 # Workspace debug / crash / heap profile bindings
@@ -1783,21 +1204,14 @@ keybinding-desc-workspace-crash-other = アプリをクラッシュさせる (�
 keybinding-desc-workspace-log-review-comment-send-status = [Debug] アクティブタブのレビューコメント送信状況をログ出力
 keybinding-desc-workspace-panic = panic を発生させる (ローカル panic ログのテスト用)
 keybinding-desc-workspace-open-view-tree-debugger = ビューツリーデバッガーを開く
-keybinding-desc-workspace-view-first-time-user-experience = [Debug] 初回ユーザー体験を表示
 keybinding-desc-workspace-undismiss-aws-login-banner = [Debug] AWS ログインバナーの非表示を解除
-keybinding-desc-workspace-open-oz-launch-modal = [Debug] Oz Launch モーダルを開く
-keybinding-desc-workspace-reset-oz-launch-modal-state = [Debug] Oz Launch モーダル状態をリセット
-keybinding-desc-workspace-open-dais-launch-modal = [Debug] Dais Launch モーダルを開く
-keybinding-desc-workspace-reset-dais-launch-modal-state = [Debug] Dais Launch モーダル状態をリセット
 keybinding-desc-workspace-install-opencode-warp-plugin = [Debug] OpenCode Warp プラグインをインストール
 keybinding-desc-workspace-use-local-opencode-warp-plugin = [Debug] ローカル OpenCode Warp プラグインを使用 (テスト専用)
 keybinding-desc-workspace-open-session-config-modal = [Debug] Session Config モーダルを開く
-keybinding-desc-workspace-start-hoa-onboarding-flow = [Debug] HOA オンボーディングフローを開始
 keybinding-desc-workspace-sample-process = プロセスをサンプリング
 keybinding-desc-workspace-dump-heap-profile = ヒーププロファイルをダンプ (一度のみ実行可能)
 
 # Terminal input bindings
-keybinding-desc-input-show-network-log = Dais ネットワークログを表示
 keybinding-desc-input-clear-screen = 画面をクリア
 keybinding-desc-input-toggle-classic-completions = (実験的) クラシック補完モードを切り替え
 keybinding-desc-input-command-search = コマンド検索
@@ -1839,7 +1253,6 @@ keybinding-desc-terminal-delete-line-end = 実行中コマンド内で行末ま�
 keybinding-desc-terminal-backward-tabulation = 実行中コマンド内で逆方向タブ
 keybinding-desc-terminal-select-previous-block = 前のブロックを選択
 keybinding-desc-terminal-select-next-block = 次のブロックを選択
-keybinding-desc-terminal-share-selected-block = 選択ブロックを共有
 keybinding-desc-terminal-bookmark-selected-block = 選択ブロックをブックマーク
 keybinding-desc-terminal-find-within-selected-block = 選択ブロック内を検索
 keybinding-desc-terminal-copy-command-and-output = コマンドと出力をコピー
@@ -1861,8 +1274,6 @@ keybinding-desc-terminal-onboarding-modality-project = [Debug] オンボーデ�
 keybinding-desc-terminal-onboarding-modality-no-project = [Debug] オンボーディング吹き出し: Modality - No Project
 keybinding-desc-terminal-onboarding-modality-terminal = [Debug] オンボーディング吹き出し: Modality - Terminal
 keybinding-desc-terminal-import-external-settings = 外部設定をインポート
-keybinding-desc-terminal-share-current-session = 現在のセッションを共有
-keybinding-desc-terminal-stop-sharing-current-session = 現在のセッションの共有を停止
 keybinding-desc-terminal-toggle-block-filter = 選択中または最後のブロックでブロックフィルタを切り替え
 keybinding-desc-terminal-toggle-sticky-command-header = アクティブペインのスティッキーコマンドヘッダーを切り替え
 keybinding-desc-terminal-toggle-autoexecute-mode = 自動実行モードを切り替え
@@ -1974,8 +1385,6 @@ keybinding-desc-code-close-all-tabs = すべてのタブを閉じる
 keybinding-desc-code-close-saved-tabs = 保存済みタブを閉じる
 
 # Welcome view binding desc
-keybinding-desc-welcome-terminal-session = ターミナルセッション
-keybinding-desc-welcome-add-repository = リポジトリを追加
 
 # AI assistant panel binding desc
 keybinding-desc-ai-assistant-close = Dais AI を閉じる
@@ -2025,7 +1434,6 @@ keybinding-desc-nbeditor-toggle-regex-find = 正規表現検索を切り替え
 keybinding-desc-nbeditor-toggle-case-sensitive-find = 大文字小文字を区別する検索を切り替え
 
 # Pane group / undo close binding desc
-keybinding-desc-get-started-terminal-session = ターミナルセッション
 keybinding-desc-undo-close-reopen-session = 閉じたセッションを再オープン
 keybinding-desc-right-panel-toggle-maximize-code-review = コードレビューパネルの最大化を切り替え
 
@@ -2043,11 +1451,6 @@ keybinding-desc-workspace-copy-access-token = アクセストークンをクリ�
 keybinding-desc-env-var-collection-close = 閉じる
 
 # Auth / share modal binding desc
-keybinding-desc-share-block-copy = コピー
-keybinding-desc-auth-paste-token = 貼り付け
-keybinding-desc-conversation-details-copy = コピー
-
-# Terminal extras binding desc
 keybinding-desc-terminal-show-history = 履歴を表示
 keybinding-desc-terminal-ask-ai-selection = 選択について Dais AI に質問
 keybinding-desc-terminal-ask-ai-last-block = 直前のブロックについて Dais AI に質問
@@ -2095,10 +1498,8 @@ rules-init-project-button = プロジェクトを初期化
 
 # --- Agent view zero-state + message bar ---
 agent-zero-state-title = 新規 Oz エージェント会話
-agent-zero-state-title-cloud = 新規 Oz ローカルエージェント会話
 agent-zero-state-description = 下にプロンプトを送信して新規会話を開始
 agent-zero-state-description-with-location = `{ $location }` で新規会話を開始するには下にプロンプトを送信
-agent-zero-state-hide-hints-tooltip = ショートカットヒントを非表示（設定から再有効化可能）
 agent-zero-state-switch-model = モデルを切り替え
 agent-zero-state-go-back-to-terminal = ターミナルに戻る
 agent-message-bar-for-help = ヘルプ
@@ -2146,8 +1547,6 @@ toggle-suffix-prompt-suggestions = プロンプトサジェスト
 toggle-suffix-code-suggestions = コードサジェスト
 toggle-suffix-nl-autosuggestions = 自然言語オートサジェスト
 toggle-suffix-voice-input = 音声入力
-toggle-suffix-codebase-index = コードベースインデックス
-toggle-suffix-auto-indexing = 自動インデックス
 toggle-suffix-compact-mode = コンパクトモード
 toggle-suffix-themes-sync-os = テーマ: OS と同期
 toggle-suffix-cursor-blink = カーソル点滅
@@ -2159,43 +1558,6 @@ toggle-suffix-focus-follows-mouse = マウス追従フォーカス
 toggle-suffix-zen-mode = 禅モード
 toggle-suffix-vertical-tabs = 縦タブレイアウト
 toggle-suffix-ligature-rendering = リガチャ描画
-toggle-suffix-copy-on-select = ターミナル内での選択時コピー
-toggle-suffix-linux-selection-clipboard = Linux 選択クリップボード
-toggle-suffix-autocomplete-symbols = クォート・括弧・ブラケットの自動補完
-toggle-suffix-restore-session = 起動時にウィンドウ・タブ・ペインを復元
-toggle-suffix-left-option-meta = 左 Option キーを Meta として扱う
-toggle-suffix-left-alt-meta = 左 Alt キーを Meta として扱う
-toggle-suffix-right-option-meta = 右 Option キーを Meta として扱う
-toggle-suffix-right-alt-meta = 右 Alt キーを Meta として扱う
-toggle-suffix-scroll-reporting = スクロールレポート
-toggle-suffix-completions-while-typing = 入力中の補完
-toggle-suffix-command-corrections = コマンド訂正
-toggle-suffix-error-underlining = エラー下線
-toggle-suffix-syntax-highlighting = シンタックスハイライト
-toggle-suffix-audible-bell = ターミナル音響ベル
-toggle-suffix-autosuggestions = オートサジェスト
-toggle-suffix-autosuggestion-keybinding-hint = オートサジェストキーバインドヒント
-toggle-suffix-ssh-wrapper = Dais SSH ラッパー
-toggle-suffix-ssh-auto-discovery = SSH ホストの自動検出
-toggle-suffix-link-tooltip = リンククリック時のツールチップ表示
-toggle-suffix-quit-warning = 終了警告モーダル
-toggle-suffix-alias-expansion = エイリアス展開
-toggle-suffix-middle-click-paste = 中クリックペースト
-toggle-suffix-code-as-default-editor = code を既定エディタにする
-toggle-suffix-input-hint-text = 入力ヒントテキスト
-toggle-suffix-vim-keybindings = Vim キーバインドでのコマンド編集
-toggle-suffix-vim-clipboard = Vim 無名レジスタをシステムクリップボードに
-toggle-suffix-vim-status-bar = Vim ステータスバー
-toggle-suffix-focus-reporting = フォーカスレポート
-toggle-suffix-smart-select = スマート選択
-toggle-suffix-input-message-line = ターミナル入力メッセージ行
-toggle-suffix-slash-commands-terminal = ターミナルモードでのスラッシュコマンド
-toggle-suffix-integrated-gpu = 統合 GPU 描画 (低消費電力)
-toggle-suffix-wayland = ウィンドウ管理に Wayland を使用
-toggle-suffix-settings-sync = 設定同期
-toggle-suffix-app-analytics = ローカル診断
-toggle-suffix-crash-reporting = クラッシュレポート
-toggle-suffix-secret-redaction = シークレットマスキング
 toggle-suffix-recording-mode = 記録モード
 toggle-suffix-inband-generators = 新規セッションでのインバンドジェネレーター
 toggle-suffix-debug-network = ネットワーク状態デバッグ
@@ -2287,9 +1649,6 @@ menu-ai-block-fork-from-last-query = 直前のクエリからフォーク
 menu-ai-block-fork-from-query = "{ $query }" からフォーク
 
 # --- tab 右键菜单(tab.rs) ---
-menu-tab-stop-sharing = 共有を停止
-menu-tab-stop-sharing-all = すべての共有を停止
-menu-tab-copy-link = リンクをコピー
 menu-tab-rename = タブの名前を変更
 menu-tab-reset-name = タブ名をリセット
 menu-tab-move-down = タブを下へ移動
@@ -2304,11 +1663,7 @@ menu-tab-save-as-new-config = 新しい構成として保存
 menu-tab-default-no-color = デフォルト (色なし)
 
 # --- pane header 溢出菜单(terminal/view/pane_impl.rs) ---
-menu-pane-copy-link = リンクをコピー
 menu-pane-stop-sharing-session = セッションブロードキャストを停止
-menu-pane-open-on-desktop = デスクトップで開く
-
-# --- 文件树右键菜单(code/file_tree/view.rs) ---
 menu-filetree-open-in-new-pane = 新しいペインで開く
 menu-filetree-open-in-new-tab = 新しいタブで開く
 menu-filetree-open-file = ファイルを開く
@@ -2324,10 +1679,6 @@ menu-filetree-copy-path = パスをコピー
 menu-filetree-copy-relative-path = 相対パスをコピー
 
 # --- 代码编辑器右键菜单(code/local_code_editor.rs) ---
-menu-codeeditor-go-to-definition = 定義へ移動
-menu-codeeditor-find-references = 参照を検索
-
-# --- 共享标签:附加为 agent 上下文(blocklist/view_util.rs) ---
 menu-attach-as-agent-context = エージェントコンテキストとして添付
 
 # --- ANCHOR-SUB-SLASH-COMMANDS (agent-slash-commands) ---
@@ -2336,8 +1687,6 @@ menu-attach-as-agent-context = エージェントコンテキストとして添�
 slash-cmd-agent-desc = 新しい会話を開始
 slash-cmd-add-mcp-desc = 新しい MCP サーバーを追加
 slash-cmd-pr-comments-desc = GitHub PR レビューコメントを取得
-slash-cmd-create-environment-desc = ガイドに従って Oz 環境 (Docker イメージ + リポジトリ) を作成
-slash-cmd-create-environment-hint = <任意のリポジトリパスまたは GitHub URL>
 slash-cmd-docker-sandbox-desc = 新しい Docker サンドボックスのターミナルセッションを作成
 slash-cmd-create-new-project-desc = Oz と一緒に新しいコーディングプロジェクトを作成
 slash-cmd-create-new-project-hint = <作りたいものを記述>
@@ -2373,7 +1722,6 @@ slash-cmd-queue-hint = <エージェント完了時に送信するプロンプ�
 slash-cmd-fork-and-compact-desc = 現在の会話をフォークしフォーク先で圧縮
 slash-cmd-fork-and-compact-hint = <圧縮後に送信する任意のプロンプト>
 slash-cmd-fork-from-desc = 特定のクエリから会話をフォーク
-slash-cmd-remote-control-desc = このセッションのリモート操作を開始
 slash-cmd-conversations-desc = 会話履歴を開く
 slash-cmd-prompts-desc = 保存済みプロンプトを検索
 slash-cmd-rewind-desc = 会話の前の時点まで巻き戻し
@@ -2393,24 +1741,6 @@ prompt-editor-cancel = キャンセル
 prompt-editor-save-changes = 変更を保存
 
 # Welcome tips (app/src/tips/tip_view.rs)
-welcome-tips-command-palette-title = コマンドパレット
-welcome-tips-command-palette-description = キーボードから手を離さずに Dais の機能をすべて簡単に発見できます。
-welcome-tips-split-pane-title = ペイン分割
-welcome-tips-split-pane-description = タブを複数のペインに分割して理想的なレイアウトを作成。
-welcome-tips-history-search-title = 履歴検索
-welcome-tips-history-search-description = 過去に実行したコマンドを検索・編集・再実行。
-welcome-tips-ai-command-search-title = AI コマンド検索
-welcome-tips-ai-command-search-description = 自然言語からシェルコマンドを生成。
-welcome-tips-theme-picker-title = テーマピッカー
-welcome-tips-theme-picker-description = 組み込みテーマから選んで Dais を自分好みに。または自作も可能。
-welcome-tips-shortcut-label = ショートカット
-welcome-tips-skip = ようこそチップをスキップ
-welcome-tips-complete-title = 完了!
-welcome-tips-complete-description = ようこそチップの完了お疲れさまでした!
-welcome-tips-close = ようこそチップを閉じる
-
-# --- ANCHOR-SUB-SMALL-DIALOGS ---
-# Rewind confirmation dialog (app/src/workspace/rewind_confirmation_dialog.rs)
 rewind-dialog-title = 巻き戻し
 rewind-dialog-body = 巻き戻してもよろしいですか? コードと会話をこの時点より前の状態に戻し、エージェントが現在実行中のコマンドをすべてキャンセルします。元の会話のコピーは会話履歴に保存されます。
 rewind-dialog-info = 巻き戻しは手動またはシェルコマンドで編集されたファイルには影響しません。
@@ -2418,6 +1748,7 @@ rewind-dialog-cancel = キャンセル
 rewind-dialog-confirm = 巻き戻し
 
 # --- ANCHOR-SUB-SEARCH-PALETTES ---
+# Search palettes (app/src/search/command_palette/view.rs, app/src/search/welcome_palette/view.rs)
 command-palette-search-placeholder = コマンドを検索
 command-palette-no-results = 該当する結果がありません
 command-palette-toast-cannot-switch-conversations = エージェントがコマンドを監視中は会話を切り替えできません。
@@ -2476,15 +1807,12 @@ search-filter-display-skills = スキル
 search-filter-display-base-models = ベースモデル
 search-filter-display-full-terminal-use-models = フルターミナル用モデル
 search-filter-display-current-directory-conversations = 現在のディレクトリの会話
-search-results-menu-no-results = 該当する結果がありません
-search-results-menu-prompts-title = プロンプト
 ai-context-diffset-uncommitted-changes = 未コミットの変更
 ai-context-diffset-changes-vs-main-branch = main ブランチとの差分
 ai-context-diffset-changes-vs-branch = { $branch } との差分
 ai-context-diffset-uncommitted-changes-description = 作業ディレクトリ内のすべての未コミットの変更
 ai-context-diffset-changes-vs-main-branch-description = main ブランチと比較したすべての変更
 ai-context-diffset-changes-vs-branch-description = { $branch } と比較したすべての変更
-ai-context-code-search-failed = コード検索に失敗しました
 ai-context-files-directory-accessibility-label = ディレクトリ: { $path }
 ai-context-files-file-accessibility-label = ファイル: { $path }
 ai-context-blocks-just-now = たった今
@@ -2505,113 +1833,15 @@ ai-context-blocks-accessibility-label = ブロック: { $command }
 
 # --- ANCHOR-SUB-DRIVE-NAMING-IMPORT ---
 # Drive naming dialog (app/src/drive/cloud_object_naming_dialog.rs)
-drive-naming-notebook-name = ノートブック名
-drive-naming-folder-name = フォルダ名
-drive-naming-collection-name = コレクション名
-drive-naming-create = 作成
-drive-naming-cancel = キャンセル
-drive-naming-rename = 名前変更
-
-# Drive import modal (app/src/drive/import/modal.rs, app/src/drive/import/modal_body.rs)
-drive-import-title = インポート
-drive-import-close = 閉じる
-drive-import-cancel = キャンセル
-drive-import-preparing = 準備中…
-drive-import-choose-files = ファイルを選択…
-drive-import-learn-file-support = ファイルサポートとフォーマットについて
-drive-import-file-upload-error = サーバーへのファイルアップロードに失敗しました
-drive-import-folder-upload-error = サーバーへのフォルダアップロードに失敗しました
-
-# Drive main panel and workflow editor (app/src/drive/index.rs, app/src/drive/workflows/*)
-drive-title = Drive
-drive-environment-variables = 環境変数
-drive-folder = フォルダ
-drive-notebook = ノートブック
-drive-workflow = ワークフロー
-drive-prompt = プロンプト
-drive-import = インポート
-drive-remove = 削除
-drive-new-folder = 新規フォルダ
-drive-new-notebook = 新規ノートブック
-drive-new-workflow = 新規ワークフロー
-drive-new-prompt = 新規プロンプト
-drive-new-environment-variables = 新規環境変数
-drive-offline-banner = オフラインです。一部のファイルは読み取り専用になります。
-drive-sort-by = 並び替え
-drive-retry-sync = 同期を再試行
-drive-empty-trash = ゴミ箱を空にする
-drive-trash-section-title = ゴミ箱
-drive-trash-title = ゴミ箱
-drive-trash-deletion-warning = ゴミ箱内のアイテムは 30 日後に完全に削除されます。
-drive-team-space-zero-state = ローカルビルドではチームスペースを利用できません。ワークフローとノートブックは Personal で管理してください。
-drive-sign-up-storage-limit = ローカルストレージ上限はこのデバイス上で適用されます。
-drive-local-storage-limit-description = ローカルストレージ上限はこのデバイス上で適用されます。不要な項目を削除して、新しい Dais Drive オブジェクト用の容量を空けてください。
-drive-sign-up = ローカルで管理
-drive-copy-link = リンクをコピー
-drive-collapse-all = すべて折りたたむ
-drive-revert-to-server = サーバーの状態に戻す
-drive-attach-to-active-session = アクティブセッションに添付
-drive-copy-prompt = プロンプトをコピー
-drive-copy-workflow-text = ワークフローテキストをコピー
-drive-copy-id = ID をコピー
-drive-copy-variables = 変数をコピー
-drive-load-in-subshell = サブシェルで読み込み
-drive-delete-forever = 完全に削除
-drive-rename = 名前変更
-drive-retry = 再試行
 drive-move-to-space = { $space } へ移動
-drive-open-on-desktop = デスクトップで開く
-drive-duplicate = 複製
-drive-export = エクスポート
-drive-trash-menu = ゴミ箱
-drive-open = 開く
-drive-edit = 編集
-drive-restore = 復元
-drive-compare-plans = プランを比較
-drive-manage-billing = 請求情報を管理
-drive-object-type-notebook-plural = ノートブック
-drive-object-type-workflow-plural = ワークフロー
-drive-object-type-folder-plural = フォルダ
-drive-object-type-env-var-collection-plural = 環境変数コレクション
-drive-object-type-object-plural = オブジェクト
-drive-object-type-notebooks = ノートブック
-drive-object-type-workflows = ワークフロー
-drive-object-type-environment-variables = 環境変数
-drive-object-type-folders = フォルダ
-drive-object-type-agent-workflows = エージェントワークフロー
-drive-object-type-ai-fact = AI ファクト
-drive-object-type-rules = ルール
-drive-object-type-mcp-server = MCP サーバー
-drive-object-type-mcp-servers = MCP サーバー
-drive-shared-object-limit-hit-banner-prefix = ローカルの { $object_type } 上限に達しました。
-drive-shared-object-limit-hit-banner = ローカルの { $object_type } 上限に達しました。
-drive-payment-issue-banner-prefix = サブスクリプションの支払いに問題があるため、共有オブジェクトが制限されています。
-drive-payment-issue-banner-admin = サブスクリプションの支払いに問題があるため、共有オブジェクトが制限されています。アクセスを復旧するには支払い情報を更新してください。
-drive-payment-issue-banner-admin-enterprise = サブスクリプションの支払いに問題があるため、共有オブジェクトが制限されています。アクセスを復旧するには support@warp.dev までご連絡ください。
-drive-payment-issue-banner-nonadmin = サブスクリプションの支払いに問題があるため、共有オブジェクトが制限されています。チーム管理者にご連絡ください。
-drive-empty-trash-title = ゴミ箱を空にしますか?
-drive-empty-trash-body = この操作は取り消せません。
-drive-empty-trash-confirm = はい、ゴミ箱を空にする
-drive-empty-trash-cancel = キャンセル
-workflow-title-placeholder = 無題のワークフロー
-workflow-description-placeholder = 説明を追加
 workflow-title-input-placeholder = タイトルを追加
 workflow-description-input-placeholder = 説明を追加
-workflow-new-argument = 新しい引数
 workflow-arguments-label = 引数
 workflow-argument-description-placeholder = 説明
 workflow-argument-value-placeholder = 値 (任意)
 workflow-default-value-placeholder = デフォルト値 (任意)
 workflow-agent-mode-query-placeholder = ここにプロンプトを入力してください...(例:「日付でオブジェクトの配列をソートする関数を作成」「この React コンポーネントのデバッグを手伝って」)。
-workflow-save = ワークフローを保存
-workflow-unsaved-changes = 未保存の変更があります。
-workflow-keep-editing = 編集を続ける
-workflow-discard-changes = 変更を破棄
-workflow-ai-assist-autofill = 自動入力
-workflow-ai-assist-loading = 読み込み中
-workflow-ai-assist-tooltip = Dais AI でタイトル・説明・パラメータを生成
 workflow-tooltip-restore-from-trash = ワークフローをゴミ箱から復元
-workflow-ai-assist-error-byop-required = 自動入力には BYOP モデルが必要です。設定 → AI でプロバイダとモデルを設定してください。
 workflow-ai-assist-error-bad-command = メタデータの生成に失敗しました。別のコマンドで再度お試しください。
 workflow-ai-assist-error-generic = 問題が発生しました。再度お試しください。
 workflow-ai-assist-error-rate-limited = AI クレジットが不足しているようです。しばらくしてから再度お試しください。
@@ -2637,11 +1867,8 @@ workspace-conversation-list-fork-new-tab = 新しいタブで分岐
 workspace-conversation-list-fallback-title = 会話
 workspace-left-panel-project-explorer = プロジェクトエクスプローラ
 workspace-left-panel-global-search = グローバル検索
-workspace-left-panel-warp-drive = Dais Drive
 workspace-left-panel-agent-conversations = エージェント会話
 workspace-left-panel-ssh-manager = SSH マネージャー
-workspace-left-panel-ssh-manager-placeholder = SSH マネージャー — 近日公開
-workspace-left-panel-ssh-manager-detail-empty = サーバーを選択して詳細を表示します。
 workspace-left-panel-ssh-manager-detail-host = ホスト
 workspace-left-panel-ssh-manager-detail-port = ポート
 workspace-left-panel-ssh-manager-detail-user = ユーザー
@@ -2654,12 +1881,9 @@ workspace-left-panel-ssh-manager-onekey-credential = 認証情報
 workspace-left-panel-ssh-manager-onekey-new = 新しい認証情報
 workspace-left-panel-ssh-manager-onekey-label = 認証情報名
 workspace-left-panel-ssh-manager-onekey-user = 認証ユーザー
-workspace-left-panel-ssh-manager-onekey-password = 認証パスワード
-workspace-left-panel-ssh-manager-onekey-password-required = 新しい OneKey 認証情報にはパスワードが必要です。
 workspace-left-panel-ssh-manager-onekey-save-before-connect = 接続前に OneKey 認証情報を保存してください。
 workspace-left-panel-ssh-manager-onekey-select = 認証情報を選択
 workspace-left-panel-ssh-manager-onekey-select-required = OneKey 認証情報を選択してください。
-workspace-left-panel-ssh-manager-onekey-manage = OneKey を管理
 workspace-left-panel-ssh-manager-onekey-manager-title = OneKey マネージャー
 workspace-left-panel-ssh-manager-onekey-add = 追加
 workspace-left-panel-ssh-manager-onekey-delete = 削除
@@ -2678,7 +1902,6 @@ workspace-left-panel-ssh-manager-menu-connect = 接続
 workspace-left-panel-ssh-manager-menu-sftp = ファイル管理
 workspace-left-panel-ssh-manager-menu-clone = 複製
 workspace-left-panel-ssh-manager-menu-delete = 削除
-workspace-left-panel-ssh-manager-pane-hint = フィールドの編集と「接続」は次のイテレーションで提供されます。現状このペインは保存済み設定を表示するだけです。SQLite ストアか、まもなく登場するエディタで調整してください。
 workspace-left-panel-ssh-manager-pane-folder-body = フォルダ。フォルダ内のサーバーを選択すると詳細が表示されます。フォルダを右クリックすると作成/削除アクションが利用できます。
 workspace-left-panel-ssh-manager-server-missing = サーバーが見つかりません。別のウィンドウから削除された可能性があります。
 workspace-left-panel-ssh-manager-field-name = 名前
@@ -2715,18 +1938,14 @@ workspace-left-panel-ssh-manager-candidates-not-found = SSH 設定ファイル�
 # TODO: review
 workspace-left-panel-ssh-manager-candidates-error = SSH 設定の読み込みに失敗しました { $path }: { $error }
 # TODO: review
-workspace-left-panel-ssh-manager-candidates-add = SSH マネージャーに追加
-# TODO: review
 workspace-left-panel-ssh-manager-candidates-added = 追加済み
 # TODO: review
-workspace-left-panel-ssh-manager-candidates-refresh = ~/.ssh/config から再読み込み
 terminal-su-root-password-confirm = Root パスワードを自動入力
 terminal-su-root-password-confirm-subtitle = クリックして保存された Root パスワードを入力
 terminal-su-root-password-cancel = キャンセル
 workspace-left-panel-close-panel = パネルを閉じる
 workspace-tabs-panel-tooltip = タブパネル
 workspace-tools-panel-tooltip = ツールパネル
-workspace-agent-management-panel-tooltip = エージェント管理パネル
 workspace-code-review-panel-tooltip = コードレビューパネル
 workspace-notifications-tooltip = 通知
 workspace-new-tab-tooltip = 新しいタブ
@@ -2738,7 +1957,6 @@ workspace-right-panel-close-panel = パネルを閉じる
 workspace-right-panel-code-review = コードレビュー
 workspace-right-panel-minimize = 最小化
 workspace-right-panel-maximize = 最大化
-terminal-pane-new-cloud-agent-title = 新しいエージェント
 terminal-pane-new-agent-conversation-title = 新しいエージェント会話
 vertical-tabs-no-tabs-open = 開いているタブはありません
 vertical-tabs-untitled-tab = 無題のタブ
@@ -2747,13 +1965,10 @@ vertical-tabs-new-session = 新しいセッション
 vertical-tabs-terminal-kind-oz = Oz
 vertical-tabs-pane-kind-terminal = ターミナル
 vertical-tabs-pane-kind-code = コード
-vertical-tabs-pane-kind-code-diff = コード差分
 vertical-tabs-pane-kind-file = ファイル
 vertical-tabs-pane-kind-notebook = ノートブック
 vertical-tabs-pane-kind-workflow = ワークフロー
 vertical-tabs-pane-kind-environment-variables = 環境変数
-vertical-tabs-pane-kind-environments = 環境
-vertical-tabs-pane-kind-rules = ルール
 vertical-tabs-pane-kind-plan = プラン
 vertical-tabs-pane-kind-execution-profile = 実行プロファイル
 vertical-tabs-pane-kind-other = その他
@@ -2797,77 +2012,7 @@ global-search-remote-description = グローバル検索にはローカルワー
 global-search-unsupported-session-description = グローバル検索は現在 Git Bash や WSL では動作しません。
 global-search-failed = グローバル検索に失敗しました。
 
-
-# Auth override warning (app/src/auth/auth_override_warning_body.rs)
-auth-override-warning-title = 新しいログインを検出しました
-auth-override-warning-confirm-title = 個人の Dais Drive オブジェクトと環境設定を削除しますか?
-auth-override-warning-description = Web ブラウザから Dais アカウントにログインしたようです。続行すると、この匿名セッションの個人 Dais Drive オブジェクトおよび環境設定はすべて完全に削除されます。
-auth-override-warning-cannot-undo = この操作は取り消せません。
-auth-override-warning-export = データをエクスポート
-auth-override-warning-export-description =  して後でインポートできます。
-auth-override-warning-cancel = キャンセル
-auth-override-warning-continue = 続行
-auth-override-warning-accessibility-help = Dais が Web ブラウザからの新しいログインを検出しました。ログインせずに Dais の使用を続けるには Esc を押してキャンセルしてください。
-
-# Auth SSO link/login failures/paste token/logout/offline/privacy
-auth-needs-sso-link-button = SSO をリンク
-auth-needs-sso-link-title = 組織がアカウントの SSO を有効化しています
-auth-needs-sso-link-detail = 下のボタンをクリックして Dais アカウントを SSO プロバイダにリンクしてください。
-auth-login-failure-troubleshooting-prefix =  初めてではありませんか? こちらの
-auth-login-failure-troubleshooting-link =  トラブルシューティングドキュメント
-auth-login-failure-troubleshooting-suffix = をご覧ください。
-auth-login-failure-invalid-token = 無効な認証トークンがモーダルに入力されました。
-auth-login-failure-copy-token-manually = ログインに失敗しました。認証 Web ページから手動で認証トークンをコピーしモーダルに貼り付けてみてください。
-auth-login-failure-login-request = ログインリクエストに失敗しました。
-auth-login-failure-signup-request = サインアップリクエストに失敗しました。
-auth-login-failure-wrong-redirect-url = 貼り付けられたリダイレクト URL はこのアプリ由来ではありません。下のボタンをクリックして再度お試しください。
-auth-paste-token-placeholder = 認証トークンを入力
-auth-paste-token-title = 認証トークンを下に貼り付けてください
-auth-paste-token-detail = ブラウザから認証トークンを貼り付けてログインを完了してください。
-auth-paste-token-cancel = キャンセル
-auth-paste-token-continue = 続行
-auth-offline-first-use-description = 現在オフラインです。Dais を初めて使用するにはインターネット接続が必要です。
-auth-offline-first-use-learn-more = 詳しく見る
-auth-offline-overlay-title = Dais をオフラインで使用
-auth-offline-overlay-paragraph-1 = Dais のローカル機能はオフラインで動作します。
-auth-offline-overlay-paragraph-2 = BYOP AI 機能を使う場合のみ、選択したプロバイダーへの接続が必要です。
-auth-offline-overlay-paragraph-3 = Dais は匿名のローカルユーザー ID で動作し、外部オブジェクトや利用量計測のためにインターネット接続を要求しません。
-auth-offline-overlay-dismiss = 閉じる
-auth-privacy-settings-title = プライバシー設定
-auth-privacy-settings-done = 完了
-auth-privacy-settings-help-improve = Dais の改善に協力する
-auth-privacy-settings-help-improve-description = ハイレベルな機能利用データは Dais プロダクトチームのロードマップ優先順位付けに役立ちます。
-auth-privacy-settings-learn-more = 詳しく見る
-auth-privacy-settings-send-crash-reports = クラッシュレポートを送信
-auth-privacy-settings-crash-reports-description = クラッシュレポートは Dais エンジニアリングチームが安定性を理解しパフォーマンスを改善するのに役立ちます。
-auth-logout-confirm = はい、ログアウトする
-auth-logout-show-running-processes = 実行中のプロセスを表示
-auth-logout-cancel = キャンセル
-auth-logout-title = ログアウトしますか?
-auth-logout-running-processes-warning = { $count } { $count ->
-        [one] 件のプロセス
-       *[other] 件のプロセス
-    }が実行中です。
-auth-logout-shared-sessions-warning = リモートセッションが { $count } { $count ->
-        [one] 件
-       *[other] 件
-    }あります。
-auth-logout-unsynced-drive-objects-warning = 未同期の Dais Drive オブジェクトが { $count } { $count ->
-        [one] 件
-       *[other] 件
-    }あります。ログアウトすると、{ $count ->
-        [one] そのオブジェクト
-       *[other] それらのオブジェクト
-    }は失われます。
-auth-logout-unsaved-files-warning = 未保存のファイルが { $count } { $count ->
-        [one] 件
-       *[other] 件
-    }あります。ログアウトすると、{ $count ->
-        [one] そのファイル
-       *[other] それらのファイル
-    }は失われます。
-
-# CLI agent plugin instructions
+# Wasm NUX dialog (app/src/wasm_nux_dialog.rs)
 cli-agent-plugin-run-on-remote = これらのコマンドは必ずリモートマシン上で実行してください。
 cli-agent-plugin-codex-install-title = Codex の Dais 通知を有効化
 cli-agent-plugin-codex-install-subtitle = Codex を最新版に更新し、フォーカス時通知を有効にすることで Dais が作業中に通知を表示できるようにします。
@@ -2924,11 +2069,9 @@ agent-tip-slash-menu = `/` でスラッシュコマンドメニューを開き�
 agent-tip-toggle-input-mode = <keybinding> で自然言語検出を切り替え、エージェント入力とターミナル入力を切り替えられます。
 agent-tip-plan = `/plan` <prompt> で実行前にエージェント用のプランを作成できます。
 agent-tip-command-palette = <keybinding> でコマンドパレットを開き、Dais のアクションやショートカットにアクセスできます。
-agent-tip-warp-drive = 再利用可能なワークフロー、ノートブック、プロンプトを保存する場所:
 agent-tip-redirect-running-agent = 新しいプロンプトを入力すると、実行中のエージェントを別方向に向け直せます。
 agent-tip-add-context = `@` でファイル、ブロック、Dais Drive オブジェクトからコンテキストをプロンプトに追加できます。
 agent-tip-attach-prior-output = <keybinding> で直前のコマンド出力をエージェントのコンテキストとして添付できます。
-agent-tip-init-index = `/init` でリポジトリをインデックス化し、エージェントがコードベースを理解できるようにします。
 agent-tip-agent-profiles = エージェントプロファイルを追加して、セッションごとに権限とモデルをカスタマイズできます。
 agent-tip-fork-block = ブロックを右クリックすると、その地点から会話を分岐できます。
 agent-tip-copy-output = ブロックを右クリックすると、会話の出力をコピーできます。
@@ -2937,7 +2080,6 @@ agent-tip-interactive-tools = node、python、postgres、gdb、vim などのイ�
 agent-tip-code-review-panel = <keybinding> でコードレビューパネルを開き、エージェントの変更をレビューできます。
 agent-tip-add-mcp = `/add-mcp` でワークスペースに MCP サーバーを追加できます。
 agent-tip-open-mcp-servers = `/open-mcp-servers` でローカル MCP サーバーを表示・管理できます。
-agent-tip-create-environment = `/create-environment` でリポジトリをエージェント実行用のリモート Docker 環境に変換できます。
 agent-tip-add-prompt = `/add-prompt` で繰り返し可能なワークフロー用の再利用可能なプロンプトを作成できます。
 agent-tip-add-rule = `/add-rule` でグローバルなエージェントルールを作成できます。
 agent-tip-fork = `/fork` で現在の会話を新しいプロンプト付き(任意)で複製できます。
@@ -2956,18 +2098,8 @@ agent-tip-auto-approve = <keybinding> で残りのセッションのエージェ
 agent-tip-desktop-notifications = デスクトップ通知を有効にするとエージェントが注意を必要とするときに通知を受け取れます。
 agent-tip-cancel-task = <keybinding> で現在のエージェントタスクをキャンセルできます。
 agent-tip-action-open-palette = パレットを開く
-agent-tip-action-warp-drive = Dais Drive。
 agent-tip-action-show-diff-view = 差分ビューを表示
 agent-tip-voice-input = <keybinding> を押し続けるとプロンプトをエージェントに直接話しかけられます。
-hoa-welcome-banner-title = ユニバーサルエージェントサポートのご紹介: Dais であらゆるコーディングエージェントをレベルアップ
-hoa-feature-vertical-tabs-title = 縦型タブ
-hoa-feature-vertical-tabs-description = git ブランチ、worktree、PR などのリッチなタブタイトルとメタデータ。完全カスタマイズ可能。
-hoa-feature-tab-configs-title = タブ設定
-hoa-feature-tab-configs-description = タブレベルのスキーマでディレクトリ、起動コマンド、テーマ、worktree をワンクリックで設定
-hoa-feature-agent-inbox-title = エージェント受信箱
-hoa-feature-agent-inbox-description = エージェントが注意を必要とする際の通知。中央受信箱からもアクセス可能
-hoa-feature-native-code-review-title = ネイティブコードレビュー
-hoa-feature-native-code-review-description = Dais のコードレビューからインラインコメントを Claude Code、Codex、OpenCode へ直接送信
 resource-center-whats-new-section = 新着情報
 resource-center-getting-started-section = はじめに
 resource-center-maximize-warp-section = Dais を最大限に活用
@@ -3003,11 +2135,6 @@ notebook-link-new-session-tooltip = このディレクトリで新しいター�
 notebook-link-open-terminal-session = ターミナルセッションで開く
 notebook-link-open-in-editor = エディタで開く
 notebook-link-edit-markdown-file = Markdown ファイルを編集
-auth-token-placeholder = 認証トークン
-sharing-inherited-from-prefix = 継承元: {" "}
-sharing-inherited-permission-label = 継承された権限
-sharing-inherited-permissions-edit-parent-tooltip = 親フォルダで継承権限を編集
-sharing-inherited-permissions-cannot-edit-tooltip = 継承された権限は編集できません
 command-palette-navigation-running = 実行中...
 command-palette-navigation-completed-over-hour = 1 時間以上前に完了
 command-palette-navigation-completed-minute-ago = { $mins } 分前に完了
@@ -3018,7 +2145,6 @@ command-palette-navigation-empty-session = 空のセッション
 terminal-history-tab-commands = コマンド
 terminal-history-tab-prompts = プロンプト
 common-current = 現在
-auth-browser-token-placeholder = ブラウザ認証トークン
 requested-script-expand-to-show = 展開してスクリプトを表示
 common-hide = 非表示
 terminal-message-new-conversation = {" "}新しい会話
@@ -3055,18 +2181,11 @@ onboarding-agent-autonomy-partial-subtitle = 計画立案・ファイル読み�
 onboarding-agent-autonomy-none-title = なし
 onboarding-agent-autonomy-none-subtitle = 承認なしでは何もアクションを行いません。
 onboarding-agent-disable-warp-agent = Dais エージェントを無効化
-onboarding-agent-upgrade-title = アップグレードでプレミアムモデルにアクセス。
-onboarding-agent-upgrade-subtitle = 最先端モデルには有料プランが必要です。
-onboarding-agent-paste-token-link = ここをクリック
-onboarding-agent-open-page-manually = {" "}し、手動でページを開いてください。{" "}
-onboarding-agent-paste-token-suffix = {" "}してブラウザからトークンを貼り付けます。
-onboarding-agent-plan-activated = プランを有効化しました。すべてのプレミアムモデルが利用可能です。
 onboarding-project-title = プロジェクトを開く
 onboarding-project-subtitle = Dais でのコーディング向けにプロジェクトを設定します。
 onboarding-project-open-local-folder = ローカルフォルダを開く
 onboarding-project-initialize-automatically = プロジェクトを自動で初期化
 onboarding-project-initialize-description = プロジェクト環境を準備し、コードのインデックスを構築し、プロジェクトルールを生成します。エージェントの理解を深め、性能を高めます。
-onboarding-intro-already-have-account = すでにアカウントをお持ちですか？{" "}
 onboarding-intro-subtitle = 最先端のエージェントを内蔵したモダンなターミナル。
 onboarding-get-started = はじめる
 onboarding-theme-title = テーマを選択
@@ -3087,66 +2206,7 @@ onboarding-customize-global-file-search = グローバルファイル検索
 onboarding-customize-warp-drive = Dais Drive
 onboarding-customize-tools-panel = ツールパネル
 onboarding-customize-code-review = コードレビュー
-onboarding-free-user-title = はじめましょう。
-onboarding-free-user-agent-title = Dais 内蔵エージェントによるエージェント駆動開発
-onboarding-free-user-agent-description = Dais 内蔵エージェント Oz でローカルに反復・計画・構築。
-onboarding-free-user-terminal-title = サードパーティエージェント対応のクラシックターミナル
-onboarding-free-user-terminal-description = サードパーティエージェント (Claude Code、Codex、Gemini CLI) と従来型ターミナルワークフローに対応するモダンターミナル。
-onboarding-free-user-subscribe-title = サブスクライブして Dais のエージェント駆動開発を利用しましょう。
-onboarding-free-user-subscribe-item-credits = 月 1,500 クレジット
-onboarding-free-user-subscribe-item-models = OpenAI、Anthropic、Google のフロンティアモデルへのアクセス
-onboarding-free-user-subscribe-item-reload = Reload クレジットおよびボリューム割引へのアクセス
-onboarding-free-user-subscribe-item-cloud-agents = 拡張エージェントアクセス
-onboarding-free-user-subscribe-item-indexing = 最大規模のコードベースインデックス上限
-onboarding-free-user-subscribe-item-drive = 無制限の Dais Drive オブジェクトとコラボレーション
-onboarding-free-user-subscribe-item-support = プライベートメールサポート
-onboarding-free-user-subscribe-item-cloud-storage = ローカル会話保存
-
-auth-opt-out-line-1 = Dais はオンボーディングの選択をこのデバイスに保存します。
-auth-opt-out-line-2-prefix = 次から調整できます:{" "}
-auth-privacy-settings-prefix = 次から調整できます:{" "}
-auth-privacy-settings-ai-prefix = ローカル AI 設定は次で調整できます:{" "}
-auth-privacy-settings = プライバシー設定
 auth-local-privacy-note = Dais はオンボーディングの選択をこのデバイスに保存します。
-auth-terms-prefix = 続行しても、この設定はこのデバイスに残ります。{" "}
-auth-terms-of-service = ローカル設定
-auth-log-in = ログイン
-auth-paste-token-from-browser = ここをクリックしてブラウザからトークンを貼り付け
-auth-login-slide-title-warp-drive = Dais Drive をはじめる
-auth-login-slide-title-ai = AI をはじめる
-auth-login-slide-subtitle-warp-drive = アカウントを接続して、ノートブック・ワークフローなどをデバイス間で保存・共有します。
-auth-login-slide-subtitle-ai = アカウントを接続して、AI による計画・コーディング・自動化を有効にします。
-auth-disable-warp-drive = Dais Drive を無効化
-auth-disable-ai-features = AI 機能を無効化
-auth-enable-warp-drive = Dais Drive を有効化
-auth-enable-ai-features = AI 機能を有効化
-auth-browser-sign-in-one-line-title = 続行するにはブラウザでサインインしてください
-auth-open-page-manually-line-prefix = {" "}し、開いてください
-auth-open-page-manually-line-suffix = ページを手動で。
-auth-disable-warp-drive-confirm-title = 本当に Dais Drive を無効化しますか？
-auth-disable-ai-features-confirm-title = 本当に AI 機能を無効化しますか？
-auth-disable-warp-drive-confirm-body = Dais Drive はワークフローやナレッジをデバイス間で保存し、チームと共有できます。続行すると、以下の機能が利用できなくなります:
-auth-disable-ai-features-confirm-body = Dais は AI でより便利になります。続行すると、以下の機能はいずれも利用できなくなります:
-auth-feature-session-sharing = セッション共有
-auth-sign-up = ローカルで続行
-auth-sign-in = サインイン
-auth-already-have-account = すでにアカウントをお持ちですか？{" "}
-auth-dont-want-sign-in-now = 今はサインインしたくない？{" "}
-auth-skip-for-now = 今はスキップ
-auth-skip-login-confirm-title = 本当にログインをスキップしますか？
-auth-skip-login-confirm-line-1 = 後でサインアップできますが、AI など一部の機能は
-auth-skip-login-confirm-line-2-prefix = ログインユーザーのみ利用可能です。{" "}
-auth-yes-skip-login = はい、ログインをスキップ
-auth-require-login-ai-collaboration = ローカル AI 機能に Dais アカウントは必要ありません。
-auth-require-login-drive-limit = Dais では Dais Drive オブジェクトをローカルに保存します。
-auth-require-login-share = ローカル Dais ビルドでは共有機能を利用できません。
-auth-welcome-title = Dais へようこそ！
-auth-sign-up-for-warp = Dais を続行
-auth-browser-sign-in-title = 続行するにはブラウザで\nサインインしてください
-auth-browser-not-launched-prefix = ブラウザが起動していない場合、{" "}
-auth-copy-url = URL をコピー
-auth-open-page-manually-suffix = し、手動でページを開いてください。
-
 voice-try-input = 音声入力を試す
 voice-input-enabled-toast = 音声入力が有効です。`{ $key }` キーを押し続けても音声入力を起動できます (設定 > AI > 音声 で構成)
 voice-input-microphone-access-error = 音声入力を開始できませんでした (マイクアクセスを有効にする必要があります)
@@ -3154,8 +2214,6 @@ voice-transcription-disabled-microphone = マイクアクセスが許可され�
 voice-transcription = 音声書き起こし
 voice-transcription-hold-key = 音声書き起こし (`{ $key }` キーを押し続ける)
 
-get-started-welcome-title = Dais へようこそ
-get-started-subtitle = エージェント型開発環境
 theme-creator-theme-name = テーマ名
 theme-creator-background-color = 背景色
 theme-creator-image-subheader = 画像 (.png、.jpg) から抽出した色を基にテーマを自動生成します。
@@ -3200,14 +2258,10 @@ terminal-banner-pure-unsupported = Pure はまだ Dais で対応していませ�
 terminal-loading-session = セッションを読み込み中…
 
 ai-footer-hide-rich-input = リッチ入力を非表示
-ai-footer-choose-environment = 環境を選択
-ai-footer-agent-environment = エージェント環境
 ai-footer-enable-terminal-command-autodetection = ターミナルコマンドの自動検出を有効化
 ai-footer-disable-terminal-command-autodetection = ターミナルコマンドの自動検出を無効化
 ai-footer-turn-off-auto-approve-agent-actions = すべてのエージェントアクションの自動承認をオフ
 ai-footer-auto-approve-agent-actions-for-task = このタスクのすべてのエージェントアクションを自動承認
-ai-footer-start-remote-control = リモートコントロールを開始
-ai-footer-login-required-remote-control = /remote-control を使用するにはログインしてください
 ai-footer-see-logs-for-details = 詳細はログを参照
 ai-footer-plugin-installed-restart-session = Warp プラグインをインストールしました。アクティブ化するにはセッションを再起動してください。
 ai-footer-installing-warp-plugin = Warp プラグインをインストール中…
@@ -3255,13 +2309,6 @@ code-review-discard-file-branch-description = このファイルを { $branch } 
 code-review-stash-changes = 変更を stash
 code-review-no-changes-to-commit = コミットする変更はありません
 code-review-no-git-actions-available = 利用可能な git アクションはありません
-command-search-out-of-credits-contact-admin = クレジットが不足しているようです。クレジットを増やすにはチーム管理者にアップグレードを依頼してください。
-command-search-out-of-credits-prefix = クレジットが不足しているようです。{" "}
-command-search-for-more-credits-suffix = {" "}でクレジットを追加してください。
-search-not-visible-to-other-users = 他のユーザーには表示されません
-sharing-invite = 招待
-sharing-who-has-access = アクセス権を持つユーザー
-terminal-shared-session-cancel-request = リクエストをキャンセル
 terminal-shared-session-continue-sharing = 共有を続行
 settings-import-reset-to-warp-defaults = Dais の既定にリセット
 settings-import-type-theme = テーマ
@@ -3291,7 +2338,6 @@ ai-continue-summarization = 要約を続行
 ai-dont-show-suggested-code-banners-again = 提案コードバナーを今後表示しない
 ai-inline-code-diff-no-file-name = ファイル名なし
 ai-tool-call-cancelled = ツール呼び出しをキャンセルしました
-ai-agent-view-open-in-different-pane = 別のペーンで開く
 passive-suggestion-feature-or-bug-label = {1} で機能を実装するかバグを修正する
 passive-suggestion-help-feature-or-bug-label = {1} での機能実装やバグ修正を手伝う
 passive-suggestion-implement-feature-or-bug-query = {1} で機能を実装するかバグを修正してください。必要な詳細はすべて聞いてください。
@@ -3352,7 +2398,6 @@ common-open-file = ファイルを開く
 common-open-folder = フォルダを開く
 common-name = 名前
 common-rule = ルール
-common-skip-for-now = 今はスキップ
 common-never = しない
 common-save-changes = 変更を保存
 common-do-not-show-again = 今後表示しない
@@ -3360,12 +2405,9 @@ common-dont-show-again-with-period = 今後表示しません。
 common-refresh = 更新
 common-resource-not-found-or-access-denied = リソースが見つからないか、アクセスが拒否されました
 workspace-close-session = セッションを閉じる
-workspace-auto-reload = 自動再読み込み
 workspace-add-new-repo = {" "}+ 新しいリポジトリを追加
 workspace-notification-permission-denied-toast = Dais にはデスクトップ通知を送る権限がありません。
 workspace-troubleshoot-notifications-link = 通知のトラブルシューティング
-workspace-plan-synced-to-warp-drive-toast = プランを Dais Drive に同期しました
-workspace-remote-control-link-copied-toast = リモートコントロールリンクをコピーしました。
 workspace-update-now = 今すぐ更新
 workspace-update-warp = Dais を更新
 workspace-app-out-of-date-needs-update = アプリが古く、更新が必要です。
@@ -3378,10 +2420,6 @@ workspace-unable-to-launch-new-installed-version = Dais はインストール済
 tab-config-session-type = セッションタイプ
 terminal-copy-error = エラーをコピー
 terminal-authenticate-with-github = GitHub で認証
-terminal-create-environment = 環境を作成
-terminal-regenerate-agents-file = AGENTS.md ファイルを再生成
-terminal-view-index-status = インデックスの状態を表示
-terminal-shared-session-request-edit-access = 編集アクセスをリクエスト
 terminal-create-team = チームを作成
 terminal-warpify-without-tmux = TMUX なしで Warpify
 terminal-continue-without-warpification = Warpification なしで続行
@@ -3423,8 +2461,6 @@ notifications-banner-configure-notifications = 通知を構成
 notifications-banner-set-permissions = 権限を設定
 ai-edit-api-keys = API キーを編集
 ai-block-manage-agent-permissions = エージェント権限を管理
-agent-zero-state-cloud-agents-description = ローカルエージェントを使い、エージェントを並列実行し、自律的に動作するエージェントを構築し、このマシン上で状況を確認できます。{" "}
-agent-zero-state-visit-docs = ドキュメントを見る
 ai-execution-profile-agent-decides = エージェントが判断
 ai-execution-profile-always-ask = 常に確認
 ai-execution-profile-ask-on-first-write = 最初の書き込み時に確認
@@ -3443,9 +2479,7 @@ code-review-tooltip-view-changes = 変更を表示
 code-review-diffs-local-workspaces-only = 差分はローカルワークスペースでのみ動作します。
 code-review-diffs-git-repositories-only = 差分は git リポジトリでのみ動作します。
 code-review-diffs-wsl-unsupported = 差分は現在 WSL では動作しません。
-code-review-generating-commit-message-placeholder = コミットメッセージを生成中…
 code-review-type-commit-message-placeholder = コミットメッセージを入力
-code-review-committing-loading = コミット中…
 code-review-commit-message-label = コミットメッセージ
 code-review-no-non-outdated-comments-to-send = 送信できる最新のコメントがありません
 code-review-send-diff-comments-to = 差分コメントを { $label } に送信
@@ -3460,11 +2494,9 @@ notebook-apply-link = リンクを適用
 notebook-sync-conflict-resolution-message = 編集中に変更が加えられたため、このノートブックを保存できませんでした。作業内容をコピーして再読み込みしてください。
 notebook-sync-feature-not-available-message = この機能が一時的に利用できないため、ノートブックをサーバーに保存できませんでした。変更はローカルに保存されています。後でやり直してください。
 notebook-link-copied-toast = リンクをコピーしました
-settings-share-with-team = ローカルに保存
 tooltip-secrets-not-sent-to-warp-server = *シークレットは Dais のサーバーに送信されません。
 editor-voice-limit-hit-toast = 音声リクエストの上限に達しました。次のサイクルの一部として上限が更新されます。
 editor-voice-error-toast = 音声入力の処理中にエラーが発生しました。
-ai-copied-branch-name-toast = ブランチ名をコピーしました
 workflow-new-enum = 新しい enum
 workflow-edit-enum = enum を編集
 workflow-enum-variant-placeholder = バリアント
@@ -3612,7 +2644,6 @@ cockpit-badge-readonly = 読み取り専用
 project-rail-all-projects = すべて
 project-rail-ungrouped-instances = 未分组のインスタンス
 project-rail-section-title = プロジェクト
-
 
 # =============================================================================
 # SECTION: left-rail-status (Owner: AB-render)
