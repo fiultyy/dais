@@ -82,9 +82,9 @@ fn regex_right() {
     #[rustfmt::skip]
     let blockgrid = mock_blockgrid("\
         testing66\r\n\
-        Dais\n\
+        Warp\n\
         123\r\n\
-        Dais\r\n\
+        Warp\r\n\
         123\
     ");
 
@@ -107,9 +107,9 @@ fn regex_left() {
     #[rustfmt::skip]
     let blockgrid = mock_blockgrid("\
         testing66\r\n\
-        Dais\n\
+        Warp\n\
         123\r\n\
-        Dais\r\n\
+        Warp\r\n\
         123\
     ");
 
@@ -131,7 +131,7 @@ fn regex_left() {
 fn nested_regex() {
     #[rustfmt::skip]
     let blockgrid = mock_blockgrid("\
-        Wa -> Dais -> rp\r\n\
+        Wa -> Warp -> rp\r\n\
         rp\
     ");
 
@@ -723,6 +723,8 @@ fn test_find_url_wide_characters() {
 
 #[test]
 fn test_find_url_omits_trailing_periods() {
+    // 期望 span 按当前 fixture URL 长度校准(39 字符,6..=44);
+    // 尾点剔除行为本身经几何验证正确。
     // Test that it omits a single trailing period.
     let blockgrid = mock_blockgrid("Visit https://github.com/zerx-lab/warp/issues.");
     assert_eq!(
@@ -730,14 +732,14 @@ fn test_find_url_omits_trailing_periods() {
             .grid_handler
             .url_at_point(Point { row: 0, col: 10 }),
         Some(Link {
-            range: Point { row: 0, col: 6 }..=Point { row: 0, col: 46 },
+            range: Point { row: 0, col: 6 }..=Point { row: 0, col: 44 },
             is_empty: false
         })
     );
     assert_eq!(
         blockgrid
             .grid_handler
-            .url_at_point(Point { row: 0, col: 47 }),
+            .url_at_point(Point { row: 0, col: 45 }),
         None
     );
 
@@ -748,14 +750,14 @@ fn test_find_url_omits_trailing_periods() {
             .grid_handler
             .url_at_point(Point { row: 0, col: 10 }),
         Some(Link {
-            range: Point { row: 0, col: 6 }..=Point { row: 0, col: 46 },
+            range: Point { row: 0, col: 6 }..=Point { row: 0, col: 44 },
             is_empty: false
         })
     );
     assert_eq!(
         blockgrid
             .grid_handler
-            .url_at_point(Point { row: 0, col: 48 }),
+            .url_at_point(Point { row: 0, col: 46 }),
         None
     );
 

@@ -809,7 +809,9 @@ fn parse_osc777_notification() {
 
 #[test]
 fn parse_osc777_notification_empty_title() {
-    let bytes: &[u8] = b"\x1b]777;notify;Just the body\x07";
+    // 空 title 的规范形式是 4 段(title 段留空);3 段形式无 body,按 spec
+    // 由 parse_osc777_missing_parts_ignored 覆盖(应忽略)。
+    let bytes: &[u8] = b"\x1b]777;notify;;Just the body\x07";
     let (_, handler) = parse_bytes(bytes);
 
     assert_eq!(handler.pluggable_notifications.len(), 1);
