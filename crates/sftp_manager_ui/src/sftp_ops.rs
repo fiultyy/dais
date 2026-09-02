@@ -524,7 +524,8 @@ pub(crate) fn bool_to_rwx(read: bool, write: bool, exec: bool) -> String {
 ///
 /// 远程服务器（Linux）只接受正斜杠路径分隔符，
 /// 在 Windows 上 PathBuf::join 会产生反斜杠，必须转换。
-pub(crate) fn normalize_remote_path(path: &PathBuf) -> PathBuf {
+/// R4 crate 化:`pub(crate)` → `pub`(app 侧 browser 经 re-export shim 消费)。
+pub fn normalize_remote_path(path: &PathBuf) -> PathBuf {
     PathBuf::from(path.to_string_lossy().replace('\\', "/"))
 }
 
