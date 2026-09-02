@@ -1,8 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::Error;
-use serde::{Deserialize, Serialize};
-use settings_value::SettingsValue;
 use warp_core::{
     define_settings_group,
     settings::{RespectUserSyncSetting, Setting, SupportedPlatforms, SyncToCloud},
@@ -14,6 +12,10 @@ use objects::{StoredObject as _, ids::SyncId};
 use crate::objects::model::persistence::ObjectStoreModel;
 use crate::objects::model::persistence::{ObjectStoreEvent};
 
+// R2-b:WorkflowAlias POD 数据形态已下沉 workflows_ui,此处保持
+// `crate::workflows::aliases::WorkflowAlias` 旧路径可用。
+pub use workflows_ui::WorkflowAlias;
+
 define_settings_group!(WorkflowAliases, settings: [
     aliases: Aliases {
         type: Vec<WorkflowAlias>,
@@ -24,19 +26,6 @@ define_settings_group!(WorkflowAliases, settings: [
         storage_key: "WorkflowAliases",
     }
 ]);
-
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, schemars::JsonSchema, SettingsValue)]
-#[schemars(description = "A shortcut alias for a Dais Drive workflow.")]
-pub struct WorkflowAlias {
-    #[schemars(description = "The alias text that triggers this workflow.")]
-    pub alias: String,
-    #[schemars(description = "The identifier of the linked workflow.")]
-    pub workflow_id: SyncId,
-    #[schemars(description = "Pre-filled argument values for the workflow.")]
-    pub arguments: Option<HashMap<String, String>>,
-    #[schemars(description = "The identifier of the environment variable collection to use.")]
-    pub env_vars: Option<SyncId>,
-}
 
 impl WorkflowAliases {
     /// Call once to subscribe to ObjectStore notifications that a workflow has been deleted.

@@ -37,6 +37,7 @@ channel_versions = { path = "crates/channel_versions", default-features = false 
 cockpit_model = { path = "crates/cockpit_model" }
 nav = { path = "crates/nav" }
 drive_ui = { path = "crates/drive_ui" }
+workflows_ui = { path = "crates/workflows_ui" }
 env_vars_ui = { path = "crates/env_vars_ui" }
 objects = { path = "crates/objects" }
 pane_tree = { path = "crates/pane_tree" }

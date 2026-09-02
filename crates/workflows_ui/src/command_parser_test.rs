@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use lazy_static::lazy_static;
 
-use crate::workflows::workflow::{Argument, Workflow};
+use crate::workflow::{Argument, Workflow};
 
 use super::{compute_workflow_display_data, compute_workflow_display_data_for_history_command};
 

@@ -1,6 +1,4 @@
-use crate::{
-    workflows::workflow::{Argument, ArgumentType, Workflow},
-};
+use crate::workflow::{Argument, ArgumentType, Workflow};
 use objects::{ids::{ClientId, HashableId, ServerId, SyncId}};
 use objects::GenericStringObjectId;
 

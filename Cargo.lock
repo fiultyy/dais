@@ -3794,6 +3794,7 @@ dependencies = [
  "difflib 0.4.0 (git+https://github.com/warpdotdev/difflib.git?rev=114177e7d8e1f8017baca397f943e11644b14d63)",
  "directories",
  "dirs 6.0.0",
+ "drive_ui",
  "dunce",
  "embed-resource",
  "embed_plist",
@@ -3993,6 +3994,7 @@ dependencies = [
  "windows-result 0.2.0",
  "winit",
  "winreg",
+ "workflows_ui",
  "x11rb",
  "zbus 5.16.0",
  "zeroize",
@@ -4597,6 +4599,22 @@ checksum = "117240f60069e65410b3ae1bb213295bd828f707b5bec6596a1afc8793ce0cbc"
 name = "dpi"
 version = "0.1.1"
 source = "git+https://github.com/chenx-dust/winit.git?rev=7ef914a440ad203da05355e6c3f8c482766987ec#7ef914a440ad203da05355e6c3f8c482766987ec"
+
+[[package]]
+name = "drive_ui"
+version = "0.1.0"
+dependencies = [
+ "env_vars_ui",
+ "i18n",
+ "i18n-embed",
+ "i18n-embed-fl",
+ "itertools 0.14.0",
+ "log",
+ "objects",
+ "pathfinder_color",
+ "warp_core",
+ "warpui",
+]
 
 [[package]]
 name = "dsl_auto_type"
@@ -16820,6 +16838,27 @@ checksum = "896174c6a4779d4d7d4523dd27aef7d46609eda2497e370f6c998325c6bf6971"
 dependencies = [
  "lazy_static",
  "regex",
+]
+
+[[package]]
+name = "workflows_ui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "itertools 0.14.0",
+ "lazy_static",
+ "log",
+ "objects",
+ "regex",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "settings_value",
+ "string-offset",
+ "strum 0.27.2",
+ "strum_macros 0.27.2",
+ "warp-workflows",
 ]
 
 [[package]]

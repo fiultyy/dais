@@ -131,6 +131,7 @@ pathfinder_geometry.workspace = true
 env_vars_ui.workspace = true
 objects.workspace = true
 drive_ui.workspace = true
+workflows_ui.workspace = true
 
 persistence.workspace = true
 pin-project.workspace = true
@@ -834,4 +835,8 @@ normal = ["embed_plist"]
 
 [dev-dependencies.objects]
 path = "../crates/objects"
+features = ["test-support"]
+
+[dev-dependencies.workflows_ui]
+path = "../crates/workflows_ui"
 features = ["test-support"]

@@ -232,7 +232,7 @@ impl EmbeddedItem for EmbeddedWorkflow {
 
         let Some(workflow) = cloud_workflow.and_then(|workflow| {
             if !workflow.is_trashed(object_store_model) {
-                Some(Into::<Workflow>::into(workflow))
+                Some(workflow.model().data.clone())
             } else {
                 None
             }
