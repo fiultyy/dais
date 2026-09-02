@@ -78,6 +78,13 @@ fn sorted_top_level_commands(
 ) -> Vec<MatchedSuggestion> {
     context
         .top_level_commands()
+        // Snapshot the commands before iterating: a `CompletionContext` implementation may
+        // return a lock-holding iterator (e.g. a registry `keys()` iterator), and the
+        // `command_suggestion` call below re-enters `command_registry().get_signature()`,
+        // which would re-acquire the same non-reentrant lock and deadlock whenever the
+        // token matches a registered command.
+        .collect::<Vec<_>>()
+        .into_iter()
         .filter_map(|command| {
             matcher.get_match_type(partial, command).map(|match_type| {
                 let suggestion = command_suggestion(command, context).unwrap_or_else(|| {
