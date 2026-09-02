@@ -7,7 +7,7 @@
 //! Refer to the tmux control mode protocol documentation for more details:
 //! https://github.com/tmux/tmux/wiki/Control-Mode
 
-use crate::util::AsciiDebug;
+use warp_util::AsciiDebug;
 #[derive(PartialEq, Eq)]
 pub enum TmuxMessage {
     /// This is output from a tmux command, like send-keys or new-window. This is different from

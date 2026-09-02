@@ -16,7 +16,7 @@ use super::{
 /// upon retrieval, we need to update the key to correctly retrieve the data, and update the response
 /// to no longer be stale.
 #[derive(Clone, Default)]
-pub(in crate::terminal::model) struct ImageMap {
+pub struct ImageMap {
     /// Map of image ids keyed by absolute position.
     image_ids_by_point: BTreeMap<AbsolutePoint, HashSet<(u32, u32)>>,
     /// Map of absolute positions of a given image id.

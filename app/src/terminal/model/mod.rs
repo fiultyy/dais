@@ -1,5 +1,5 @@
 pub use grid::GridStorage;
-pub use terminal_model::TerminalModel;
+pub use self::terminal_model::TerminalModel;
 
 #[cfg(test)]
 #[macro_export]
@@ -19,18 +19,18 @@ pub mod block;
 pub mod blockgrid;
 pub mod blocks;
 pub mod bootstrap;
-pub mod completions;
+pub use ::terminal_model::completions;
 pub mod header_grid;
-pub mod rich_content;
-pub mod tmux;
+pub use ::terminal_model::rich_content;
+pub use ::terminal_model::tmux;
 
 pub mod early_output;
 pub mod find;
 pub mod grid;
 pub mod image_map;
-pub mod index;
-pub mod iterm_image;
-pub mod kitty;
+pub use ::terminal_model::index;
+pub use ::terminal_model::iterm_image;
+pub use ::terminal_model::kitty;
 pub mod secrets;
 pub mod selection;
 pub mod session;

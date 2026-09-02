@@ -1,7 +1,7 @@
 pub mod commands;
 pub mod parser;
-use crate::terminal::event::ExecutedExecutorCommandEvent;
-use crate::util::parse_ascii_u32;
+use crate::ExecutedExecutorCommandEvent;
+use warp_util::parse_ascii_u32;
 use lazy_static::lazy_static;
 use regex::bytes::{Regex, RegexBuilder};
 

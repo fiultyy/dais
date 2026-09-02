@@ -14,7 +14,7 @@ use warpui::{
     util::{parse_i32, parse_u32},
 };
 
-use super::escape_sequences::C1;
+use warp_terminal::model::escape_sequences::C1;
 
 /// Actions specified by the [Kitty Image Protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/)
 #[derive(Debug, Clone)]
