@@ -1,7 +1,7 @@
 use fuzzy_match::FuzzyMatchResult;
 use ordered_float::OrderedFloat;
 
-use crate::env_vars::EnvVarCollection;
+use env_vars_ui::EnvVarCollection;
 
 #[derive(Clone, Debug)]
 /// Result of fuzzy matching an [`EnvVarCollection`].

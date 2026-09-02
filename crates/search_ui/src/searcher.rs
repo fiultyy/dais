@@ -1310,7 +1310,5 @@ impl<C: SearchSchemaConfig> AsyncSearcher<C> {
     }
 }
 
-// 测试模块依赖 tantivy 类型, 仅测试构建且非 wasm 时编译
-#[cfg(all(test, not(target_family = "wasm")))]
-#[path = "searcher_test.rs"]
-mod test;
+// 注:searcher_test.rs 留守 app/src/search(经宿主 define_search_schema! 宏建
+// schema,宏 $crate 展开锚定 app 根),由宿主 search/mod.rs 以 #[path] 声明。

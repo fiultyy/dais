@@ -1,4 +1,4 @@
-use crate::workflows::workflow::Workflow;
+use workflows_ui::workflow::Workflow;
 
 use super::FuzzyMatchWorkflowResult;
 

@@ -1,0 +1,10 @@
+[package]
+name = "context_chips_ui"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+warp_terminal.workspace = true

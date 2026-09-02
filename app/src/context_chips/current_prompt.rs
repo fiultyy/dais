@@ -21,8 +21,8 @@ use super::{
     chips_to_string,
     context_chip::{
         ChipAvailability, ChipDisabledReason, ChipFingerprintInput, ChipRuntimeCapabilities,
-        ContextChip, Environment, ExternalCommandsAvailability, GeneratorContext, PromptGenerator,
-        RefreshConfig, ShellCommandGenerator,
+        ContextChip, Environment, EnvironmentHostExt, ExternalCommandsAvailability,
+        GeneratorContext, PromptGenerator, RefreshConfig, ShellCommandGenerator,
     },
     logging::{ChipCommandLogEntry, PromptChipExecutionPhase, PromptChipLogger},
     prompt::Prompt,

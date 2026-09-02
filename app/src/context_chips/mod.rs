@@ -12,7 +12,10 @@ pub mod prompt;
 pub mod prompt_snapshot;
 pub mod prompt_type;
 pub mod renderer;
-pub mod spacing;
+// R5 路径兼容 shim:布局常量已下沉 crates/context_chips_ui。
+pub mod spacing {
+    pub use context_chips_ui::spacing::*;
+}
 
 use std::collections::HashMap;
 use std::time::Duration;
