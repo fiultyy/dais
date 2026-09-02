@@ -1,6 +1,56 @@
-use super::pane::{PaneId, TerminalPaneId};
-use super::{PaneState, SplitPaneState};
+use crate::{PaneId, TerminalPaneId};
 use warpui::{AppContext, Entity, ModelContext, ModelHandle};
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum PaneState {
+    /// This pane is currently focused.
+    Focused,
+    /// This pane is not focused.
+    Unfocused,
+    // In split pane with one pane maximized.
+    Maximized,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum SplitPaneState {
+    InSplitPane(PaneState),
+    NotInSplitPane,
+}
+
+impl SplitPaneState {
+    pub fn is_in_split_pane(&self) -> bool {
+        match self {
+            SplitPaneState::InSplitPane(_) => true,
+            SplitPaneState::NotInSplitPane => false,
+        }
+    }
+
+    /// Is the focused pane.
+    pub fn is_focused(&self) -> bool {
+        match self {
+            SplitPaneState::InSplitPane(state) => match state {
+                PaneState::Focused | PaneState::Maximized => true,
+                PaneState::Unfocused => false,
+            },
+            SplitPaneState::NotInSplitPane => true,
+        }
+    }
+
+    /// Is in split pane and is the focused pane.
+    pub fn is_focused_pane(&self) -> bool {
+        match self {
+            SplitPaneState::InSplitPane(state) => match state {
+                PaneState::Focused | PaneState::Maximized => true,
+                PaneState::Unfocused => false,
+            },
+            SplitPaneState::NotInSplitPane => false,
+        }
+    }
+
+    pub fn is_maximized(&self) -> bool {
+        matches!(self, SplitPaneState::InSplitPane(PaneState::Maximized))
+    }
+}
 
 /// Centralized focus state for a pane group.
 /// This model tracks which pane is focused, which session is active,
@@ -89,7 +139,7 @@ impl PaneGroupFocusState {
     }
 
     /// Sets the focused pane and emits a FocusChanged event.
-    pub(super) fn set_focused_pane(&mut self, pane_id: PaneId, ctx: &mut ModelContext<Self>) {
+    pub fn set_focused_pane(&mut self, pane_id: PaneId, ctx: &mut ModelContext<Self>) {
         let old_focused = self.focused_pane_id;
         if old_focused != pane_id {
             self.focused_pane_id = pane_id;
@@ -103,7 +153,7 @@ impl PaneGroupFocusState {
     }
 
     /// Sets the active terminal session and emits an ActiveSessionChanged event.
-    pub(super) fn set_active_session(
+    pub fn set_active_session(
         &mut self,
         session_id: Option<TerminalPaneId>,
         ctx: &mut ModelContext<Self>,
@@ -119,7 +169,7 @@ impl PaneGroupFocusState {
     }
 
     /// Sets whether or not the pane group has multiple split panes.
-    pub(super) fn set_in_split_pane(&mut self, in_split_pane: bool, ctx: &mut ModelContext<Self>) {
+    pub fn set_in_split_pane(&mut self, in_split_pane: bool, ctx: &mut ModelContext<Self>) {
         if self.in_split_pane != in_split_pane {
             self.in_split_pane = in_split_pane;
             ctx.emit(PaneGroupFocusEvent::InSplitPaneChanged);
@@ -127,7 +177,7 @@ impl PaneGroupFocusState {
     }
 
     /// Sets whether the focused pane is maximized.
-    pub(super) fn set_focused_pane_maximized(
+    pub fn set_focused_pane_maximized(
         &mut self,
         maximized: bool,
         ctx: &mut ModelContext<Self>,
@@ -139,13 +189,12 @@ impl PaneGroupFocusState {
     }
 
     /// Toggles whether the focused pane is maximized.
-    pub(super) fn toggle_focused_pane_maximized(&mut self, ctx: &mut ModelContext<Self>) {
+    pub fn toggle_focused_pane_maximized(&mut self, ctx: &mut ModelContext<Self>) {
         self.is_focused_pane_maximized = !self.is_focused_pane_maximized;
         ctx.emit(PaneGroupFocusEvent::FocusedPaneMaximizedChanged);
     }
 
     /// Test-only method to set the in_split_pane state.
-    #[cfg(test)]
     pub fn set_in_split_pane_for_test(
         &mut self,
         in_split_pane: bool,

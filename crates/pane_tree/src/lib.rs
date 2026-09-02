@@ -9,7 +9,18 @@
 //! 稳定性 / Ord 全序(HashMap/排序依赖)。
 
 pub mod snapshot;
+pub mod tree;
 pub use snapshot::{BranchSnapshot, LeafSnapshot, PaneFlex, PaneNodeSnapshot, SplitDirection};
+pub use tree::{
+    Direction, Divider, FindPaneByDirection, FindPaneByDirectionResult, HiddenPane,
+    HiddenPaneReason, PaneBranch, PaneData, PaneNode,
+};
+pub mod focus_state;
+pub mod header_content;
+pub use focus_state::{
+    PaneFocusHandle, PaneGroupFocusEvent, PaneGroupFocusState, PaneState, SplitPaneState,
+};
+pub use header_content::{HeaderContent, HeaderRenderContext, StandardHeader, StandardHeaderOptions};
 
 use std::fmt::Display;
 

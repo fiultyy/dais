@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use warp_editor::content::text::BufferBlockItem;
 use warpui::{
     elements::{
@@ -30,11 +29,7 @@ use super::{
 const BLOCK_INSERT_BUTTON_ID: &str = "notebook_block_insertion_button";
 
 /// Where the block insertion menu was triggered from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BlockInsertionSource {
-    AtCursor,
-    BlockInsertionButton,
-}
+pub use notebooks_model::BlockInsertionSource;
 
 /// Editor view state related to the block insertion menu.
 pub struct BlockInsertionMenuState {

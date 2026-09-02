@@ -3866,6 +3866,7 @@ dependencies = [
  "natural_language_detection",
  "nav",
  "nix 0.26.4",
+ "notebooks_model",
  "notify-debouncer-full",
  "num-traits",
  "num_cpus",
@@ -8906,6 +8907,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0676bb32a98c1a483ce53e500a81ad9c3d5b3f7c920c28c24e9cb0980d0b5bc8"
 
 [[package]]
+name = "notebooks_model"
+version = "0.1.0"
+dependencies = [
+ "objects",
+ "serde",
+ "warpui",
+ "workflows_ui",
+]
+
+[[package]]
 name = "notify"
 version = "8.0.0"
 source = "git+https://github.com/warpdotdev/notify?rev=f3afcda3058941e17e09689afea40e2a2db057e0#f3afcda3058941e17e09689afea40e2a2db057e0"
@@ -9916,8 +9927,11 @@ dependencies = [
 name = "pane_tree"
 version = "0.1.0"
 dependencies = [
+ "log",
+ "pathfinder_geometry",
  "serde",
  "serde_json",
+ "warp_core",
  "warpui",
 ]
 
@@ -12573,6 +12587,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sftp_manager_ui"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "dais_sftp",
+ "dirs 6.0.0",
+ "dunce",
+ "warp_ssh_manager",
+]
+
+[[package]]
 name = "sha-1"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12988,6 +13013,19 @@ dependencies = [
  "libc",
  "libssh2-sys",
  "parking_lot",
+]
+
+[[package]]
+name = "ssh_manager_ui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "lazy_static",
+ "log",
+ "regex",
+ "warp_ssh_manager",
+ "warpui",
+ "zeroize",
 ]
 
 [[package]]

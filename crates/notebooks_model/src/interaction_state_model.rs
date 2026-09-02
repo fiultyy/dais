@@ -1,6 +1,6 @@
 use warpui::{Entity, ModelContext};
 
-use crate::editor::InteractionState;
+use crate::InteractionState;
 
 pub struct InteractionStateModel {
     state: InteractionState,

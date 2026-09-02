@@ -7,7 +7,7 @@ pub mod link;
 pub mod manager;
 pub mod notebook;
 mod styles;
-pub mod telemetry;
+pub use notebooks_model::telemetry;
 
 use objects::UpsertEvent;
 use crate::objects_display::WarpDriveItemOverrides;

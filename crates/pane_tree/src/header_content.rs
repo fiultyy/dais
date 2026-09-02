@@ -35,7 +35,7 @@ pub struct HeaderRenderContext<'a> {
     /// overlap with a floating button overlay (e.g. the vertical tabs toggle).
     pub header_left_inset: f32,
     /// Closure that renders the sharing controls. Use [`Self::sharing_controls`] to call this.
-    pub(super) render_sharing_controls_fn: RenderSharingControlsFn<'a>,
+    pub render_sharing_controls_fn: RenderSharingControlsFn<'a>,
 }
 
 impl HeaderRenderContext<'_> {

@@ -131,6 +131,7 @@ pathfinder_geometry.workspace = true
 env_vars_ui.workspace = true
 objects.workspace = true
 drive_ui.workspace = true
+notebooks_model.workspace = true
 workflows_ui.workspace = true
 
 persistence.workspace = true

@@ -140,7 +140,7 @@ use crate::workspace::{
 };
 
 pub mod pane_content_factory;
-pub mod focus_state;
+pub use pane_tree::focus_state;
 pub mod pane;
 pub mod tree;
 pub mod working_directories;
@@ -166,6 +166,9 @@ pub use pane::{
     AnyPaneContent, BackingView, PaneConfiguration, PaneConfigurationEvent, PaneContent, PaneEvent,
     PaneId, PaneView, TerminalPaneId,
 };
+// 树类型真身已下沉 pane_tree::tree (v2), 此处透传 re-export 保持
+// crate::pane_group::* 兼容; DraggedBorder 虽仍在 mod.rs 本体, 一并列入
+// pane_group 公共面。
 pub use tree::{Direction, PaneData, PaneFlex, PaneNode, SplitDirection};
 pub use working_directories::{WorkingDirectoriesEvent, WorkingDirectoriesModel};
 
@@ -826,21 +829,7 @@ pub struct PaneGroup {
     custom_title: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum PaneState {
-    /// This pane is currently focused.
-    Focused,
-    /// This pane is not focused.
-    Unfocused,
-    // In split pane with one pane maximized.
-    Maximized,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum SplitPaneState {
-    InSplitPane(PaneState),
-    NotInSplitPane,
-}
+pub use pane_tree::{PaneState, SplitPaneState};
 
 // Helper to group together certain structs necessary to instantiate a new terminal view.
 #[derive(Clone)]
@@ -849,40 +838,6 @@ pub struct TerminalViewResources {
     pub model_event_sender: Option<SyncSender<ModelEvent>>,
 }
 
-impl SplitPaneState {
-    pub fn is_in_split_pane(&self) -> bool {
-        match self {
-            SplitPaneState::InSplitPane(_) => true,
-            SplitPaneState::NotInSplitPane => false,
-        }
-    }
-
-    /// Is the focused pane.
-    pub fn is_focused(&self) -> bool {
-        match self {
-            SplitPaneState::InSplitPane(state) => match state {
-                PaneState::Focused | PaneState::Maximized => true,
-                PaneState::Unfocused => false,
-            },
-            SplitPaneState::NotInSplitPane => true,
-        }
-    }
-
-    /// Is in split pane and is the focused pane.
-    pub fn is_focused_pane(&self) -> bool {
-        match self {
-            SplitPaneState::InSplitPane(state) => match state {
-                PaneState::Focused | PaneState::Maximized => true,
-                PaneState::Unfocused => false,
-            },
-            SplitPaneState::NotInSplitPane => false,
-        }
-    }
-
-    pub fn is_maximized(&self) -> bool {
-        matches!(self, SplitPaneState::InSplitPane(PaneState::Maximized))
-    }
-}
 
 /// Helper for reconstructing focus state when restoring a pane tree.
 /// Focus/active state is stored per-leaf, and must be bubbled up the tree.
