@@ -8,7 +8,11 @@ pub mod editor_state;
 pub(crate) mod find_model;
 pub(crate) mod git_dialog;
 pub mod git_status_update;
-mod hidden_lines;
+// R6 路径兼容 shim:calculate_hidden_lines 已下沉 crates/code_review_model,
+// 保持 `crate::code_review::hidden_lines` 旧路径不变。
+mod hidden_lines {
+    pub use code_review_model::hidden_lines::*;
+}
 pub mod telemetry_event;
 #[cfg_attr(not(feature = "local_fs"), allow(unused_imports))]
 pub use telemetry_event::CodeReviewTelemetryEvent;
