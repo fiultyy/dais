@@ -22,6 +22,7 @@ default-members = [
   "crates/warp_util",
 ]
 
+
 [workspace.package]
 authors = ["Warp Team <dev@warp.dev>"]
 license = "AGPL-3.0-only"
@@ -35,11 +36,16 @@ asset_cache = { path = "crates/asset_cache" }
 asset_macro = { path = "crates/asset_macro" }
 channel_versions = { path = "crates/channel_versions", default-features = false }
 cockpit_model = { path = "crates/cockpit_model" }
+tantivy = "0.26.0"
 nav = { path = "crates/nav" }
 drive_ui = { path = "crates/drive_ui" }
 notebooks_model = { path = "crates/notebooks_model" }
 ssh_manager_ui = { path = "crates/ssh_manager_ui" }
 sftp_manager_ui = { path = "crates/sftp_manager_ui" }
+code_review_model = { path = "crates/code_review_model" }
+code_model = { path = "crates/code_model" }
+context_chips_ui = { path = "crates/context_chips_ui" }
+search_ui = { path = "crates/search_ui" }
 workflows_ui = { path = "crates/workflows_ui" }
 env_vars_ui = { path = "crates/env_vars_ui" }
 objects = { path = "crates/objects" }
