@@ -1,5 +1,5 @@
-use crate::workspace::view::global_search::view::GlobalSearchEvent;
-use crate::workspace::view::global_search::SearchConfig;
+use super::GlobalSearchEvent;
+use super::SearchConfig;
 use anyhow::Result;
 use futures::StreamExt as _;
 use instant::Instant;
@@ -106,7 +106,7 @@ impl GlobalSearch {
                     log::error!("GlobalSearch: warp_ripgrep CLI search failed or aborted: {err}");
                     ctx.emit(GlobalSearchEvent::Failed {
                         search_id,
-                        error: crate::t!("global-search-failed"),
+                        error: i18n::t!("global-search-failed"),
                     });
                 }
             },

@@ -58,3 +58,9 @@ pub mod files;
 pub mod searcher;
 pub mod slash_command_menu;
 pub mod workflows;
+
+/// P-ARC R8-B: workspace 全局搜索模型(原 app/src/workspace/view/global_search)。
+/// SearchConfig/GlobalSearchEvent 随迁;宿主 mod.rs/view.rs re-export 兼容。
+pub mod global_search;
+
+pub use global_search::{GlobalSearchEvent, SearchConfig};
