@@ -1,4 +1,5 @@
 use super::*;
+use workspace_model::tab_settings::*;
 use crate::test_util::settings::initialize_settings_for_tests;
 use settings::Setting;
 use warpui::{App, SingletonEntity};

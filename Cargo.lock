@@ -4042,6 +4042,7 @@ dependencies = [
  "winit",
  "winreg",
  "workflows_ui",
+ "workspace_model",
  "x11rb",
  "zbus 5.16.0",
  "zeroize",
@@ -16969,6 +16970,25 @@ dependencies = [
  "strum 0.27.2",
  "strum_macros 0.27.2",
  "warp-workflows",
+]
+
+[[package]]
+name = "workspace_model"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "concat-idents",
+ "log",
+ "nav",
+ "pane_tree",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "settings",
+ "settings_value",
+ "warp_core",
+ "warpui",
 ]
 
 [[package]]

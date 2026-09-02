@@ -1,4 +1,4 @@
-pub mod telemetry;
+pub use workspace_model::telemetry;
 
 use crate::ai::agent::conversation::ConversationStatus;
 use crate::code::editor::{add_color, remove_color};

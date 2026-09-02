@@ -14,9 +14,13 @@ mod lightbox_view;
 mod native_modal;
 mod registry;
 pub mod rewind_confirmation_dialog;
-mod regions;
+pub use workspace_model::regions;
 pub mod sync_inputs;
-pub mod tab_settings;
+pub use workspace_model::tab_settings;
+
+#[cfg(test)]
+#[path = "tab_settings_tests.rs"]
+mod tab_settings_tests;
 mod toast_stack;
 pub mod util;
 pub mod view;

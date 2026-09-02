@@ -135,6 +135,7 @@ notebooks_model.workspace = true
 ssh_manager_ui.workspace = true
 sftp_manager_ui.workspace = true
 code_review_model.workspace = true
+workspace_model.workspace = true
 code_model.workspace = true
 context_chips_ui.workspace = true
 search_ui.workspace = true
