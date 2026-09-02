@@ -157,7 +157,7 @@ pub enum DirectoryTabColor {
 }
 
 impl DirectoryTabColor {
-    pub(crate) fn ansi_color(self) -> Option<AnsiColorIdentifier> {
+    pub fn ansi_color(self) -> Option<AnsiColorIdentifier> {
         match self {
             DirectoryTabColor::Color(c) => Some(c),
             DirectoryTabColor::Suppressed | DirectoryTabColor::Unassigned => None,
@@ -185,7 +185,7 @@ impl DirectoryTabColor {
     settings_value::SettingsValue,
 )]
 #[schemars(description = "Mapping of directory paths to their tab color assignments.")]
-pub struct DirectoryTabColors(pub(crate) HashMap<String, DirectoryTabColor>);
+pub struct DirectoryTabColors(pub HashMap<String, DirectoryTabColor>);
 
 settings::macros::implement_setting_for_enum!(
     DirectoryTabColors,
@@ -248,22 +248,22 @@ pub enum HeaderToolbarChipSelection {
     #[default]
     Default,
     Custom {
-        left: Vec<super::header_toolbar_item::HeaderToolbarItemKind>,
-        right: Vec<super::header_toolbar_item::HeaderToolbarItemKind>,
+        left: Vec<nav::panel_api::HeaderToolbarItemKind>,
+        right: Vec<nav::panel_api::HeaderToolbarItemKind>,
     },
 }
 
 impl HeaderToolbarChipSelection {
-    pub fn left_items(&self) -> Vec<super::header_toolbar_item::HeaderToolbarItemKind> {
-        use super::header_toolbar_item::HeaderToolbarItemKind;
+    pub fn left_items(&self) -> Vec<nav::panel_api::HeaderToolbarItemKind> {
+        use nav::panel_api::HeaderToolbarItemKind;
         match self {
             Self::Default => HeaderToolbarItemKind::default_left(),
             Self::Custom { left, .. } => left.clone(),
         }
     }
 
-    pub fn right_items(&self) -> Vec<super::header_toolbar_item::HeaderToolbarItemKind> {
-        use super::header_toolbar_item::HeaderToolbarItemKind;
+    pub fn right_items(&self) -> Vec<nav::panel_api::HeaderToolbarItemKind> {
+        use nav::panel_api::HeaderToolbarItemKind;
         match self {
             Self::Default => HeaderToolbarItemKind::default_right(),
             Self::Custom { right, .. } => right.clone(),
@@ -563,7 +563,3 @@ define_settings_group!(TabSettings, settings: [
     close_button_position: TabCloseButtonPosition,
     directory_tab_colors: DirectoryTabColors,
 ]);
-
-#[cfg(test)]
-#[path = "tab_settings_tests.rs"]
-mod tests;

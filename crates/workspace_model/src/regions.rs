@@ -10,15 +10,15 @@
 
 use std::collections::BTreeSet;
 
-use crate::pane_group::SplitDirection;
+use pane_tree::SplitDirection;
 
-pub(crate) type RegionId = u64;
+pub type RegionId = u64;
 
 /// First region id; every workspace starts with exactly this region.
-pub(crate) const ROOT_REGION_ID: RegionId = 0;
+pub const ROOT_REGION_ID: RegionId = 0;
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) enum RegionNode {
+pub enum RegionNode {
     Leaf(RegionId),
     Branch {
         axis: SplitDirection,
@@ -27,7 +27,7 @@ pub(crate) enum RegionNode {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct RegionChild {
+pub struct RegionChild {
     pub flex: f32,
     pub node: RegionNode,
 }
@@ -42,11 +42,11 @@ impl RegionChild {
 }
 
 impl RegionNode {
-    pub(crate) fn root() -> Self {
+    pub fn root() -> Self {
         Self::Leaf(ROOT_REGION_ID)
     }
 
-    pub(crate) fn collect_region_ids(&self, out: &mut BTreeSet<RegionId>) {
+    pub fn collect_region_ids(&self, out: &mut BTreeSet<RegionId>) {
         match self {
             Self::Leaf(id) => {
                 out.insert(*id);
@@ -59,7 +59,7 @@ impl RegionNode {
         }
     }
 
-    pub(crate) fn contains(&self, id: RegionId) -> bool {
+    pub fn contains(&self, id: RegionId) -> bool {
         match self {
             Self::Leaf(leaf_id) => *leaf_id == id,
             Self::Branch { children, .. } => children.iter().any(|c| c.node.contains(id)),
@@ -67,7 +67,7 @@ impl RegionNode {
     }
 
     /// Any leaf id, used as a fallback when a lookup target is gone.
-    pub(crate) fn first_leaf(&self) -> RegionId {
+    pub fn first_leaf(&self) -> RegionId {
         match self {
             Self::Leaf(id) => *id,
             Self::Branch { children, .. } => children
@@ -80,7 +80,7 @@ impl RegionNode {
     /// Replaces `Leaf(target)` with `Branch { axis, [target, new_id] }` (or
     /// `[new_id, target]` when `new_first`), each child at half the original
     /// flex. Returns `false` when `target` is not a leaf of this tree.
-    pub(crate) fn split_leaf(
+    pub fn split_leaf(
         &mut self,
         target: RegionId,
         axis: SplitDirection,
@@ -99,10 +99,7 @@ impl RegionNode {
                 };
                 *self = Self::Branch {
                     axis,
-                    children: vec![
-                        RegionChild::leaf(1., first),
-                        RegionChild::leaf(1., second),
-                    ],
+                    children: vec![RegionChild::leaf(1., first), RegionChild::leaf(1., second)],
                 };
                 true
             }
@@ -138,12 +135,13 @@ impl RegionNode {
     /// `false` when the tree does not contain the leaf. Removing the last
     /// region of the tree is rejected — the content area always keeps at
     /// least one region.
-    pub(crate) fn remove_leaf(&mut self, target: RegionId) -> bool {
+    pub fn remove_leaf(&mut self, target: RegionId) -> bool {
         match self {
             Self::Leaf(id) => *id != ROOT_REGION_ID && *id == target,
             Self::Branch { children, .. } => {
                 let before = children.len();
-                children.retain(|child| !matches!(child.node, RegionNode::Leaf(id) if id == target));
+                children
+                    .retain(|child| !matches!(child.node, RegionNode::Leaf(id) if id == target));
                 if children.len() != before {
                     Self::collapse_if_needed(self);
                     return true;
@@ -185,10 +183,7 @@ mod tests {
             tree,
             RegionNode::Branch {
                 axis: SplitDirection::Horizontal,
-                children: vec![
-                    RegionChild::leaf(1., 0),
-                    RegionChild::leaf(1., 1),
-                ]
+                children: vec![RegionChild::leaf(1., 0), RegionChild::leaf(1., 1),]
             }
         );
     }

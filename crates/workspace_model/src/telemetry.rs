@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-use crate::workspace::tab_settings::{
+use crate::tab_settings::{
     VerticalTabsCompactSubtitle, VerticalTabsDisplayGranularity, VerticalTabsPrimaryInfo,
     VerticalTabsTabItemMode, VerticalTabsViewMode,
 };

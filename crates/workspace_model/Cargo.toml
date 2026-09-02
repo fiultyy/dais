@@ -1,0 +1,21 @@
+[package]
+name = "workspace_model"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono.workspace = true
+serde.workspace = true
+settings.workspace = true
+serde_json.workspace = true
+pane_tree.workspace = true
+warpui.workspace = true
+anyhow.workspace = true
+concat-idents.workspace = true
+log.workspace = true
+settings_value.workspace = true
+schemars.workspace = true
+nav.workspace = true
+warp_core.workspace = true
