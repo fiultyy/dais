@@ -132,10 +132,73 @@ fn initialize_deps(app: &mut App) {
     crate::i18n::init(Some("en"));
     crate::i18n::set_locale("en");
 
+    // Shell 高亮 span 生成点(NotebookCommand::highlight_syntax)经
+    // SessionAgnosticContext 从 CommandRegistry::global_instance() 取命令签名:
+    // 产品运行时由插件宿主注册,单测进程无人注册(v2 注册表初始为空),token
+    // 拿不到 description → 不生成 <c_#…> 颜色 span。这里向同一注册表幂等注册
+    // 测试用命令,使链路与产品一致;断言色值(#b4fa72 等)即 Appearance::mock()
+    // 的 mock_terminal_colors。
+    initialize_command_signatures_for_tests();
+
     app.add_singleton_model(|_| Appearance::mock());
     app.add_singleton_model(|ctx| UserWorkspaces::mock(vec![], ctx));
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
     initialize_settings_for_tests(app);
+}
+
+/// 向全局命令注册表幂等注册本文件断言涉及的命令签名(git/cargo/echo/code/command)。
+/// 注册表为进程级共享且 `register_signature` 只做增量插入,并行测试下安全;
+/// `Once` 保证重复调用无副作用。
+fn initialize_command_signatures_for_tests() {
+    use std::sync::Once;
+    use warp_completer::signatures::{Command, CommandRegistry, CommandSignature, Opt};
+
+    fn simple_command(name: &str) -> CommandSignature {
+        CommandSignature {
+            command: Command {
+                name: name.to_owned(),
+                description: Some(name.to_owned()),
+                ..Default::default()
+            },
+        }
+    }
+
+    fn command_with_subcommand(
+        name: &str,
+        subcommand: &str,
+        subcommand_options: Vec<Opt>,
+    ) -> CommandSignature {
+        CommandSignature {
+            command: Command {
+                name: name.to_owned(),
+                description: Some(name.to_owned()),
+                subcommands: vec![Command {
+                    name: subcommand.to_owned(),
+                    description: Some(subcommand.to_owned()),
+                    options: subcommand_options,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        }
+    }
+
+    static REGISTER: Once = Once::new();
+    REGISTER.call_once(|| {
+        let registry = CommandRegistry::global_instance();
+        registry.register_signature(simple_command("echo"));
+        registry.register_signature(simple_command("code"));
+        registry.register_signature(simple_command("command"));
+        registry.register_signature(command_with_subcommand(
+            "git",
+            "checkout",
+            vec![Opt {
+                name: vec!["-b".to_owned()],
+                ..Default::default()
+            }],
+        ));
+        registry.register_signature(command_with_subcommand("cargo", "run", vec![]));
+    });
 }
 
 /// Get the handle for each nested editor model.
