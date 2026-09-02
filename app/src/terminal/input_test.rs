@@ -105,6 +105,15 @@ use crate::{
 };
 
 pub fn initialize_app(app: &mut App) {
+    // R9 测试装配: completions_v2 下 SessionContext::new 需要 PluginHost 单例
+    // (IPC 惰性连接,无插件进程时补全走内建路径);i18n init 使 t! 断言拿到
+    // 真实文案(幂等,同 notebooks/editor 先例)。
+    crate::i18n::init(Some("en"));
+    crate::i18n::set_locale("en");
+    crate::test_util::initialize_command_signatures_for_tests();
+    app.add_singleton_model(|ctx| {
+        crate::plugin::PluginHost::new(ctx).expect("PluginHost IPC server should start in tests")
+    });
     initialize_settings_for_tests(app);
 
     // Make sure we set up all necessary custom action bindings.
@@ -342,10 +351,15 @@ pub async fn add_window_with_bootstrapped_terminal_and_window_id(
         .expect("Could not create a shell starter source");
     let shell_type = shell_starter_source.shell_type();
 
-    let session_info = session_info
-        .unwrap_or_else(SessionInfo::new_for_test)
-        .with_session_type(BootstrapSessionType::Local)
-        .with_shell_type(shell_type);
+    // R9 修复: 调用方显式传入 session_info 时, 其 shell_type/options 不被
+    // 环境默认覆写(histignorespace 测试的 Zsh 曾被覆写为 Bash);
+    // 仅在未提供时应用环境 shell_type。
+    let session_info = match session_info {
+        Some(info) => info.with_session_type(BootstrapSessionType::Local),
+        None => SessionInfo::new_for_test()
+            .with_session_type(BootstrapSessionType::Local)
+            .with_shell_type(shell_type),
+    };
     let history_file_commands = history_file_commands.unwrap_or_default();
 
     let (window_id, terminal) = app.add_window(WindowStyle::NotStealFocus, move |ctx| {
