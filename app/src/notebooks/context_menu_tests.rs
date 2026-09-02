@@ -26,6 +26,12 @@ use crate::{
 };
 
 fn initialize_app(app: &mut App) {
+    // 断言 t! 产出的 Cut/Copy/Paste/Split pane 文案:单测进程不走 lib.rs 启动链,
+    // i18n 未 init 时 t!() 返回 key 原文;且并行测试可能热切换全局 locale,
+    // 故每次强制 en(同 test_util/terminal.rs initialize_app_for_terminal_view 惯例)。
+    crate::i18n::init(Some("en"));
+    crate::i18n::set_locale("en");
+
     initialize_settings_for_tests(app);
 
     let global_resources = GlobalResourceHandles::mock(app);

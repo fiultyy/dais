@@ -126,6 +126,12 @@ fn model_from_markdown(
 }
 
 fn initialize_deps(app: &mut App) {
+    // 命令高亮/描述链路经 t!() 取文案:单测进程不走 lib.rs 启动链,i18n 未 init
+    // 时 t!() 返回 key 原文,<c_#…> 高亮断言拿不到真实结果;且并行测试可能热切换
+    // 全局 locale,故每次强制 en(同 test_util/terminal.rs 惯例,init 幂等)。
+    crate::i18n::init(Some("en"));
+    crate::i18n::set_locale("en");
+
     app.add_singleton_model(|_| Appearance::mock());
     app.add_singleton_model(|ctx| UserWorkspaces::mock(vec![], ctx));
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
