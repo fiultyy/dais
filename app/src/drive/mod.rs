@@ -7,74 +7,16 @@ pub mod settings;
 pub mod sharing;
 pub mod workflows;
 
-use std::{cmp::Ordering, fmt};
-
+use std::cmp::Ordering;
 use serde::{Deserialize, Serialize};
 use warp_core::user_preferences::GetUserPreferences as _;
 use warpui::AppContext;
 
-use crate::{
-    ui_components::icons::Icon,
-    workflows::WorkflowObject,
-};
+use crate::workflows::WorkflowObject;
 use crate::objects::{GenericStringObjectFormat, ObjectIdType, ObjectType, StoredObject, ids::{HashedSqliteId, ObjectUid, ServerId, SyncId}};
 use crate::objects::model::view::{ObjectStoreViewModel, UpdateTimestamp};
 
 type SortByComparator<'a> = dyn FnMut(&&dyn StoredObject, &&dyn StoredObject) -> Ordering + 'a;
-
-#[derive(Copy, Clone, Debug)]
-pub enum DriveObjectType {
-    Workflow,
-    AgentModeWorkflow,
-    AIFact,
-    AIFactCollection,
-    Notebook {
-        /// Whether the notebook was created as an AI Document (plan)
-        is_ai_document: bool,
-    },
-    Folder,
-    EnvVarCollection,
-    MCPServer,
-    MCPServerCollection,
-}
-
-impl From<DriveObjectType> for Icon {
-    fn from(objects_type: DriveObjectType) -> Icon {
-        match objects_type {
-            DriveObjectType::Workflow => Icon::Workflow,
-            DriveObjectType::AgentModeWorkflow => Icon::Prompt,
-            DriveObjectType::AIFact => Icon::BookOpen,
-            DriveObjectType::AIFactCollection => Icon::BookOpen,
-            DriveObjectType::Notebook { is_ai_document } => {
-                if is_ai_document {
-                    Icon::Compass
-                } else {
-                    Icon::Notebook
-                }
-            }
-            DriveObjectType::Folder => Icon::Folder,
-            DriveObjectType::EnvVarCollection => Icon::EnvVarCollection,
-            DriveObjectType::MCPServer => Icon::Dataflow,
-            DriveObjectType::MCPServerCollection => Icon::Dataflow,
-        }
-    }
-}
-
-impl fmt::Display for DriveObjectType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DriveObjectType::Notebook { .. } => write!(f, "notebook"),
-            DriveObjectType::Workflow => write!(f, "workflow"),
-            DriveObjectType::Folder => write!(f, "folder"),
-            DriveObjectType::EnvVarCollection => write!(f, "env var collection"),
-            DriveObjectType::AgentModeWorkflow => write!(f, "prompt"),
-            DriveObjectType::AIFact => write!(f, "ai fact"),
-            DriveObjectType::AIFactCollection => write!(f, "ai fact collection"),
-            DriveObjectType::MCPServer => write!(f, "mcp server"),
-            DriveObjectType::MCPServerCollection => write!(f, "mcp server collection"),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct DaisDriveObjectSettings {
@@ -92,6 +34,7 @@ pub struct DaisDriveObjectArgs {
 }
 
 pub use objects::ObjectTypeAndId;
+pub use drive_ui::DriveObjectType;
 
 pub fn should_auto_open_welcome_folder(app: &mut AppContext) -> bool {
     app.private_user_preferences()

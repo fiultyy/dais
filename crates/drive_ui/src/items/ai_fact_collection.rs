@@ -1,20 +1,18 @@
+use warp_core::ui::appearance::Appearance;
+use warp_core::ui::theme::Fill;
 use warpui::{elements::MouseStateHandle, AppContext, Element};
 
-use crate::{
-    appearance::Appearance,
-    drive::DriveObjectType,
-    themes::theme::Fill,
-};
 use objects::{StoredObjectMetadata, ids::ClientId};
 
 use super::{WarpDriveItem, WarpDriveItemId};
+use crate::DriveObjectType;
 
 #[derive(Clone)]
-pub struct WarpDriveMCPServerCollection {
+pub struct WarpDriveAIFactCollection {
     id: ClientId,
 }
 
-impl WarpDriveMCPServerCollection {
+impl WarpDriveAIFactCollection {
     pub fn new(id: ClientId) -> Self {
         Self { id }
     }
@@ -24,9 +22,9 @@ impl WarpDriveMCPServerCollection {
     }
 }
 
-impl WarpDriveItem for WarpDriveMCPServerCollection {
+impl WarpDriveItem for WarpDriveAIFactCollection {
     fn display_name(&self) -> Option<String> {
-        Some("MCP Servers".to_string())
+        Some(i18n::t!("rules-collection-name"))
     }
 
     fn metadata(&self) -> Option<&StoredObjectMetadata> {
@@ -34,7 +32,7 @@ impl WarpDriveItem for WarpDriveMCPServerCollection {
     }
 
     fn object_type(&self) -> Option<DriveObjectType> {
-        Some(DriveObjectType::MCPServerCollection)
+        Some(DriveObjectType::AIFactCollection)
     }
 
     fn secondary_icon(&self, _color: Option<Fill>) -> Option<Box<dyn Element>> {
@@ -47,7 +45,7 @@ impl WarpDriveItem for WarpDriveMCPServerCollection {
     }
 
     fn warp_drive_id(&self) -> WarpDriveItemId {
-        WarpDriveItemId::MCPServerCollection
+        WarpDriveItemId::AIFactCollection
     }
 
     fn sync_status_icon(

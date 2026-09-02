@@ -1,0 +1,75 @@
+use warp_core::ui::appearance::Appearance;
+use warp_core::ui::icons::Icon;
+use warp_core::ui::theme::Fill;
+use warpui::{elements::MouseStateHandle, AppContext, Element};
+
+use objects::{ObjectTypeAndId, Space, StoredObjectMetadata};
+
+use crate::drive_object_type::DriveObjectType;
+use crate::objects_styling::warp_drive_icon_color;
+
+pub mod ai_fact_collection;
+pub mod env_var_collection;
+pub mod mcp_server_collection;
+pub mod space;
+
+pub trait WarpDriveItem {
+    /// The display name of the item. If the item is unnamed, this may return `None` - implementations
+    /// should prefer this over `Some("")`, as it lets the index view use alternate styling.
+    fn display_name(&self) -> Option<String>;
+    fn metadata(&self) -> Option<&StoredObjectMetadata>;
+    fn object_type(&self) -> Option<DriveObjectType>;
+    fn secondary_icon(&self, color: Option<Fill>) -> Option<Box<dyn Element>>; // The optional icon to the right of the name
+    fn preview(&self, appearance: &Appearance) -> Option<Box<dyn Element>>;
+    fn warp_drive_id(&self) -> WarpDriveItemId;
+    fn sync_status_icon(
+        &self,
+        sync_queue_is_dequeueing: bool,
+        hover_state: MouseStateHandle,
+        appearance: &Appearance,
+    ) -> Option<Box<dyn Element>>;
+
+    fn icon(&self, appearance: &Appearance, color: Option<Fill>) -> Option<Box<dyn Element>> {
+        let object_type = self.object_type()?;
+        let icon_fill = color.unwrap_or(warp_drive_icon_color(appearance, object_type).into());
+        Some(Icon::from(object_type).to_warpui_icon(icon_fill).finish())
+    }
+
+    /// If implemented, returns a string that summarizes the primary action history. For example, "Run 2 times in the last week"
+    fn action_summary(&self, app: &AppContext) -> Option<String>;
+
+    /// Returns Some(true) if this is an open folder, Some(false) if closed folder, None if not a folder
+    fn is_folder_open(&self) -> Option<bool> {
+        None
+    }
+
+    fn clone_box(&self) -> Box<dyn WarpDriveItem>;
+}
+
+impl WarpDriveItemId {
+    pub fn drive_row_position_id(&self) -> String {
+        match self {
+            Self::AIFactCollection => "AI_fact_collection".to_string(),
+            Self::MCPServerCollection => "MCP_server_collection".to_string(),
+            Self::Object(object_id) => object_id.drive_row_position_id(),
+            Self::Space(_) => "Space".to_string(),
+            Self::Trash => "Trash".to_string(),
+        }
+    }
+}
+/// This uniquely identifies an item in Dais Drive index
+/// Includes spaces (which ObjectTypeAndId does not entail)
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub enum WarpDriveItemId {
+    AIFactCollection,
+    MCPServerCollection,
+    Object(ObjectTypeAndId),
+    Space(Space),
+    Trash,
+}
+
+impl Clone for Box<dyn WarpDriveItem> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}

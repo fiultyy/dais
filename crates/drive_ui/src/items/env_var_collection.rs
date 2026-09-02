@@ -1,4 +1,6 @@
 use itertools::Itertools;
+use warp_core::ui::appearance::Appearance;
+use warp_core::ui::theme::Fill;
 use warpui::{
     elements::{Clipped, Container, Flex, MouseStateHandle, ParentElement},
     fonts::Weight,
@@ -6,15 +8,11 @@ use warpui::{
     AppContext, Element, SingletonEntity,
 };
 
-use crate::{
-    appearance::Appearance,
-    drive::{DriveObjectType, ObjectTypeAndId},
-    env_vars::{EnvVarCollectionObject, EnvVarValue},
-    themes::theme::Fill,
-};
-use objects::{StoredObjectMetadata, model::actions::{ObjectActionType, ObjectActions}};
+use env_vars_ui::{EnvVarCollectionObject, EnvVarValue};
+use objects::{ObjectTypeAndId, StoredObjectMetadata, model::actions::{ObjectActionType, ObjectActions}};
 
 use super::{WarpDriveItem, WarpDriveItemId};
+use crate::DriveObjectType;
 
 #[derive(Clone)]
 pub struct WarpDriveEnvVarCollection {

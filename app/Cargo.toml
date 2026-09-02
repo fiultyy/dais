@@ -130,6 +130,8 @@ pathfinder_color = "0.5.0"
 pathfinder_geometry.workspace = true
 env_vars_ui.workspace = true
 objects.workspace = true
+drive_ui.workspace = true
+
 persistence.workspace = true
 pin-project.workspace = true
 plist = "1"
