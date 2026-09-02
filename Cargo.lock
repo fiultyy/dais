@@ -15134,6 +15134,7 @@ dependencies = [
  "warp_cli",
  "warp_completer",
  "warp_core",
+ "warp_features",
  "warp_js",
  "warp_util",
  "warpui",
