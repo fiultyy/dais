@@ -7,14 +7,11 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    objects::{
-        model::actions::{ObjectActionType, ObjectActions},
-        StoredObjectMetadata,
-    },
     drive::{DriveObjectType, ObjectTypeAndId},
     themes::theme::Fill,
     workflows::WorkflowObject,
 };
+use objects::{StoredObjectMetadata, model::actions::{ObjectActionType, ObjectActions}};
 
 use super::{WarpDriveItem, WarpDriveItemId};
 

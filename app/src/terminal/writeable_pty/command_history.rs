@@ -7,7 +7,10 @@ use warpui::{AppContext, ModelHandle, SingletonEntity};
 use crate::persistence::StartedCommandMetadata;
 use crate::terminal::{view::ExecuteCommandEvent, TerminalModel};
 use crate::terminal::{History, HistoryEntry};
-use crate::{persistence::ModelEvent, terminal::model::session::Sessions};
+use crate::{
+    persistence::ModelEvent,
+    terminal::model::session::Sessions,
+};
 
 pub fn update_command_history(
     event: &ExecuteCommandEvent,

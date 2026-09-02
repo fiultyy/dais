@@ -1,3 +1,4 @@
+use crate::objects_display::StoredObjectHostExt;
 use anyhow::Context;
 use async_channel::Sender;
 use futures_util::stream::AbortHandle;
@@ -35,53 +36,20 @@ use warpui::{
 };
 
 use crate::{
-    ai::{
-        blocklist::secret_redaction::find_secrets_in_text,
-        document::ai_document_model::AIDocumentId,
-    },
+    ai::{ blocklist::secret_redaction::find_secrets_in_text, document::ai_document_model::AIDocumentId, },
     appearance::Appearance,
-    objects::{
-        model::{
-            persistence::{ObjectStoreEvent, ObjectStoreModel, UpdateSource},
-            view::EditorState,
-        },
-        object_store::ObjectStore,
-        ObjectType, Owner, Space, StoredObject, StoredObjectEventEntrypoint,
-    },
     cmd_or_ctrl_shift,
-    drive::{
-        drive_helpers::has_feature_gated_anonymous_user_reached_notebook_limit,
-        export::ExportManager, items::WarpDriveItemId, ObjectTypeAndId,
-        DaisDriveObjectSettings,
-    },
-    editor::{
-        EditOrigin, EditorView, Event as EditorEvent, InteractionState,
-        PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextColors, TextOptions,
-    },
+    drive::{ drive_helpers::has_feature_gated_anonymous_user_reached_notebook_limit, export::ExportManager, items::WarpDriveItemId, ObjectTypeAndId, DaisDriveObjectSettings, },
+    editor::{ EditOrigin, EditorView, Event as EditorEvent, InteractionState, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextColors, TextOptions, },
     features::FeatureFlag,
     menu::{MenuItem, MenuItemFields},
-    notebooks::{
-        editor::{model::NotebooksEditorModel, rich_text_styles},
-        NotebookObject,
-    },
-    pane_group::{
-        focus_state::{PaneFocusHandle, PaneGroupFocusEvent},
-        pane::view,
-        BackingView, PaneConfiguration, PaneEvent,
-    },
-    report_if_error, safe_info, send_telemetry_from_ctx,
-    server::{
-        ids::{ClientId, SyncId},
-        telemetry::{
-            NotebookActionEvent, NotebookTelemetryMetadata, ObjectTelemetryMetadata,
-            TelemetryEvent, TelemetryObjectType,
-        },
-    },
-    settings::{
-        app_installation_detection::{UserAppInstallDetectionSettings, UserAppInstallStatus},
-        decrease_notebook_font_size, increase_notebook_font_size, FontSettings,
-        FontSettingsChangedEvent, NotebookFontSize,
-    },
+    notebooks::{ editor::{model::NotebooksEditorModel, rich_text_styles}, NotebookObject, },
+    pane_group::{ focus_state::{PaneFocusHandle, PaneGroupFocusEvent}, pane::view, BackingView, PaneConfiguration, PaneEvent, },
+    report_if_error,
+    safe_info,
+    send_telemetry_from_ctx,
+    server::{telemetry::{ NotebookActionEvent, NotebookTelemetryMetadata, ObjectTelemetryMetadata, TelemetryEvent, TelemetryObjectType, }},
+    settings::{ app_installation_detection::{UserAppInstallDetectionSettings, UserAppInstallStatus}, decrease_notebook_font_size, increase_notebook_font_size, FontSettings, FontSettingsChangedEvent, NotebookFontSize, },
     terminal::safe_mode_settings::get_secret_obfuscation_mode,
     throttle::throttle,
     ui_components::icons::{self, Icon},
@@ -91,6 +59,7 @@ use crate::{
     workspace::ToastStack,
     workspaces::user_workspaces::UserWorkspaces,
 };
+use crate::objects::{ObjectType, Owner, Space, StoredObject, StoredObjectEventEntrypoint, ids::{ClientId, SyncId}, model::{persistence::{ObjectStoreEvent, ObjectStoreModel, UpdateSource}, view::EditorState}, object_store::ObjectStore};
 
 use self::details_bar::DetailsBar;
 
@@ -1261,7 +1230,7 @@ impl NotebookView {
         let id = self.notebook_id(ctx)?;
 
         if let Some(notebook) = ObjectStoreModel::as_ref(ctx).get_notebook(&id) {
-            return notebook.object_link();
+            return Some(crate::objects_display::object_link());
         }
 
         None

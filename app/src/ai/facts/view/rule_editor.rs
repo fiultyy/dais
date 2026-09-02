@@ -1,11 +1,11 @@
-use crate::objects::model::generic_string_model::GenericStringObjectId;
+use objects::GenericStringObjectId;
 use crate::objects::model::persistence::ObjectStoreModel;
-use crate::objects::{Revision, StoredObject};
+use objects::{Revision, StoredObject};
 use crate::editor::{
     EditorOptions, EditorView, EnterAction, EnterSettings, Event as EditorEvent,
     PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions,
 };
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 use crate::ui_components::buttons::icon_button;
 use crate::view_components::action_button::{ActionButton, DangerSecondaryTheme, PrimaryTheme};
 use warp_core::ui::{appearance::Appearance, theme::color::internal_colors};

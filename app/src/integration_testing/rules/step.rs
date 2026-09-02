@@ -6,11 +6,12 @@ use warpui::{
 
 use crate::{
     ai::facts::{view::AIFactPage, AIMemory},
-    objects::{model::persistence::ObjectStoreModel, object_store::ObjectStore, Space},
     integration_testing::view_getters::workspace_view,
-    server::ids::{ClientId, SyncId},
     workspaces::user_workspaces::UserWorkspaces,
 };
+use objects::{Space, ids::{ClientId, SyncId}};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::object_store::ObjectStore;
 
 /// Create a personal rule and save its sync ID into the step data.
 pub fn create_a_personal_rule(

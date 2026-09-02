@@ -1,6 +1,9 @@
 use warpui::{elements::MouseStateHandle, Element};
 
-use crate::{appearance::Appearance, terminal::view::TerminalAction};
+use crate::{
+    appearance::Appearance,
+    terminal::view::TerminalAction,
+};
 
 use super::{
     render_inline_block_list_banner, InlineBannerButtonState, InlineBannerCloseButton,

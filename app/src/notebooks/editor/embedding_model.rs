@@ -1,3 +1,4 @@
+use crate::objects_display::StoredObjectHostExt;
 use std::{borrow::Cow, mem, ops::Range, sync::Arc};
 
 use string_offset::{ByteOffset, CharOffset};
@@ -19,13 +20,8 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    objects::{model::persistence::ObjectStoreModel, StoredObject},
     completer::SessionAgnosticContext,
-    notebooks::{
-        styles::block_footer_action_button,
-        telemetry::{ActionEntrypoint, BlockInfo},
-    },
-    server::ids::{HashableId, ToServerId},
+    notebooks::{ styles::block_footer_action_button, telemetry::{ActionEntrypoint, BlockInfo}, },
     settings::FontSettings,
     terminal::input::decorations::{parse_current_commands_and_tokens, ParsedTokensSnapshot},
     themes::theme::AnsiColorIdentifier,
@@ -33,6 +29,8 @@ use crate::{
     util::bindings::CustomAction,
     workflows::{WorkflowId, WorkflowObject},
 };
+use objects::{StoredObject, ids::{HashableId, ToServerId}};
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use super::{
     embedded_item::EmbeddedWorkflow,

@@ -1,14 +1,11 @@
 use std::fmt::Debug;
 
+use crate::object_type_and_id::ObjectTypeAndId;
+
 use crate::{
-    appearance::Appearance,
-    objects::{
-        GenericStoredObject, GenericStringObjectFormat, GenericStringObjectUniqueKey, ObjectType,
-        SerializedModel, StoredObject, StoredObjectModel,
-    },
-    drive::{items::WarpDriveItem, ObjectTypeAndId},
-    persistence::ModelEvent,
-    server::ids::{ObjectUid, ServerId, SyncId},
+    GenericStoredObject, GenericStringObjectFormat, GenericStringObjectUniqueKey, ObjectType,
+    SerializedModel, StoredObject, StoredObjectModel, UpsertEvent,
+    ids::{ObjectUid, ServerId, SyncId},
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -60,10 +57,6 @@ pub trait StringModel: Clone + Debug + PartialEq + Send + Sync + 'static {
     /// Returns the display name for this model.
     fn display_name(&self) -> String;
 
-    /// Returns whether to render this model as a WarpDriveItem.
-    fn renders_in_warp_drive(&self) -> bool {
-        false
-    }
 
     /// Returns whether this model can be exported to a file
     fn can_export(&self) -> bool {
@@ -77,17 +70,6 @@ pub trait StringModel: Clone + Debug + PartialEq + Send + Sync + 'static {
 
     /// Sets the display name for this model
     fn set_display_name(&mut self, _name: &str) {}
-
-    /// Creates a new dais drive item for this model type. Returns None
-    /// if this object does not render in Dais Drive.
-    fn to_warp_drive_item(
-        &self,
-        _id: SyncId,
-        _appearance: &Appearance,
-        _object: &Self::StoredObjectType,
-    ) -> Option<Box<dyn WarpDriveItem>> {
-        None
-    }
 
     /// Returns whether this model type should clear on a unique key conflict.
     fn should_clear_on_unique_key_conflict(&self) -> bool {
@@ -187,9 +169,9 @@ where
     fn upsert_event(
         &self,
         object: &GenericStoredObject<GenericStringObjectId, Self>,
-    ) -> ModelEvent {
+    ) -> UpsertEvent {
         let object = object as &dyn StoredStringObject;
-        ModelEvent::UpsertGenericStringObject {
+        UpsertEvent::UpsertGenericStringObject {
             object: StoredStringObject::clone_box(object),
         }
     }
@@ -212,8 +194,8 @@ where
 
     fn bulk_upsert_event(
         objects: &[GenericStoredObject<GenericStringObjectId, Self>],
-    ) -> ModelEvent {
-        ModelEvent::UpsertGenericStringObjects(
+    ) -> UpsertEvent {
+        UpsertEvent::UpsertGenericStringObjects(
             objects.iter().map(StoredStringObject::clone_box).collect(),
         )
     }
@@ -226,18 +208,6 @@ where
         S::serialize(&self.string_model)
     }
 
-    fn renders_in_warp_drive(&self) -> bool {
-        self.string_model.renders_in_warp_drive()
-    }
-
-    fn to_warp_drive_item(
-        &self,
-        id: SyncId,
-        appearance: &Appearance,
-        object: &GenericStoredObject<GenericStringObjectId, Self>,
-    ) -> Option<Box<dyn WarpDriveItem>> {
-        self.string_model.to_warp_drive_item(id, appearance, object)
-    }
 }
 
 impl<M, S> GenericStringModel<M, S>

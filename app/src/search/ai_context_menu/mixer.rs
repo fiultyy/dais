@@ -1,4 +1,4 @@
-use crate::objects::ObjectType;
+use objects::ObjectType;
 use crate::code_review::diff_state::DiffMode;
 use crate::search::mixer::SearchMixer;
 

@@ -35,14 +35,14 @@ use warpui::{AppContext, Entity, SingletonEntity};
 use crate::ai::blocklist::PersistedAIInput;
 use crate::ai::mcp::TemplatableMCPServerInstallation;
 use crate::app_state::AppState;
-use crate::objects::model::actions::ObjectAction;
-use crate::objects::model::generic_string_model::StoredStringObject;
-use crate::objects::{ObjectIdType, StoredObject};
+use objects::ObjectAction;
+use objects::StoredStringObject;
+use objects::{ObjectIdType, StoredObject};
 
 use crate::drive::folders::FolderObject;
 use crate::notebooks::NotebookObject;
 use crate::server::experiments::ServerExperiment;
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 use crate::suggestions::ignored_suggestions_model::SuggestionType;
 use crate::terminal::history::PersistedCommand;
 use crate::terminal::model::block::{SerializedAgentViewVisibility, SerializedBlock};

@@ -13,7 +13,7 @@ use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::blocklist::InputConfig;
 use crate::ai::blocklist::SerializedBlockListItem;
 use crate::code::editor_management::CodeSource;
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 use crate::drive::DaisDriveObjectSettings;
 use crate::root_view::quake_mode_window_id;
 use crate::settings_view::SettingsSection;

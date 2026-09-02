@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::objects::{
+use objects::{
     model::{
         generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel},
         json_model::{JsonModel, JsonSerializer},

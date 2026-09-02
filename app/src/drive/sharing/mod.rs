@@ -1,4 +1,5 @@
-use crate::{auth::UserUid, server::ids::ServerId};
+use crate::auth::UserUid;
+use objects::ids::ServerId;
 
 // Dais Phase 3(R3-2/S4): 本模块原是云端分享(ACL/邀请/链接分享)的完整类型面。
 // `dialog/` 与全部触发入口已在 Phase 2a 删除;本轮按消费方盘点裁掉零引用符号

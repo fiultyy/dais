@@ -2,10 +2,10 @@ use warpui::{elements::MouseStateHandle, AppContext, Element};
 
 use crate::{
     appearance::Appearance,
-    objects::{Space, StoredObjectMetadata},
     themes::theme::Fill,
     ui_components::icons::Icon,
 };
+use objects::{Space, StoredObjectMetadata};
 
 use super::{objects_styling::warp_drive_icon_color, DriveObjectType, ObjectTypeAndId};
 

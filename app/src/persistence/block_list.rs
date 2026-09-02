@@ -9,7 +9,10 @@ use itertools::Itertools;
 
 use crate::ai::blocklist::{PersistedAIInput, SerializedBlockListItem};
 use crate::terminal::model::block::{SerializedAgentViewVisibility, SerializedBlock};
-use crate::{app_state::PaneUuid, persistence::schema::ai_queries};
+use crate::{
+    app_state::PaneUuid,
+    persistence::schema::ai_queries,
+};
 
 use super::model::Block;
 use super::{model, schema};

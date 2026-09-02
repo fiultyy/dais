@@ -6,25 +6,14 @@ use warpui::{
 };
 
 use crate::{
-    ai::mcp::{
-        gallery::MCPGalleryManager, templatable_installation::VariableValue, FileBasedMCPManager,
-        TemplatableMCPServer, TemplatableMCPServerInstallation, TemplatableMCPServerManager,
-    },
+    ai::mcp::{ gallery::MCPGalleryManager, templatable_installation::VariableValue, FileBasedMCPManager, TemplatableMCPServer, TemplatableMCPServerInstallation, TemplatableMCPServerManager, },
     appearance::Appearance,
-    objects::object_store::InitiatedBy,
-    objects::Space,
-    settings_view::{
-        mcp_servers::{
-            edit_page::{MCPServersEditPageView, MCPServersEditPageViewEvent},
-            list_page::{MCPServersListPageView, MCPServersListPageViewEvent},
-            style, ServerCardItemId,
-        },
-        settings_page::{MatchData, PageType, SettingsPageMeta, SettingsWidget},
-        SettingsSection,
-    },
+    settings_view::{ mcp_servers::{ edit_page::{MCPServersEditPageView, MCPServersEditPageViewEvent}, list_page::{MCPServersListPageView, MCPServersListPageViewEvent}, style, ServerCardItemId, }, settings_page::{MatchData, PageType, SettingsPageMeta, SettingsWidget}, SettingsSection, },
     view_components::DismissibleToast,
     workspace::ToastStack,
 };
+use objects::{Space};
+use crate::objects::object_store::InitiatedBy;
 
 /// Describes where an MCP install request originated.
 ///

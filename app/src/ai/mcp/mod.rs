@@ -1,4 +1,5 @@
 #[cfg(not(target_family = "wasm"))]
+use crate::objects_display::WarpDriveItemOverrides;
 use crate::server::datetime_ext::DateTimeExt;
 #[cfg(not(target_family = "wasm"))]
 use chrono::DateTime;
@@ -8,21 +9,10 @@ use std::path::{Path, PathBuf};
 #[cfg(not(target_family = "wasm"))]
 use crate::persistence::model::MCPEnvironmentVariables;
 use crate::{
-    objects::{
-        model::{
-            generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel},
-            json_model::{JsonModel, JsonSerializer},
-            persistence::ObjectStoreModel,
-        },
-        GenericStoredObject, GenericStringObjectFormat, GenericStringObjectUniqueKey,
-        JsonObjectType,
-    },
-    drive::{
-        items::{mcp_server::WarpDriveMCPServer, WarpDriveItem},
-        ObjectTypeAndId,
-    },
-    server::ids::SyncId,
+    drive::{ items::{mcp_server::WarpDriveMCPServer, WarpDriveItem}, ObjectTypeAndId, },
 };
+use objects::{GenericStoredObject, GenericStringObjectFormat, GenericStringObjectUniqueKey, JsonObjectType, ids::SyncId, model::generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel}, model::json_model::{JsonModel, JsonSerializer}};
+use crate::objects::model::persistence::ObjectStoreModel;
 #[cfg(not(target_family = "wasm"))]
 use diesel::{QueryDsl, RunQueryDsl, SqliteConnection};
 use serde::{Deserialize, Serialize};
@@ -266,20 +256,20 @@ pub struct ServerSentEvents {
 pub type MCPServerObject = GenericStoredObject<GenericStringObjectId, MCPServerObjectModel>;
 pub type MCPServerObjectModel = GenericStringModel<MCPServer, JsonSerializer>;
 
-impl MCPServerObject {
-    pub fn get_all(app: &AppContext) -> Vec<MCPServerObject> {
+pub trait MCPServerObjectStoreExt {
+    fn get_all(app: &AppContext) -> Vec<MCPServerObject> {
         ObjectStoreModel::as_ref(app)
             .get_all_objects_of_type::<GenericStringObjectId, MCPServerObjectModel>()
             .cloned()
             .collect()
     }
 
-    pub fn get_by_id<'a>(sync_id: &'a SyncId, app: &'a AppContext) -> Option<&'a MCPServerObject> {
+    fn get_by_id<'a>(sync_id: &'a SyncId, app: &'a AppContext) -> Option<&'a MCPServerObject> {
         ObjectStoreModel::as_ref(app)
             .get_object_of_type::<GenericStringObjectId, MCPServerObjectModel>(sync_id)
     }
 
-    pub fn get_by_uuid<'a>(
+    fn get_by_uuid<'a>(
         uuid: &'a uuid::Uuid,
         app: &'a AppContext,
     ) -> Option<&'a MCPServerObject> {
@@ -288,6 +278,8 @@ impl MCPServerObject {
             .find(|server| server.model().string_model.uuid == *uuid)
     }
 }
+
+impl MCPServerObjectStoreExt for MCPServerObject {}
 
 impl StringModel for MCPServer {
     type StoredObjectType = MCPServerObject;
@@ -320,24 +312,7 @@ impl StringModel for MCPServer {
         None
     }
 
-    fn renders_in_warp_drive(&self) -> bool {
-        false
-    }
 
-    fn to_warp_drive_item(
-        &self,
-        id: SyncId,
-        _appearance: &Appearance,
-        mcp_server: &MCPServerObject,
-    ) -> Option<Box<dyn WarpDriveItem>> {
-        Some(Box::new(WarpDriveMCPServer::new(
-            ObjectTypeAndId::GenericStringObject {
-                object_type: GenericStringObjectFormat::Json(JsonObjectType::MCPServer),
-                id,
-            },
-            mcp_server.clone(),
-        )))
-    }
 }
 
 impl JsonModel for MCPServer {
@@ -692,3 +667,10 @@ pub enum MCPServerUpdate {
 
 #[cfg(test)]
 mod mod_test;
+
+
+impl WarpDriveItemOverrides for MCPServer {
+    fn renders_in_warp_drive(&self) -> bool {
+        false
+    }
+}

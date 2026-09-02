@@ -26,29 +26,10 @@ use crate::terminal::cli_agent_sessions::{
     CLIAgentSessionStatus, CLIAgentSessionsModel, CLIAgentSessionsModelEvent,
 };
 use crate::{
-    ai::{
-        agent::{
-            AIAgentExchange, AIAgentInput, AIAgentOutput, CancellationReason, RenderableAIError,
-        },
-        agent_events::DisabledAgentEventStreamClient,
-        ambient_agents::{
-            conversation_output_status_from_conversation, AmbientAgentTaskId,
-            AmbientConversationStatus,
-        },
-        blocklist::{
-            agent_view::AgentViewEntryOrigin, BlocklistAIHistoryEvent, BlocklistAIHistoryModel,
-            BlocklistAIPermissions,
-        },
-        execution_profiles::profiles::AIExecutionProfilesModel,
-        mcp::{
-            parsing::{normalize_mcp_json, ParsedTemplatableMCPServerResult},
-            templatable_manager::TemplatableMCPServerManagerEvent,
-            TemplatableMCPServerInstallation, TemplatableMCPServerManager,
-        },
-    },
+    ai::{ agent::{ AIAgentExchange, AIAgentInput, AIAgentOutput, CancellationReason, RenderableAIError, }, agent_events::DisabledAgentEventStreamClient, ambient_agents::{ conversation_output_status_from_conversation, AmbientAgentTaskId, AmbientConversationStatus, }, blocklist::{ agent_view::AgentViewEntryOrigin, BlocklistAIHistoryEvent, BlocklistAIHistoryModel, BlocklistAIPermissions, }, execution_profiles::profiles::AIExecutionProfilesModel, mcp::{ parsing::{normalize_mcp_json, ParsedTemplatableMCPServerResult}, templatable_manager::TemplatableMCPServerManagerEvent, TemplatableMCPServerInstallation, TemplatableMCPServerManager, }, },
     auth::AuthStateProvider,
-    server::ids::{ServerId, SyncId},
 };
+use objects::ids::{ServerId, SyncId};
 use anyhow::Context as _;
 use futures::{
     channel::oneshot,

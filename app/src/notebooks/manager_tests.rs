@@ -6,15 +6,10 @@ use warpui::{
 };
 
 use crate::{
+    objects::model::{persistence::ObjectStoreModel, view::ObjectStoreViewModel},
+    objects::object_store::ObjectStore,
     ai::blocklist::BlocklistAIHistoryModel,
     auth::{AuthManager, AuthStateProvider},
-    objects::object_store::ObjectStore,
-    objects::{
-        model::{
-            actions::ObjectActions, persistence::ObjectStoreModel, view::ObjectStoreViewModel,
-        },
-        Owner,
-    },
     network::NetworkStatus,
     notebooks::{editor::keys::NotebookKeybindings, notebook::NotebookView},
     pane_group::NotebookPane,
@@ -26,8 +21,10 @@ use crate::{
     test_util::settings::initialize_settings_for_tests,
     workspace::ActiveSession,
     workspaces::{user_profiles::UserProfiles, user_workspaces::UserWorkspaces},
-    GlobalResourceHandles, GlobalResourceHandlesProvider,
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
 };
+use objects::{ObjectActions, Owner};
 
 use super::NotebookManager;
 

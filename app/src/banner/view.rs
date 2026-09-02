@@ -19,7 +19,10 @@ use warpui::{
     ViewContext,
 };
 
-use crate::{appearance::Appearance, ui_components::icons::Icon};
+use crate::{
+    appearance::Appearance,
+    ui_components::icons::Icon,
+};
 use pathfinder_geometry::vector::Vector2F;
 
 const CLOSE_BUTTON_DIAMETER: f32 = 20.;

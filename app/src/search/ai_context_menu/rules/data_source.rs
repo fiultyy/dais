@@ -1,8 +1,9 @@
+use crate::objects_display::StoredObjectHostExt;
 use super::search_item::RuleSearchItem;
 use crate::ai::facts::{AIFact, AIFactObjectModel};
-use crate::objects::model::generic_string_model::GenericStringObjectId;
+use objects::GenericStringObjectId;
 use crate::objects::model::persistence::ObjectStoreModel;
-use crate::objects::StoredObject;
+use objects::StoredObject;
 use crate::search::ai_context_menu::mixer::AIContextMenuSearchableAction;
 use crate::search::data_source::{Query, QueryResult};
 use crate::search::mixer::{DataSourceRunErrorWrapper, SyncDataSource};

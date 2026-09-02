@@ -4,22 +4,7 @@ use crate::{
     context_chips::spacing,
     features::FeatureFlag,
     settings::{AppEditorSettings, InputModeSettings},
-    terminal::{
-        block_list_settings::BlockListSettings,
-        block_list_viewport::InputMode,
-        input::{
-            common::{
-                add_command_xray_overlay, add_input_suggestions_overlays, add_vim_status_to_stack,
-                add_voltron_overlay, add_workflow_info_overlay,
-                should_show_terminal_input_message_bar,
-                wrap_input_with_terminal_padding_and_focus_handler,
-            },
-            get_input_box_top_border_width, InputDropTargetData,
-        },
-        settings::{SpacingMode, TerminalSettings},
-        view::TerminalAction,
-        warpify::render::{render_subshell_flag, render_subshell_flag_pole},
-    },
+    terminal::{ block_list_settings::BlockListSettings, block_list_viewport::InputMode, input::{ common::{ add_command_xray_overlay, add_input_suggestions_overlays, add_vim_status_to_stack, add_voltron_overlay, add_workflow_info_overlay, should_show_terminal_input_message_bar, wrap_input_with_terminal_padding_and_focus_handler, }, get_input_box_top_border_width, InputDropTargetData, }, settings::{SpacingMode, TerminalSettings}, view::TerminalAction, warpify::render::{render_subshell_flag, render_subshell_flag_pole}, },
 };
 use pathfinder_geometry::vector::vec2f;
 use settings::Setting;

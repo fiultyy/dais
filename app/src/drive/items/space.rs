@@ -2,10 +2,10 @@ use warpui::{elements::MouseStateHandle, Element};
 
 use crate::{
     appearance::Appearance,
-    objects::{Space, StoredObjectMetadata},
     drive::DriveObjectType,
     themes::theme::Fill,
 };
+use objects::{Space, StoredObjectMetadata};
 
 use super::{WarpDriveItem, WarpDriveItemId};
 

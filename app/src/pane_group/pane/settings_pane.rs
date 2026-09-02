@@ -3,9 +3,7 @@ use warpui::{AppContext, ModelHandle, SingletonEntity, View, ViewContext, ViewHa
 
 use crate::{
     app_state::{LeafContents, SettingsPaneSnapshot},
-    settings_view::{
-        pane_manager::SettingsPaneManager, SettingsSection, SettingsView, SettingsViewEvent,
-    },
+    settings_view::{ pane_manager::SettingsPaneManager, SettingsSection, SettingsView, SettingsViewEvent, },
 };
 
 use super::{

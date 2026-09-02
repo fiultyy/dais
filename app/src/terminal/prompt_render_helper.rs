@@ -7,7 +7,10 @@ use crate::terminal::grid_size_util::grid_compute_baseline_position_fn;
 use crate::terminal::ligature_settings::should_use_ligature_rendering;
 use crate::terminal::view::TerminalAction;
 use crate::themes::theme::PromptColors;
-use crate::{appearance::Appearance, terminal::model::blockgrid::BlockGrid};
+use crate::{
+    appearance::Appearance,
+    terminal::model::blockgrid::BlockGrid,
+};
 use settings::Setting as _;
 
 use std::fmt;

@@ -6,15 +6,7 @@ use warpui::{
 };
 
 use crate::{
-    integration_testing::{
-        step::assert_no_pending_model_events,
-        terminal::{
-            assert_long_running_block_executing_for_single_terminal_in_tab,
-            execute_command_for_single_terminal_in_tab, util::ExpectedExitStatus,
-            validate_block_output, wait_until_bootstrapped_pane,
-        },
-        view_getters::{single_terminal_view, terminal_view},
-    },
+    integration_testing::{ step::assert_no_pending_model_events, terminal::{ assert_long_running_block_executing_for_single_terminal_in_tab, execute_command_for_single_terminal_in_tab, util::ExpectedExitStatus, validate_block_output, wait_until_bootstrapped_pane, }, view_getters::{single_terminal_view, terminal_view}, },
     terminal::{model::rich_content::RichContentType, view::WithinBlockBanner},
 };
 

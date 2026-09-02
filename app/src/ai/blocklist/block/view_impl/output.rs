@@ -55,45 +55,7 @@ use std::{cmp::Ordering, collections::HashMap, rc::Rc, sync::Arc};
 
 use crate::util::link_detection::{add_link_detection_mouse_interactions, DetectedLinksState};
 use crate::{
-    ai::{
-        agent::{
-            icons::{self, gray_stop_icon, yellow_stop_icon},
-            AIAgentAction, AIAgentActionId, AIAgentActionResult, AIAgentActionResultType,
-            AIAgentActionType, AIAgentCitation, AIAgentOutputMessage, AIAgentOutputMessageType,
-            AIAgentText, AIAgentTextSection, MessageId, ReadFilesRequest,
-            RequestCommandOutputResult, SuggestNewConversationResult, SummarizationType,
-        },
-        blocklist::{
-            action_model::AIActionStatus,
-            block::{
-                model::{AIBlockModel, AIBlockModelHelper, AIBlockOutputStatus},
-                AIBlock, AIBlockAction, AIBlockStateHandles, ActionButtons,
-                AutonomySettingSpeedbump, EmbeddedCodeEditorView, RequestedEdit, TextLocation,
-                TodoListElementState,
-            },
-            block::keyboard_navigable_buttons::KeyboardNavigableButtons,
-            history_model::BlocklistAIHistoryModel,
-            inline_action::{
-                ask_user_question_view::AskUserQuestionView,
-                inline_action_header::{
-                    HeaderConfig, InteractionMode, INLINE_ACTION_HEADER_VERTICAL_PADDING,
-                    INLINE_ACTION_HORIZONTAL_PADDING,
-                },
-                inline_action_icons::{self, icon_size},
-                requested_action::{
-                    render_requested_action_body_text, render_requested_action_row_for_text,
-                    RenderableAction,
-                },
-                requested_command::RequestedCommand,
-                suggested_unit_tests::SuggestedUnitTestsView,
-                web_fetch::WebFetchView,
-                web_search::WebSearchView,
-            },
-            BlocklistAIActionModel,
-        },
-        paths::shell_native_absolute_path,
-        skills::SkillManager,
-    },
+    ai::{ agent::{ icons::{self, gray_stop_icon, yellow_stop_icon}, AIAgentAction, AIAgentActionId, AIAgentActionResult, AIAgentActionResultType, AIAgentActionType, AIAgentCitation, AIAgentOutputMessage, AIAgentOutputMessageType, AIAgentText, AIAgentTextSection, MessageId, ReadFilesRequest, RequestCommandOutputResult, SuggestNewConversationResult, SummarizationType, }, blocklist::{ action_model::AIActionStatus, block::{ model::{AIBlockModel, AIBlockModelHelper, AIBlockOutputStatus}, AIBlock, AIBlockAction, AIBlockStateHandles, ActionButtons, AutonomySettingSpeedbump, EmbeddedCodeEditorView, RequestedEdit, TextLocation, TodoListElementState, }, block::keyboard_navigable_buttons::KeyboardNavigableButtons, history_model::BlocklistAIHistoryModel, inline_action::{ ask_user_question_view::AskUserQuestionView, inline_action_header::{ HeaderConfig, InteractionMode, INLINE_ACTION_HEADER_VERTICAL_PADDING, INLINE_ACTION_HORIZONTAL_PADDING, }, inline_action_icons::{self, icon_size}, requested_action::{ render_requested_action_body_text, render_requested_action_row_for_text, RenderableAction, }, requested_command::RequestedCommand, suggested_unit_tests::SuggestedUnitTestsView, web_fetch::WebFetchView, web_search::WebSearchView, }, BlocklistAIActionModel, }, paths::shell_native_absolute_path, skills::SkillManager, },
     appearance::Appearance,
     code::diff_viewer::DisplayMode,
     settings::AISettings,

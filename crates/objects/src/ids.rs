@@ -4,7 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use uuid::Uuid;
 
-use crate::objects::ObjectIdType;
+use crate::ObjectIdType;
 
 /// Convert ID enums into and from a hashed UUID.
 pub trait HashableId: Sized + Send + Sync {
@@ -230,7 +230,7 @@ impl TryFrom<String> for ServerId {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 impl From<i64> for ServerId {
     fn from(id: i64) -> Self {
         let prefix = "test_uid";
@@ -302,7 +302,7 @@ macro_rules! server_id_traits {
 
         impl From<String> for $t {
             fn from(id: String) -> Self {
-                Self($crate::server::ids::ServerId::from_string_lossy(id))
+                Self($crate::ServerId::from_string_lossy(id))
             }
         }
 
@@ -318,13 +318,13 @@ macro_rules! server_id_traits {
             }
         }
 
-        impl From<$t> for $crate::server::ids::ServerId {
+        impl From<$t> for $crate::ServerId {
             fn from(id: $t) -> Self {
                 id.0
             }
         }
 
-        impl $crate::server::ids::HashableId for $t {
+        impl $crate::HashableId for $t {
             fn to_hash(&self) -> String {
                 format!("{}-{}", $prefix, self)
             }
@@ -335,14 +335,14 @@ macro_rules! server_id_traits {
             }
         }
 
-        impl From<$crate::server::ids::ServerId> for $t {
-            fn from(id: $crate::server::ids::ServerId) -> Self {
+        impl From<$crate::ServerId> for $t {
+            fn from(id: $crate::ServerId) -> Self {
                 Self(id)
             }
         }
 
-        impl $crate::server::ids::ToServerId for $t {
-            fn to_server_id(&self) -> $crate::server::ids::ServerId {
+        impl $crate::ToServerId for $t {
+            fn to_server_id(&self) -> $crate::ServerId {
                 self.0
             }
         }

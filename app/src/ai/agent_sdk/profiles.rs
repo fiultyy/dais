@@ -5,9 +5,9 @@ use warpui::{AppContext, ModelContext, SingletonEntity};
 
 use crate::ai::agent_sdk::output::{self, TableFormat};
 use crate::ai::execution_profiles::profiles::AIExecutionProfilesModel;
-use crate::objects::model::generic_string_model::StringModel;
+use objects::StringModel;
 use crate::objects::model::persistence::ObjectStoreModel;
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 
 /// Handle Agent Profile-related CLI commands.
 pub fn run(

@@ -26,7 +26,9 @@ use warpui::units::{IntoPixels, Pixels};
 
 use crate::util::link_detection::get_word_range_at_offset;
 use crate::{
-    appearance::Appearance, editor::InteractionState, notebooks::editor::model::word_unit,
+    appearance::Appearance,
+    editor::InteractionState,
+    notebooks::editor::model::word_unit,
     themes::theme::AnsiColorIdentifier,
 };
 

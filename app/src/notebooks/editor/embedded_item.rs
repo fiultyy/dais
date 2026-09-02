@@ -1,3 +1,4 @@
+use crate::objects_display::StoredObjectHostExt;
 use std::{collections::HashMap, ops::Range, sync::Arc};
 
 use itertools::Itertools;
@@ -34,12 +35,12 @@ use warpui::{
 };
 
 use crate::{
-    objects::{model::persistence::ObjectStoreModel, StoredObject},
     drive::{objects_styling::warp_drive_icon_color, DriveObjectType},
-    server::ids::{HashableId, ToServerId},
     ui_components::icons::Icon,
     workflows::{workflow::Workflow, WorkflowId, WorkflowObject},
 };
+use objects::{StoredObject, ids::{HashableId, ToServerId}};
+use crate::objects::model::persistence::ObjectStoreModel;
 
 // Spacing for the embedded workflow card.
 const EMBED_WORKFLOW_SPACING: BlockSpacing = BlockSpacing {

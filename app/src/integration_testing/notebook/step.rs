@@ -8,15 +8,13 @@ use warpui::{
 };
 
 use crate::{
-    objects::{
-        model::persistence::ObjectStoreModel, object_store::ObjectStore, Space,
-        StoredObjectEventEntrypoint,
-    },
     integration_testing::view_getters::{notebook_view, workspace_view},
     notebooks::manager::NotebookSource,
-    server::ids::{ClientId, SyncId},
     workspaces::user_workspaces::UserWorkspaces,
 };
+use objects::{Space, StoredObjectEventEntrypoint, ids::{ClientId, SyncId}};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::object_store::ObjectStore;
 
 fn notebook_editor(
     app: &App,

@@ -1,18 +1,14 @@
+use crate::objects_display::StoredObjectHostExt;
 use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
 
 use crate::{
     ai::document::ai_document_model::AIDocumentId,
-    objects::{
-        model::{
-            persistence::ObjectStoreModel,
-            view::{Editor, ObjectStoreViewModel},
-        },
-        Owner, Space, StoredObject,
-    },
     drive::sharing::{ContentEditability, SharingAccessLevel},
     notebooks::NotebookObject,
-    server::ids::{ClientId, SyncId},
 };
+use objects::{Owner, Space, StoredObject, ids::{ClientId, SyncId}};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::model::view::{Editor, ObjectStoreViewModel};
 
 use super::NotebookObjectModel;
 

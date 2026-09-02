@@ -23,16 +23,24 @@ use string_offset::CharOffset;
 use crate::util::color::coloru_with_opacity;
 use crate::workflows::WorkflowType;
 use crate::{
-    ai::blocklist::ai_brand_color, server::ids::SyncId, settings::InputModeSettings,
-    terminal::block_list_viewport::InputMode, ui_components::icons,
-    view_components::FilterableDropdownOrientation, workspace::WorkspaceAction,
+    ai::blocklist::ai_brand_color,
+    settings::InputModeSettings,
+    terminal::block_list_viewport::InputMode,
+    ui_components::icons,
+    view_components::FilterableDropdownOrientation,
+    workspace::WorkspaceAction,
 };
+use objects::ids::SyncId;
+use crate::appearance::Appearance;
+
+use crate::objects_display::StoredObjectMetadataExt;
+use objects::ObjectActions;
+use crate::terminal::view::TerminalAction;
+use objects::ObjectActionType;
 use crate::{
-    appearance::Appearance,
-    objects::{model::actions::ObjectActions, StoredObjectMetadataExt},
+    terminal::input::InputAction,
+    ui_components::buttons::icon_button,
 };
-use crate::{objects::model::actions::ObjectActionType, terminal::view::TerminalAction};
-use crate::{terminal::input::InputAction, ui_components::buttons::icon_button};
 
 use warpui::color::ColorU;
 use warpui::keymap::Keystroke;

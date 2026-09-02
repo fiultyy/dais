@@ -13,17 +13,7 @@ use warpui::{
 use crate::{
     ai::blocklist::AIBlock,
     env_vars::env_var_collection_block::EnvVarCollectionBlock,
-    terminal::{
-        event::Event as TerminalEvent,
-        model::{
-            block::BlockSection,
-            index::{Direction, Point, Side},
-            selection::{ExpandedSelectionRange, Selection, SelectionDirection},
-            terminal_model::{BlockIndex, WithinBlock},
-        },
-        warpify::success_block::WarpifySuccessBlock,
-        GridType,
-    },
+    terminal::{ event::Event as TerminalEvent, model::{ block::BlockSection, index::{Direction, Point, Side}, selection::{ExpandedSelectionRange, Selection, SelectionDirection}, terminal_model::{BlockIndex, WithinBlock}, }, warpify::success_block::WarpifySuccessBlock, GridType, },
 };
 
 use super::{

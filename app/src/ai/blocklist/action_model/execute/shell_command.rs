@@ -31,13 +31,12 @@ use crate::terminal::shell::ShellType;
 use crate::terminal::ssh::util::parse_interactive_ssh_command;
 use crate::{
     ai::agent::AIAgentActionResultType,
-    terminal::{
-        model::session::active_session::ActiveSession,
-        model_events::{ModelEvent, ModelEventDispatcher},
-        TerminalModel,
-    },
+    terminal::{ model::session::active_session::ActiveSession, model_events::{ModelEvent, ModelEventDispatcher}, TerminalModel, },
 };
-use crate::{send_telemetry_from_ctx, TelemetryEvent};
+use crate::{
+    send_telemetry_from_ctx,
+    TelemetryEvent,
+};
 
 use super::{ActionExecution, AnyActionExecution, ExecuteActionInput, PreprocessActionInput};
 

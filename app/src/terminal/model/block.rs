@@ -23,31 +23,9 @@ use crate::ai::blocklist::agent_view::{AgentViewDisplayMode, AgentViewState};
 use crate::{
     ai::agent::redaction::redact_secrets,
     context_chips::prompt_snapshot::PromptSnapshot,
-    server::ids::SyncId,
-    terminal::{
-        block_filter::BlockFilterQuery,
-        block_list_element::GridType,
-        event::{
-            BlockCompletedEvent, BlockLatencyData, BlockMetadataReceivedEvent, BlockType, Event,
-            UserBlockCompleted,
-        },
-        event_listener::ChannelEventListener,
-        model::{
-            ansi::{self, PrecmdValue, PreexecValue, Processor},
-            blockgrid::BlockGrid,
-            grid::grid_handler::TermMode,
-            index::{Point, VisibleRow},
-            iterm_image::ITermImage,
-            secrets::ObfuscateSecrets,
-            session::SessionId,
-            terminal_model::{BlockIndex, WithinBlock},
-            GridStorage,
-        },
-        shell::ShellType,
-        view::WithinBlockBanner,
-        BlockPadding, ShellHost, SizeInfo,
-    },
+    terminal::{ block_filter::BlockFilterQuery, block_list_element::GridType, event::{ BlockCompletedEvent, BlockLatencyData, BlockMetadataReceivedEvent, BlockType, Event, UserBlockCompleted, }, event_listener::ChannelEventListener, model::{ ansi::{self, PrecmdValue, PreexecValue, Processor}, blockgrid::BlockGrid, grid::grid_handler::TermMode, index::{Point, VisibleRow}, iterm_image::ITermImage, secrets::ObfuscateSecrets, session::SessionId, terminal_model::{BlockIndex, WithinBlock}, GridStorage, }, shell::ShellType, view::WithinBlockBanner, BlockPadding, ShellHost, SizeInfo, },
 };
+use objects::ids::SyncId;
 
 use chrono::{DateTime, Duration, FixedOffset, Local};
 use hex;

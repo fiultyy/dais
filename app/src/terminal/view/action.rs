@@ -23,21 +23,9 @@ use crate::terminal::view::inline_banner::AgentModeSetupSpeedbumpBannerAction;
 use crate::terminal::view::passive_suggestions::PromptSuggestionResolution;
 use crate::workflows::workflow::Workflow;
 use crate::{
-    server::ids::SyncId,
-    terminal::{
-        block_list_element::{
-            BlockHoverAction, BlockListMenuSource, BlockSelectAction, BlockTextSelectAction,
-        },
-        block_list_viewport::OverhangingBlock,
-        model::{
-            SecretHandle,
-            index::Point,
-            mouse::MouseState,
-            selection::{SelectAction, SelectionDirection},
-            terminal_model::{BlockIndex, WithinModel},
-        },
-    },
+    terminal::{ block_list_element::{ BlockHoverAction, BlockListMenuSource, BlockSelectAction, BlockTextSelectAction, }, block_list_viewport::OverhangingBlock, model::{ SecretHandle, index::Point, mouse::MouseState, selection::{SelectAction, SelectionDirection}, terminal_model::{BlockIndex, WithinModel}, }, },
 };
+use objects::ids::SyncId;
 
 use super::inline_banner::{
     AwsBedrockLoginBannerAction, AwsCliNotInstalledBannerAction, OpenInWarpBannerAction,

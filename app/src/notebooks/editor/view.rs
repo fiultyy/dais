@@ -60,21 +60,14 @@ use crate::{
     cmd_or_ctrl_shift,
     editor::InteractionState,
     features::FeatureFlag,
-    notebooks::{
-        editor::{find_bar::FindBarAction, model::word_unit},
-        link::{LinkTarget, NotebookLinks, ResolveError},
-        telemetry::{ActionEntrypoint, BlockInfo, EmbeddedObjectInfo, SelectionMode},
-    },
-    server::ids::SyncId,
+    notebooks::{ editor::{find_bar::FindBarAction, model::word_unit}, link::{LinkTarget, NotebookLinks, ResolveError}, telemetry::{ActionEntrypoint, BlockInfo, EmbeddedObjectInfo, SelectionMode}, },
     settings::{AppEditorSettings, FontSettings, SelectionSettings},
     terminal::{grid_renderer::URL_COLOR, links::directly_open_link_keybinding_string},
     ui_components::icons::ICON_DIMENSIONS,
-    util::{
-        bindings::CustomAction,
-        tooltips::{render_tooltip, should_show_open_in_warp_link, TooltipLink, TooltipRedaction},
-    },
+    util::{ bindings::CustomAction, tooltips::{render_tooltip, should_show_open_in_warp_link, TooltipLink, TooltipRedaction}, },
     view_components::DismissibleToast,
 };
+use objects::ids::SyncId;
 
 #[cfg(feature = "local_fs")]
 use crate::util::link_detection::{detect_file_paths, get_word_range_at_offset, DetectedLinkType};

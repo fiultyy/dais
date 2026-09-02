@@ -26,21 +26,11 @@ use crate::{
     ai_assistant::execution_context::WarpAiExecutionContext,
     appearance::Appearance,
     completer::SessionContext,
-    search::{
-        command_search::searcher::{CommandSearchItemAction, CommandSearchMixer},
-        result_renderer::{QueryResultRenderer, QueryResultRendererStyles},
-        search_bar::{SearchBar, SearchBarEvent, SearchBarState, SearchResultOrdering},
-        QueryFilter,
-    },
+    search::{ command_search::searcher::{CommandSearchItemAction, CommandSearchMixer}, result_renderer::{QueryResultRenderer, QueryResultRendererStyles}, search_bar::{SearchBar, SearchBarEvent, SearchBarState, SearchResultOrdering}, QueryFilter, },
     send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
     settings::AISettings,
-    terminal::{
-        input::MenuPositioning,
-        model::session::SessionId,
-        resizable_data::{ModalType, ResizableData, DEFAULT_UNIVERSAL_SEARCH_WIDTH},
-        History, HistoryEvent,
-    },
+    terminal::{ input::MenuPositioning, model::session::SessionId, resizable_data::{ModalType, ResizableData, DEFAULT_UNIVERSAL_SEARCH_WIDTH}, History, HistoryEvent, },
 };
 
 use super::{
@@ -933,7 +923,10 @@ pub mod styles {
     use pathfinder_color::ColorU;
     use warpui::elements::{Border, DropShadow, ScrollbarWidth};
 
-    use crate::{appearance::Appearance, themes::theme::Fill};
+    use crate::{
+    appearance::Appearance,
+    themes::theme::Fill,
+};
 
     pub const CORNER_RADIUS: f32 = 8.;
     pub const VIEW_WIDTH: f32 = 700.;

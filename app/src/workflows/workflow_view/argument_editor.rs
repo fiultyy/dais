@@ -18,14 +18,8 @@ use warpui::{
 };
 
 use crate::{
-    drive::workflows::{
-        workflow_arg_selector::{WorkflowArgSelector, WorkflowArgSelectorStyles},
-        workflow_arg_type_helpers::{self, ArgumentTypeEditor},
-    },
-    editor::{
-        EditOrigin, EditorView, Event as EditorEvent, InteractionState,
-        PlainTextEditorViewAction as EditorAction,
-    },
+    drive::workflows::{ workflow_arg_selector::{WorkflowArgSelector, WorkflowArgSelectorStyles}, workflow_arg_type_helpers::{self, ArgumentTypeEditor}, },
+    editor::{ EditOrigin, EditorView, Event as EditorEvent, InteractionState, PlainTextEditorViewAction as EditorAction, },
     pane_group::PaneEvent,
     ui_components::{buttons::icon_button, icons::Icon},
     workflows::workflow::Workflow,

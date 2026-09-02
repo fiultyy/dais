@@ -1,3 +1,4 @@
+use crate::ai::mcp::templatable::TemplatableMCPServerObjectStoreExt;
 use markdown_parser::{FormattedText, FormattedTextFragment, FormattedTextLine};
 use pathfinder_color::ColorU;
 use warp_core::{
@@ -27,18 +28,12 @@ use warpui::{
 };
 
 use crate::{
-    ai::mcp::{
-        templatable::TemplatableMCPServerObject, MCPServerState, TemplatableMCPServerManager,
-    },
+    ai::mcp::{ templatable::TemplatableMCPServerObject, MCPServerState, TemplatableMCPServerManager, },
     appearance::Appearance,
-    objects::StoredObject,
     settings_view::mcp_servers::{style, ServerCardItemId},
-    ui_components::{
-        avatar::{Avatar, AvatarContent, StatusElementTypes},
-        blended_colors,
-        buttons::icon_button,
-    },
+    ui_components::{ avatar::{Avatar, AvatarContent, StatusElementTypes}, blended_colors, buttons::icon_button, },
 };
+use objects::StoredObject;
 
 /// A chip displayed inline with the server card title, optionally with a leading icon.
 #[derive(Debug, Clone)]

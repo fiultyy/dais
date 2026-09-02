@@ -645,6 +645,82 @@ pub fn render_citation_chips(
     )
 }
 
+/// P-ARC R1: `StoredObject::to_warp_drive_item` 已从 crate trait 裁撤(见 objects/src/lib.rs
+/// 头注释)。宿主侧按 object_type 分发重建 drive item,与原各 model 的 impl 逐一对应;
+/// Preference/WorkflowEnum/AIExecutionProfile/TemplatableMCPServer 维持原默认 None。
+fn citation_warp_drive_item(
+    object: &dyn crate::objects::StoredObject,
+) -> Option<Box<dyn crate::drive::items::WarpDriveItem>> {
+    use crate::drive::items::{
+        ai_fact::WarpDriveAIFact, env_var_collection::WarpDriveEnvVarCollection,
+        folder::WarpDriveFolder, mcp_server::WarpDriveMCPServer, notebook::WarpDriveNotebook,
+        workflow::WarpDriveWorkflow,
+    };
+    use crate::objects::{GenericStringObjectFormat, JsonObjectType, ObjectType, ObjectTypeAndId};
+
+    let id = object.sync_id();
+    match object.object_type() {
+        ObjectType::Folder => object
+            .as_any()
+            .downcast_ref::<crate::drive::folders::FolderObject>()
+            .map(|folder| {
+                Box::new(WarpDriveFolder::new(ObjectTypeAndId::Folder(id), folder.clone()))
+                    as Box<dyn crate::drive::items::WarpDriveItem>
+            }),
+        ObjectType::Notebook => object
+            .as_any()
+            .downcast_ref::<crate::notebooks::NotebookObject>()
+            .map(|notebook| {
+                Box::new(WarpDriveNotebook::new(
+                    ObjectTypeAndId::Notebook(id),
+                    notebook.clone(),
+                    notebook.model().ai_document_id.is_some(),
+                )) as Box<dyn crate::drive::items::WarpDriveItem>
+            }),
+        ObjectType::Workflow => object
+            .as_any()
+            .downcast_ref::<crate::workflows::WorkflowObject>()
+            .map(|workflow| {
+                Box::new(WarpDriveWorkflow::new(
+                    ObjectTypeAndId::Workflow(id),
+                    workflow.clone(),
+                )) as Box<dyn crate::drive::items::WarpDriveItem>
+            }),
+        ObjectType::GenericStringObject(format) => {
+            let type_and_id = ObjectTypeAndId::GenericStringObject {
+                object_type: format,
+                id,
+            };
+            match format {
+                GenericStringObjectFormat::Json(JsonObjectType::AIFact) => object
+                    .as_any()
+                    .downcast_ref::<crate::ai::facts::AIFactObject>()
+                    .map(|ai_fact| {
+                        Box::new(WarpDriveAIFact::new(type_and_id, ai_fact.clone()))
+                            as Box<dyn crate::drive::items::WarpDriveItem>
+                    }),
+                GenericStringObjectFormat::Json(JsonObjectType::EnvVarCollection) => object
+                    .as_any()
+                    .downcast_ref::<crate::env_vars::EnvVarCollectionObject>()
+                    .map(|env_var_collection| {
+                        Box::new(WarpDriveEnvVarCollection::new(
+                            type_and_id,
+                            env_var_collection.clone(),
+                        )) as Box<dyn crate::drive::items::WarpDriveItem>
+                    }),
+                GenericStringObjectFormat::Json(JsonObjectType::MCPServer) => object
+                    .as_any()
+                    .downcast_ref::<crate::ai::mcp::MCPServerObject>()
+                    .map(|mcp_server| {
+                        Box::new(WarpDriveMCPServer::new(type_and_id, mcp_server.clone()))
+                            as Box<dyn crate::drive::items::WarpDriveItem>
+                    }),
+                _ => None,
+            }
+        }
+    }
+}
+
 /// Renders a single citations chip.
 ///
 /// TODO: All AIBlock footer-related rendering logic should probably be put into its own View.
@@ -663,8 +739,8 @@ pub fn render_citation(
     let (icon, name) = match citation {
         AIAgentCitation::WarpDriveObject { uid } => {
             let item = ObjectStoreModel::as_ref(app)
-                .get_by_uid(uid)?
-                .to_warp_drive_item(appearance)?;
+                .get_by_uid(uid)
+                .and_then(citation_warp_drive_item)?;
             (
                 item.icon(appearance, Some(theme.active_ui_text_color())),
                 item.display_name().unwrap_or(String::from("Untitled")),

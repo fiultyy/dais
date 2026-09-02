@@ -91,7 +91,7 @@ use crate::ai::blocklist::inline_action::aws_bedrock_credentials_error::{
 use crate::ai::blocklist::inline_action::web_fetch::WebFetchView;
 use crate::ai::blocklist::inline_action::web_search::WebSearchView;
 use crate::code_review::telemetry_event::CodeReviewPaneEntrypoint;
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 use crate::server::telemetry::AgentModeRewindEntrypoint;
 use crate::settings::{InputSettings, SelectionSettings};
 use crate::terminal::view::{CodeDiffAction, TerminalAction};
@@ -166,7 +166,11 @@ use crate::terminal::model::session::active_session::{ActiveSession, ActiveSessi
 use crate::terminal::{ShellLaunchData, TerminalView};
 use crate::view_components::DismissibleToast;
 use crate::workspace::{ForkAIConversationParams, ForkedConversationDestination, WorkspaceAction};
-use crate::{report_error, report_if_error, ToastStack};
+use crate::{
+    report_error,
+    report_if_error,
+    ToastStack,
+};
 use ai::agent::action::{AskUserQuestionItem, InsertReviewComment};
 
 use crate::editor::InteractionState;

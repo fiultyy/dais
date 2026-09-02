@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Duration, Utc};
 use warpui::{Entity, ModelContext, SingletonEntity};
 
-use crate::server::ids::{HashedSqliteId, ObjectUid};
+use crate::ids::{HashedSqliteId, ObjectUid};
 
 pub enum ObjectActionsEvent {}
 

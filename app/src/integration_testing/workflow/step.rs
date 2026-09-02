@@ -3,15 +3,13 @@ use warpui::{
 };
 
 use crate::{
-    objects::{
-        model::persistence::ObjectStoreModel, object_store::ObjectStore, Space,
-        StoredObjectEventEntrypoint,
-    },
     integration_testing::view_getters::workspace_view,
-    server::ids::{ClientId, SyncId},
     workflows::{manager::WorkflowOpenSource, workflow::Workflow, WorkflowViewMode},
     workspaces::user_workspaces::UserWorkspaces,
 };
+use objects::{Space, StoredObjectEventEntrypoint, ids::{ClientId, SyncId}};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::object_store::ObjectStore;
 
 use super::open_workflow_count;
 

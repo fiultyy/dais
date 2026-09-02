@@ -1,3 +1,6 @@
+use crate::objects_display::StoredObjectHostExt;
+use crate::ai::mcp::MCPServerObjectStoreExt;
+use crate::ai::mcp::templatable::TemplatableMCPServerObjectStoreExt;
 use crate::ai::mcp::file_based_manager::FileBasedMCPManagerEvent;
 use crate::ai::mcp::templatable_manager::oauth::{
     load_credentials_from_secure_storage, write_to_secure_storage, FILE_BASED_MCP_CREDENTIALS_KEY,
@@ -23,28 +26,26 @@ use crate::ai::mcp::TemplatableMCPServer;
 use crate::auth::AuthStateProvider;
 use crate::objects::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
 use crate::objects::object_store::{InitiatedBy, ObjectStore};
-use crate::objects::{Space, StoredObject, StoredObjectLocation, StoredObjectMetadataExt};
-use crate::server::ids::{ClientId, ServerId};
+use objects::{Space, StoredObject, StoredObjectLocation};
+use crate::objects::{StoredObjectMetadataExt};
+use objects::ids::{ClientId, ServerId};
 use crate::server::telemetry::{
     MCPServerModel, MCPServerTelemetryError, MCPServerTelemetryTransportType,
     MCPTemplateCreationSource,
 };
 use crate::workspaces::user_workspaces::UserWorkspaces;
 use crate::{
-    ai::mcp::{
-        logs, templatable::TemplatableMCPServerObject, templatable_installation::VariableValue,
-        MCPServer, StaticEnvVar, TemplatableMCPServerInstallation, TransportType,
-    },
-    objects::{GenericStringObjectFormat, JsonObjectType},
+    ai::mcp::{ logs, templatable::TemplatableMCPServerObject, templatable_installation::VariableValue, MCPServer, StaticEnvVar, TemplatableMCPServerInstallation, TransportType, },
     drive::ObjectTypeAndId,
     persistence::ModelEvent,
     send_telemetry_from_ctx,
-    server::{ids::SyncId, telemetry::TelemetryEvent},
+    server::telemetry::TelemetryEvent,
     settings::AISettings,
     view_components::DismissibleToast,
     workspace::ToastStack,
     GlobalResourceHandlesProvider,
 };
+use objects::{GenericStringObjectFormat, JsonObjectType, ids::SyncId};
 use async_compat::CompatExt as _;
 use cfg_if::cfg_if;
 use futures::FutureExt as _;

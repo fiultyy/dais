@@ -40,22 +40,11 @@ use warpui::{EntityId, ModelContext, SingletonEntity};
 
 use crate::ai::agent::{AIIdentifiers, CancellationReason};
 use crate::{
-    ai::{
-        agent::{
-            icons::{
-                failed_icon, gray_stop_icon, in_progress_icon, succeeded_icon, yellow_stop_icon,
-            },
-            todos::AIAgentTodoList,
-            AIAgentOutputMessage, AIAgentOutputMessageType, MessageToAIAgentOutputMessageError,
-        },
-        blocklist::BlocklistAIHistoryEvent,
-    },
-    persistence::{
-        model::{AgentConversationData, PersistedAutoexecuteMode},
-        ModelEvent,
-    },
+    ai::{ agent::{ icons::{ failed_icon, gray_stop_icon, in_progress_icon, succeeded_icon, yellow_stop_icon, }, todos::AIAgentTodoList, AIAgentOutputMessage, AIAgentOutputMessageType, MessageToAIAgentOutputMessageError, }, blocklist::BlocklistAIHistoryEvent, },
+    persistence::{ model::{AgentConversationData, PersistedAutoexecuteMode}, ModelEvent, },
     ui_components::icons::Icon,
-    BlocklistAIHistoryModel, GlobalResourceHandlesProvider,
+    BlocklistAIHistoryModel,
+    GlobalResourceHandlesProvider,
 };
 
 use super::task::{ExtractMessagesError, UpdateTaskError, UpgradeOptimisticTaskError};

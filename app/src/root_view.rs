@@ -8,7 +8,7 @@ use crate::auth::NeedsSsoLinkView;
 use crate::auth::{AuthManager, AuthManagerEvent};
 use crate::autoupdate::{AutoupdateState, AutoupdateStateEvent};
 use crate::objects::model::persistence::ObjectStoreModel;
-use crate::objects::{GenericStringObjectFormat, JsonObjectType, ObjectType};
+use objects::{GenericStringObjectFormat, JsonObjectType, ObjectType};
 use crate::drive::export::ExportManager;
 use crate::drive::{DaisDriveObjectArgs, DaisDriveObjectSettings};
 use crate::experiments::{BlockOnboarding, Experiment};
@@ -23,7 +23,7 @@ use onboarding::{AgentOnboardingEvent, AgentOnboardingView, SelectedSettings};
 use crate::auth::UserAuthenticationError;
 use crate::persistence::ModelEvent;
 use crate::report_if_error;
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 use crate::server::telemetry::LaunchConfigUiLocation;
 use crate::settings::QuakeModeSettings;
 use crate::settings::ThemeSettings;
@@ -59,8 +59,15 @@ use crate::{
     auth::{AuthView, AuthViewVariant},
     workspace::{PaneViewLocator, Workspace, WorkspaceRegistry},
 };
-use crate::{features::FeatureFlag, ChannelState};
-use crate::{send_telemetry_from_app_ctx, GlobalResourceHandles, GlobalResourceHandlesProvider};
+use crate::{
+    features::FeatureFlag,
+    ChannelState,
+};
+use crate::{
+    send_telemetry_from_app_ctx,
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
+};
 use anyhow::Result;
 use cfg_if::cfg_if;
 use lazy_static::lazy_static;

@@ -1,3 +1,5 @@
+use objects::UpsertEvent;
+use crate::objects_display::WarpDriveItemOverrides;
 use serde::{Deserialize, Serialize};
 use warp_core::context_flag::ContextFlag;
 use warp_core::features::FeatureFlag;
@@ -18,15 +20,15 @@ pub mod workflow_view;
 
 use crate::appearance::Appearance;
 use crate::objects::model::view::ObjectStoreViewModel;
-use crate::objects::{GenericStoredObject, ObjectType, StoredObjectModel};
+use objects::{GenericStoredObject, ObjectType, StoredObjectModel};
 
-use crate::objects::SerializedModel;
+use objects::SerializedModel;
 use crate::drive::items::workflow::WarpDriveWorkflow;
 use crate::drive::items::WarpDriveItem;
 use crate::drive::ObjectTypeAndId;
 use crate::notebooks::{NotebookId, NotebookLocation};
 use crate::persistence::ModelEvent;
-use crate::server::ids::{ServerId, SyncId};
+use objects::ids::{ServerId, SyncId};
 pub use categories::{CategoriesView, CategoriesViewEvent, WorkflowsViewAction};
 
 pub fn init(app: &mut AppContext) {
@@ -130,7 +132,7 @@ impl WorkflowViewMode {
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct WorkflowId(ServerId);
-crate::server_id_traits! { WorkflowId, "Workflow" }
+crate::objects::server_id_traits! { WorkflowId, "Workflow" }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AIWorkflowOrigin {
@@ -247,14 +249,14 @@ impl StoredObjectModel for WorkflowObjectModel {
         self.data.set_name(name);
     }
 
-    fn upsert_event(&self, workflow: &WorkflowObject) -> ModelEvent {
-        ModelEvent::UpsertWorkflow {
+    fn upsert_event(&self, workflow: &WorkflowObject) -> UpsertEvent {
+        UpsertEvent::App(Box::new(ModelEvent::UpsertWorkflow {
             workflow: workflow.clone(),
-        }
+        }))
     }
 
-    fn bulk_upsert_event(objects: &[WorkflowObject]) -> ModelEvent {
-        ModelEvent::UpsertWorkflows(objects.to_vec())
+    fn bulk_upsert_event(objects: &[WorkflowObject]) -> UpsertEvent {
+        UpsertEvent::App(Box::new(ModelEvent::UpsertWorkflows(objects.to_vec())))
     }
 
 
@@ -264,21 +266,7 @@ impl StoredObjectModel for WorkflowObjectModel {
         )
     }
 
-    fn renders_in_warp_drive(&self) -> bool {
-        true
-    }
 
-    fn to_warp_drive_item(
-        &self,
-        id: SyncId,
-        _appearance: &Appearance,
-        workflow: &WorkflowObject,
-    ) -> Option<Box<dyn WarpDriveItem>> {
-        Some(Box::new(WarpDriveWorkflow::new(
-            self.object_type_and_id(id),
-            workflow.clone(),
-        )))
-    }
 
     fn can_export(&self) -> bool {
         true
@@ -291,11 +279,6 @@ impl PartialEq<Workflow> for WorkflowObject {
     }
 }
 
-impl PartialEq<WorkflowObject> for WorkflowObject {
-    fn eq(&self, other: &WorkflowObject) -> bool {
-        self.model().data == other.model().data && self.id == other.id
-    }
-}
 
 impl From<WorkflowObject> for Workflow {
     fn from(workflow: WorkflowObject) -> Self {
@@ -312,3 +295,25 @@ impl From<&WorkflowObject> for Workflow {
 #[cfg(test)]
 #[path = "mod_test.rs"]
 mod tests;
+
+impl WarpDriveItemOverrides for WorkflowObjectModel {
+
+    fn renders_in_warp_drive(&self) -> bool {
+        true
+    }
+
+}
+
+impl WorkflowObjectModel {
+    fn to_warp_drive_item(
+        &self,
+        id: objects::SyncId,
+        _appearance: &Appearance,
+        object: &WorkflowObject,
+    ) -> Option<Box<dyn WarpDriveItem>> {
+        Some(Box::new(WarpDriveWorkflow::new(
+            objects::ObjectTypeAndId::Workflow(id),
+            object.clone(),
+        )))
+    }
+}

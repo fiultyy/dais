@@ -1,17 +1,9 @@
+use crate::objects_display::WarpDriveItemOverrides;
 use crate::ai::agent::SuggestedLoggingId;
 use crate::drive::items::{ai_fact::WarpDriveAIFact, WarpDriveItem};
-use crate::server::ids::SyncId;
-use crate::{
-    objects::{
-        model::{
-            generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel},
-            json_model::{JsonModel, JsonSerializer},
-        },
-        GenericStoredObject, GenericStringObjectFormat, GenericStringObjectUniqueKey,
-        JsonObjectType,
-    },
-    drive::ObjectTypeAndId,
-};
+use objects::ids::SyncId;
+use crate::drive::ObjectTypeAndId;
+use objects::{GenericStoredObject, GenericStringObjectFormat, GenericStringObjectUniqueKey, JsonObjectType, model::{generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel}, json_model::{JsonModel, JsonSerializer}}};
 use serde::{Deserialize, Serialize};
 use warp_core::ui::appearance::Appearance;
 
@@ -80,28 +72,17 @@ impl StringModel for AIFact {
         None
     }
 
-    fn renders_in_warp_drive(&self) -> bool {
-        false
-    }
 
-    fn to_warp_drive_item(
-        &self,
-        id: SyncId,
-        _appearance: &Appearance,
-        ai_fact: &AIFactObject,
-    ) -> Option<Box<dyn WarpDriveItem>> {
-        Some(Box::new(WarpDriveAIFact::new(
-            ObjectTypeAndId::GenericStringObject {
-                object_type: GenericStringObjectFormat::Json(JsonObjectType::AIFact),
-                id,
-            },
-            ai_fact.clone(),
-        )))
-    }
 }
 
 impl JsonModel for AIFact {
     fn json_object_type() -> JsonObjectType {
         JsonObjectType::AIFact
+    }
+}
+
+impl WarpDriveItemOverrides for AIFact {
+    fn renders_in_warp_drive(&self) -> bool {
+        false
     }
 }

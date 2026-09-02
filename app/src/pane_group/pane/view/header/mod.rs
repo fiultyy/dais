@@ -3,14 +3,7 @@ use std::fmt::Debug;
 use crate::{
     appearance::Appearance,
     menu::{Menu, MenuItem},
-    pane_group::{
-        focus_state::{PaneFocusHandle, PaneGroupFocusEvent},
-        pane::{
-            view::StandardHeader, ActionOrigin, PaneConfiguration, PaneConfigurationEvent,
-            PaneStack, PaneStackEvent, ToolbeltButton,
-        },
-        BackingView, Direction, PaneDragDropLocation, PaneId, TabBarHoverIndex,
-    },
+    pane_group::{ focus_state::{PaneFocusHandle, PaneGroupFocusEvent}, pane::{ view::StandardHeader, ActionOrigin, PaneConfiguration, PaneConfigurationEvent, PaneStack, PaneStackEvent, ToolbeltButton, }, BackingView, Direction, PaneDragDropLocation, PaneId, TabBarHoverIndex, },
     send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
     settings::CodeSettings,

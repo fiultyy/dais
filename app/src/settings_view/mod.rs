@@ -5,21 +5,14 @@ use crate::TelemetryEvent;
 use crate::{
     ai::execution_profiles::profiles::ClientProfileId,
     appearance::Appearance,
-    editor::{
-        EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions,
-        TextColors, TextOptions,
-    },
+    editor::{ EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextColors, TextOptions, },
     menu::{self, Menu, MenuItem, MenuItemFields},
-    pane_group::{
-        pane::view, BackingView, Direction, PaneConfiguration, PaneEvent, SplitPaneState,
-    },
+    pane_group::{ pane::view, BackingView, Direction, PaneConfiguration, PaneEvent, SplitPaneState, },
     workspace::WorkspaceAction,
     settings::BlockVisibilitySettings,
     terminal::{model::blockgrid::BlockGrid, SizeInfo},
     ui_components::icons,
-    util::bindings::{
-        custom_tag_to_keystroke, keybinding_name_to_display_string, BindingGroup, CustomAction,
-    },
+    util::bindings::{ custom_tag_to_keystroke, keybinding_name_to_display_string, BindingGroup, CustomAction, },
     view_components::ToastFlavor,
 };
 use about_page::AboutPageView;

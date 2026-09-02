@@ -1,3 +1,4 @@
+use crate::objects_display::{SpaceExt, StoredObjectHostExt};
 use alias_bar::{AliasBar, AliasBarEvent};
 use argument_editor::{ArgumentEditorRow, DEFAULT_ARGUMENT_PREFIX};
 use env_var_selector::{EnvVarSelector, EnvVarSelectorEvent};
@@ -16,59 +17,22 @@ use crate::{
     ai::blocklist::secret_redaction::find_secrets_in_text,
     appearance::Appearance,
     auth::{AuthState, AuthStateProvider},
-    objects::{
-        model::persistence::{ObjectStoreEvent, ObjectStoreModel},
-        object_store::ObjectStore,
-        ContainingObject, ObjectType, Owner, Revision, Space, StoredObject,
-        StoredObjectEventEntrypoint,
-    },
-    drive::{
-        objects_styling::warp_drive_icon_color,
-        drive_helpers::has_feature_gated_anonymous_user_reached_workflow_limit,
-        items::WarpDriveItemId,
-        workflows::{
-            ai_assist::GeneratedCommandMetadataError,
-            arguments::ArgumentsState,
-            enum_creation_dialog::{EnumCreationDialog, EnumCreationDialogEvent, WorkflowEnumData},
-            workflow_arg_selector::{WorkflowArgSelector, WorkflowArgSelectorEvent},
-            workflow_arg_type_helpers::{self, ArgumentEditorRowIndex},
-        },
-        DriveObjectType, ObjectTypeAndId, DaisDriveObjectSettings,
-    },
-    editor::{
-        EditorOptions, EditorView, EnterAction, EnterSettings, Event as EditorEvent,
-        InteractionState, PlainTextEditorViewAction as EditorAction,
-        PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, TextStyleOperation,
-    },
+    drive::{ objects_styling::warp_drive_icon_color, drive_helpers::has_feature_gated_anonymous_user_reached_workflow_limit, items::WarpDriveItemId, workflows::{ ai_assist::GeneratedCommandMetadataError, arguments::ArgumentsState, enum_creation_dialog::{EnumCreationDialog, EnumCreationDialogEvent, WorkflowEnumData}, workflow_arg_selector::{WorkflowArgSelector, WorkflowArgSelectorEvent}, workflow_arg_type_helpers::{self, ArgumentEditorRowIndex}, }, DriveObjectType, ObjectTypeAndId, DaisDriveObjectSettings, },
+    editor::{ EditorOptions, EditorView, EnterAction, EnterSettings, Event as EditorEvent, InteractionState, PlainTextEditorViewAction as EditorAction, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, TextStyleOperation, },
     menu::{MenuItem, MenuItemFields},
-    pane_group::{
-        focus_state::PaneFocusHandle, pane::view, BackingView, PaneConfiguration, PaneEvent,
-    },
+    pane_group::{ focus_state::PaneFocusHandle, pane::view, BackingView, PaneConfiguration, PaneEvent, },
     send_telemetry_from_ctx,
-    server::{
-        ids::{ClientId, SyncId},
-        telemetry::{ObjectTelemetryMetadata, TelemetryEvent, TelemetryObjectType},
-    },
-    settings::{
-        app_installation_detection::{UserAppInstallDetectionSettings, UserAppInstallStatus},
-        AISettings,
-    },
+    server::{telemetry::{ObjectTelemetryMetadata, TelemetryEvent, TelemetryObjectType}},
+    settings::{ app_installation_detection::{UserAppInstallDetectionSettings, UserAppInstallStatus}, AISettings, },
     terminal::safe_mode_settings::get_secret_obfuscation_mode,
-    ui_components::{
-        breadcrumb::{render_breadcrumbs, BreadcrumbState},
-        buttons::{accent_icon_button, icon_button},
-        dialog::{dialog_styles, Dialog},
-        icons::Icon,
-    },
+    ui_components::{ breadcrumb::{render_breadcrumbs, BreadcrumbState}, buttons::{accent_icon_button, icon_button}, dialog::{dialog_styles, Dialog}, icons::Icon, },
     util::bindings::CustomAction,
     view_components::{DismissibleToast, ToastType},
-    workflows::{
-        workflow::{Argument, Workflow},
-        WorkflowObject,
-    },
+    workflows::{ workflow::{Argument, Workflow}, WorkflowObject, },
     workspace::ToastStack,
     FeatureFlag,
 };
+use crate::objects::{ContainingObject, ObjectType, Owner, Revision, Space, StoredObject, StoredObjectEventEntrypoint, ids::{ClientId, SyncId}, model::persistence::{ObjectStoreEvent, ObjectStoreModel}, object_store::ObjectStore};
 
 use warp_core::{context_flag::ContextFlag, settings::Setting, ui::theme::AnsiColorIdentifier};
 use warp_editor::editor::NavigationKey;
@@ -746,7 +710,7 @@ impl WorkflowView {
         let id = self.workflow_id();
 
         if let Some(workflow) = ObjectStoreModel::as_ref(ctx).get_workflow(&id) {
-            return workflow.object_link();
+            return Some(crate::objects_display::object_link());
         }
 
         None
@@ -1662,13 +1626,34 @@ impl WorkflowView {
         let workflow = self.get_cloud_workflow(ctx);
 
         if let Some(the_workflow) = workflow {
-            self.breadcrumbs = the_workflow
-                .containing_objects_path(ctx)
+            self.breadcrumbs = Self::containing_objects_path(&the_workflow, ctx)
                 .into_iter()
                 .map(BreadcrumbState::new)
                 .collect();
         } else {
             log::warn!("Workflow not found from ObjectStoreModel, could not update breadcrumb");
+        }
+    }
+
+    /// P-ARC R1: `containing_objects_path` 已从 crate `StoredObject` trait 裁撤
+    /// (依赖 ObjectStoreModel/UserWorkspaces),由宿主侧按 folder 图重建(W3-d8 原语义)。
+    fn containing_objects_path(
+        object: &impl StoredObject,
+        app: &AppContext,
+    ) -> Vec<ContainingObject> {
+        let space = object.space(app);
+        match object.metadata().folder_id {
+            Some(folder_id) => {
+                let object_store_model = ObjectStoreModel::as_ref(app);
+                if let Some(folder) = object_store_model.get_folder_by_uid(&folder_id.uid()) {
+                    let mut path = Self::containing_objects_path(folder, app);
+                    path.push(folder.into());
+                    path
+                } else {
+                    vec![space.into_containing_object(app)]
+                }
+            }
+            None => vec![space.into_containing_object(app)],
         }
     }
 

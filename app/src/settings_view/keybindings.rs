@@ -8,21 +8,22 @@ use super::{
     SettingsSection,
 };
 use crate::send_telemetry_from_ctx;
-use crate::{appearance::Appearance, themes};
 use crate::{
-    editor::EditorView, keyboard::write_custom_keybinding, util::bindings::CommandBinding,
+    appearance::Appearance,
+    themes,
 };
 use crate::{
-    editor::{
-        Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions,
-    },
+    editor::EditorView,
+    keyboard::write_custom_keybinding,
+    util::bindings::CommandBinding,
+};
+use crate::{
+    editor::{ Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, },
     keyboard::UserDefinedKeybinding,
 };
 use crate::settings::PreferencesSettings;
 use crate::{
-    util::bindings::{
-        filter_bindings_including_keystroke, reset_keybinding_to_default, set_custom_keybinding,
-    },
+    util::bindings::{ filter_bindings_including_keystroke, reset_keybinding_to_default, set_custom_keybinding, },
     TelemetryEvent,
 };
 use itertools::Itertools;

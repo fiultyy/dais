@@ -20,22 +20,14 @@ use warpui::{
 use warpui::ui_components::radio_buttons::RadioButtonStateHandle;
 
 use crate::{
-    report_if_error, send_telemetry_from_ctx,
-    settings::{
-        import::{
-            config::{Config, ParsedTerminalSetting, SettingType},
-            model::{ImportedConfigModel, TerminalTypeAndProfile},
-        },
-        AppEditorSettings, CursorBlink, FontSettings, GlobalHotkeyMode, SelectionSettings,
-        ThemeSettings,
-    },
-    terminal::{
-        alt_screen_reporting::AltScreenReporting, keys_settings::KeysSettings,
-        session_settings::SessionSettings,
-    },
+    report_if_error,
+    send_telemetry_from_ctx,
+    settings::{ import::{ config::{Config, ParsedTerminalSetting, SettingType}, model::{ImportedConfigModel, TerminalTypeAndProfile}, }, AppEditorSettings, CursorBlink, FontSettings, GlobalHotkeyMode, SelectionSettings, ThemeSettings, },
+    terminal::{ alt_screen_reporting::AltScreenReporting, keys_settings::KeysSettings, session_settings::SessionSettings, },
     ui_components::blended_colors,
     window_settings::WindowSettings,
-    GlobalResourceHandlesProvider, TelemetryEvent,
+    GlobalResourceHandlesProvider,
+    TelemetryEvent,
 };
 
 use super::config::QuakeModeWindow;

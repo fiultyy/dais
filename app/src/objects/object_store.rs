@@ -1,38 +1,36 @@
 #[cfg(not(target_family = "wasm"))]
-use crate::ai::mcp::templatable::{TemplatableMCPServer, TemplatableMCPServerObjectModel};
+use crate::objects_display::StoredObjectHostExt;
+use crate::ai::mcp::templatable::{
+    TemplatableMCPServer, TemplatableMCPServerObject, TemplatableMCPServerObjectModel,
+};
+use crate::ai::mcp::MCPServerObject;
+use objects::model::{actions::{ObjectActionType, ObjectActions}, generic_string_model::{GenericStringModel, GenericStringObjectId, Serializer, StoredStringObject, StringModel}};
 use crate::{
     ai::{
-        execution_profiles::{AIExecutionProfile, AIExecutionProfileObjectModel},
-        facts::{AIFact, AIFactObjectModel},
+        execution_profiles::{AIExecutionProfile, AIExecutionProfileObject, AIExecutionProfileObjectModel},
+        facts::{AIFact, AIFactObject, AIFactObjectModel},
     },
     auth::TEST_USER_UID,
     objects::{
-        model::{
-            actions::{ObjectActionType, ObjectActions},
-            generic_string_model::{
-                GenericStringModel, GenericStringObjectId, Serializer, StringModel,
-            },
-            persistence::{ObjectStoreEvent, ObjectStoreModel, UpdateSource},
-            view::{Editor, EditorState, ObjectStoreViewModel},
-        },
+        model::{persistence::{ObjectStoreEvent, ObjectStoreModel, UpdateSource}, view::{Editor, EditorState, ObjectStoreViewModel}},
         GenericStoredObject, GenericStringObjectFormat, JsonObjectType, ObjectIdType, ObjectType,
         Owner, Revision, Space, StoredObject, StoredObjectEventEntrypoint, StoredObjectLocation,
         StoredObjectModel,
     },
     drive::{
-        folders::{FolderId, FolderObjectModel},
+        folders::{FolderId, FolderObject, FolderObjectModel},
         ObjectTypeAndId,
     },
-    env_vars::{EnvVarCollection, EnvVarCollectionObjectModel},
-    notebooks::{NotebookId, NotebookObjectModel},
+    env_vars::{EnvVarCollection, EnvVarCollectionObject, EnvVarCollectionObjectModel},
+    notebooks::{NotebookId, NotebookObject, NotebookObjectModel},
     persistence::ModelEvent,
     server::ids::{ClientId, HashableId, ObjectUid, ServerId, SyncId, ToServerId},
     server_time::ServerTimestamp,
-    settings::cloud_preferences::Preference,
+    settings::cloud_preferences::{Preference, PreferenceObject},
     workflows::{
         workflow::Workflow,
         workflow_enum::{WorkflowEnum, WorkflowEnumObject, WorkflowEnumObjectModel},
-        WorkflowId, WorkflowObjectModel,
+        WorkflowId, WorkflowObject, WorkflowObjectModel,
     },
     workspaces::user_workspaces::UserWorkspaces,
 };
@@ -47,6 +45,63 @@ use warpui::{Entity, ModelContext, SingletonEntity};
 lazy_static! {
     static ref DUPLICATE_OBJECT_NAME_REGEX: Regex =
         Regex::new(r" \((\d+)\)$").expect("regex should not fail to compile");
+}
+
+/// P-ARC R1: crate `StoredObject` trait 裁撤了 `upsert_event`(ModelEvent 携带 app 侧
+/// 类型,无法下沉);sqlite 写入前由宿主按 `object_type()` 分发,重建 upsert 事件。
+fn host_upsert_event(object: &dyn StoredObject) -> ModelEvent {
+    match object.object_type() {
+        ObjectType::Notebook => ModelEvent::UpsertNotebook {
+            notebook: stored_object_downcast::<NotebookObject>(object).clone(),
+        },
+        ObjectType::Workflow => ModelEvent::UpsertWorkflow {
+            workflow: stored_object_downcast::<WorkflowObject>(object).clone(),
+        },
+        ObjectType::Folder => ModelEvent::UpsertFolder {
+            folder: stored_object_downcast::<FolderObject>(object).clone(),
+        },
+        ObjectType::GenericStringObject(GenericStringObjectFormat::Json(json_type)) => {
+            ModelEvent::UpsertGenericStringObject {
+                object: match json_type {
+                    JsonObjectType::Preference => StoredStringObject::clone_box(
+                        stored_object_downcast::<PreferenceObject>(object),
+                    ),
+                    JsonObjectType::EnvVarCollection => {
+                        StoredStringObject::clone_box(stored_object_downcast::<
+                            EnvVarCollectionObject,
+                        >(object))
+                    }
+                    JsonObjectType::WorkflowEnum => StoredStringObject::clone_box(
+                        stored_object_downcast::<WorkflowEnumObject>(object),
+                    ),
+                    JsonObjectType::AIFact => StoredStringObject::clone_box(
+                        stored_object_downcast::<AIFactObject>(object),
+                    ),
+                    JsonObjectType::MCPServer => StoredStringObject::clone_box(
+                        stored_object_downcast::<MCPServerObject>(object),
+                    ),
+                    JsonObjectType::AIExecutionProfile => {
+                        StoredStringObject::clone_box(stored_object_downcast::<
+                            AIExecutionProfileObject,
+                        >(object))
+                    }
+                    JsonObjectType::TemplatableMCPServer => {
+                        StoredStringObject::clone_box(stored_object_downcast::<
+                            TemplatableMCPServerObject,
+                        >(object))
+                    }
+                },
+            }
+        }
+    }
+}
+
+/// `object_type()` 已断言具体类型,downcast 失败即为不变量破坏。
+fn stored_object_downcast<T: 'static>(object: &dyn StoredObject) -> &T {
+    object
+        .as_any()
+        .downcast_ref::<T>()
+        .expect("stored object concrete type must match object_type()")
 }
 
 #[derive(Debug, PartialEq)]
@@ -148,7 +203,7 @@ impl ObjectStore {
         uid: &ObjectUid,
     ) {
         if let Some(objects) = object_store_model.get_by_uid(uid) {
-            self.save_to_db([objects.upsert_event()]);
+            self.save_to_db([host_upsert_event(objects)]);
         }
     }
 
@@ -903,7 +958,7 @@ impl ObjectStore {
         // Update sqlite.
         let object_store_model = ObjectStoreModel::as_ref(ctx);
         if let Some(object) = object_store_model.get_object_of_type::<K, M>(&object_id) {
-            self.save_to_db([object.upsert_event()]);
+            self.save_to_db([host_upsert_event(object)]);
         }
     }
 
@@ -943,7 +998,7 @@ impl ObjectStore {
         // Update sqlite.
         let object_store_model = ObjectStoreModel::as_ref(ctx);
         if let Some(object) = object_store_model.get_object_of_type::<K, M>(&object_id) {
-            self.save_to_db([object.upsert_event()]);
+            self.save_to_db([host_upsert_event(object)]);
         };
     }
 

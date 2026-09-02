@@ -14,18 +14,13 @@ use super::{
     shell::ShellType,
 };
 use crate::{
-    objects::{
-        model::{persistence::ObjectStoreModel, view::ObjectStoreViewModel},
-        Space,
-    },
-    server::ids::{ClientId, HashableId as _, SyncId},
     terminal::model::session::{Session, SessionId},
     util::dedupe_from_last,
-    workflows::{
-        local_workflows::LocalWorkflows, workflow::Workflow, WorkflowId, WorkflowSource,
-        WorkflowType,
-    },
+    workflows::{ local_workflows::LocalWorkflows, workflow::Workflow, WorkflowId, WorkflowSource, WorkflowType, },
 };
+use objects::{Space, ids::{ClientId, HashableId as _, SyncId}};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::model::view::ObjectStoreViewModel;
 
 mod up_arrow;
 pub(crate) use up_arrow::UpArrowHistoryConfig;

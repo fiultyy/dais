@@ -17,8 +17,10 @@ use crate::view_components::action_button::{
     ActionButton, ActionButtonTheme, ButtonSize, NakedTheme, SecondaryTheme,
 };
 use crate::{
-    appearance::Appearance, code_review::code_review_view::CodeReviewView,
-    ui_components::icons::Icon, workspace::view::right_panel::ReviewDestination,
+    appearance::Appearance,
+    code_review::code_review_view::CodeReviewView,
+    ui_components::icons::Icon,
+    workspace::view::right_panel::ReviewDestination,
 };
 use indexmap::IndexMap;
 use pathfinder_color::ColorU;

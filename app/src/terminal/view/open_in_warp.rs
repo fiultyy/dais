@@ -16,12 +16,7 @@ use warpui::{
 use crate::code::editor_management::CodeSource;
 use crate::{
     report_if_error,
-    terminal::{
-        event::UserBlockCompleted,
-        general_settings::GeneralSettings,
-        model::session::Session,
-        view::inline_banner::{OpenInWarpBannerAction, OpenInWarpBannerState},
-    },
+    terminal::{ event::UserBlockCompleted, general_settings::GeneralSettings, model::session::Session, view::inline_banner::{OpenInWarpBannerAction, OpenInWarpBannerState}, },
     util::openable_file_type::{is_file_openable_in_warp, OpenableFileType},
 };
 use settings::Setting as _;

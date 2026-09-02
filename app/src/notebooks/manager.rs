@@ -9,16 +9,15 @@ use warpui::{
 };
 
 use crate::{
-    objects::{
-        model::persistence::{ObjectStoreEvent, ObjectStoreModel},
-        Owner,
-    },
     drive::DaisDriveObjectSettings,
     pane_group::{NotebookPane, PaneContent},
-    safe_debug, safe_warn,
-    server::ids::SyncId,
+    safe_debug,
+    safe_warn,
     workspace::PaneViewLocator,
 };
+use objects::{Owner, ids::SyncId};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::model::persistence::{ObjectStoreEvent};
 
 use super::{notebook::NotebookView, NotebookObject};
 
@@ -146,8 +145,7 @@ impl NotebookManager {
     ) {
         if let ObjectStoreEvent::ObjectUpdated { type_and_id, .. } = event {
             if let Some(notebook_id) = type_and_id.as_notebook_id() {
-                self.update_raw_text_for_notebook(notebook_id, ctx);
-            }
+                self.update_raw_text_for_notebook(notebook_id, ctx)}
         }
     }
 
@@ -204,8 +202,7 @@ impl NotebookManager {
                 owner,
                 initial_folder_id,
             } => view.update(ctx, |view, ctx| {
-                view.open_new_notebook(title.clone(), *owner, *initial_folder_id, ctx);
-            }),
+                view.open_new_notebook(title.clone(), *owner, *initial_folder_id, ctx)}),
         }
 
         NotebookPane::new(view, ctx)
@@ -221,8 +218,7 @@ impl NotebookManager {
     ) {
         let Some(notebook_id) = pane.notebook_view(ctx).as_ref(ctx).notebook_id(ctx) else {
             log::warn!("Notebook pane has no notebook ID");
-            return;
-        };
+            return};
 
         let entry = self.panes_by_hashed_id.entry(notebook_id.uid());
         if let Entry::Vacant(entry) = entry {
@@ -247,8 +243,7 @@ impl NotebookManager {
     pub fn deregister_pane(&mut self, pane: &NotebookPane, ctx: &mut ModelContext<Self>) {
         let Some(notebook_id) = pane.notebook_view(ctx).as_ref(ctx).notebook_id(ctx) else {
             log::warn!("Notebook pane has no notebook ID");
-            return;
-        };
+            return};
 
         // If a notebook pane is restored, the notebook may have been reopened in the meantime. In
         // that case, don't let closing the original pane clear out the new pane.
@@ -271,15 +266,13 @@ impl NotebookManager {
         let Some(notebook) = ObjectStoreModel::handle(ctx).read(ctx, |model, _| {
             Some(model.get_notebook(&notebook_id)?.clone())
         }) else {
-            return;
-        };
+            return};
 
         if let Some(NotebookRawTextStatus::ParseInFlight(abort_handle)) =
             self.raw_text_by_hashed_id.get(&notebook_id.uid())
         {
             // If there's already a parse in flight, abort it
-            abort_handle.abort();
-        }
+            abort_handle.abort()}
 
         let handle = Self::spawn_raw_text_parse_for_notebook(notebook, ctx);
 
@@ -300,10 +293,8 @@ impl NotebookManager {
                     .insert(new_id.uid(), pane_data)
                     .is_none(),
                 "New notebook was already open"
-            );
-        } else {
-            log::warn!("Tried to swap notebooks, but the old one was not open");
-        }
+            )} else {
+            log::warn!("Tried to swap notebooks, but the old one was not open")}
     }
 
     /// Close all open notebooks, saving any changes. This is called before the app terminates to
@@ -327,8 +318,7 @@ impl NotebookManager {
         self.panes_by_hashed_id.clear();
         for (_, status) in self.raw_text_by_hashed_id.drain() {
             if let NotebookRawTextStatus::ParseInFlight(handle) = status {
-                handle.abort();
-            }
+                handle.abort()}
         }
     }
 }

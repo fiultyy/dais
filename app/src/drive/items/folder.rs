@@ -3,14 +3,11 @@ use warpui::{elements::MouseStateHandle, AppContext, Element};
 
 use crate::{
     appearance::Appearance,
-    objects::StoredObjectMetadata,
-    drive::{
-        objects_styling::warp_drive_icon_color, folders::FolderObject,
-            DriveObjectType, ObjectTypeAndId,
-    },
+    drive::{ objects_styling::warp_drive_icon_color, folders::FolderObject, DriveObjectType, ObjectTypeAndId, },
     themes::theme::Fill,
     ui_components::icons::Icon,
 };
+use objects::StoredObjectMetadata;
 
 use super::{WarpDriveItem, WarpDriveItemId};
 

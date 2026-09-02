@@ -2,19 +2,15 @@
 use std::fs;
 use std::{path::PathBuf, sync::Arc};
 use crate::{
-    app_state::{
-        AppState, CodePaneSnapShot, CodePaneTabSnapshot, LeafContents, LeafSnapshot,
-        PaneNodeSnapshot, TabSnapshot, TerminalPaneSnapshot, WindowSnapshot,
-    },
-    objects::Owner,
+    app_state::{ AppState, CodePaneSnapShot, CodePaneTabSnapshot, LeafContents, LeafSnapshot, PaneNodeSnapshot, TabSnapshot, TerminalPaneSnapshot, WindowSnapshot, },
     code::editor_management::CodeSource,
     notebooks::{NotebookObject, NotebookObjectModel},
     persistence::{BlockCompleted, ModelEvent},
-    server::ids::ClientId,
     tab::SelectedTabColor,
     terminal::model::block::SerializedBlock,
     terminal::ShellLaunchData,
 };
+use objects::{Owner, ids::ClientId};
 
 use super::{
     decode_path, deduplicate_events, encode_path, read_sqlite_data, save_app_state, setup_database,

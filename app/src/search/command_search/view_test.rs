@@ -1,12 +1,16 @@
 use warpui::{platform::WindowStyle, App};
 
 use crate::{
-    auth::{AuthManager, AuthStateProvider}, objects::model::persistence::ObjectStoreModel,
-    objects::object_store::ObjectStore, network::NetworkStatus,
-    settings_view::keybindings::KeybindingChangedNotifier, system::SystemStats,
+    auth::{AuthManager, AuthStateProvider},
+    network::NetworkStatus,
+    settings_view::keybindings::KeybindingChangedNotifier,
+    system::SystemStats,
     test_util::settings::initialize_settings_for_tests,
     workspaces::user_workspaces::UserWorkspaces,
 };
+
+use crate::objects::object_store::ObjectStore;
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use super::*;
 

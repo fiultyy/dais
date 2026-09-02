@@ -15,6 +15,8 @@ mod vertical_tabs;
 #[path = "vtab_projection.rs"]
 mod vtab_projection;
 
+use crate::objects_display::StoredObjectHostExt;
+use objects::StoredObject as _;
 use self::vertical_tabs::telemetry::{VerticalTabsDisplayOption, VerticalTabsTelemetryEvent};
 use self::vertical_tabs::{
     render_detail_sidecar, render_settings_popup, VerticalTabsPanelState,
@@ -212,7 +214,7 @@ use crate::search::command_search::searcher::{
     AcceptedHistoryItem, AcceptedWorkflow, CommandSearchItemAction,
 };
 use crate::search::command_search::view::{CommandSearchEvent, CommandSearchView};
-use crate::server::ids::{ObjectUid, SyncId};
+use objects::ids::{ObjectUid, SyncId};
 use crate::server::telemetry::{
     AddTabWithShellSource, CloseTarget, EnvVarTelemetryMetadata, FileTreeSource,
     LaunchConfigUiLocation, MCPServerCollectionPaneEntrypoint, OpenedWarpAISource,
@@ -295,14 +297,14 @@ use crate::workspace::toast_stack::{
     ToastStack as WorkspaceToastStack, ToastStackEvent as WorkspaceToastStackEvent,
 };
 use crate::{
-    ai_assistant::{
-        panel::{AIAssistantPanelEvent, AIAssistantPanelView},
-        AskAIType, AI_ASSISTANT_FEATURE_NAME, AI_ASSISTANT_LOGO_COLOR,
-    },
+    ai_assistant::{ panel::{AIAssistantPanelEvent, AIAssistantPanelView}, AskAIType, AI_ASSISTANT_FEATURE_NAME, AI_ASSISTANT_LOGO_COLOR, },
     settings,
     ui_components::blended_colors,
 };
-use crate::{send_telemetry_from_ctx, GlobalResourceHandles};
+use crate::{
+    send_telemetry_from_ctx,
+    GlobalResourceHandles,
+};
 
 use futures::Future;
 use itertools::Itertools;
@@ -333,7 +335,10 @@ use warpui::elements::{
 use warpui::ui_components::button::Button;
 use warpui::windowing::{StateEvent, WindowManager};
 use warpui::{elements::MouseStateHandle, fonts::Properties};
-use crate::{autoupdate, channel::ChannelState};
+use crate::{
+    autoupdate,
+    channel::ChannelState,
+};
 
 use crate::ai::blocklist::{BlocklistAIHistoryEvent, PendingQueryState, SerializedBlockListItem};
 use crate::editor::{
@@ -3510,7 +3515,7 @@ impl Workspace {
                             .objectss()
                             .filter(|object| {
                                 !object.is_trashed(object_store_model)
-                                    && object.renders_in_warp_drive()
+                                    && object.renders_in_warp_drive_dyn()
                                     && !object.metadata().is_welcome_object
                             })
                             .map(|object| object.object_type_and_id())

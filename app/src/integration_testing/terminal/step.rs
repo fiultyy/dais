@@ -18,20 +18,15 @@ use crate::integration_testing::{
 use crate::terminal::model::terminal_model::BlockIndex;
 use crate::terminal::shell::ShellType;
 use crate::{
-    cmd_or_ctrl_shift, integration_testing::terminal::validate_block_output_on_finished_block,
+    cmd_or_ctrl_shift,
+    integration_testing::terminal::validate_block_output_on_finished_block,
 };
 use crate::{
     integration_testing::command_palette::open_command_palette_and_run_action,
     settings::PrivacySettings,
 };
 use crate::{
-    integration_testing::{
-        step::{
-            assert_no_pending_model_events, new_step_with_default_assertions,
-            new_step_with_default_assertions_for_pane,
-        },
-        view_getters::{single_input_view_for_tab, terminal_view},
-    },
+    integration_testing::{ step::{ assert_no_pending_model_events, new_step_with_default_assertions, new_step_with_default_assertions_for_pane, }, view_getters::{single_input_view_for_tab, terminal_view}, },
     terminal::input::InputSuggestionsMode,
 };
 

@@ -1,26 +1,35 @@
 use chrono::Utc;
+use std::collections::HashSet;
 use lazy_static::lazy_static;
 use settings::{RespectUserSyncSetting, SyncToCloud};
-use warpui::{App, ModelHandle};
+use warpui::{App, ModelHandle, SingletonEntity};
 
 use crate::auth::AuthManager;
 use crate::auth::AuthStateProvider;
 use crate::auth::UserUid;
 use crate::auth::TEST_USER_UID;
-use crate::objects::model::actions::ObjectActions;
-use crate::objects::model::generic_string_model::GenericStringModel;
+use objects::ObjectActions;
+use objects::GenericStringModel;
 use crate::objects::model::view::EditorState;
 use crate::objects::model::view::ObjectStoreViewModel;
 use crate::objects::model::view::UpdateTimestamp;
 use crate::objects::model::view::EDITOR_TIMEOUT_DURATION_MINUTES;
-use crate::objects::Owner;
-use crate::objects::StoredObjectMetadata;
-use crate::objects::StoredObjectPermissions;
+use objects::{
+    Owner, Revision, ServerTimestamp, Space, StoredObject, StoredObjectLocation, SyncId,
+    GenericStringObjectId,
+};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::drive::folders::FolderObject;
+use crate::settings::PreferenceObject;
+use crate::objects_display::StoredObjectHostExt;
+use crate::notebooks::NotebookObject;
+use objects::StoredObjectMetadata;
+use objects::StoredObjectPermissions;
 use crate::drive::folders::FolderObjectModel;
 use crate::features::FeatureFlag;
 use crate::notebooks::NotebookObjectModel;
-use crate::server::ids::ClientId;
-use crate::server::ids::ServerId;
+use objects::ids::ClientId;
+use objects::ids::ServerId;
 use crate::settings::init_and_register_user_preferences;
 use crate::settings::Preference;
 use crate::system::SystemStats;
@@ -277,17 +286,17 @@ fn test_collapse_all_in_location() {
             let folder_1 = folder_from_object_store_model(model, folder_1_id);
             let folder_4 = folder_from_object_store_model(model, folder_4_id);
             let folder_5 = folder_from_object_store_model(model, folder_5_id);
-            assert!(!folder_1.model.is_open);
-            assert!(!folder_4.model.is_open);
-            assert!(!folder_5.model.is_open);
+            assert!(!folder_1.model().is_open);
+            assert!(!folder_4.model().is_open);
+            assert!(!folder_5.model().is_open);
             // but the others are still open
             let folder_2 = folder_from_object_store_model(model, folder_2_id);
             let folder_3 = folder_from_object_store_model(model, folder_3_id);
             let folder_6 = folder_from_object_store_model(model, folder_6_id);
             let folder_7 = folder_from_object_store_model(model, folder_7_id);
-            assert!(folder_2.model.is_open);
-            assert!(folder_3.model.is_open);
-            assert!(folder_6.model.is_open);
+            assert!(folder_2.model().is_open);
+            assert!(folder_3.model().is_open);
+            assert!(folder_6.model().is_open);
             model.collapse_all_in_location(StoredObjectLocation::Space(Default::default()), ctx);
             // now all folders in this space are collapsed
             let folder_1 = folder_from_object_store_model(model, folder_1_id);
@@ -297,13 +306,13 @@ fn test_collapse_all_in_location() {
             let folder_5 = folder_from_object_store_model(model, folder_5_id);
             let folder_6 = folder_from_object_store_model(model, folder_6_id);
             let folder_7 = folder_from_object_store_model(model, folder_7_id);
-            assert!(!folder_1.model.is_open);
-            assert!(!folder_2.model.is_open);
-            assert!(!folder_3.model.is_open);
-            assert!(!folder_4.model.is_open);
-            assert!(!folder_5.model.is_open);
-            assert!(!folder_6.model.is_open);
-            assert!(!folder_7.model.is_open);
+            assert!(!folder_1.model().is_open);
+            assert!(!folder_2.model().is_open);
+            assert!(!folder_3.model().is_open);
+            assert!(!folder_4.model().is_open);
+            assert!(!folder_5.model().is_open);
+            assert!(!folder_6.model().is_open);
+            assert!(!folder_7.model().is_open);
         });
     })
 }

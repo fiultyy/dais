@@ -31,9 +31,11 @@ use crate::test_util::settings::initialize_settings_for_tests;
 use crate::workspace::ActiveSession;
 use crate::UserWorkspaces;
 use crate::{
-    objects::model::persistence::ObjectStoreModel, search::files::model::FileSearchModel,
-    GlobalResourceHandles, GlobalResourceHandlesProvider,
+    search::files::model::FileSearchModel,
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
 };
+use crate::objects::model::persistence::ObjectStoreModel;
 
 /// Container for a [`RichTextEditorView`] in unit tests.
 struct TestView {

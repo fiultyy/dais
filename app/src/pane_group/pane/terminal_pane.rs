@@ -18,10 +18,7 @@ use crate::{
     persistence::{BlockCompleted, ModelEvent},
     session_management::SessionNavigationData,
     terminal::cli_agent_sessions::CLIAgentSessionsModel,
-    terminal::{
-        general_settings::GeneralSettings, shared_session::SharedSessionStatus, view::Event,
-        TerminalManager, TerminalView,
-    },
+    terminal::{ general_settings::GeneralSettings, shared_session::SharedSessionStatus, view::Event, TerminalManager, TerminalView, },
     view_components::ToastFlavor,
     workspace::{sync_inputs::SyncedInputState, PaneViewLocator},
     AIExecutionProfilesModel,

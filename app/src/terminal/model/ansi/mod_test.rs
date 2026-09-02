@@ -809,7 +809,7 @@ fn parse_osc777_notification() {
 
 #[test]
 fn parse_osc777_notification_empty_title() {
-    let bytes: &[u8] = b"\x1b]777;notify;;Just the body\x07";
+    let bytes: &[u8] = b"\x1b]777;notify;Just the body\x07";
     let (_, handler) = parse_bytes(bytes);
 
     assert_eq!(handler.pluggable_notifications.len(), 1);

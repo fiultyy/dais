@@ -10,16 +10,13 @@ use warpui::{
 };
 
 use crate::{
-    objects::model::persistence::ObjectStoreModel,
     drive::workflows::enum_creation_dialog::WorkflowEnumData,
-    editor::{
-        EditOrigin, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys,
-        SingleLineEditorOptions, TextOptions,
-    },
-    server::ids::SyncId,
+    editor::{ EditOrigin, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, },
     view_components::{Dropdown, DropdownItem},
     workflows::{workflow::ArgumentType, workflow_enum::EnumVariants},
 };
+use objects::{ids::SyncId};
+use crate::objects::model::persistence::ObjectStoreModel;
 
 /// Width of the argument editor in alias mode.
 pub const ALIAS_ARGUMENT_EDITOR_WIDTH: f32 = 300.;

@@ -5,53 +5,19 @@ mod reasoning_depth_selector;
 pub mod toolbar_item;
 
 use crate::{
-    ai::{
-        blocklist::{
-            history_model::{BlocklistAIHistoryEvent, BlocklistAIHistoryModel},
-            prompt::prompt_alert::PromptAlertView,
-            usage::icon_for_context_window_usage,
-            BlocklistAIInputModel,
-        },
-        execution_profiles::profiles::AIExecutionProfilesModel,
-        AIRequestUsageModel,
-    },
+    ai::{ blocklist::{ history_model::{BlocklistAIHistoryEvent, BlocklistAIHistoryModel}, prompt::prompt_alert::PromptAlertView, usage::icon_for_context_window_usage, BlocklistAIInputModel, }, execution_profiles::profiles::AIExecutionProfilesModel, AIRequestUsageModel, },
     appearance::Appearance,
     completer::SessionContext,
-    context_chips::{
-        self,
-        display_chip::{DisplayChip, DisplayChipConfig},
-        prompt_type::PromptType,
-        ContextChipKind,
-    },
+    context_chips::{ self, display_chip::{DisplayChip, DisplayChipConfig}, prompt_type::PromptType, ContextChipKind, },
     features::FeatureFlag,
     network::NetworkStatus,
     send_telemetry_from_ctx,
     server::telemetry::{PluginChipTelemetryKind, TelemetryEvent},
     settings::{AISettings, AISettingsChangedEvent},
     settings_view::SettingsSection,
-    terminal::{
-        cli_agent_sessions::{
-            listener::session_supports_rich_status, CLIAgentInputState, CLIAgentSessionsModel,
-            CLIAgentSessionsModelEvent,
-        },
-        input::{models::InlineModelSelectorTab, MenuPositioningProvider},
-        model_events::ModelEvent,
-        profile_model_selector::{ProfileModelSelector, ProfileModelSelectorEvent},
-        session_settings::{SessionSettings, SessionSettingsChangedEvent, ToolbarChipSelection},
-        shared_session::SharedSessionStatus,
-        view::ambient_agent::{AmbientAgentViewModel, ModelSelector},
-        view::init::OPEN_CLI_AGENT_RICH_INPUT_KEYBINDING,
-        view::TerminalAction,
-        CLIAgent, TerminalModel,
-    },
+    terminal::{ cli_agent_sessions::{ listener::session_supports_rich_status, CLIAgentInputState, CLIAgentSessionsModel, CLIAgentSessionsModelEvent, }, input::{models::InlineModelSelectorTab, MenuPositioningProvider}, model_events::ModelEvent, profile_model_selector::{ProfileModelSelector, ProfileModelSelectorEvent}, session_settings::{SessionSettings, SessionSettingsChangedEvent, ToolbarChipSelection}, shared_session::SharedSessionStatus, view::ambient_agent::{AmbientAgentViewModel, ModelSelector}, view::init::OPEN_CLI_AGENT_RICH_INPUT_KEYBINDING, view::TerminalAction, CLIAgent, TerminalModel, },
     ui_components::{icon_with_status::render_cli_agent_logo, icons::Icon},
-    view_components::{
-        action_button::{
-            ActionButton, ActionButtonTheme, AdjoinedSide, ButtonSize, KeystrokeSource, NakedTheme,
-            TooltipAlignment,
-        },
-        DismissibleToast,
-    },
+    view_components::{ action_button::{ ActionButton, ActionButtonTheme, AdjoinedSide, ButtonSize, KeystrokeSource, NakedTheme, TooltipAlignment, }, DismissibleToast, },
     workspace::{view::TOGGLE_PROJECT_EXPLORER_BINDING_NAME, ToastStack},
     workspaces::user_workspaces::UserWorkspaces,
 };

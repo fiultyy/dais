@@ -60,7 +60,10 @@ use crate::ui_components::icons;
 use crate::view_components::DismissibleToast;
 use crate::vim_registers::{RegisterContent, VimRegisters};
 use crate::workspace::ToastStack;
-use crate::{ai::blocklist::InputType, settings::AISettings};
+use crate::{
+    ai::blocklist::InputType,
+    settings::AISettings,
+};
 
 use crate::editor::RangeExt;
 use crate::features::FeatureFlag;
@@ -77,7 +80,10 @@ use crate::util::clipboard::clipboard_content_with_escaped_paths;
 use crate::util::color::{ContrastingColor, MinimumAllowedContrast};
 use crate::util::image::{resize_image, MAX_IMAGE_COUNT_FOR_QUERY, MAX_IMAGE_SIZE_BYTES};
 use crate::util::merge_ranges;
-use crate::{workspace::Workspace, BlocklistAIHistoryModel};
+use crate::{
+    workspace::Workspace,
+    BlocklistAIHistoryModel,
+};
 use anyhow::Result;
 use core::f32;
 use std::path::Path;

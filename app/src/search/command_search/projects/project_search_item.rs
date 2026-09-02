@@ -14,7 +14,10 @@ use crate::search::command_palette::render_util::render_search_item_icon;
 use crate::search::item::SearchItem;
 use crate::search::result_renderer::ItemHighlightState;
 use crate::ui_components::icons::Icon as UiIcon;
-use crate::{appearance::Appearance, search::command_palette::mixer::CommandPaletteItemAction};
+use crate::{
+    appearance::Appearance,
+    search::command_palette::mixer::CommandPaletteItemAction,
+};
 
 /// Stores data needed to display a project search result item in Command Search.
 #[derive(Clone, Debug, PartialEq, Eq)]

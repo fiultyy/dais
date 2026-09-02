@@ -3,11 +3,7 @@ use warpui::{AppContext, Entity, ModelContext, ModelHandle, SingletonEntity};
 use crate::{
     menu::{MenuItem, MenuItemFields},
     settings::WarpPromptSeparator,
-    terminal::{
-        model::session::Sessions,
-        session_settings::{SessionSettings, ToolbarChipSelection},
-        view::{ContextMenuAction, PromptPart, PromptPosition, TerminalAction},
-    },
+    terminal::{ model::session::Sessions, session_settings::{SessionSettings, ToolbarChipSelection}, view::{ContextMenuAction, PromptPart, PromptPosition, TerminalAction}, },
 };
 
 use super::{

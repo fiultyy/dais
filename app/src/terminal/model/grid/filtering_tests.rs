@@ -1,12 +1,7 @@
 use warp_terminal::model::grid::cell::Flags;
 
 use crate::{
-    terminal::model::{
-        ansi::Handler as _,
-        blockgrid::BlockGrid,
-        grid::Dimensions as _,
-        index::{VisiblePoint, VisibleRow},
-    },
+    terminal::model::{ ansi::Handler as _, blockgrid::BlockGrid, grid::Dimensions as _, index::{VisiblePoint, VisibleRow}, },
     test_util::mock_blockgrid,
 };
 

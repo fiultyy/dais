@@ -6,28 +6,13 @@ use itertools::Itertools;
 use warpui::{App, EntityId};
 
 use crate::{
-    ai::{
-        agent::{
-            api::ServerConversationToken, conversation::AIConversationId, AIAgentExchange,
-            AIAgentExchangeId, AIAgentInput, AIAgentOutputStatus, FinishedAIAgentOutput, Shared,
-            UserQueryMode,
-        },
-        ambient_agents::AmbientAgentTaskId,
-        blocklist::{controller::RequestInput, ResponseStreamId},
-        byop_readiness::{RepairRecord, RepairSource, RepairState, RepairStateStatus, ToolCallKey},
-        llms::LLMId,
-    },
+    ai::{ agent::{ api::ServerConversationToken, conversation::AIConversationId, AIAgentExchange, AIAgentExchangeId, AIAgentInput, AIAgentOutputStatus, FinishedAIAgentOutput, Shared, UserQueryMode, }, ambient_agents::AmbientAgentTaskId, blocklist::{controller::RequestInput, ResponseStreamId}, byop_readiness::{RepairRecord, RepairSource, RepairState, RepairStateStatus, ToolCallKey}, llms::LLMId, },
     input_suggestions::HistoryInputSuggestion,
-    persistence::{
-        model::{
-            AgentConversation, AgentConversationData, AgentConversationRecord,
-            PersistedAutoexecuteMode,
-        },
-        ModelEvent,
-    },
+    persistence::{ model::{ AgentConversation, AgentConversationData, AgentConversationRecord, PersistedAutoexecuteMode, }, ModelEvent, },
     terminal::model::session::SessionId,
     test_util::settings::initialize_settings_for_tests,
-    GlobalResourceHandles, GlobalResourceHandlesProvider,
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
 };
 use warp_multi_agent_api as api;
 

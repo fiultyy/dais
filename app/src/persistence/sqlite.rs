@@ -55,7 +55,7 @@ use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::mcp::templatable_installation::VariableValue;
 use crate::ai::mcp::{TemplatableMCPServer, TemplatableMCPServerInstallation};
 use crate::auth::{user_uid::UserUid, AuthStateProvider};
-use crate::objects::model::generic_string_model::{GenericStringObjectId, StoredStringObject};
+use objects::{GenericStringObjectId, StoredStringObject};
 use crate::drive::folders::FolderObject;
 use crate::app_state::{
     AmbientAgentPaneSnapshot, EnvVarCollectionPaneSnapshot, LeftPanelSnapshot,
@@ -66,11 +66,11 @@ use crate::drive::DaisDriveObjectSettings;
 use crate::notebooks::{NotebookId, NotebookObject};
 use crate::persistence::agent::read_agent_conversations;
 use crate::persistence::block_list::{get_all_restored_blocks, read_ai_queries};
-use crate::objects::{ObjectIdType, ObjectType};
+use objects::{ObjectIdType, ObjectType};
 use crate::persistence::model::NewGenericStringObject;
 use crate::persistence::{NewProjectRules, Project, ProjectRules};
 use crate::server::experiments::ServerExperiment;
-use crate::server::ids::{ClientId, HashableId, SyncId};
+use objects::ids::{ClientId, HashableId, SyncId};
 use crate::server::telemetry::TelemetryEvent;
 use crate::settings_view::SettingsSection;
 use crate::suggestions::ignored_suggestions_model::SuggestionType;
@@ -82,14 +82,15 @@ use crate::workflows::{WorkflowId, WorkflowObject};
 use crate::workspaces::workspace::Workspace as WorkspaceMetadata;
 use crate::workspaces::workspace::WorkspaceUid;
 use crate::{
-    app_state::{
-        AppState, BranchSnapshot, CodePaneSnapShot, CodePaneTabSnapshot, LeafContents,
-        LeafSnapshot, PaneFlex, PaneNodeSnapshot, SplitDirection, TabSnapshot,
-        TerminalPaneSnapshot, WindowSnapshot,
-    },
+    app_state::{ AppState, BranchSnapshot, CodePaneSnapShot, CodePaneTabSnapshot, LeafContents, LeafSnapshot, PaneFlex, PaneNodeSnapshot, SplitDirection, TabSnapshot, TerminalPaneSnapshot, WindowSnapshot, },
     workspaces::user_profiles::UserProfileWithUID,
 };
-use crate::{report_error, report_if_error, safe_info, send_telemetry_from_app_ctx};
+use crate::{
+    report_error,
+    report_if_error,
+    safe_info,
+    send_telemetry_from_app_ctx,
+};
 
 diesel::define_sql_function! {
     fn json_extract(target: diesel::sql_types::Text, path: diesel::sql_types::Text) -> diesel::sql_types::Text;

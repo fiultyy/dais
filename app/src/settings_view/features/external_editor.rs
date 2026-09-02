@@ -10,18 +10,11 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    report_if_error, send_telemetry_from_ctx,
+    report_if_error,
+    send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
-    settings_view::settings_page::{
-        render_body_item, render_dropdown_item, AdditionalInfo, LocalOnlyIconState, ToggleState,
-    },
-    util::file::external_editor::{
-        settings::{
-            EditorChoice, EditorLayout, OpenCodePanelsFileEditor, OpenFileEditor, OpenFileLayout,
-            PreferMarkdownViewer, PreferTabbedEditorView,
-        },
-        EditorSettings, SUPPORTED_EDITORS,
-    },
+    settings_view::settings_page::{ render_body_item, render_dropdown_item, AdditionalInfo, LocalOnlyIconState, ToggleState, },
+    util::file::external_editor::{ settings::{ EditorChoice, EditorLayout, OpenCodePanelsFileEditor, OpenFileEditor, OpenFileLayout, PreferMarkdownViewer, PreferTabbedEditorView, }, EditorSettings, SUPPORTED_EDITORS, },
     view_components::{Dropdown, DropdownItem},
 };
 

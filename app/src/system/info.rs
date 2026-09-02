@@ -12,8 +12,12 @@ use warp_core::channel::ChannelState;
 use warpui::{App, AppContext, Entity, ModelContext, SingletonEntity};
 
 use crate::{
-    send_telemetry_from_app_ctx, send_telemetry_sync_from_ctx, server::telemetry,
-    system::memory_footprint, terminal::TerminalView, TelemetryEvent,
+    send_telemetry_from_app_ctx,
+    send_telemetry_sync_from_ctx,
+    server::telemetry,
+    system::memory_footprint,
+    terminal::TerminalView,
+    TelemetryEvent,
 };
 
 /// The threshold at which we emit a memory usage warning.

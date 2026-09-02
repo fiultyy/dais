@@ -7,7 +7,8 @@ mod imp;
 use crate::tab_configs::{TabConfig, TabConfigError};
 use crate::themes::theme::WarpThemeConfig;
 use crate::{
-    launch_configs::launch_config::LaunchConfig, themes::theme::ThemeKind,
+    launch_configs::launch_config::LaunchConfig,
+    themes::theme::ThemeKind,
     workflows::workflow::Workflow,
 };
 use lazy_static::lazy_static;

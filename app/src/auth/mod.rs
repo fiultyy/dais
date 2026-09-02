@@ -25,7 +25,9 @@ use crate::server_time::ServerTimestamp;
 pub const TEST_USER_EMAIL: &str = "test_user@warp.dev";
 pub const TEST_USER_UID: &str = "test_user_uid";
 
-pub mod user_uid;
+pub mod user_uid {
+    pub use objects::user_uid::*;
+}
 
 pub use user_uid::UserUid;
 
@@ -341,7 +343,7 @@ impl AuthState {
     /// Dais 本地用户永不会撞 Free Tier 限额。
     pub fn is_anonymous_user_past_object_limit(
         &self,
-        _object_type: crate::objects::ObjectType,
+        _object_type: objects::ObjectType,
         _num_objects: usize,
     ) -> Option<bool> {
         Some(false)

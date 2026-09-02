@@ -3800,6 +3800,7 @@ dependencies = [
  "enclose",
  "enum-iterator",
  "env_logger",
+ "env_vars_ui",
  "event-listener",
  "field_mask",
  "flate2",
@@ -3870,6 +3871,7 @@ dependencies = [
  "oauth2",
  "objc",
  "objc2-foundation 0.3.2",
+ "objects",
  "onboarding",
  "once_cell",
  "ordered-float 3.9.2",
@@ -4819,6 +4821,23 @@ dependencies = [
  "log",
  "regex",
  "termcolor",
+]
+
+[[package]]
+name = "env_vars_ui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "i18n",
+ "i18n-embed-fl",
+ "itertools 0.14.0",
+ "log",
+ "objects",
+ "serde",
+ "serde_json",
+ "warp_terminal",
+ "warp_util",
+ "warpui",
 ]
 
 [[package]]
@@ -9532,6 +9551,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff76201f031d8863c38aa7f905eca4f53abbfa15f609db4277d44cd8938f33fe"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "objects"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "derivative",
+ "instant",
+ "itertools 0.14.0",
+ "lasso",
+ "lazy_static",
+ "regex",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "settings_value",
+ "thiserror 2.0.18",
+ "uuid",
+ "warpui",
 ]
 
 [[package]]

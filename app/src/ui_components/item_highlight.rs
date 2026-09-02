@@ -1,5 +1,8 @@
 use crate::ui_components::blended_colors;
-use crate::{appearance::Appearance, ui_components::icons::Icon};
+use crate::{
+    appearance::Appearance,
+    ui_components::icons::Icon,
+};
 use pathfinder_color::ColorU;
 use warp_core::ui::theme::color::internal_colors;
 use warp_core::ui::theme::Fill;

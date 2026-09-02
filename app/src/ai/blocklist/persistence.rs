@@ -9,14 +9,7 @@ use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversationId, AIAgentActionType, AIAgentAttachment, AIAgentContext,
-            AIAgentExchangeId, AIAgentInput, AIAgentPtyWriteMode, AskUserQuestionItem,
-            FileLocations, PassiveSuggestionResultType, ReadFilesRequest, UserQueryMode,
-        },
-        llms::LLMId,
-    },
+    ai::{ agent::{ conversation::AIConversationId, AIAgentActionType, AIAgentAttachment, AIAgentContext, AIAgentExchangeId, AIAgentInput, AIAgentPtyWriteMode, AskUserQuestionItem, FileLocations, PassiveSuggestionResultType, ReadFilesRequest, UserQueryMode, }, llms::LLMId, },
     terminal::model::block::{BlockId, SerializedBlock},
 };
 

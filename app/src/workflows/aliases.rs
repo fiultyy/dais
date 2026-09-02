@@ -9,14 +9,10 @@ use warp_core::{
 };
 use warpui::{AppContext, ModelContext, SingletonEntity};
 
-use crate::{
-    objects::{
-        model::persistence::{ObjectStoreEvent, ObjectStoreModel},
-        StoredObject as _,
-    },
-    drive::ObjectTypeAndId,
-    server::ids::SyncId,
-};
+use crate::drive::ObjectTypeAndId;
+use objects::{StoredObject as _, ids::SyncId};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::model::persistence::{ObjectStoreEvent};
 
 define_settings_group!(WorkflowAliases, settings: [
     aliases: Aliases {
@@ -70,8 +66,7 @@ impl WorkflowAliases {
         let mut alias_data = HashMap::with_capacity(self.aliases.len());
         for alias in self.aliases.iter() {
             if let Some(backing_workflow) = object_store_model.get_workflow(&alias.workflow_id) {
-                alias_data.insert(alias.alias.clone(), backing_workflow.display_name());
-            }
+                alias_data.insert(alias.alias.clone(), backing_workflow.display_name());}
         }
         alias_data
     }
@@ -129,8 +124,7 @@ impl WorkflowAliases {
         let mut aliases = self.aliases.clone();
         for alias in aliases.iter_mut() {
             if alias.workflow_id == old_workflow_id {
-                alias.workflow_id = new_workflow_id;
-            }
+                alias.workflow_id = new_workflow_id}
         }
         self.aliases.set_value(aliases, ctx)
     }

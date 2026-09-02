@@ -20,15 +20,12 @@ use warpui::{
 };
 
 use crate::{
-    objects::{model::persistence::ObjectStoreModel, Revision},
-    editor::{
-        EditorOptions, EditorView, Event, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions,
-        TextOptions,
-    },
-    server::ids::{ClientId, SyncId},
+    editor::{ EditorOptions, EditorView, Event, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, },
     ui_components::{buttons::icon_button, icons::Icon},
     workflows::workflow_enum::EnumVariants,
 };
+use objects::{Revision, ids::{ClientId, SyncId}};
+use crate::objects::model::persistence::ObjectStoreModel;
 
 const CONTAINER_PADDING: f32 = 16.;
 const CORE_WIDTH: f32 = 400.;

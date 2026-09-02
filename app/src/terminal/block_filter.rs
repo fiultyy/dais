@@ -19,10 +19,7 @@ use warpui::{
 use crate::terminal::model::terminal_model::BlockIndex;
 use crate::{
     appearance::Appearance,
-    editor::{
-        EditOrigin, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys,
-        SingleLineEditorOptions, TextOptions, ValidInputType,
-    },
+    editor::{ EditOrigin, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, ValidInputType, },
     send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
     themes::theme::Fill,

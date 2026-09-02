@@ -8,10 +8,7 @@ use std::{
 };
 
 use crate::{
-    ai::{
-        agent::{AgentReviewCommentBatch, DiffSetHunk},
-        blocklist::agent_view::AgentViewEntryOrigin,
-    },
+    ai::{ agent::{AgentReviewCommentBatch, DiffSetHunk}, blocklist::agent_view::AgentViewEntryOrigin, },
     code::editor::comment_editor::DEFAULT_COMMENT_MAX_WIDTH,
     code_review::diff_state::InvalidationSource,
     coding_panel_enablement_state::CodingPanelEnablementState,
@@ -29,32 +26,8 @@ use crate::{
 };
 use crate::{
     ai::agent::{AIAgentAttachment, DiffBase},
-    code::{
-        editor::{
-            view::{CodeEditorEvent, CodeEditorView},
-            GutterHoverTarget,
-        },
-        editor_management::CodeEditorStatus,
-        local_code_editor::{
-            render_unsaved_circle_with_tooltip, LocalCodeEditorEvent, LocalCodeEditorView,
-        },
-        view::PendingSaveIntent,
-    },
-    code_review::{
-        comments::AttachedReviewCommentTarget,
-        context::convert_file_diffs_to_diffset_hunks,
-        diff_state::{
-            DiffHunk, DiffLineType, DiffMode, DiffState, DiffStateModel, DiffStateModelEvent,
-            DiffStats, FileDiff, FileDiffAndContent, FileStatusInfo, GitDiffWithBaseContent,
-            GitFileStatus, InvalidationBehavior,
-        },
-        editor_state::CodeReviewEditorState,
-        hidden_lines::calculate_hidden_lines,
-        telemetry_event::{
-            AddToContextOrigin, CodeReviewContextDestination, CodeReviewTelemetryEvent,
-            PaneStateChange,
-        },
-    },
+    code::{ editor::{ view::{CodeEditorEvent, CodeEditorView}, GutterHoverTarget, }, editor_management::CodeEditorStatus, local_code_editor::{ render_unsaved_circle_with_tooltip, LocalCodeEditorEvent, LocalCodeEditorView, }, view::PendingSaveIntent, },
+    code_review::{ comments::AttachedReviewCommentTarget, context::convert_file_diffs_to_diffset_hunks, diff_state::{ DiffHunk, DiffLineType, DiffMode, DiffState, DiffStateModel, DiffStateModelEvent, DiffStats, FileDiff, FileDiffAndContent, FileStatusInfo, GitDiffWithBaseContent, GitFileStatus, InvalidationBehavior, }, editor_state::CodeReviewEditorState, hidden_lines::calculate_hidden_lines, telemetry_event::{ AddToContextOrigin, CodeReviewContextDestination, CodeReviewTelemetryEvent, PaneStateChange, }, },
 };
 
 #[cfg(feature = "local_fs")]
@@ -65,25 +38,17 @@ use crate::{
     ui_components::dialog::{dialog_styles, Dialog},
 };
 use crate::{
-    code::global_buffer_model::GlobalBufferModel, code_review::comments::ReviewCommentBatchEvent,
+    code::global_buffer_model::GlobalBufferModel,
+    code_review::comments::ReviewCommentBatchEvent,
 };
 use crate::{
     menu::{Event as MenuEvent, Menu, MenuItem, MenuItemFields},
-    pane_group::{
-        focus_state::{PaneFocusHandle, PaneGroupFocusEvent},
-        PaneId,
-    },
+    pane_group::{ focus_state::{PaneFocusHandle, PaneGroupFocusEvent}, PaneId, },
     quit_warning::UnsavedStateSummary,
     terminal::input::MenuPositioning,
     terminal::view::{CliAgentRouting, TerminalAction, TerminalView},
     util::bindings::{custom_tag_to_keystroke, CustomAction},
-    view_components::{
-        action_button::{
-            ActionButton, ActionButtonTheme, AdjoinedSide, ButtonSize, DangerPrimaryTheme,
-            KeystrokeSource, NakedTheme, PaneHeaderTheme, SecondaryTheme,
-        },
-        DismissibleToast,
-    },
+    view_components::{ action_button::{ ActionButton, ActionButtonTheme, AdjoinedSide, ButtonSize, DangerPrimaryTheme, KeystrokeSource, NakedTheme, PaneHeaderTheme, SecondaryTheme, }, DismissibleToast, },
     workspace::{ToastStack, Workspace, WorkspaceAction},
 };
 

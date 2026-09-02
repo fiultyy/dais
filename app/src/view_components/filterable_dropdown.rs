@@ -4,10 +4,7 @@ use super::dropdown::{
 };
 use crate::{
     appearance::Appearance,
-    editor::{
-        EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions,
-        TextOptions,
-    },
+    editor::{ EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, },
     menu::{Event as MenuEvent, Menu, MenuItem, MenuVariant},
     ui_components::icons,
 };

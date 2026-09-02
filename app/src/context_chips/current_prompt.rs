@@ -8,17 +8,7 @@ use crate::{
     debounce::debounce,
     editor::EditorView,
     menu::{MenuItem, MenuItemFields},
-    terminal::{
-        model::{
-            block::{Block, BlockMetadata},
-            session::Sessions,
-        },
-        session_settings::{
-            GithubPrPromptChipDefaultValidation, SessionSettings, SessionSettingsChangedEvent,
-            ToolbarChipSelection,
-        },
-        view::{ContextMenuAction, PromptPart, PromptPosition, TerminalAction},
-    },
+    terminal::{ model::{ block::{Block, BlockMetadata}, session::Sessions, }, session_settings::{ GithubPrPromptChipDefaultValidation, SessionSettings, SessionSettingsChangedEvent, ToolbarChipSelection, }, view::{ContextMenuAction, PromptPart, PromptPosition, TerminalAction}, },
 };
 use futures::{pin_mut, FutureExt as _};
 use itertools::Itertools;

@@ -24,7 +24,10 @@ use warpui::{
     WindowId,
 };
 
-use crate::{appearance::Appearance, workspace::WorkspaceAction};
+use crate::{
+    appearance::Appearance,
+    workspace::WorkspaceAction,
+};
 
 use super::TipsCompleted;
 

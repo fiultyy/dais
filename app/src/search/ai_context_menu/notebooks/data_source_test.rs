@@ -8,13 +8,13 @@ mod tests {
     use crate::objects::model::persistence::ObjectStoreModel;
     use crate::objects::model::view::ObjectStoreViewModel;
     use crate::objects::object_store::ObjectStore;
-    use crate::objects::{Revision, StoredObjectMetadata, StoredObjectPermissions};
+    use objects::{Revision, StoredObjectMetadata, StoredObjectPermissions};
     use crate::notebooks::manager::NotebookManager;
     use crate::notebooks::{NotebookObject, NotebookObjectModel};
     use crate::search::ai_context_menu::notebooks::data_source::NotebookDataSource;
     use crate::search::data_source::Query;
     use crate::search::mixer::SyncDataSource;
-    use crate::server::ids::SyncId;
+    use objects::ids::SyncId;
     use crate::settings::AISettings;
     use crate::system::SystemStats;
     use crate::workspaces::user_profiles::UserProfiles;

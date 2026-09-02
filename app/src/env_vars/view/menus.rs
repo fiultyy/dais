@@ -1,3 +1,5 @@
+use env_vars_ui::data::EnvVarData;
+use crate::objects_display::StoredObjectHostExt;
 use pathfinder_geometry::vector::Vector2F;
 use warp_core::context_flag::ContextFlag;
 use warpui::{keymap::Trigger, SingletonEntity, ViewContext, ViewHandle};
@@ -361,11 +363,11 @@ impl EnvVarCollectionView {
         let mut menu_items = Vec::new();
 
         let active_collection_data = self.active_env_var_collection_data.as_ref(ctx);
-        let access_level = active_collection_data.access_level(ctx);
-        let space = active_collection_data.space(ctx);
+        let access_level = active_collection_data.access_level(ctx, &crate::env_vars::manager::host_env_var_data());
+        let space = active_collection_data.space(ctx, &crate::env_vars::manager::host_env_var_data());
 
         if !active_collection_data.is_on_server()
-            || active_collection_data.trash_status(ctx) != TrashStatus::Active
+            || active_collection_data.trash_status(ctx, &crate::env_vars::manager::host_env_var_data()) != TrashStatus::Active
         {
             return menu_items;
         }
@@ -416,7 +418,7 @@ impl EnvVarCollectionView {
     pub(super) fn env_var_collection_link(&self, ctx: &AppContext) -> Option<String> {
         self.env_var_collection_id(ctx)
             .and_then(|id| ObjectStoreModel::as_ref(ctx).get_env_var_collection(&id))
-            .map(|env_var_collection| env_var_collection.object_link())?
+            .map(|env_var_collection| crate::objects_display::object_link())
     }
 
     pub(super) fn untrash_env_var_collection(&self, ctx: &mut ViewContext<Self>) {
@@ -429,7 +431,7 @@ impl EnvVarCollectionView {
                 object_store.untrash_object(
                     ObjectTypeAndId::GenericStringObject {
                         object_type: GenericStringObjectFormat::Json(
-                            crate::objects::JsonObjectType::EnvVarCollection,
+                            objects::JsonObjectType::EnvVarCollection,
                         ),
                         id: env_var_collection_id,
                     },
@@ -448,7 +450,7 @@ impl EnvVarCollectionView {
                 object_store.trash_object(
                     ObjectTypeAndId::from_generic_string_object(
                         GenericStringObjectFormat::Json(
-                            crate::objects::JsonObjectType::EnvVarCollection,
+                            objects::JsonObjectType::EnvVarCollection,
                         ),
                         env_var_collection_id,
                     ),
@@ -465,7 +467,7 @@ impl EnvVarCollectionView {
                 object_store.duplicate_object(
                     &ObjectTypeAndId::from_generic_string_object(
                         GenericStringObjectFormat::Json(
-                            crate::objects::JsonObjectType::EnvVarCollection,
+                            objects::JsonObjectType::EnvVarCollection,
                         ),
                         env_var_collection_id,
                     ),
@@ -484,7 +486,7 @@ impl EnvVarCollectionView {
                     window_id,
                     &[ObjectTypeAndId::from_generic_string_object(
                         GenericStringObjectFormat::Json(
-                            crate::objects::JsonObjectType::EnvVarCollection,
+                            objects::JsonObjectType::EnvVarCollection,
                         ),
                         env_var_collection_id,
                     )],

@@ -4,9 +4,7 @@ use super::{
     ShareableLinkError,
 };
 use crate::{
-    ai::execution_profiles::editor::{
-        ExecutionProfileEditorManager, ExecutionProfileEditorView, ExecutionProfileEditorViewEvent,
-    },
+    ai::execution_profiles::editor::{ ExecutionProfileEditorManager, ExecutionProfileEditorView, ExecutionProfileEditorViewEvent, },
     ai::execution_profiles::profiles::ClientProfileId,
     app_state::LeafContents,
 };

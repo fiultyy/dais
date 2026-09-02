@@ -53,67 +53,19 @@ use warpui::{
 use super::malformed_line_heuristics::has_malformed_terminal_correction_signal;
 use crate::view_components::action_button::{ActionButton, NakedTheme};
 use crate::{
-    ai::{
-        agent::{
-            icons::{self, yellow_stop_icon},
-            AIAgentActionId, AIIdentifiers, FileEdit, FileLocations, ServerOutputId,
-        },
-        blocklist::{
-            action_model::{
-                AIActionStatus, BlocklistAIActionEvent, BlocklistAIActionModel,
-                EditAcceptAndContinueClickedEvent, EditAcceptClickedEvent, EditResolvedEvent,
-                EditStats, MalformedFinalLineProxyEvent, RequestFileEditsFormatKind,
-                RequestFileEditsTelemetryEvent,
-            },
-            history_model::BlocklistAIHistoryModel,
-            inline_action::{
-                inline_action_header::INLINE_ACTION_HORIZONTAL_PADDING,
-                inline_action_icons::{cancelled_icon, green_check_icon, icon_size, reverted_icon},
-            },
-            model::{AIBlockModel, AIBlockModelHelper},
-            RequestedEditResolution,
-        },
-        mcp::{mcp_provider_from_file_path, MCPProvider},
-        paths::host_native_absolute_path,
-        predict::prompt_suggestions::ACCEPT_PROMPT_SUGGESTION_KEYBINDING,
-        skills::{
-            icon_override_for_skill_name, render_skill_button, skill_path_from_file_path,
-            SkillManager, SkillReference,
-        },
-    },
+    ai::{ agent::{ icons::{self, yellow_stop_icon}, AIAgentActionId, AIIdentifiers, FileEdit, FileLocations, ServerOutputId, }, blocklist::{ action_model::{ AIActionStatus, BlocklistAIActionEvent, BlocklistAIActionModel, EditAcceptAndContinueClickedEvent, EditAcceptClickedEvent, EditResolvedEvent, EditStats, MalformedFinalLineProxyEvent, RequestFileEditsFormatKind, RequestFileEditsTelemetryEvent, }, history_model::BlocklistAIHistoryModel, inline_action::{ inline_action_header::INLINE_ACTION_HORIZONTAL_PADDING, inline_action_icons::{cancelled_icon, green_check_icon, icon_size, reverted_icon}, }, model::{AIBlockModel, AIBlockModelHelper}, RequestedEditResolution, }, mcp::{mcp_provider_from_file_path, MCPProvider}, paths::host_native_absolute_path, predict::prompt_suggestions::ACCEPT_PROMPT_SUGGESTION_KEYBINDING, skills::{ icon_override_for_skill_name, render_skill_button, skill_path_from_file_path, SkillManager, SkillReference, }, },
     cmd_or_ctrl_shift,
-    code::{
-        diff_viewer::{DiffViewer, DisplayMode},
-        editor::{
-            add_color, remove_color,
-            view::{CodeEditorEvent, CodeEditorRenderOptions, CodeEditorView},
-        },
-        inline_diff::{InlineDiffView, InlineDiffViewEvent},
-        DiffResult,
-    },
+    code::{ diff_viewer::{DiffViewer, DisplayMode}, editor::{ add_color, remove_color, view::{CodeEditorEvent, CodeEditorRenderOptions, CodeEditorView}, }, inline_diff::{InlineDiffView, InlineDiffViewEvent}, DiffResult, },
     code_review::telemetry_event::CodeReviewPaneEntrypoint,
     menu::{Event as MenuEvent, Menu, MenuItemFields, MenuVariant},
-    pane_group::{
-        focus_state::PaneFocusHandle,
-        pane::{view, PaneId},
-        BackingView, PaneEvent,
-    },
+    pane_group::{ focus_state::PaneFocusHandle, pane::{view, PaneId}, BackingView, PaneEvent, },
     send_telemetry_from_ctx,
     server::telemetry::{AgentModeCodeFileNavigationSource, ToggleCodeSuggestionsSettingSource},
     settings::AISettings,
     terminal::{input::SET_INPUT_MODE_AGENT_ACTION_NAME, ShellLaunchData},
     ui_components::{blended_colors, icons::Icon},
     util::bindings::keybinding_name_to_keystroke,
-    view_components::{
-        action_button::{ButtonSize, KeystrokeSource},
-        compactible_action_button::{
-            render_compact_and_regular_button_rows, CompactibleActionButton,
-            RenderCompactibleActionButton, MEDIUM_SIZE_SWITCH_THRESHOLD,
-            XLARGE_SIZE_SWITCH_THRESHOLD,
-        },
-        compactible_split_action_button::CompactibleSplitActionButton,
-        DismissibleToast,
-    },
+    view_components::{ action_button::{ButtonSize, KeystrokeSource}, compactible_action_button::{ render_compact_and_regular_button_rows, CompactibleActionButton, RenderCompactibleActionButton, MEDIUM_SIZE_SWITCH_THRESHOLD, XLARGE_SIZE_SWITCH_THRESHOLD, }, compactible_split_action_button::CompactibleSplitActionButton, DismissibleToast, },
     workspace::ToastStack,
     TelemetryEvent,
 };

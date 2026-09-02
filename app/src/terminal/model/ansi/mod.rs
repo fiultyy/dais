@@ -37,7 +37,10 @@ use crate::terminal::model::tmux::{
 };
 
 use crate::terminal::model::tmux::ControlModeEvent;
-use crate::{safe_debug, safe_error};
+use crate::{
+    safe_debug,
+    safe_error,
+};
 use byte_unit::{Byte, Unit as ByteUnit};
 use hex;
 use lazy_static::lazy_static;

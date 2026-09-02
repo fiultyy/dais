@@ -1,3 +1,4 @@
+use crate::objects_display::StoredObjectHostExt;
 use crate::ai::execution_profiles::AIExecutionProfileObject;
 use crate::objects::{
     GenericStoredObject, GenericStringObjectFormat, JsonObjectType, ObjectIdType, ObjectType,
@@ -23,13 +24,13 @@ use std::sync::mpsc::SyncSender;
 
 use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
 
-use crate::objects::StoredObject;
+use objects::StoredObject;
 use crate::util::sync::Condition;
 use chrono::{DateTime, Duration, Utc};
 use rand::Rng;
 use warp_core::features::FeatureFlag;
 
-use super::generic_string_model::GenericStringObjectId;
+use objects::GenericStringObjectId;
 
 // Equivalent to 24 hours
 const MIN_MINUTES_UNTIL_NEXT_FORCE_REFRESH: i64 = 1440;
@@ -163,7 +164,9 @@ impl ObjectStoreModel {
                     return false;
                 }
 
-                if !object.can_move_to_space(space, app) {
+                // P-ARC R1: StoredObject::can_move_to_space(space, app) 已随 trait 裁剪;
+                // 语义保留:默认 true,唯一覆写 Folder 要求 current == new。
+                if object.object_type() == ObjectType::Folder && object_space != space {
                     return false;
                 }
             }
@@ -512,18 +515,20 @@ impl ObjectStoreModel {
             let is_open = match open_state {
                 FolderOpenState::Open => true,
                 FolderOpenState::Closed => false,
-                FolderOpenState::Reversed => !folder.model.is_open,
+                FolderOpenState::Reversed => !folder.model().is_open,
             };
 
             folder.set_model(FolderObjectModel {
                 is_open,
-                is_warp_pack: folder.model.is_warp_pack,
-                name: folder.model.name.clone(),
+                is_warp_pack: folder.model().is_warp_pack,
+                name: folder.model().name.clone(),
             });
 
             let folder_clone = folder.clone();
             if let Some(model_event_sender) = &self.model_event_sender {
-                if let Err(e) = model_event_sender.send(folder_clone.upsert_event()) {
+                if let Err(e) = model_event_sender.send(ModelEvent::UpsertFolder {
+                    folder: folder_clone,
+                }) {
                     log::error!("Error persisting folder: {e:?}");
                 }
             }

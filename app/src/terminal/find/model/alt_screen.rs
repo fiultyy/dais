@@ -2,11 +2,7 @@
 use std::ops::RangeInclusive;
 
 use crate::{
-    terminal::model::{
-        alt_screen::AltScreen,
-        find::{FindConfig, RegexDFAs},
-        index::Point,
-    },
+    terminal::model::{ alt_screen::AltScreen, find::{FindConfig, RegexDFAs}, index::Point, },
     view_components::find::FindDirection,
 };
 

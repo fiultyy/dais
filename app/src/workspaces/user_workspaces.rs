@@ -9,13 +9,11 @@ use crate::{
     ai::llms::LLMModelHost,
     auth::{UserUid, TEST_USER_UID},
     channel::ChannelState,
-    objects::{
-        model::persistence::ObjectStoreModel, ObjectType, Owner, Space, StoredObjectEventEntrypoint,
-    },
-    server::ids::ServerId,
     settings::{AISettings, PrivacySettings},
     workspaces::workspace::{AiAutonomySettings, SandboxedAgentSettings},
 };
+use objects::{ObjectType, Owner, Space, StoredObjectEventEntrypoint, ids::ServerId};
+use crate::objects::model::persistence::ObjectStoreModel;
 use regex::Regex;
 use warp_core::{
     features::FeatureFlag,

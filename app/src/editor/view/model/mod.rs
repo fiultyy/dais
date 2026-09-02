@@ -39,7 +39,10 @@ use warpui::{
     SingletonEntity,
 };
 
-use crate::{editor::RangeExt, vim_registers::VimRegisters};
+use crate::{
+    editor::RangeExt,
+    vim_registers::VimRegisters,
+};
 
 use vim::{
     find_next_paragraph_end, find_previous_paragraph_start,

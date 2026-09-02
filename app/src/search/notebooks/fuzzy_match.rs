@@ -1,8 +1,9 @@
 use crate::notebooks::manager::NotebookManager;
 use crate::notebooks::NotebookObject;
 use crate::search::result_renderer::ItemHighlightState;
-use crate::server::ids::SyncId;
-use crate::{appearance::Appearance, objects::StoredObject};
+use objects::ids::SyncId;
+use crate::appearance::Appearance;
+use objects::StoredObject;
 use fuzzy_match::FuzzyMatchResult;
 use ordered_float::OrderedFloat;
 use warpui::{

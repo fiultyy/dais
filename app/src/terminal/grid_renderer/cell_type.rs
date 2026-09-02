@@ -1,14 +1,7 @@
 use pathfinder_color::ColorU;
 
 use crate::{
-    terminal::{
-        color,
-        model::{
-            ansi::{color_index, Color, NamedColor},
-            cell::{Cell, Flags},
-            ObfuscateSecrets,
-        },
-    },
+    terminal::{ color, model::{ ansi::{color_index, Color, NamedColor}, cell::{Cell, Flags}, ObfuscateSecrets, }, },
     util::color::OPAQUE,
 };
 

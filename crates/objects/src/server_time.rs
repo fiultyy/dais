@@ -43,14 +43,14 @@ pub struct ServerTime {
 }
 
 impl ServerTime {
-    pub(crate) fn local_now() -> Self {
+    pub fn local_now() -> Self {
         Self {
             time_at_fetch: chrono::Utc::now().into(),
             fetched_at: Instant::now(),
         }
     }
 
-    pub(crate) fn current_time(&self) -> DateTime<FixedOffset> {
+    pub fn current_time(&self) -> DateTime<FixedOffset> {
         let elapsed = chrono::Duration::from_std(self.fetched_at.elapsed())
             .expect("duration should not be bigger than limit");
         self.time_at_fetch + elapsed

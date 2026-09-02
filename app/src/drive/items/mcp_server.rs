@@ -2,10 +2,10 @@ use super::{WarpDriveItem, WarpDriveItemId};
 use crate::{
     ai::mcp::MCPServerObject,
     appearance::Appearance,
-    objects::StoredObjectMetadata,
     drive::{DriveObjectType, ObjectTypeAndId},
     themes::theme::Fill,
 };
+use objects::StoredObjectMetadata;
 use warpui::{elements::MouseStateHandle, AppContext, Element};
 
 #[derive(Clone)]

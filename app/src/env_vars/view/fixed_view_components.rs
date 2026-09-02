@@ -1,3 +1,4 @@
+use env_vars_ui::data::EnvVarData;
 use pathfinder_color::ColorU;
 use pathfinder_geometry::vector::Vector2F;
 use warp_core::features::FeatureFlag;
@@ -38,7 +39,7 @@ impl EnvVarCollectionView {
         let deleted = match self
             .active_env_var_collection_data
             .as_ref(app)
-            .trash_status(app)
+            .trash_status(app, &crate::env_vars::manager::host_env_var_data())
         {
             TrashStatus::Active => return None,
             TrashStatus::Trashed => false,

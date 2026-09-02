@@ -4,13 +4,11 @@ use crate::search::ai_context_menu::view::AIContextMenu;
 use crate::settings::InputSettings;
 use crate::{
     ai::{blocklist::block::cli_controller::CLISubagentController, llms::LLMPreferences},
-    objects::model::generic_string_model::StringModel,
     settings::AISettingsChangedEvent,
-    terminal::profile_model_selector::{
-        calculate_max_profile_name_width, calculate_scaled_font_size,
-    },
+    terminal::profile_model_selector::{ calculate_max_profile_name_width, calculate_scaled_font_size, },
     terminal::view::ambient_agent::AmbientAgentViewModel,
 };
+use objects::StringModel;
 use pathfinder_color::ColorU;
 #[cfg(not(target_family = "wasm"))]
 use settings::Setting as _;
@@ -53,27 +51,13 @@ use crate::ai::blocklist::BlocklistAIHistoryEvent;
 #[cfg(not(target_family = "wasm"))]
 use crate::terminal::model::session::SessionType;
 use crate::{
-    ai::{
-        blocklist::{
-            prompt::prompt_alert::PromptAlertView, BlocklistAIInputModel, InputConfig, InputType,
-        },
-        execution_profiles::profiles::AIExecutionProfilesModel,
-        AIRequestUsageModel,
-    },
+    ai::{ blocklist::{ prompt::prompt_alert::PromptAlertView, BlocklistAIInputModel, InputConfig, InputType, }, execution_profiles::profiles::AIExecutionProfilesModel, AIRequestUsageModel, },
     network::NetworkStatus,
     settings::AISettings,
     settings_view::SettingsSection,
-    terminal::{
-        input::MenuPositioningProvider,
-        keys::TerminalKeybindings,
-        model::{block::BlockMetadata, session::Sessions},
-        profile_model_selector::{ProfileModelSelector, ProfileModelSelectorEvent},
-        session_settings::{SessionSettings, SessionSettingsChangedEvent},
-    },
+    terminal::{ input::MenuPositioningProvider, keys::TerminalKeybindings, model::{block::BlockMetadata, session::Sessions}, profile_model_selector::{ProfileModelSelector, ProfileModelSelectorEvent}, session_settings::{SessionSettings, SessionSettingsChangedEvent}, },
     ui_components::icons::Icon,
-    view_components::action_button::{
-        ActionButton, ActionButtonTheme, ButtonSize, NakedTheme, TooltipAlignment,
-    },
+    view_components::action_button::{ ActionButton, ActionButtonTheme, ButtonSize, NakedTheme, TooltipAlignment, },
     workspaces::user_workspaces::UserWorkspaces,
     BlocklistAIHistoryModel,
 };

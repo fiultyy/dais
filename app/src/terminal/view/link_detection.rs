@@ -7,25 +7,17 @@ use warpui::{platform::Cursor, ViewContext};
 use crate::{
     send_telemetry_from_ctx,
     server::telemetry::{LinkOpenMethod, TelemetryEvent},
-    terminal::{
-        model::{
-            grid::grid_handler::Link,
-            index::Point,
-            terminal_model::{WithinBlock, WithinModel},
-            RespectObfuscatedSecrets,
-        },
-        TerminalModel,
-    },
+    terminal::{ model::{ grid::grid_handler::Link, index::Point, terminal_model::{WithinBlock, WithinModel}, RespectObfuscatedSecrets, }, TerminalModel, },
 };
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "local_fs")] {
         use crate::{
-            terminal::model::grid::grid_handler,
-            terminal::ShellLaunchData,
-            util::file::{FileLink, absolute_path_if_valid, ShellPathType},
-            util::openable_file_type::FileTarget,
-        };
+    terminal::model::grid::grid_handler,
+    terminal::ShellLaunchData,
+    util::file::{FileLink, absolute_path_if_valid, ShellPathType},
+    util::openable_file_type::FileTarget,
+};
         use std::path::PathBuf;
         use warp_util::path::CleanPathResult;
         use warp_util::path::LineAndColumnArg;

@@ -62,13 +62,23 @@ use crate::workspace::tab_settings::{
     UseVerticalTabs, WorkspaceDecorationVisibility,
 };
 use crate::workspace::WorkspaceAction;
-use crate::{editor::EditorView, themes::theme_chooser::ThemeChooserMode};
+use crate::{
+    editor::EditorView,
+    themes::theme_chooser::ThemeChooserMode,
+};
 use crate::{
     features::FeatureFlag,
     view_components::{Dropdown, DropdownItem, FilterableDropdown},
 };
-use crate::{report_error, report_if_error, themes};
-use crate::{send_telemetry_from_ctx, server::telemetry::TelemetryEvent};
+use crate::{
+    report_error,
+    report_if_error,
+    themes,
+};
+use crate::{
+    send_telemetry_from_ctx,
+    server::telemetry::TelemetryEvent,
+};
 use ::settings::{Setting, SettingSection, ToggleableSetting};
 use enum_iterator::all;
 use std::borrow::Cow;

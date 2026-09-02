@@ -9,31 +9,19 @@ use warp_core::execution_mode::ExecutionMode;
 
 use crate::terminal::cli_agent_sessions::CLIAgentSessionsModel;
 use crate::{
-    ai::{
-        agent::conversation::AIConversationId,
-        blocklist::{
-            permissions::{
-                CommandExecutionPermission, CommandExecutionPermissionDeniedReason,
-                FileReadPermission, FileReadPermissionAllowedReason,
-                FileReadPermissionDeniedReason, FileWritePermission,
-                FileWritePermissionAllowedReason, FileWritePermissionDeniedReason,
-            },
-            CommandExecutionPermissionAllowedReason,
-        },
-        execution_profiles::{
-            profiles::AIExecutionProfilesModel, ActionPermission, WriteToPtyPermission,
-        },
-        mcp::templatable_manager::TemplatableMCPServerManager,
-    },
+    ai::{ agent::conversation::AIConversationId, blocklist::{ permissions::{ CommandExecutionPermission, CommandExecutionPermissionDeniedReason, FileReadPermission, FileReadPermissionAllowedReason, FileReadPermissionDeniedReason, FileWritePermission, FileWritePermissionAllowedReason, FileWritePermissionDeniedReason, }, CommandExecutionPermissionAllowedReason, }, execution_profiles::{ profiles::AIExecutionProfilesModel, ActionPermission, WriteToPtyPermission, }, mcp::templatable_manager::TemplatableMCPServerManager, },
     auth::AuthStateProvider,
-    objects::model::persistence::ObjectStoreModel,
-    objects::object_store::ObjectStore,
     network::NetworkStatus,
     settings::{AgentModeCommandExecutionPredicate, PrivacySettings},
     test_util::settings::initialize_settings_for_tests_with_mode,
     workspaces::{user_workspaces::UserWorkspaces, workspace::SandboxedAgentSettings},
-    GlobalResourceHandles, GlobalResourceHandlesProvider, LaunchMode,
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
+    LaunchMode,
 };
+
+use crate::objects::object_store::ObjectStore;
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use super::{BlocklistAIHistoryModel, BlocklistAIPermissions};
 

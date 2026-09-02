@@ -14,7 +14,7 @@ use crate::ai::execution_profiles::profiles::ClientProfileId;
 use crate::ai::restored_conversations::RestoredAgentConversations;
 #[cfg(target_family = "wasm")]
 use crate::objects::model::persistence::ObjectStoreModel;
-use crate::objects::Space;
+use objects::Space;
 #[cfg(feature = "local_fs")]
 use crate::code::editor_management::CodeSource;
 use crate::code::view::CodeViewAction;
@@ -104,7 +104,7 @@ use crate::report_if_error;
 use crate::resource_center::{
     mark_feature_used_and_write_to_user_defaults, Tip, TipAction, TipsCompleted,
 };
-use crate::server::ids::{ObjectUid, SyncId};
+use objects::ids::{ObjectUid, SyncId};
 use crate::server::telemetry::{PaletteSource, TelemetryEvent};
 use crate::session_management::SessionNavigationData;
 use crate::settings_view::mcp_servers_page::MCPServersSettingsPage;
@@ -122,7 +122,10 @@ use crate::terminal::view::{
     LeftPanelTargetView, SyncEvent, TerminalViewState,
 };
 use crate::terminal::{MockTerminalManager, ShellLaunchData, ShellLaunchState};
-use crate::{cmd_or_ctrl_shift, send_telemetry_from_ctx};
+use crate::{
+    cmd_or_ctrl_shift,
+    send_telemetry_from_ctx,
+};
 use settings::Setting as _;
 
 use crate::code::active_file::ActiveFileModel;

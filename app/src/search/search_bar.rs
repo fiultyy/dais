@@ -26,11 +26,7 @@ use crate::ui_components::blended_colors;
 use crate::ui_components::icons::Icon;
 use crate::{
     appearance::Appearance,
-    editor::{
-        AutosuggestionLocation, EditorView, Event as EditorEvent,
-        PlainTextEditorViewAction as EditorAction, PropagateAndNoOpNavigationKeys,
-        SingleLineEditorOptions,
-    },
+    editor::{ AutosuggestionLocation, EditorView, Event as EditorEvent, PlainTextEditorViewAction as EditorAction, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, },
 };
 
 use super::mixer::SearchMixerEvent;

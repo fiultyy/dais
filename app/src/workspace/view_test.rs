@@ -62,7 +62,11 @@ use crate::undo_close::UndoCloseSettings;
 use crate::warp_managed_paths_watcher::WarpManagedPathsWatcher;
 use crate::workflows::local_workflows::LocalWorkflows;
 use crate::ObjectActions;
-use crate::{experiments, workspace, GlobalResourceHandlesProvider};
+use crate::{
+    experiments,
+    workspace,
+    GlobalResourceHandlesProvider,
+};
 
 // Dais(本地化,Phase 5):`PreferencesSyncer` 已物理删除。
 

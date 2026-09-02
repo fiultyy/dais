@@ -3,9 +3,7 @@ use std::sync::Arc;
 use crate::{
     ai::blocklist::inline_action::inline_action_icons::icon_size,
     ui_components::icons::Icon,
-    view_components::action_button::{
-        ActionButton, ActionButtonTheme, AdjoinedSide, ButtonSize, KeystrokeSource,
-    },
+    view_components::action_button::{ ActionButton, ActionButtonTheme, AdjoinedSide, ButtonSize, KeystrokeSource, },
 };
 use warp_core::ui::appearance::Appearance;
 use warpui::{

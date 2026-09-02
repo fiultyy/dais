@@ -27,7 +27,11 @@ use warpui::{
 };
 
 use crate::ui_components::{blended_colors, icons::Icon};
-use crate::{appearance::Appearance, features::FeatureFlag, themes::theme::PromptColors};
+use crate::{
+    appearance::Appearance,
+    features::FeatureFlag,
+    themes::theme::PromptColors,
+};
 
 #[allow(unused_imports)]
 pub use self::context_chip::{

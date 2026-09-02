@@ -19,9 +19,7 @@ use crate::{
     terminal::{self, TOGGLE_AUTOEXECUTE_MODE_KEYBINDING},
     ui_components::blended_colors,
     util::bindings::keybinding_name_to_keystroke,
-    workspace::view::{
-        TOGGLE_CONVERSATION_LIST_VIEW_BINDING_NAME, TOGGLE_RIGHT_PANEL_BINDING_NAME,
-    },
+    workspace::view::{ TOGGLE_CONVERSATION_LIST_VIEW_BINDING_NAME, TOGGLE_RIGHT_PANEL_BINDING_NAME, },
 };
 
 #[derive(Copy, Clone, Debug, Default)]

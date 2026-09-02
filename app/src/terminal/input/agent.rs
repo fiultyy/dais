@@ -6,14 +6,7 @@ use super::{
     Input, InputAction, InputDropTargetData,
 };
 use crate::{
-    ai::blocklist::{
-        agent_view::{
-            agent_view_bg_fill,
-            shortcuts::{render_agent_shortcuts_view, AgentShortcutsViewContext},
-            AgentViewState,
-        },
-        InputType,
-    },
+    ai::blocklist::{ agent_view::{ agent_view_bg_fill, shortcuts::{render_agent_shortcuts_view, AgentShortcutsViewContext}, AgentViewState, }, InputType, },
     appearance::Appearance,
     context_chips::spacing::{self},
     features::FeatureFlag,

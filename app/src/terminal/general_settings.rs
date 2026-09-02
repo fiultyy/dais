@@ -1,6 +1,9 @@
 use std::collections::HashSet;
 
-use crate::{banner::BannerState, resource_center::Tip};
+use crate::{
+    banner::BannerState,
+    resource_center::Tip,
+};
 use warp_core::settings::{
     macros::define_settings_group, RespectUserSyncSetting, SupportedPlatforms, SyncToCloud,
 };

@@ -1,6 +1,7 @@
 mod gutter_button;
 pub use gutter_button::{AddAsContextButton, CommentButton, RevertHunkButton};
 
+use crate::objects_display::StoredObjectHostExt;
 use std::{
     ops::Range,
     sync::{
@@ -50,10 +51,7 @@ use super::diff::{DiffHunkDisplay, DiffStatus};
 use super::model::DiffNavigationState;
 use crate::code::editor::element::gutter_button::GutterButton;
 use crate::{
-    code::editor::{
-        line::EditorLineLocation,
-        view::{CodeEditorViewAction, SavedComment},
-    },
+    code::editor::{ line::EditorLineLocation, view::{CodeEditorViewAction, SavedComment}, },
     view_components::action_button::{ActionButtonTheme, SecondaryTheme},
 };
 use warp_core::features::FeatureFlag;

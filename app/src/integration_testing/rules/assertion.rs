@@ -6,12 +6,10 @@ use warpui::{
 
 use crate::{
     ai::facts::{view::AIFactPage, AIFactObjectModel},
-    objects::model::{
-        generic_string_model::GenericStringObjectId, persistence::ObjectStoreModel,
-    },
     integration_testing::view_getters::workspace_view,
-    server::ids::SyncId,
 };
+use crate::objects::model::persistence::ObjectStoreModel;
+use objects::{ids::SyncId, GenericStringObjectId};
 
 /// Assert that a specific AI fact exists with the given content
 pub fn assert_rule_exists(

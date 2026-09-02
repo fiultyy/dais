@@ -182,3 +182,50 @@ impl Entity for EnvVarCollectionManager {
 }
 
 impl SingletonEntity for EnvVarCollectionManager {}
+
+
+/// P-ARC R1: 宿主侧 EnvVarData 实现——桥接 crates/env_vars_ui 契约到 app 的
+/// ObjectStoreViewModel/权限/匿名语义。
+pub struct HostEnvVarData;
+
+impl env_vars_ui::data::EnvVarData for HostEnvVarData {
+    fn get_collection(&self, app: &warpui::AppContext, id: &objects::SyncId) -> Option<env_vars_ui::EnvVarCollectionObject> {
+        use crate::objects::model::persistence::ObjectStoreModel;
+        ObjectStoreModel::as_ref(app).get_env_var_collection(id).cloned()
+    }
+    fn initial_load_completed(&self, app: &warpui::AppContext) -> bool {
+        use crate::objects::model::persistence::ObjectStoreModel;
+        ObjectStoreModel::as_ref(app).initial_load_completed()
+    }
+    fn access_level(&self, app: &warpui::AppContext, uid: &str) -> env_vars_ui::data::AccessLevel {
+        use crate::objects::model::view::ObjectStoreViewModel;
+        use crate::drive::sharing::SharingAccessLevel;
+        match ObjectStoreViewModel::as_ref(app).access_level(&uid.to_string(), app) {
+            SharingAccessLevel::View => env_vars_ui::data::AccessLevel::View,
+            SharingAccessLevel::Edit => env_vars_ui::data::AccessLevel::Edit,
+            SharingAccessLevel::Full => env_vars_ui::data::AccessLevel::Full,
+        }
+    }
+    fn editability(&self, app: &warpui::AppContext, uid: &str) -> env_vars_ui::data::Editability {
+        use crate::objects::model::view::ObjectStoreViewModel;
+        use crate::drive::sharing::ContentEditability;
+        match ObjectStoreViewModel::as_ref(app).object_editability(&uid.to_string(), app) {
+            ContentEditability::ReadOnly => env_vars_ui::data::Editability::ReadOnly,
+            ContentEditability::RequiresLogin => env_vars_ui::data::Editability::RequiresLogin,
+            ContentEditability::Editable => env_vars_ui::data::Editability::Editable,
+        }
+    }
+    fn object_space(&self, app: &warpui::AppContext, uid: &str) -> Option<objects::Space> {
+        use crate::objects::model::view::ObjectStoreViewModel;
+        ObjectStoreViewModel::as_ref(app).object_space(&uid.to_string(), app)
+    }
+    fn is_trashed(&self, app: &warpui::AppContext, id: &objects::SyncId) -> Option<bool> {
+        use crate::objects::model::persistence::ObjectStoreModel;
+        ObjectStoreModel::as_ref(app).get_by_uid(&id.uid()).map(|o| o.metadata().trashed_ts.is_some())
+    }
+}
+
+/// 全局共享宿主数据桥(无状态,直接构造即可)。
+pub fn host_env_var_data() -> HostEnvVarData {
+    HostEnvVarData
+}

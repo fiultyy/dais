@@ -13,9 +13,9 @@ use crate::ai::llms::{LLMContextWindow, LLMId, LLMPreferences, LLMPreferencesEve
 use crate::ai::mcp::TemplatableMCPServerManager;
 use crate::ai::paths::host_native_absolute_path;
 use crate::objects::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
-use crate::objects::GenericStringObjectFormat::Json;
-use crate::objects::JsonObjectType;
-use crate::objects::ObjectType;
+use objects::GenericStringObjectFormat::Json;
+use objects::JsonObjectType;
+use objects::ObjectType;
 
 use crate::editor::{EditorOptions, InteractionState, SingleLineEditorOptions, TextColors};
 use crate::settings::InputSettings;
@@ -131,8 +131,15 @@ use crate::{
     util::bindings,
     view_components::{Dropdown, DropdownItem},
 };
-use crate::{report_error, report_if_error, send_telemetry_from_ctx};
-use crate::{TelemetryEvent, UserWorkspaces};
+use crate::{
+    report_error,
+    report_if_error,
+    send_telemetry_from_ctx,
+};
+use crate::{
+    TelemetryEvent,
+    UserWorkspaces,
+};
 use markdown_parser::{FormattedText, FormattedTextFragment, FormattedTextLine};
 use std::borrow::Cow;
 use std::cell::RefCell;

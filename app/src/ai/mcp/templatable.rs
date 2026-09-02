@@ -1,3 +1,4 @@
+use crate::objects_display::WarpDriveItemOverrides;
 use std::collections::HashMap;
 
 use chrono::DateTime;
@@ -8,18 +9,11 @@ use warp_core::ui::appearance::Appearance;
 use warpui::{AppContext, SingletonEntity as _};
 
 use crate::{
-    objects::{
-        model::{
-            generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel},
-            json_model::{JsonModel, JsonSerializer},
-            persistence::ObjectStoreModel,
-        },
-        GenericStoredObject, GenericStringObjectFormat, GenericStringObjectUniqueKey,
-        JsonObjectType, UniquePer,
-    },
     drive::items::WarpDriveItem,
-    server::{datetime_ext::DateTimeExt, ids::SyncId},
+    server::datetime_ext::DateTimeExt,
 };
+use objects::{GenericStoredObject, GenericStringObjectFormat, GenericStringObjectUniqueKey, JsonObjectType, UniquePer, ids::SyncId, model::generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel}, model::json_model::{JsonModel, JsonSerializer}};
+use crate::objects::model::persistence::ObjectStoreModel;
 
 const UNIQUENESS_KEY_PREFIX: &str = "templatable_mcp_server";
 
@@ -205,15 +199,15 @@ pub type TemplatableMCPServerObject =
     GenericStoredObject<GenericStringObjectId, TemplatableMCPServerObjectModel>;
 pub type TemplatableMCPServerObjectModel = GenericStringModel<TemplatableMCPServer, JsonSerializer>;
 
-impl TemplatableMCPServerObject {
-    pub fn get_all(app: &AppContext) -> Vec<TemplatableMCPServerObject> {
+pub trait TemplatableMCPServerObjectStoreExt {
+    fn get_all(app: &AppContext) -> Vec<TemplatableMCPServerObject> {
         ObjectStoreModel::as_ref(app)
             .get_all_objects_of_type::<GenericStringObjectId, TemplatableMCPServerObjectModel>()
             .cloned()
             .collect()
     }
 
-    pub fn get_by_id<'a>(
+    fn get_by_id<'a>(
         sync_id: &'a SyncId,
         app: &'a AppContext,
     ) -> Option<&'a TemplatableMCPServerObject> {
@@ -221,7 +215,7 @@ impl TemplatableMCPServerObject {
             .get_object_of_type::<GenericStringObjectId, TemplatableMCPServerObjectModel>(sync_id)
     }
 
-    pub fn get_by_uuid<'a>(
+    fn get_by_uuid<'a>(
         uuid: &'a uuid::Uuid,
         app: &'a AppContext,
     ) -> Option<&'a TemplatableMCPServerObject> {
@@ -230,6 +224,8 @@ impl TemplatableMCPServerObject {
             .find(|server| server.model().string_model.uuid == *uuid)
     }
 }
+
+impl TemplatableMCPServerObjectStoreExt for TemplatableMCPServerObject {}
 
 impl StringModel for TemplatableMCPServer {
     type StoredObjectType = TemplatableMCPServerObject;
@@ -265,22 +261,18 @@ impl StringModel for TemplatableMCPServer {
         })
     }
 
-    fn renders_in_warp_drive(&self) -> bool {
-        false
-    }
 
-    fn to_warp_drive_item(
-        &self,
-        _id: SyncId,
-        _appearance: &Appearance,
-        _templatable_mcp_server: &TemplatableMCPServerObject,
-    ) -> Option<Box<dyn WarpDriveItem>> {
-        None
-    }
 }
 
 impl JsonModel for TemplatableMCPServer {
     fn json_object_type() -> JsonObjectType {
         JsonObjectType::TemplatableMCPServer
+    }
+}
+
+
+impl WarpDriveItemOverrides for TemplatableMCPServer {
+    fn renders_in_warp_drive(&self) -> bool {
+        false
     }
 }

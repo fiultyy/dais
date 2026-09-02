@@ -14,11 +14,7 @@ use crate::terminal::view::{InlineBannerItem, InlineBannerType};
 use crate::terminal::BlockListSettings;
 use crate::{
     settings::TerminalSpacing,
-    terminal::{
-        event::Event,
-        model::{ansi::Handler, test_utils::TestBlockListBuilder},
-        SizeUpdateReason,
-    },
+    terminal::{ event::Event, model::{ansi::Handler, test_utils::TestBlockListBuilder}, SizeUpdateReason, },
 };
 
 pub fn input_string(block_list: &mut BlockList, input: &str) {

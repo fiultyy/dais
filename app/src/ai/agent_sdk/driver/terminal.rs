@@ -20,12 +20,7 @@ use crate::{
     ai::ambient_agents::AmbientAgentTaskId,
     pane_group::NewTerminalOptions,
     root_view::{open_new_with_workspace_source, NewWorkspaceSource},
-    terminal::{
-        model::block::{BlockId, SerializedBlock},
-        shared_session::IsSharedSessionCreator,
-        shell::ShellType,
-        TerminalView,
-    },
+    terminal::{ model::block::{BlockId, SerializedBlock}, shared_session::IsSharedSessionCreator, shell::ShellType, TerminalView, },
     util::sync::Condition,
 };
 

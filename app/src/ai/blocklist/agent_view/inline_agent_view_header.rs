@@ -9,14 +9,7 @@ use warpui::{
 };
 
 use crate::{
-    ai::{
-        agent::icons,
-        blocklist::{
-            block::cli_controller::LongRunningCommandControlState,
-            inline_action::inline_action_header::HeaderConfig, BlocklistAIActionModel,
-            BlocklistAIHistoryEvent, BlocklistAIHistoryModel,
-        },
-    },
+    ai::{ agent::icons, blocklist::{ block::cli_controller::LongRunningCommandControlState, inline_action::inline_action_header::HeaderConfig, BlocklistAIActionModel, BlocklistAIHistoryEvent, BlocklistAIHistoryModel, }, },
     terminal::{model::session::Sessions, TerminalModel},
     ui_components::{blended_colors, icons::Icon},
 };

@@ -37,7 +37,7 @@ use std::sync::Arc;
 use crate::features::FeatureFlag;
 use crate::palette::PaletteMode;
 use crate::search::command_palette::data_sources::DataSourceStore;
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 use crate::session_management::SessionSource;
 use crate::workspace::{active_terminal_in_window, ForkedConversationDestination, WorkspaceAction};
 use warpui::elements::{

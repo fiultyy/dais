@@ -12,12 +12,18 @@ use warpui::{
 
 use crate::appearance::Appearance;
 use crate::objects::model::persistence::ObjectStoreModel;
-use crate::objects::Space;
+use objects::Space;
 use crate::util::bindings::CustomAction;
 use crate::voltron::{VoltronFeatureViewMeta, VoltronMetadata};
 use crate::workflows::WorkflowType;
-use crate::{editor::Event as EditorEvent, send_telemetry_from_ctx};
-use crate::{server::telemetry::TelemetryEvent, user_config::WarpConfig};
+use crate::{
+    editor::Event as EditorEvent,
+    send_telemetry_from_ctx,
+};
+use crate::{
+    server::telemetry::TelemetryEvent,
+    user_config::WarpConfig,
+};
 use crate::{
     themes::theme::{self, Blend, WarpTheme},
     user_config::WarpConfigUpdateEvent,

@@ -11,9 +11,7 @@ use crate::{
     terminal::block_list_viewport::ViewportState,
 };
 use crate::{
-    integration_testing::{
-        terminal::util::ExpectedOutput, view_getters::single_terminal_view_for_tab,
-    },
+    integration_testing::{ terminal::util::ExpectedOutput, view_getters::single_terminal_view_for_tab, },
     terminal::view::BlockVisibilityMode,
 };
 use crate::{

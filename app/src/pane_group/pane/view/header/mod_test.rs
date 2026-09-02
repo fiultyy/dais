@@ -7,13 +7,16 @@ use warpui::{
 use crate::{
     ai::blocklist::BlocklistAIHistoryModel,
     auth::AuthStateProvider,
-    objects::model::persistence::ObjectStoreModel,
     menu::MenuItemFields,
     pane_group::{focus_state::PaneFocusHandle, BackingView, PaneConfiguration, PaneId, PaneView},
     settings_view::keybindings::KeybindingChangedNotifier,
     test_util::settings::initialize_settings_for_tests,
-    NetworkStatus, ObjectStore, UserProfiles, UserWorkspaces,
+    NetworkStatus,
+    ObjectStore,
+    UserProfiles,
+    UserWorkspaces,
 };
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use super::{Event, OpenOverlay};
 

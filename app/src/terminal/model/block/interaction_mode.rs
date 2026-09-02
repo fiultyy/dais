@@ -2,17 +2,8 @@ use anyhow::anyhow;
 use warp_terminal::model::{grid::Dimensions, Point};
 
 use crate::{
-    ai::{
-        agent::{conversation::AIConversationId, task::TaskId, AIAgentActionId},
-        blocklist::block::cli_controller::{LongRunningCommandControlState, UserTakeOverReason},
-    },
-    terminal::{
-        event::Event,
-        model::{
-            grid::{grid_handler::GridHandler, RespectDisplayedOutput},
-            RespectObfuscatedSecrets,
-        },
-    },
+    ai::{ agent::{conversation::AIConversationId, task::TaskId, AIAgentActionId}, blocklist::block::cli_controller::{LongRunningCommandControlState, UserTakeOverReason}, },
+    terminal::{ event::Event, model::{ grid::{grid_handler::GridHandler, RespectDisplayedOutput}, RespectObfuscatedSecrets, }, },
 };
 
 use super::{Block, SerializedAIMetadata};

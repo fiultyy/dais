@@ -3,14 +3,15 @@ use std::sync::Arc;
 use futures_lite::future::yield_now;
 use warpui::{AppContext, SingletonEntity};
 
-use crate::objects::{model::persistence::ObjectStoreModel, Space};
+use objects::{Space};
+use crate::objects::model::persistence::ObjectStoreModel;
 use crate::search::async_snapshot_data_source::AsyncSnapshotDataSource;
 use crate::search::command_search::searcher::CommandSearchItemAction;
 use crate::search::data_source::{Query, QueryResult};
 use crate::search::mixer::{BoxFuture, DataSourceRunErrorWrapper};
 use crate::search::workflows::fuzzy_match::FuzzyMatchWorkflowResult;
 use crate::search::QueryFilter;
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 use crate::settings::AISettings;
 use crate::workflows::{WorkflowObjectModel, WorkflowSource};
 

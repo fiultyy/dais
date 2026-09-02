@@ -1,8 +1,8 @@
 use crate::{
-    objects::model::generic_string_model::GenericStringObjectId,
-    server::ids::{ClientId, HashableId, ServerId, SyncId},
     workflows::workflow::{Argument, ArgumentType, Workflow},
 };
+use objects::{ids::{ClientId, HashableId, ServerId, SyncId}};
+use objects::GenericStringObjectId;
 
 #[test]
 fn test_workflow_serialization_with_enum_params() {

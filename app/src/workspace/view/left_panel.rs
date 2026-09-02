@@ -60,10 +60,7 @@ use crate::{
     pane_group::pane::view::header::{components::HEADER_EDGE_PADDING, PANE_HEADER_HEIGHT},
     pane_group::{self},
     terminal::resizable_data::{ModalType, ResizableData},
-    ui_components::{
-        buttons::{icon_button, icon_button_with_color},
-        icons,
-    },
+    ui_components::{ buttons::{icon_button, icon_button_with_color}, icons, },
     util::bindings::keybinding_name_to_display_string,
     workspace::WorkspaceAction,
     TelemetryEvent,

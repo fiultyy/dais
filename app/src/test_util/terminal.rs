@@ -34,8 +34,6 @@ use crate::undo_close::UndoCloseStack;
 use crate::workspace::WorkspaceRegistry;
 use crate::{
     ai::{blocklist::BlocklistAIHistoryModel, AIRequestUsageModel},
-    objects::model::persistence::ObjectStoreModel,
-    objects::object_store::ObjectStore,
     context_chips::prompt::Prompt,
     experiments,
     network::NetworkStatus,
@@ -44,14 +42,14 @@ use crate::{
     settings_view::keybindings::KeybindingChangedNotifier,
     system::SystemInfo,
     system::SystemStats,
-    terminal::{
-        alt_screen_reporting::AltScreenReporting, keys::TerminalKeybindings,
-        resizable_data::ResizableData, History, TerminalView,
-    },
+    terminal::{ alt_screen_reporting::AltScreenReporting, keys::TerminalKeybindings, resizable_data::ResizableData, History, TerminalView, },
     workflows::local_workflows::LocalWorkflows,
     workspace::{sync_inputs::SyncedInputState, ActiveSession},
     workspaces::user_workspaces::UserWorkspaces,
 };
+
+use crate::objects::object_store::ObjectStore;
+use crate::objects::model::persistence::ObjectStoreModel;
 use repo_metadata::watcher::DirectoryWatcher;
 
 /// Initializes all of the necessary models to use a terminal view.

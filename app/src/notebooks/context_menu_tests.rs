@@ -21,7 +21,8 @@ use crate::{
     test_util::settings::initialize_settings_for_tests,
     workspace::ActiveSession,
     workspaces::{user_profiles::UserProfiles, user_workspaces::UserWorkspaces},
-    GlobalResourceHandles, GlobalResourceHandlesProvider,
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
 };
 
 fn initialize_app(app: &mut App) {

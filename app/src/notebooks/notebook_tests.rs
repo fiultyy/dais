@@ -11,40 +11,24 @@ use warpui::{
 
 use crate::{
     auth::{AuthManager, AuthStateProvider, UserUid, TEST_USER_EMAIL, TEST_USER_UID},
-    objects::{
-        model::{
-            actions::ObjectActions,
-            persistence::ObjectStoreModel,
-            view::{Editor, EditorState, ObjectStoreViewModel},
-        },
-        object_store::ObjectStore,
-        Owner, StoredObjectMetadata, StoredObjectPermissions,
-    },
     drive::DaisDriveObjectSettings,
     editor::{DisplayPoint, EditorAction, SelectAction},
     network::NetworkStatus,
-    notebooks::{
-        active_notebook_data::Mode,
-        editor::{
-            keys::NotebookKeybindings, notebook_command::NotebookCommand, view::EditorViewAction,
-        },
-        notebook::FocusedComponent,
-        NotebookLocation, NotebookObject, NotebookObjectModel,
-    },
+    notebooks::{ active_notebook_data::Mode, editor::{ keys::NotebookKeybindings, notebook_command::NotebookCommand, view::EditorViewAction, }, notebook::FocusedComponent, NotebookLocation, NotebookObject, NotebookObjectModel, },
     pane_group::PaneEvent,
     search::files::model::FileSearchModel,
-    server::ids::{ClientId, ServerId, SyncId},
     settings_view::keybindings::KeybindingChangedNotifier,
     terminal::keys::TerminalKeybindings,
     test_util::settings::initialize_settings_for_tests,
     workflows::{workflow::Workflow, WorkflowSource, WorkflowType},
     workspace::ActiveSession,
-    workspaces::{
-        user_profiles::{UserProfileWithUID, UserProfiles},
-        user_workspaces::UserWorkspaces,
-    },
-    GlobalResourceHandles, GlobalResourceHandlesProvider, PrivacySettings,
+    workspaces::{ user_profiles::{UserProfileWithUID, UserProfiles}, user_workspaces::UserWorkspaces, },
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
+    PrivacySettings,
 };
+use crate::objects::{Owner, StoredObjectMetadata, StoredObjectPermissions, ids::{ClientId, ServerId, SyncId}, model::{persistence::ObjectStoreModel, view::{Editor, EditorState, ObjectStoreViewModel}}, object_store::ObjectStore};
+use objects::ObjectActions;
 
 use super::{NotebookEvent, NotebookView, SAVE_PERIOD};
 
@@ -132,7 +116,7 @@ fn cloud_notebook(title: impl Into<String>, data: impl Into<String>) -> Notebook
 }
 
 fn local_notebook_with_id(
-    id: crate::server::ids::SyncId,
+    id: objects::ids::SyncId,
     title: impl Into<String>,
     data: impl Into<String>,
 ) -> NotebookObject {

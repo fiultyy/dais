@@ -30,7 +30,7 @@ use crate::ai::predict::generate_ai_input_suggestions::GenerateAIInputSuggestion
 use crate::ai::predict::generate_ai_input_suggestions::GenerateAIInputSuggestionsResponseV2;
 use crate::ai::predict::next_command_model::HistoryBasedAutosuggestionState;
 use crate::auth::LoginGatedFeature;
-use crate::objects::{
+use objects::{
     model::generic_string_model::GenericStringObjectId, GenericStringObjectFormat, ObjectType,
     Space,
 };
@@ -47,8 +47,8 @@ use crate::pane_group::PaneDragDropLocation;
 use crate::prompt::editor_modal::OpenSource as PromptEditorOpenSource;
 use crate::search::command_search::searcher::CommandSearchItemAction;
 use crate::search::QueryFilter;
-use crate::server::ids::ObjectUid;
-use crate::server::ids::ServerId;
+use objects::ids::ObjectUid;
+use objects::ids::ServerId;
 use crate::settings::import::config::ParsedTerminalSetting;
 use crate::settings::import::config::SettingType;
 use crate::settings::import::model::TerminalType;

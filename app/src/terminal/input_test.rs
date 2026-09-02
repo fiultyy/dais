@@ -21,7 +21,7 @@ use crate::objects::{
 };
 use crate::pricing::PricingInfoModel;
 use crate::search::files::model::FileSearchModel;
-use crate::server::ids::ClientId;
+use objects::ids::ClientId;
 use crate::terminal::cli_agent_sessions::CLIAgentSessionsModel;
 use crate::terminal::input::slash_command_model::SlashCommandEntryState;
 use crate::terminal::input::slash_commands::SlashCommandsEvent;
@@ -99,7 +99,10 @@ use crate::terminal::resizable_data::ResizableData;
 use crate::terminal::view::inline_banner::ByoLlmAuthBannerSessionState;
 use crate::terminal::writeable_pty::command_history::update_command_history;
 use crate::workspaces::user_profiles::UserProfiles;
-use crate::{GlobalResourceHandles, GlobalResourceHandlesProvider};
+use crate::{
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
+};
 
 pub fn initialize_app(app: &mut App) {
     initialize_settings_for_tests(app);
@@ -116,7 +119,7 @@ pub fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| Prompt::mock());
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(
-        |_| crate::objects::model::actions::ObjectActions::new(Vec::new()),
+        |_| objects::ObjectActions::new(Vec::new()),
     );
     app.add_singleton_model(ImportedConfigModel::new);
     app.add_singleton_model(UserWorkspaces::default_mock);
@@ -142,6 +145,7 @@ pub fn initialize_app(app: &mut App) {
     app.add_singleton_model(crate::ai::agent_providers::AgentProviderSecrets::new);
     app.add_singleton_model(LLMPreferences::new);
     app.add_singleton_model(DirectoryWatcher::new);
+    app.add_singleton_model(crate::terminal::terminal_activity::TerminalActivityModel::new);
     app.add_singleton_model(|_| DetectedRepositories::default());
     app.add_singleton_model(|_| UserProfiles::new(Vec::new()));
     app.add_singleton_model(|_| crate::code_review::git_status_update::GitStatusUpdateModel::new());

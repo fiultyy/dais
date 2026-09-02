@@ -6,7 +6,7 @@ use super::NotebooksEditorModel;
 use crate::appearance::Appearance;
 use crate::auth::AuthStateProvider;
 use crate::objects::model::persistence::ObjectStoreModel;
-use crate::objects::{Revision, StoredObjectMetadata, StoredObjectPermissions};
+use objects::{Revision, StoredObjectMetadata, StoredObjectPermissions};
 use crate::editor::InteractionState;
 use crate::notebooks::editor::keys::NotebookKeybindings;
 use crate::notebooks::editor::model::DEBOUNCED_RESIZE_PERIOD;
@@ -14,7 +14,7 @@ use crate::notebooks::editor::notebook_command::NotebookCommand;
 use crate::notebooks::editor::view::{RichTextEditorConfig, RichTextEditorView};
 use crate::notebooks::link::{NotebookLinks, SessionSource};
 use crate::search::files::model::FileSearchModel;
-use crate::server::ids::{ServerId, SyncId};
+use objects::ids::{ServerId, SyncId};
 use crate::settings::FontSettings;
 use crate::settings_view::keybindings::KeybindingChangedNotifier;
 use crate::terminal::keys::TerminalKeybindings;
@@ -23,7 +23,10 @@ use crate::workflows::workflow::Workflow;
 use crate::workflows::{WorkflowId, WorkflowObject, WorkflowObjectModel};
 use crate::workspace::ActiveSession;
 use crate::UserWorkspaces;
-use crate::{GlobalResourceHandles, GlobalResourceHandlesProvider};
+use crate::{
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
+};
 use futures::prelude::*;
 use itertools::Itertools;
 use markdown_parser::markdown_parser::RUNNABLE_BLOCK_MARKDOWN_LANG;

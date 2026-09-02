@@ -13,15 +13,12 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    objects::model::view::{Editor, EditorState},
     drive::sharing::ContentEditability,
     notebooks::{active_notebook_data::Mode, styles},
-    ui_components::{
-        buttons::{accent_icon_button, icon_button},
-        icons::Icon,
-    },
+    ui_components::{ buttons::{accent_icon_button, icon_button}, icons::Icon, },
     workspaces::user_profiles::UserProfiles,
 };
+use crate::objects::model::view::{Editor, EditorState};
 
 use super::{super::active_notebook_data::ActiveNotebookData, NotebookAction, EDIT_BUTTON_MARGIN};
 

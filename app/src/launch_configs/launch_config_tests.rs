@@ -1,10 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    app_state::{
-        AppState, BranchSnapshot, LeafContents, LeafSnapshot, PaneFlex,
-        PaneNodeSnapshot, SplitDirection, TabSnapshot, TerminalPaneSnapshot, WindowSnapshot,
-    },
+    app_state::{ AppState, BranchSnapshot, LeafContents, LeafSnapshot, PaneFlex, PaneNodeSnapshot, SplitDirection, TabSnapshot, TerminalPaneSnapshot, WindowSnapshot, },
     tab::SelectedTabColor,
 };
 

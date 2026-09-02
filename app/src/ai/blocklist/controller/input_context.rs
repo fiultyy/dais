@@ -7,29 +7,12 @@ use warp_core::features::FeatureFlag;
 use warpui::{AppContext, SingletonEntity};
 
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversationId, AIAgentAttachment, AIAgentContext,
-            DocumentContentAttachmentSource, DriveObjectPayload,
-        },
-        block_context::BlockContext,
-        blocklist::BlocklistAIContextModel,
-        document::ai_document_model::{AIDocumentId, AIDocumentModel},
-        facts::AIFactObjectModel,
-        skills::list_skills,
-    },
-    objects::{
-        model::{
-            generic_string_model::{GenericStringObjectId, StoredStringObject},
-            persistence::ObjectStoreModel,
-        },
-        GenericStoredObject, GenericStringObjectFormat, JsonObjectType, ObjectType,
-    },
-    terminal::{
-        model::{block::BlockId, session::active_session::ActiveSession},
-        TerminalView,
-    },
+    ai::{ agent::{ conversation::AIConversationId, AIAgentAttachment, AIAgentContext, DocumentContentAttachmentSource, DriveObjectPayload, }, block_context::BlockContext, blocklist::BlocklistAIContextModel, document::ai_document_model::{AIDocumentId, AIDocumentModel}, facts::AIFactObjectModel, skills::list_skills, },
+    terminal::{ model::{block::BlockId, session::active_session::ActiveSession}, TerminalView, },
 };
+use objects::{GenericStoredObject, GenericStringObjectFormat, JsonObjectType, ObjectType, model::generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel}};
+use objects::StoredStringObject;
+use crate::objects::model::persistence::ObjectStoreModel;
 lazy_static! {
     // Regex to match <block:[block_id]> patterns
     pub static ref BLOCK_CONTEXT_ATTACHMENT_REGEX: Regex = Regex::new(r"<block:([^>]+)>")

@@ -10,9 +10,7 @@ use warp_core::user_preferences::GetUserPreferences;
 use warpui::{AppContext, Entity, EntityId, ModelContext, SingletonEntity};
 
 use crate::{
-    auth::{
-        AuthStateProvider, {AuthManager, AuthManagerEvent},
-    },
+    auth::{ AuthStateProvider, {AuthManager, AuthManagerEvent}, },
     network::{NetworkStatus, NetworkStatusEvent, NetworkStatusKind},
     workspaces::user_workspaces::{UserWorkspaces, UserWorkspacesEvent},
 };

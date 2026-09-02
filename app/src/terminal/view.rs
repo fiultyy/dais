@@ -8,6 +8,7 @@ mod bookmarks;
 pub mod init;
 pub mod inline_banner;
 pub mod load_ai_conversation;
+use crate::objects_display::StoredObjectHostExt;
 use crate::ai::block_context::BlockContext;
 #[cfg(feature = "local_fs")]
 use crate::ai::skills::SkillOpenOrigin;
@@ -209,10 +210,10 @@ use crate::ai::{
 use crate::auth::AuthState;
 use crate::auth::AuthStateProvider;
 use crate::autoupdate::{self, get_update_state, AutoupdateStage};
-use crate::objects::model::actions::ObjectActionType;
+use objects::ObjectActionType;
 use crate::objects::model::persistence::ObjectStoreModel;
 use crate::objects::object_store::ObjectStore;
-use crate::objects::{GenericStringObjectFormat, JsonObjectType, StoredObject};
+use objects::{GenericStringObjectFormat, JsonObjectType, StoredObject};
 #[cfg(feature = "local_fs")]
 use crate::code::editor_management::CodeSource;
 use crate::context_chips::prompt::Prompt;
@@ -226,7 +227,7 @@ use crate::env_vars::{
 };
 use crate::pane_group::focus_state::PaneFocusHandle;
 use crate::persistence::{self, FinishedCommandMetadata};
-use crate::server::ids::{ObjectUid, SyncId};
+use objects::ids::{ObjectUid, SyncId};
 #[cfg(feature = "local_fs")]
 use crate::settings::import::model::ImportedConfigModel;
 use crate::settings::import::view::{SettingsImportEvent, SettingsImportView};
@@ -309,8 +310,14 @@ use crate::workspace::{ForkAIConversationParams, ForkFromExchange, ForkedConvers
 use crate::workspaces::user_workspaces::UserWorkspaces;
 use crate::AIRequestUsageModel;
 use crate::ActiveSession as WindowActiveSession;
-use crate::{report_if_error, AIAgentActionResultType};
-use crate::{safe_error, safe_warn};
+use crate::{
+    report_if_error,
+    AIAgentActionResultType,
+};
+use crate::{
+    safe_error,
+    safe_warn,
+};
 
 use crate::terminal::shared_session::protocol::{
     ParticipantId, Role, WindowSize as SessionSharingWindowSize,
@@ -493,7 +500,11 @@ use crate::terminal::{color::List, model::block::LONG_RUNNING_BOTTOM_PADDING_LIN
 use crate::terminal::{event::AfterBlockCompletedEvent, event::BlockLatencyData, event::BlockType};
 use crate::throttle::throttle;
 use crate::util::color::darken;
-use crate::{send_telemetry_from_ctx, send_telemetry_on_executor, send_telemetry_sync_from_ctx};
+use crate::{
+    send_telemetry_from_ctx,
+    send_telemetry_on_executor,
+    send_telemetry_sync_from_ctx,
+};
 
 use self::link_detection::HighlightedLinkOption;
 use super::available_shells::AvailableShell;
@@ -22801,7 +22812,7 @@ impl TerminalView {
                 env_var_collection
                     .vars
                     .iter()
-                    .map(|var| var.get_initialization_string(shell_type))
+                    .map(|var| var.get_initialization_string(shell_type.into()))
                     .collect_vec()
                     .join(" "),
                 session_id,

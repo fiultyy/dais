@@ -21,24 +21,11 @@ use crate::code_review::git_status_update::{GitRepoStatusModel, GitStatusMetadat
 use crate::system::SystemInfo;
 use crate::{
     auth::{AuthManager, AuthStateProvider},
-    context_chips::{
-        context_chip::{ChipFingerprintInput, Environment},
-        prompt::Prompt,
-        ChipAvailability, ChipDisabledReason, ChipRuntimeCapabilities, ContextChipKind,
-    },
+    context_chips::{ context_chip::{ChipFingerprintInput, Environment}, prompt::Prompt, ChipAvailability, ChipDisabledReason, ChipRuntimeCapabilities, ContextChipKind, },
     features::FeatureFlag,
     menu::MenuItem,
     settings::WarpPromptSeparator,
-    terminal::{
-        model::{
-            block::BlockMetadata,
-            session::{CommandExecutor, ExecuteCommandOptions, SessionId, SessionInfo, Sessions},
-        },
-        session_settings::{GithubPrPromptChipDefaultValidation, SessionSettings},
-        shell::Shell,
-        view::PromptPosition,
-        History,
-    },
+    terminal::{ model::{ block::BlockMetadata, session::{CommandExecutor, ExecuteCommandOptions, SessionId, SessionInfo, Sessions}, }, session_settings::{GithubPrPromptChipDefaultValidation, SessionSettings}, shell::Shell, view::PromptPosition, History, },
 };
 #[cfg(feature = "local_fs")]
 use repo_metadata::DirectoryWatcher;

@@ -12,10 +12,7 @@ use crate::{
     context_chips::spacing,
     features::FeatureFlag,
     settings::{AppEditorSettings, InputModeSettings},
-    terminal::{
-        block_list_settings::BlockListSettings, block_list_viewport::InputMode,
-        settings::TerminalSettings, view::TerminalAction,
-    },
+    terminal::{ block_list_settings::BlockListSettings, block_list_viewport::InputMode, settings::TerminalSettings, view::TerminalAction, },
 };
 use warp_core::settings::Setting;
 use warpui::{

@@ -1,6 +1,6 @@
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::objects::{JsonObjectType, SerializedModel};
+use crate::{JsonObjectType, SerializedModel};
 
 use super::generic_string_model::{Serializer, StringModel};
 

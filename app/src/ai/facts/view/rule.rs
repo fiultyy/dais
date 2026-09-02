@@ -1,11 +1,11 @@
-use crate::objects::model::generic_string_model::GenericStringObjectId;
+use objects::GenericStringObjectId;
 use crate::objects::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
 use crate::objects::object_store::ObjectStore;
 use crate::editor::{
     EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions,
     TextOptions,
 };
-use crate::server::ids::{ClientId, SyncId};
+use objects::ids::{ClientId, SyncId};
 use crate::settings::{AISettings, AISettingsChangedEvent};
 use crate::ui_components::icons::Icon;
 use crate::view_components::{

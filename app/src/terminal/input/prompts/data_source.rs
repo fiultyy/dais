@@ -10,13 +10,13 @@ use warpui::{AppContext, Element, Entity, ModelContext, SingletonEntity as _};
 
 use crate::appearance::Appearance;
 use crate::objects::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
-use crate::objects::StoredObject;
+use objects::StoredObject;
 use crate::search::data_source::{DataSourceSearchError, Query, QueryResult};
 use crate::search::mixer::DataSourceRunErrorWrapper;
 use crate::search::result_renderer::ItemHighlightState;
 use crate::search::FuzzyMatchWorkflowResult;
 use crate::search::{SearchItem, SyncDataSource};
-use crate::server::ids::{ObjectUid, SyncId};
+use objects::ids::{ObjectUid, SyncId};
 use crate::terminal::input::inline_menu::styles as inline_styles;
 use crate::terminal::input::inline_menu::{
     default_navigation_message_items, InlineMenuAction, InlineMenuMessageArgs, InlineMenuType,

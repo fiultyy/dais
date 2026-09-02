@@ -39,29 +39,9 @@ use crate::ai::agent::{
 use crate::ai::ai_document_view::DEFAULT_PLANNING_DOCUMENT_TITLE;
 use crate::ai::document::ai_document_model::AIDocumentModel;
 use crate::{
-    ai::{
-        agent::{
-            conversation::{AIConversation, AIConversationId},
-            AIAgentExchange, AIAgentExchangeId, AIAgentOutput,
-        },
-        blocklist::{
-            history_model::BlocklistAIHistoryModel, model::AIBlockModelImpl, AIBlock,
-            BlocklistAIActionModel, BlocklistAIController, ClientIdentifiers,
-        },
-        restored_conversations::RestoredAgentConversations,
-    },
+    ai::{ agent::{ conversation::{AIConversation, AIConversationId}, AIAgentExchange, AIAgentExchangeId, AIAgentOutput, }, blocklist::{ history_model::BlocklistAIHistoryModel, model::AIBlockModelImpl, AIBlock, BlocklistAIActionModel, BlocklistAIController, ClientIdentifiers, }, restored_conversations::RestoredAgentConversations, },
     persistence::model::AgentConversationData,
-    terminal::{
-        find::TerminalFindModel,
-        model::{
-            blocks::RichContentItem, session::active_session::ActiveSession,
-            terminal_model::BlockIndex,
-        },
-        view::{
-            AIBlockMetadata, Event, RichContent, RichContentInsertionPosition, RichContentMetadata,
-            TerminalView,
-        },
-    },
+    terminal::{ find::TerminalFindModel, model::{ blocks::RichContentItem, session::active_session::ActiveSession, terminal_model::BlockIndex, }, view::{ AIBlockMetadata, Event, RichContent, RichContentInsertionPosition, RichContentMetadata, TerminalView, }, },
 };
 use warp_core::channel::ChannelState;
 use warp_multi_agent_api as api;

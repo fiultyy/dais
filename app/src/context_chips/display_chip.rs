@@ -46,7 +46,10 @@ use warpui::{
 
 use crate::appearance::Appearance;
 use crate::completer::SessionContext;
-use crate::{send_telemetry_from_ctx, TelemetryEvent};
+use crate::{
+    send_telemetry_from_ctx,
+    TelemetryEvent,
+};
 
 use super::{
     agent_view_chip_color,

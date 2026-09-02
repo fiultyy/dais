@@ -13,10 +13,7 @@ use crate::{
     notebooks::notebook::NotebookView,
     pane_group::{PaneGroup, PaneView},
     root_view::RootView,
-    search::{
-        command_palette::{self},
-        command_search::view::CommandSearchView,
-    },
+    search::{ command_palette::{self}, command_search::view::CommandSearchView, },
     settings_view::keybindings::KeybindingsView,
     terminal::{input::Input, TerminalView},
     themes::theme_chooser::ThemeChooser,

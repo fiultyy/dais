@@ -1,7 +1,10 @@
 //! AI Assistant has since been renamed to "Dais AI" in the product.
 use std::{collections::HashSet, sync::Arc};
 
-use crate::{server::telemetry::OpenedWarpAISource, terminal::model::terminal_model::BlockIndex};
+use crate::{
+    server::telemetry::OpenedWarpAISource,
+    terminal::model::terminal_model::BlockIndex,
+};
 use lazy_static::lazy_static;
 use pathfinder_color::ColorU;
 use warp_core::command::ExitCode;

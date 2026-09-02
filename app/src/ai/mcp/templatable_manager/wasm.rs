@@ -6,8 +6,8 @@ use crate::ai::mcp::templatable::{TemplatableMCPServer, TemplatableMCPServerObje
 use crate::ai::mcp::templatable_installation::{TemplatableMCPServerInstallation, VariableValue};
 use crate::ai::mcp::MCPServerUpdate;
 use crate::objects::object_store::InitiatedBy;
-use crate::objects::Space;
-use crate::server::ids::ServerId;
+use objects::Space;
+use objects::ids::ServerId;
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 

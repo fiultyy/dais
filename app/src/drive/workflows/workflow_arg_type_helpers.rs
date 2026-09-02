@@ -3,17 +3,12 @@ use std::collections::HashMap;
 use warpui::{AppContext, SingletonEntity, ViewHandle};
 
 use crate::{
-    objects::{
-        model::persistence::ObjectStoreModel, object_store::ObjectStore, Owner,
-        StoredObjectEventEntrypoint,
-    },
     editor::EditorView,
-    server::ids::SyncId,
-    workflows::{
-        workflow::{Argument, ArgumentType},
-        workflow_enum::WorkflowEnum,
-    },
+    workflows::{ workflow::{Argument, ArgumentType}, workflow_enum::WorkflowEnum, },
 };
+use objects::{Owner, StoredObjectEventEntrypoint, ids::SyncId};
+use crate::objects::object_store::ObjectStore;
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use super::{
     enum_creation_dialog::{EnumCreationDialog, WorkflowEnumData},

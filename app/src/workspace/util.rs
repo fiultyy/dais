@@ -9,7 +9,10 @@ use warpui::{
 
 use crate::window_settings::WindowSettings;
 use crate::{
-    appearance::Appearance, pane_group::PaneId, terminal::TerminalView, workspace::Workspace,
+    appearance::Appearance,
+    pane_group::PaneId,
+    terminal::TerminalView,
+    workspace::Workspace,
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

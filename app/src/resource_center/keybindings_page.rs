@@ -27,10 +27,7 @@ use crate::{
 use warpui::ModelHandle;
 
 use crate::{
-    editor::{
-        EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions,
-        TextOptions,
-    },
+    editor::{ EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, },
     util::bindings::CommandBinding,
 };
 

@@ -5,11 +5,12 @@ use chrono::{DateTime, Utc};
 use derivative::Derivative;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    auth::UserUid,
-    server::ids::{ServerId, SyncId},
-    server_time::ServerTimestamp,
-};
+use crate::{ids::{ServerId, SyncId}, server_time::ServerTimestamp, user_uid::UserUid};
+
+/// 与 app 侧 `crate::auth::TEST_USER_UID` 同值的测试用户 uid。
+/// crate 化后 objects 的 `#[cfg(test)]` 助手使用本地副本;interned string 一致,
+/// 运行时与 app 常量互通(lasso interner 按 &str 内容共享 Spur)。
+pub const TEST_USER_UID: &str = "test_user_uid";
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ObjectIdType {
@@ -184,7 +185,7 @@ impl Revision {
         self.0
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn now() -> Self {
         Self(ServerTimestamp::new(Utc::now()))
     }
@@ -202,7 +203,7 @@ impl From<ServerTimestamp> for Revision {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 impl From<DateTime<Utc>> for Revision {
     fn from(time: DateTime<Utc>) -> Self {
         Self(ServerTimestamp::new(time))
@@ -217,10 +218,10 @@ pub enum Owner {
 }
 
 impl Owner {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn mock_current_user() -> Owner {
         Owner::User {
-            user_uid: UserUid::new(crate::auth::TEST_USER_UID),
+            user_uid: UserUid::new(TEST_USER_UID),
         }
     }
 }
@@ -242,7 +243,7 @@ pub struct StoredObjectPermissions {
 impl StoredObjectPermissions {
     /// W3-d8: 云端分享字段裁撤后仅剩 owner;此测试助手为多个外部测试文件的
     /// 存活依赖,按旧签名恢复。
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn mock_personal() -> Self {
         Self {
             owner: Owner::mock_current_user(),
@@ -250,7 +251,7 @@ impl StoredObjectPermissions {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct StoredObjectMetadata {
     pub revision: Option<Revision>,
     pub metadata_last_updated_ts: Option<ServerTimestamp>,
@@ -264,7 +265,7 @@ pub struct StoredObjectMetadata {
 }
 
 impl StoredObjectMetadata {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn mock() -> Self {
         Self {
             revision: Some(Revision::now()),

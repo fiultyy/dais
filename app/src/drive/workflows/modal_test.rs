@@ -4,13 +4,13 @@ use warpui::{platform::WindowStyle, App, ViewHandle};
 use super::WorkflowModal;
 use crate::auth::AuthStateProvider;
 use crate::{
-    objects::model::persistence::ObjectStoreModel,
     editor::PlainTextEditorViewAction as EditorAction,
     settings_view::keybindings::KeybindingChangedNotifier,
     test_util::settings::initialize_settings_for_tests,
     workflows::workflow::{Argument, Workflow},
     UserWorkspaces,
 };
+use crate::objects::model::persistence::ObjectStoreModel;
 
 fn initialize_app(app: &mut App) {
     initialize_settings_for_tests(app);

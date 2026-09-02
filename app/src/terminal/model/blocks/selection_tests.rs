@@ -3,17 +3,7 @@ use warpui::App;
 
 use crate::{
     ai::blocklist::agent_view::AgentViewState,
-    terminal::{
-        event_listener::ChannelEventListener,
-        model::{
-            ansi::{self, Handler as _, PreexecValue},
-            blocks::{
-                insert_block,
-                tests::{command_finished_and_precmd, input_string, new_bootstrapped_block_list},
-            },
-            test_utils,
-        },
-    },
+    terminal::{ event_listener::ChannelEventListener, model::{ ansi::{self, Handler as _, PreexecValue}, blocks::{ insert_block, tests::{command_finished_and_precmd, input_string, new_bootstrapped_block_list}, }, test_utils, }, },
 };
 
 use super::*;

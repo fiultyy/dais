@@ -1,3 +1,4 @@
+use env_vars_ui::data::{AccessLevel, Editability, EnvVarData};
 use pathfinder_geometry::vector::{vec2f, Vector2F};
 
 use warp_core::features::FeatureFlag;
@@ -312,6 +313,28 @@ pub enum EnvVarCollectionEvent {
 }
 #[derive(Debug, Clone)]
 pub struct VariableRowIndex(pub usize);
+
+/// P-ARC R1: crates/env_vars_ui 的 POD 权限镜像(`data::AccessLevel`/`data::Editability`)
+/// 与 app 侧 `drive::sharing` 同形状枚举的桥(见 env_vars_ui data.rs 头注:宿主适配层做转换)。
+impl From<AccessLevel> for crate::drive::sharing::SharingAccessLevel {
+    fn from(level: AccessLevel) -> Self {
+        match level {
+            AccessLevel::View => Self::View,
+            AccessLevel::Edit => Self::Edit,
+            AccessLevel::Full => Self::Full,
+        }
+    }
+}
+
+impl From<Editability> for crate::drive::sharing::ContentEditability {
+    fn from(editability: Editability) -> Self {
+        match editability {
+            Editability::ReadOnly => Self::ReadOnly,
+            Editability::RequiresLogin => Self::RequiresLogin,
+            Editability::Editable => Self::Editable,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum EnvVarCollectionAction {
@@ -1255,20 +1278,20 @@ impl View for EnvVarCollectionView {
         let access_level = self
             .active_env_var_collection_data
             .as_ref(app)
-            .access_level(app);
+            .access_level(app, &crate::env_vars::manager::host_env_var_data());
         let editability = self
             .active_env_var_collection_data
             .as_ref(app)
-            .editability(app);
+            .editability(app, &crate::env_vars::manager::host_env_var_data());
 
-        content.extend(self.render_trash_banner(access_level, app));
+        content.extend(self.render_trash_banner(access_level.into(), app));
 
-        // Dais(W3-d8): 面包屑行随 objects::breadcrumbs 裁撤, 不再渲染。
+        // Dais(W3-d8): 面包屑行随 crate::objects::breadcrumbs 裁撤, 不再渲染。
 
         if let TrashStatus::Active = self
             .active_env_var_collection_data
             .as_ref(app)
-            .trash_status(app)
+            .trash_status(app, &crate::env_vars::manager::host_env_var_data())
         {
             let mut buttons_row = Flex::row()
                 .with_child(Container::new(self.render_invoke_button(appearance, app)).finish())
@@ -1314,13 +1337,15 @@ impl View for EnvVarCollectionView {
                     .finish(),
             )
             .with_child(
-                Container::new(self.render_variables_section_header(editability, appearance))
-                    .with_margin_bottom(SECTION_SPACING)
-                    .finish(),
+                Container::new(
+                    self.render_variables_section_header(editability.into(), appearance),
+                )
+                .with_margin_bottom(SECTION_SPACING)
+                .finish(),
             )
             .with_child(
                 Flex::column()
-                    .with_children(self.render_variable_rows(editability, appearance, app))
+                    .with_children(self.render_variable_rows(editability.into(), appearance, app))
                     .finish(),
             );
         if let Some(error_element) = self.render_bottom_error_message(appearance) {

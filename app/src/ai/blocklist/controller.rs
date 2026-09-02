@@ -67,7 +67,10 @@ use crate::terminal::{
     shared_session::ParticipantId,
     ShellLaunchData,
 };
-use crate::{send_telemetry_from_ctx, server::telemetry::TelemetryEvent};
+use crate::{
+    send_telemetry_from_ctx,
+    server::telemetry::TelemetryEvent,
+};
 use anyhow::anyhow;
 use chrono::{DateTime, Local};
 use itertools::Itertools;

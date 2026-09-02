@@ -2,11 +2,10 @@ use warpui::{elements::MouseStateHandle, AppContext, Element};
 
 use crate::{
     appearance::Appearance,
-    objects::StoredObjectMetadata,
     drive::DriveObjectType,
-    server::ids::ClientId,
     themes::theme::Fill,
 };
+use objects::{StoredObjectMetadata, ids::ClientId};
 
 use super::{WarpDriveItem, WarpDriveItemId};
 

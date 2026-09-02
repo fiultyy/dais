@@ -25,8 +25,14 @@ use crate::workspace::view::TOGGLE_RIGHT_PANEL_BINDING_NAME;
 use crate::util::traffic_lights::traffic_light_data;
 use crate::window_settings::WindowSettings;
 use crate::workspace::WorkspaceAction;
-use crate::{appearance::Appearance, terminal::resizable_data::{ModalType, ResizableData}};
-use crate::{code_review::diff_state::DiffStateModel, terminal::view::TerminalView};
+use crate::{
+    appearance::Appearance,
+    terminal::resizable_data::{ModalType, ResizableData},
+};
+use crate::{
+    code_review::diff_state::DiffStateModel,
+    terminal::view::TerminalView,
+};
 use dunce::canonicalize;
 use itertools::Itertools;
 use std::{

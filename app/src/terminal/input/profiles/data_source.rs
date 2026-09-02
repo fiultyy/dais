@@ -3,7 +3,7 @@ use ordered_float::OrderedFloat;
 use warpui::{AppContext, Entity, EntityId, SingletonEntity};
 
 use crate::ai::execution_profiles::profiles::{AIExecutionProfilesModel, ClientProfileId};
-use crate::objects::model::generic_string_model::StringModel;
+use objects::StringModel;
 use crate::search::data_source::{Query, QueryResult};
 use crate::search::mixer::DataSourceRunErrorWrapper;
 use crate::search::SyncDataSource;
