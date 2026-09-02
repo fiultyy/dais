@@ -38,6 +38,8 @@ cockpit_model = { path = "crates/cockpit_model" }
 nav = { path = "crates/nav" }
 drive_ui = { path = "crates/drive_ui" }
 notebooks_model = { path = "crates/notebooks_model" }
+ssh_manager_ui = { path = "crates/ssh_manager_ui" }
+sftp_manager_ui = { path = "crates/sftp_manager_ui" }
 workflows_ui = { path = "crates/workflows_ui" }
 env_vars_ui = { path = "crates/env_vars_ui" }
 objects = { path = "crates/objects" }

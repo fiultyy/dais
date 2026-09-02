@@ -132,6 +132,8 @@ env_vars_ui.workspace = true
 objects.workspace = true
 drive_ui.workspace = true
 notebooks_model.workspace = true
+ssh_manager_ui.workspace = true
+sftp_manager_ui.workspace = true
 workflows_ui.workspace = true
 
 persistence.workspace = true

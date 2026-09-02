@@ -61,7 +61,7 @@ use parking_lot::FairMutex;
 use pathfinder_geometry::rect::RectF;
 use pathfinder_geometry::vector::{vec2f, Vector2F};
 use serde::{Deserialize, Serialize};
-use tree::DEFAULT_FLEX_VALUE;
+use tree::{DEFAULT_FLEX_VALUE, PaneBranchHost, PaneDataHost, PaneNodeHost};
 use typed_path::TypedPath;
 use url::Url;
 use uuid::Uuid;
