@@ -4,6 +4,7 @@
 //! 事件发送(GridEventSink)与富内容 secret 检测(DetermineSecretLevelFn)为缝,
 //! 由 app 装配注入,本 crate 零 app 依赖。
 
+pub mod agent_view;
 pub mod ansi;
 pub mod bootstrap;
 pub mod find;

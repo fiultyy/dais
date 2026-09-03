@@ -65,42 +65,8 @@ impl InlineMenuAction for AcceptSlashCommandOrSavedPrompt {
     const MENU_TYPE: InlineMenuType = InlineMenuType::SlashCommands;
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum SlashCommandTrigger {
-    Input { cmd_or_ctrl_enter: bool },
-    Keybinding,
-}
-
-impl SlashCommandTrigger {
-    fn cmd_or_ctrl_enter() -> Self {
-        Self::Input {
-            cmd_or_ctrl_enter: true,
-        }
-    }
-
-    pub fn input() -> Self {
-        Self::Input {
-            cmd_or_ctrl_enter: false,
-        }
-    }
-
-    pub(super) fn keybinding() -> Self {
-        Self::Keybinding
-    }
-
-    pub fn is_keybinding(&self) -> bool {
-        matches!(self, Self::Keybinding)
-    }
-
-    fn is_cmd_or_ctrl_enter(&self) -> bool {
-        matches!(
-            self,
-            Self::Input {
-                cmd_or_ctrl_enter: true
-            }
-        )
-    }
-}
+// R15: SlashCommandTrigger 提升 terminal_grid_model::agent_view。
+pub use terminal_grid_model::agent_view::SlashCommandTrigger;
 
 #[cfg(feature = "local_fs")]
 fn open_file_command_path(

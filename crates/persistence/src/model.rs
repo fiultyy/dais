@@ -757,6 +757,13 @@ pub struct AgentConversationData {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AIAgentActionId(pub String);
 
+// R15: 运行时 ID(agent_ids crate)单向转换(反向经 .0 字符串构造,孤儿规则)。
+impl From<agent_ids::AIAgentActionId> for AIAgentActionId {
+    fn from(value: agent_ids::AIAgentActionId) -> Self {
+        AIAgentActionId(String::from(value))
+    }
+}
+
 pub type TokenUsageCategory = String;
 
 pub const PRIMARY_AGENT_CATEGORY: &str = "primary_agent";

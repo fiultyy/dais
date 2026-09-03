@@ -555,7 +555,11 @@ impl AIConversation {
         };
 
         // Convert these from the persistence type to the runtime one.
-        let reverted_action_ids = reverted_action_ids.into_iter().map_into().collect();
+        // R15: agent_ids 单源化后经字符串构造(孤儿规则禁 From 反向)。
+        let reverted_action_ids = reverted_action_ids
+            .into_iter()
+            .map(|id| AIAgentActionId::from(id.0))
+            .collect();
 
         // Determine the correct status based on the exchanges before constructing
         let status = Self::derive_status_from_root_task(&tasks_by_id.get(&root_task_id));
@@ -3980,35 +3984,8 @@ pub enum UpdateConversationError {
     ByopPreflightPersistenceSend(String),
 }
 
-/// A globally unique ID for a conversation with an AI agent.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct AIConversationId(Uuid);
-
-impl Display for AIConversationId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl AIConversationId {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-}
-
-impl Default for AIConversationId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TryFrom<String> for AIConversationId {
-    type Error = anyhow::Error;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Ok(Self(Uuid::try_parse(&value)?))
-    }
-}
+// R15: AIConversationId 单源化 agent_ids crate。
+pub use agent_ids::AIConversationId;
 
 /// The harness that produced an agent conversation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
