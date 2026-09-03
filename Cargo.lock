@@ -13655,6 +13655,7 @@ dependencies = [
  "bimap",
  "bounded-vec-deque",
  "byte-unit",
+ "enum-iterator",
  "float-cmp",
  "hex",
  "instant",

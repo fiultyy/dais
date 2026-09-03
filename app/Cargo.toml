@@ -700,6 +700,7 @@ standalone = []
 prompt_suggestions_via_maa = []
 # Feature enabled only when app is compiled for integration tests.
 integration_tests = [
+    "terminal_grid_model/integration_tests",
     "warp_cli/integration_tests",
     "warpui/integration_tests",
     "warpui/test-util",
