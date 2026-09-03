@@ -1,4 +1,5 @@
 use std::{cmp::max, fmt::Debug, mem, ops::RangeInclusive};
+use crate::terminal::model::blocks::BlockListPointExt as _;
 
 use sum_tree::SeekBias;
 use vec1::{vec1, Vec1};

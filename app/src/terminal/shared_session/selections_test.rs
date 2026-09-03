@@ -13,6 +13,7 @@ use crate::terminal::{
     shared_session::tests::terminal_model_for_viewer,
     GridType, SizeInfo, SizeUpdate, SizeUpdateReason, TerminalModel,
 };
+use crate::terminal::model::blocks::BlockListPointExt as _;
 use crate::terminal::shared_session::selections::WithinBlockSessionSharing as _;
 use warpui::text::SelectionType;
 

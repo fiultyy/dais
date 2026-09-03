@@ -7,6 +7,7 @@
 pub mod agent_view;
 pub mod ansi;
 pub mod block_filter;
+pub mod block_heights;
 pub mod bootstrap;
 pub mod find;
 pub mod grid;

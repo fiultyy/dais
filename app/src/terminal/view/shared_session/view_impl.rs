@@ -4,6 +4,7 @@ use crate::context_chips::ContextChipKind;
 use crate::editor::{InteractionState, ReplicaId};
 use crate::settings::InputModeSettings;
 use crate::terminal::block_list_viewport::ScrollPositionUpdate;
+use crate::terminal::model::blocks::BlockListPointExt as _;
 use crate::terminal::shared_session::selections::WithinBlockSessionSharing as _;
 use crate::terminal::model::blocks::BlockListPoint;
 use crate::terminal::model::index::Point;

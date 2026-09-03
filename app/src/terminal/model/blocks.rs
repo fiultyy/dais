@@ -429,22 +429,22 @@ impl Gap {
 
 /// A point in the block list coordinate space. Row 0, column 0 is the top left corner of all
 /// blocks.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd)]
-pub struct BlockListPoint {
-    // TODO(vorporeal): Use `Lines` as the type here.
-    pub row: Lines,
-    pub column: usize,
+// R15: BlockListPoint/BlockHeight/TotalIndex/BlockHeightSummary 坐标系提升
+// terminal_grid_model::block_heights;from_within_block_point 依赖 BlockList,
+// 留守 app 扩展 trait BlockListPointExt。
+pub use terminal_grid_model::block_heights::{
+    BlockHeight, BlockHeightSummary, BlockListPoint, TotalIndex,
+};
+
+pub trait BlockListPointExt {
+    fn from_within_block_point(
+        within_block_point: &WithinBlock<Point>,
+        block_list: &BlockList,
+    ) -> Self;
 }
 
-impl BlockListPoint {
-    pub fn new(row: impl IntoLines, column: usize) -> Self {
-        BlockListPoint {
-            row: row.into_lines(),
-            column,
-        }
-    }
-
-    pub fn from_within_block_point(
+impl BlockListPointExt for BlockListPoint {
+    fn from_within_block_point(
         within_block_point: &WithinBlock<Point>,
         block_list: &BlockList,
     ) -> Self {
@@ -469,56 +469,6 @@ impl BlockListPoint {
     }
 }
 
-impl float_cmp::ApproxEq for BlockListPoint {
-    type Margin = float_cmp::F64Margin;
-
-    fn approx_eq<M: Into<Self::Margin>>(self, other: Self, margin: M) -> bool {
-        // Until we actually store `Lines` inside `BlockListPoint`, we'll do a
-        // conversion here in order to make sure the comparison is done with the
-        // appropriate epsilon.
-        self.row
-            .into_lines()
-            .approx_eq(other.row.into_lines(), margin)
-            && self.column == other.column
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
-pub struct BlockHeight(Lines);
-
-/// Index/dimension of _all_ the items in the BlockHeights sum tree. This includes blocks, banners,
-/// gaps, and anything that could be within the BlockList but isn't necessarily a block.
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
-pub struct TotalIndex(pub usize);
-
-impl std::ops::Add<usize> for TotalIndex {
-    type Output = TotalIndex;
-
-    fn add(self, rhs: usize) -> Self::Output {
-        Self(self.0 + rhs)
-    }
-}
-
-#[derive(Copy, Clone, Debug, Default)]
-pub struct BlockHeightSummary {
-    pub total_count: usize,
-    pub height: Lines,
-    pub block_count: usize,
-}
-
-impl BlockHeight {
-    pub const fn zero() -> Self {
-        Self(Lines::zero())
-    }
-
-    pub fn as_f64(self) -> f64 {
-        self.0.as_f64()
-    }
-
-    pub fn into_lines(self) -> Lines {
-        self.0
-    }
-}
 
 /// Delegate for `BlockList` that delegates the method to either the early output
 /// model (if between blocks) or the active block
@@ -3913,19 +3863,6 @@ impl ansi::Handler for BlockList {
     }
 }
 
-impl AddAssign<&BlockHeightSummary> for BlockHeightSummary {
-    fn add_assign(&mut self, other: &Self) {
-        self.height += other.height;
-        self.total_count += other.total_count;
-        self.block_count += other.block_count;
-    }
-}
-
-impl From<usize> for TotalIndex {
-    fn from(count: usize) -> Self {
-        Self(count)
-    }
-}
 
 impl Item for BlockHeightItem {
     type Summary = BlockHeightSummary;
@@ -3948,50 +3885,7 @@ impl Item for BlockHeightItem {
     }
 }
 
-impl<T> From<T> for BlockHeight
-where
-    T: IntoLines,
-{
-    fn from(value: T) -> Self {
-        Self(value.into_lines())
-    }
-}
 
-impl From<BlockHeight> for f64 {
-    fn from(block_height: BlockHeight) -> f64 {
-        block_height.0.as_f64()
-    }
-}
-
-impl From<BlockHeight> for Lines {
-    fn from(block_height: BlockHeight) -> Self {
-        block_height.0
-    }
-}
-
-impl<'a> Dimension<'a, BlockHeightSummary> for BlockHeight {
-    fn add_summary(&mut self, summary: &'a BlockHeightSummary) {
-        self.0 += summary.height
-    }
-}
-
-impl<'a> Dimension<'a, BlockHeightSummary> for BlockIndex {
-    fn add_summary(&mut self, summary: &'a BlockHeightSummary) {
-        self.0 += summary.block_count
-    }
-}
-
-impl<'a> Dimension<'a, BlockHeightSummary> for TotalIndex {
-    fn add_summary(&mut self, summary: &'a BlockHeightSummary) {
-        self.0 += summary.total_count
-    }
-}
-
-impl<'a> Dimension<'a, BlockHeightSummary> for BlockHeightSummary {
-    fn add_summary(&mut self, summary: &'a BlockHeightSummary) {
-        *self += summary
-    }
-}
 
 #[cfg(test)]
 pub trait ToTotalIndex {

@@ -1,4 +1,5 @@
 use float_cmp::assert_approx_eq;
+use crate::terminal::model::blocks::BlockListPointExt as _;
 use warpui::App;
 
 use crate::{

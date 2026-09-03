@@ -10,6 +10,7 @@ use crate::settings::{
     AISettings, DebugSettings, EnforceMinimumContrast, PrivacySettings, TerminalSpacing,
 };
 use crate::terminal::alt_screen::{should_intercept_mouse, should_intercept_scroll};
+use crate::terminal::model::blocks::BlockListPointExt as _;
 use crate::terminal::blockgrid_renderer::BlockGridRenderExt as _;
 use crate::terminal::shared_session::selections::WithinBlockSessionSharing as _;
 use crate::terminal::block_list_viewport::AutoscrollBehavior;
