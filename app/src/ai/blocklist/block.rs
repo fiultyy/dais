@@ -277,22 +277,8 @@ pub enum FinishReason {
     CancelledDuringRequestedCommandExecution,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum TextLocation {
-    Output {
-        section_index: usize,
-        /// Note that this does ***not*** correspond to the frame index of a text frame after layout;
-        /// Instead, it represents the line index of the `FormattedTextLine` after markdown parsing.
-        line_index: usize,
-    },
-    Query {
-        input_index: usize,
-    },
-    Action {
-        action_index: usize,
-        line_index: usize,
-    },
-}
+// R14: TextLocation 定义提升 terminal_grid_model(ai 是消费方非属主)。
+pub use terminal_grid_model::TextLocation;
 
 #[derive(Clone)]
 struct ActionButtons {

@@ -230,82 +230,8 @@ where
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
-pub struct WithinBlock<T> {
-    pub block_index: BlockIndex,
-    pub grid: GridType,
-    pub inner: T,
-}
-
-impl<T> WithinBlock<T> {
-    pub fn new(inner: T, block_index: BlockIndex, grid: GridType) -> WithinBlock<T> {
-        Self {
-            inner,
-            block_index,
-            grid,
-        }
-    }
-
-    pub fn is_in_command_content(&self) -> bool {
-        self.grid == GridType::PromptAndCommand
-    }
-
-    pub fn is_output_grid(&self) -> bool {
-        self.grid == GridType::Output
-    }
-
-    pub fn in_same_block_and_grid<U>(&self, other: &WithinBlock<U>) -> bool {
-        self.block_index == other.block_index && self.grid == other.grid
-    }
-
-    pub fn get(&self) -> &T {
-        &self.inner
-    }
-
-    pub fn replace(&mut self, value: T) {
-        self.inner = value;
-    }
-
-    pub fn map<F, U>(self, f: F) -> WithinBlock<U>
-    where
-        F: FnOnce(T) -> U,
-    {
-        let new_val: U = f(self.inner);
-        WithinBlock {
-            inner: new_val,
-            block_index: self.block_index,
-            grid: self.grid,
-        }
-    }
-
-    pub fn is_within_this_block(&self, index: BlockIndex) -> bool {
-        self.block_index == index
-    }
-}
-
-impl<T: Copy> WithinBlock<RangeInclusive<T>> {
-    /// When you wrap a Range in a WithinBlock, this method gives you the ends of the range as
-    /// separately wrapped values
-    pub fn unfold_range(&self) -> (WithinBlock<T>, WithinBlock<T>) {
-        let start_val = WithinBlock::new(*self.inner.start(), self.block_index, self.grid);
-        let end_val = WithinBlock::new(*self.inner.end(), self.block_index, self.grid);
-        (start_val, end_val)
-    }
-}
-
-impl WithinBlock<Point> {
-    // Check if one point is visually before another in the blocklist.
-    pub fn is_visually_before(&self, other: &WithinBlock<Point>, inverted_blocklist: bool) -> bool {
-        // If two points are within the same block OR if the blocklist is NOT inverted
-        // the visual order should be the same as the points' logical order.
-        if self.block_index == other.block_index || !inverted_blocklist {
-            self < other
-        // Else. The visual order is reverse as the points' logical order.
-        } else {
-            self > other
-        }
-    }
-}
+// R14: WithinBlock 定义下沉 terminal_grid_model。
+pub use terminal_grid_model::WithinBlock;
 
 #[derive(Clone, Debug)]
 pub struct HistoryItem {

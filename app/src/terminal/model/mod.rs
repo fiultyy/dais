@@ -16,11 +16,11 @@ macro_rules! assert_lines_approx_eq {
 pub use terminal_grid_model::grid::alt_screen;
 pub mod ansi;
 pub mod block;
-pub mod blockgrid;
+pub use terminal_grid_model::grid::blockgrid;
 pub mod blocks;
 pub use terminal_grid_model::bootstrap;
 pub use ::terminal_model::completions;
-pub mod header_grid;
+pub use terminal_grid_model::grid::header_grid;
 pub use ::terminal_model::rich_content;
 pub use ::terminal_model::tmux;
 
@@ -36,11 +36,6 @@ pub mod secrets {
 
     /// R10: secrets 下沉后 app 侧留存的 UI tooltip 类型(原 secrets.rs 内,
     /// 依赖 app ai::blocklist::TextLocation 与 warpui EntityId)。
-    use crate::ai::blocklist::TextLocation;
-    use warpui::elements::SecretRange;
-    use warpui::EntityId;
-
-    include!("secrets_tooltip.rs");
 
     /// R10: 设置页 regex 展示模块(依赖 app settings::RegexDisplayInfo)留守。
     pub mod regexes {

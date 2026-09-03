@@ -49,9 +49,12 @@ fn empty_blockgrid(
     BlockGrid::new(
         SizeInfo::new_without_font_metrics(rows, columns),
         max_scroll_limit,
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+            ChannelEventListener::new_for_test(),
+        )),
         secret_obfuscation_mode,
         Default::default(),
+        crate::terminal::event_listener::host_determine_secret_level,
     )
 }
 

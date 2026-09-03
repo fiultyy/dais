@@ -1,37 +1,37 @@
-use crate::terminal::event_listener::ChannelEventListener;
-use crate::terminal::SizeInfo;
+use crate::SizeInfo;
 
-use crate::terminal::model::ansi::{
+use crate::ansi::{
     self, Attr, CharsetIndex, ClearMode, CursorShape, CursorStyle, LineClearMode, Mode,
     PrecmdValue, PreexecValue, StandardCharset, TabulationClearMode,
 };
-use crate::terminal::model::grid::grid_handler::{GridHandler, PerformResetGridChecks, RegexIter};
-use crate::terminal::model::index::{Point, VisibleRow};
-use crate::terminal::model::iterm_image::ITermImage;
+use crate::grid::grid_handler::{GridHandler, PerformResetGridChecks, RegexIter};
+use terminal_model::index::{Point, VisibleRow};
+use terminal_model::iterm_image::ITermImage;
 
-use crate::terminal::model::grid::Dimensions;
-use crate::terminal::model::GridStorage;
+use crate::grid::Dimensions;
+use crate::grid::GridEventSink;
+use crate::grid::GridStorage;
 
-use crate::terminal::model::secrets::ObfuscateSecrets;
+use crate::secrets::ObfuscateSecrets;
 use instant::Instant;
-use pathfinder_color::ColorU;
+use warpui::color::ColorU;
 use std::collections::HashMap;
 use std::io;
 use std::num::NonZeroUsize;
 use std::ops::{Range, RangeInclusive};
 use std::sync::{Arc, OnceLock};
 
-use super::find::RegexDFAs;
-use super::grid::RespectDisplayedOutput;
-use super::image_map::StoredImageMetadata;
-use super::kitty::{KittyAction, KittyResponse};
-use super::secrets::RespectObfuscatedSecrets;
+use crate::find::RegexDFAs;
+use crate::grid::RespectDisplayedOutput;
+use crate::image_map::StoredImageMetadata;
+use terminal_model::kitty::{KittyAction, KittyResponse};
+use crate::secrets::RespectObfuscatedSecrets;
 use super::selection::ScrollDelta;
 use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
 
 #[derive(Clone)]
 pub struct BlockGrid {
-    pub(super) grid_handler: GridHandler,
+    pub grid_handler: GridHandler,
 
     started: bool,
 
@@ -56,7 +56,7 @@ pub struct BlockGrid {
     /// Similar to [`Self::cached_rightmost_visible_nonempty_cell`].
     cached_starts_with_input_buffer_sequence: OnceLock<bool>,
 
-    pub(super) should_scan_for_secrets: ObfuscateSecrets,
+    pub should_scan_for_secrets: ObfuscateSecrets,
 
     /// When true, `len_displayed()` caps its return value at the bottommost
     /// visible content row to trim trailing blank rows.
@@ -64,7 +64,7 @@ pub struct BlockGrid {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(in crate::terminal) enum CursorDisplayPoint {
+pub enum CursorDisplayPoint {
     Visible(Point),
     HiddenCache(Point),
 }
@@ -90,20 +90,19 @@ impl BlockGrid {
     pub fn new(
         size_info: SizeInfo,
         max_scroll_limit: usize,
-        event_proxy: ChannelEventListener,
+        event_sink: std::sync::Arc<dyn GridEventSink>,
         should_scan_for_secrets: ObfuscateSecrets,
         perform_reset_grid_checks: PerformResetGridChecks,
+        determine_secret_level: crate::grid::DetermineSecretLevelFn,
     ) -> Self {
         let grid_handler = GridHandler::new(
             size_info,
             max_scroll_limit,
-            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
-                event_proxy,
-            )),
+            event_sink,
             false,
             should_scan_for_secrets,
             perform_reset_grid_checks,
-            crate::terminal::event_listener::host_determine_secret_level,
+            determine_secret_level,
         );
 
         BlockGrid {
@@ -192,7 +191,7 @@ impl BlockGrid {
         }
     }
 
-    pub(in crate::terminal) fn cursor_display_point(&self) -> Option<CursorDisplayPoint> {
+    pub fn cursor_display_point(&self) -> Option<CursorDisplayPoint> {
         let cursor_point = self.grid_handler().cursor_render_point();
         let cursor_display_point = self
             .grid_handler()
@@ -257,12 +256,12 @@ impl BlockGrid {
             || self.contains_only_input_buffer_sequence()
     }
 
-    pub(super) fn all_bytes_scanned_for_secrets(&self) -> bool {
+    pub fn all_bytes_scanned_for_secrets(&self) -> bool {
         self.grid_handler().all_bytes_scanned_for_secrets()
     }
 
     /// Disables secret obfuscation unconditionally.
-    pub(super) fn disable_secret_obfuscation(&mut self) {
+    pub fn disable_secret_obfuscation(&mut self) {
         self.should_scan_for_secrets = ObfuscateSecrets::No;
         self.grid_handler
             .set_obfuscate_secrets(ObfuscateSecrets::No);
@@ -271,7 +270,7 @@ impl BlockGrid {
     /// Sets the grid to obfuscate secrets except when both of the following are true:
     /// (1) The grid is finished.
     /// (2) All bytes have not been scanned for secrets already.
-    pub(super) fn maybe_enable_secret_obfuscation(&mut self, obfuscate_secrets: ObfuscateSecrets) {
+    pub fn maybe_enable_secret_obfuscation(&mut self, obfuscate_secrets: ObfuscateSecrets) {
         if self.finished() && !self.all_bytes_scanned_for_secrets() {
             // This grid finished with secrets disabled and has not been
             // scanned for secrets but we are attempting to obfuscate secrets now.
@@ -282,7 +281,7 @@ impl BlockGrid {
         self.grid_handler.set_obfuscate_secrets(obfuscate_secrets);
     }
 
-    pub(super) fn scan_full_grid_for_secrets(&mut self) {
+    pub fn scan_full_grid_for_secrets(&mut self) {
         self.grid_handler.scan_full_grid_for_secrets();
     }
 
@@ -371,7 +370,7 @@ impl BlockGrid {
         self.start_time = Some(Instant::now());
     }
 
-    pub(in crate::terminal) fn grid_storage(&self) -> &GridStorage {
+    pub fn grid_storage(&self) -> &GridStorage {
         self.grid_handler.grid_storage()
     }
 
@@ -393,7 +392,7 @@ impl BlockGrid {
         self.grid_handler.find(dfas)
     }
 
-    pub(super) fn to_string(
+    pub fn to_string(
         &self,
         include_esc_sequences: bool,
         max_rows: Option<usize>,
@@ -682,11 +681,11 @@ impl BlockGrid {
             .estimated_memory_usage_bytes()
     }
 
-    pub(super) fn disable_reset_grid_checks(&mut self) {
+    pub fn disable_reset_grid_checks(&mut self) {
         self.grid_handler.disable_reset_grid_checks();
     }
 
-    pub(super) fn reset_received_osc(&mut self) {
+    pub fn reset_received_osc(&mut self) {
         self.grid_handler.reset_received_osc();
     }
 
@@ -694,12 +693,12 @@ impl BlockGrid {
         &mut self.grid_handler
     }
 
-    pub(super) fn set_marked_text(&mut self, marked_text: &str, selected_range: &Range<usize>) {
+    pub fn set_marked_text(&mut self, marked_text: &str, selected_range: &Range<usize>) {
         self.grid_handler
             .set_marked_text(marked_text, selected_range);
     }
 
-    pub(super) fn clear_marked_text(&mut self) {
+    pub fn clear_marked_text(&mut self) {
         self.grid_handler.clear_marked_text();
     }
 }

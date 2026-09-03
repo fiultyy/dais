@@ -583,13 +583,6 @@ impl From<&mut Block> for BlockType {
     }
 }
 
-#[derive(Clone)]
-pub struct BlockSize {
-    pub block_padding: BlockPadding,
-    pub size: SizeInfo,
-    pub max_block_scroll_limit: usize,
-    pub warp_prompt_height_lines: f32,
-}
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum BlockState {
@@ -658,50 +651,8 @@ pub enum BlockSection {
     NotContained,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum BlockGridPoint {
-    Prompt(Point),
-    Rprompt(Point),
-    PromptAndCommand(Point),
-    Output(Point),
-}
-
-impl From<WithinBlock<Point>> for BlockGridPoint {
-    fn from(point: WithinBlock<Point>) -> Self {
-        match point.grid {
-            GridType::Prompt => BlockGridPoint::Prompt(*point.get()),
-            GridType::Rprompt => BlockGridPoint::Rprompt(*point.get()),
-            GridType::Output => BlockGridPoint::Output(*point.get()),
-            GridType::PromptAndCommand => BlockGridPoint::PromptAndCommand(*point.get()),
-        }
-    }
-}
-
-impl From<BlockGridPoint> for GridType {
-    fn from(p: BlockGridPoint) -> GridType {
-        match p {
-            BlockGridPoint::Output(_) => GridType::Output,
-            BlockGridPoint::Prompt(_) => GridType::Prompt,
-            BlockGridPoint::Rprompt(_) => GridType::Rprompt,
-            BlockGridPoint::PromptAndCommand(_) => GridType::PromptAndCommand,
-        }
-    }
-}
-
-impl BlockGridPoint {
-    pub fn grid_point(&self) -> Point {
-        match self {
-            BlockGridPoint::Output(point) => *point,
-            BlockGridPoint::Prompt(point) => *point,
-            BlockGridPoint::Rprompt(point) => *point,
-            BlockGridPoint::PromptAndCommand(point) => *point,
-        }
-    }
-
-    pub fn to_within_block_point(self, block_index: BlockIndex) -> WithinBlock<Point> {
-        WithinBlock::new(self.grid_point(), block_index, self.into())
-    }
-}
+// R14: BlockSize/BlockGridPoint 定义下沉 terminal_grid_model。
+pub use terminal_grid_model::grid::block_types::{BlockSize, BlockGridPoint};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum GridIndex {
@@ -918,26 +869,35 @@ impl Block {
         };
         let header_grid = HeaderGrid::new(
             sizes.clone(),
-            event_proxy.clone(),
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                event_proxy.clone(),
+            )),
             should_scan_for_secrets,
             honor_ps1,
             perform_reset_grid_checks,
+            crate::terminal::event_listener::host_determine_secret_level,
         );
         let rprompt_grid = BlockGrid::new(
             sizes.size,
             // Even though prompt is most likely only 1-2 lines, we allow for the bigger
             // max_scroll_limit, to account for resizing the window/pane.
             sizes.max_block_scroll_limit,
-            event_proxy.clone(),
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                event_proxy.clone(),
+            )),
             should_scan_for_secrets,
             PerformResetGridChecks::No,
+            crate::terminal::event_listener::host_determine_secret_level,
         );
         let output_grid = BlockGrid::new(
             sizes.size,
             sizes.max_block_scroll_limit,
-            event_proxy.clone(),
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                event_proxy.clone(),
+            )),
             should_scan_for_secrets,
             perform_reset_grid_checks,
+            crate::terminal::event_listener::host_determine_secret_level,
         );
 
         Block {

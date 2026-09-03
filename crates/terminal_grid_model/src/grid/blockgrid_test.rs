@@ -1,12 +1,11 @@
-use crate::terminal::event_listener::ChannelEventListener;
-use crate::terminal::model::ansi::{self, Handler};
-use crate::terminal::model::blockgrid::{BlockGrid, CursorDisplayPoint};
-use crate::terminal::model::grid::grid_handler::PerformResetGridChecks;
-use crate::terminal::model::grid::Dimensions;
-use crate::terminal::model::index::{Point, VisibleRow};
-use crate::terminal::model::secrets::ObfuscateSecrets;
-use crate::terminal::SizeInfo;
-use crate::test_util::mock_blockgrid;
+use crate::ansi::{self, Handler};
+use crate::grid::blockgrid::{BlockGrid, CursorDisplayPoint};
+use crate::grid::grid_handler::PerformResetGridChecks;
+use crate::grid::Dimensions;
+use terminal_model::index::{Point, VisibleRow};
+use crate::secrets::ObfuscateSecrets;
+use crate::SizeInfo;
+use crate::grid::mock_blockgrid::mock_blockgrid;
 
 #[test]
 pub fn test_finish_truncates_grid_basic() {
@@ -14,9 +13,10 @@ pub fn test_finish_truncates_grid_basic() {
     let mut block_grid = BlockGrid::new(
         size,
         1000, /* max_scroll_limit */
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::grid::NoopEventSink),
         ObfuscateSecrets::No,
         PerformResetGridChecks::default(),
+        crate::secrets::dfa_determine_secret_level,
     );
 
     for c in "hello".chars() {
@@ -36,9 +36,10 @@ pub fn test_finish_truncates_grid_cursor_at_bottom() {
     let mut block_grid = BlockGrid::new(
         size,
         1000, /* max_scroll_limit */
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::grid::NoopEventSink),
         ObfuscateSecrets::No,
         PerformResetGridChecks::default(),
+        crate::secrets::dfa_determine_secret_level,
     );
 
     for _ in 0..300 {
@@ -60,9 +61,10 @@ pub fn test_resize_finished_block() {
     let mut block_grid = BlockGrid::new(
         size,
         1000, /* max_scroll_limit */
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::grid::NoopEventSink),
         ObfuscateSecrets::No,
         PerformResetGridChecks::default(),
+        crate::secrets::dfa_determine_secret_level,
     );
 
     for _ in 0..5 {
@@ -109,9 +111,10 @@ pub fn test_resize_finished_softwrapped_block() {
     let mut block_grid = BlockGrid::new(
         size,
         1000, /* max_scroll_limit */
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::grid::NoopEventSink),
         ObfuscateSecrets::No,
         PerformResetGridChecks::default(),
+        crate::secrets::dfa_determine_secret_level,
     );
 
     for _ in 0..5 {
@@ -158,9 +161,10 @@ pub fn test_trim_trailing_blank_rows_uses_active_floor_for_blank_started_grid() 
     let mut block_grid = BlockGrid::new(
         size,
         1000,
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::grid::NoopEventSink),
         ObfuscateSecrets::No,
         PerformResetGridChecks::default(),
+        crate::secrets::dfa_determine_secret_level,
     );
 
     block_grid.start();
@@ -182,9 +186,10 @@ pub fn test_cursor_display_point_hidden_when_cursor_below_trimmed_content() {
     let mut block_grid = BlockGrid::new(
         size,
         1000,
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::grid::NoopEventSink),
         ObfuscateSecrets::No,
         PerformResetGridChecks::default(),
+        crate::secrets::dfa_determine_secret_level,
     );
 
     block_grid.start();
@@ -217,9 +222,10 @@ pub fn test_cursor_display_point_not_clipped_when_trimming_disabled() {
     let mut block_grid = BlockGrid::new(
         size,
         1000,
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::grid::NoopEventSink),
         ObfuscateSecrets::No,
         PerformResetGridChecks::default(),
+        crate::secrets::dfa_determine_secret_level,
     );
 
     block_grid.start();

@@ -1,6 +1,7 @@
 use crate::appearance::Appearance;
 use crate::settings::EnforceMinimumContrast;
 use crate::terminal::blockgrid_renderer::BlockGridParams;
+use crate::terminal::blockgrid_renderer::BlockGridRenderExt as _;
 use crate::terminal::model::blockgrid::BlockGrid;
 use crate::terminal::model::grid::Dimensions;
 use crate::terminal::model::ObfuscateSecrets;

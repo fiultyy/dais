@@ -10,6 +10,8 @@ use crate::settings::{
     AISettings, DebugSettings, EnforceMinimumContrast, PrivacySettings, TerminalSpacing,
 };
 use crate::terminal::alt_screen::{should_intercept_mouse, should_intercept_scroll};
+use crate::terminal::blockgrid_renderer::BlockGridRenderExt as _;
+use crate::terminal::shared_session::selections::WithinBlockSessionSharing as _;
 use crate::terminal::block_list_viewport::AutoscrollBehavior;
 use crate::terminal::input::inline_menu::InlineMenuPositioner;
 use crate::terminal::model::block::{Block, BlockSection};
@@ -237,13 +239,8 @@ pub type FilterBuilderFn = dyn Fn(
     &AppContext,
 ) -> Vec<Option<Box<dyn Element>>>;
 
-#[derive(Debug, PartialEq, Copy, Clone, Eq, PartialOrd, Sequence)]
-pub enum GridType {
-    Prompt,
-    Rprompt,          // Right side prompt
-    PromptAndCommand, // Combined prompt/command grid.
-    Output,
-}
+// R14: GridType 定义下沉 terminal_grid_model。
+pub use terminal_grid_model::GridType;
 
 #[derive(Debug, Default, Clone)]
 pub struct SnackbarHeaderState {

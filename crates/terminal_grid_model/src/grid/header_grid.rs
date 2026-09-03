@@ -3,28 +3,24 @@
 //! utilizing a combined prompt/command grid, with helper methods to expose the prompt and command.
 use std::{cmp::max, io};
 
-use super::{
-    grid::{grid_handler::PerformResetGridChecks, Dimensions as _},
-    selection::ScrollDelta,
-};
+use crate::grid::Dimensions as _;
+use crate::grid::grid_handler::PerformResetGridChecks;
+use crate::grid::selection::ScrollDelta;
 use instant::Instant;
-use pathfinder_color::ColorU;
+use warpui::color::ColorU;
 use warpui::units::{IntoLines as _, Lines};
 
-use crate::terminal::event::Event;
 
-use super::{
-    ansi::{self, Attr, Handler, PrecmdValue, PreexecValue, Processor},
-    block::{BlockGridPoint, BlockSize},
-    blockgrid::BlockGrid,
-    bootstrap::BootstrapStage,
-    find::RegexDFAs,
-    grid::grid_handler::RegexIter,
-    grid::{Cursor, RespectDisplayedOutput},
-    index::{Point, VisibleRow},
-    ObfuscateSecrets, RespectObfuscatedSecrets,
-};
-use crate::terminal::{event_listener::ChannelEventListener, SizeInfo};
+use crate::ansi::{self, Attr, Handler, PrecmdValue, PreexecValue, Processor};
+use crate::grid::block_types::{BlockGridPoint, BlockSize};
+use crate::grid::blockgrid::BlockGrid;
+use crate::bootstrap::BootstrapStage;
+use crate::find::RegexDFAs;
+use crate::grid::grid_handler::RegexIter;
+use crate::grid::{Cursor, GridEventSink, RespectDisplayedOutput};
+use terminal_model::index::{Point, VisibleRow};
+use crate::secrets::{ObfuscateSecrets, RespectObfuscatedSecrets};
+use crate::SizeInfo;
 use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
 
 macro_rules! delegate {
@@ -72,7 +68,7 @@ macro_rules! delegate_with_writer {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub(super) enum CommandStartPoint {
+pub enum CommandStartPoint {
     /// NOTE: this should ideally have a `has_extra_leading_newline` field which tracks a leading newline in the case of a
     /// hard-wrap overwriting a soft-wrap (which isn't captured in the "Point" data). However, we don't currently use
     /// the # of rows of command content (from combined grid) anywhere. And for all other purposes, removing the leading
@@ -97,7 +93,7 @@ pub(super) enum CommandStartPoint {
 /// whenever we need to find the demarcation between the prompt/command. We update this cached value when the prompt
 /// is being written to or when we have a resize event.
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub(super) enum PromptEndPoint {
+pub enum PromptEndPoint {
     EmptyPrompt,
     PromptEnd {
         /// Note: this is INCLUSIVE of the printable character at the Point.
@@ -115,7 +111,7 @@ pub struct HeaderGrid {
     prompt_and_command_grid: BlockGrid,
     /// If Some, received characters should be directed to the specified prompt
     /// grid instead of the active grid.
-    pub(super) receiving_chars_for_prompt: Option<ansi::PromptKind>,
+    pub receiving_chars_for_prompt: Option<ansi::PromptKind>,
     /// If true, we should discard the next left prompt data we receive
     /// (whether it comes from a precmd hook or from a marked prompt
     /// printed by the shell). Note that we only ignore it for the prompt grid (we do NOT ignore it for the
@@ -128,7 +124,7 @@ pub struct HeaderGrid {
     // whether to honor users ps1 and rprompt values, can be changed by a user in the settings
     // note that the change will only apply to the active block; historical blocks will keep the
     // previous setting
-    pub(super) honor_ps1: bool,
+    pub honor_ps1: bool,
     command_started: bool,
     command_start_time: Option<Instant>,
     /// Cached Point at which the prompt content ends,
@@ -138,33 +134,36 @@ pub struct HeaderGrid {
     /// Use command_start_point() to access this value safely, do not use the raw value.
     cached_command_start_point: Option<CommandStartPoint>,
 
-    event_proxy: ChannelEventListener,
+    event_sink: std::sync::Arc<dyn GridEventSink>,
 }
 
 impl HeaderGrid {
     pub fn new(
         sizes: BlockSize,
-        event_proxy: ChannelEventListener,
+        event_sink: std::sync::Arc<dyn GridEventSink>,
         should_scan_for_secrets: ObfuscateSecrets,
         honor_ps1: bool,
         perform_reset_grid_checks: PerformResetGridChecks,
+        determine_secret_level: crate::grid::DetermineSecretLevelFn,
     ) -> Self {
         let prompt_grid = BlockGrid::new(
             sizes.size,
             // Even though prompt is most likely only 1-2 lines, we allow for the bigger
             // max_scroll_limit, to account for resizing the window/pane.
             sizes.max_block_scroll_limit,
-            event_proxy.clone(),
+            event_sink.clone(),
             should_scan_for_secrets,
             // We ignore checking if we've received the Reset Grid OSC on the prompt grid.
             PerformResetGridChecks::No,
+            determine_secret_level,
         );
         let prompt_and_command_grid = BlockGrid::new(
             sizes.size,
             sizes.max_block_scroll_limit,
-            event_proxy.clone(),
+            event_sink.clone(),
             should_scan_for_secrets,
             perform_reset_grid_checks,
+            determine_secret_level,
         );
         Self {
             prompt_grid,
@@ -177,7 +176,7 @@ impl HeaderGrid {
             command_start_time: None,
             cached_prompt_end_point: None,
             cached_command_start_point: None,
-            event_proxy,
+            event_sink,
         }
     }
 
@@ -209,18 +208,18 @@ impl HeaderGrid {
             .set_supports_emoji_presentation_selector(supports_emoji_presentation_selector);
     }
 
-    #[cfg(test)]
-    pub(super) fn set_prompt_grid(&mut self, grid: BlockGrid) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_prompt_grid(&mut self, grid: BlockGrid) {
         self.prompt_grid = grid;
     }
 
-    #[cfg(test)]
-    pub(super) fn set_prompt_and_command_grid(&mut self, grid: BlockGrid) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_prompt_and_command_grid(&mut self, grid: BlockGrid) {
         self.prompt_and_command_grid = grid;
     }
 
-    #[cfg(test)]
-    pub(super) fn set_raw_prompt_end_point(&mut self, point: Option<PromptEndPoint>) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_raw_prompt_end_point(&mut self, point: Option<PromptEndPoint>) {
         self.cached_prompt_end_point = point;
     }
 
@@ -340,12 +339,12 @@ impl HeaderGrid {
     }
 
     /// Returns the cached start of the command marker, in the case of a combined command/prompt grid.
-    pub(super) fn command_start_point(&self) -> Option<CommandStartPoint> {
+    pub fn command_start_point(&self) -> Option<CommandStartPoint> {
         self.cached_command_start_point
     }
 
     /// Returns the cached end of the prompt marker, in the case of a combined command/prompt grid.
-    pub(super) fn prompt_end_point(&self) -> Option<PromptEndPoint> {
+    pub fn prompt_end_point(&self) -> Option<PromptEndPoint> {
         self.cached_prompt_end_point
     }
 
@@ -813,16 +812,16 @@ impl HeaderGrid {
         self.prompt_to_string_internal(false, RespectObfuscatedSecrets::Yes, false)
     }
 
-    pub(super) fn disable_reset_grid_checks(&mut self) {
+    pub fn disable_reset_grid_checks(&mut self) {
         self.prompt_grid.disable_reset_grid_checks();
         self.prompt_and_command_grid.disable_reset_grid_checks();
     }
 }
 
 // Utilities used in tests for HeaderGrid.
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 impl HeaderGrid {
-    pub fn command_cursor_flags(&self) -> &super::cell::Flags {
+    pub fn command_cursor_flags(&self) -> &warp_terminal::model::grid::cell::Flags {
         self.prompt_and_command_grid
             .grid_storage()
             .cursor()
@@ -1155,8 +1154,7 @@ impl ansi::Handler for HeaderGrid {
                 );
                 // We send a terminal event which will result in bindkeys being issued to the shell session, to
                 // switch the prompt mode via the $WARP_HONOR_PS1 environment variable.
-                self.event_proxy
-                    .send_terminal_event(Event::HonorPS1OutOfSync);
+                self.event_sink.send_honor_ps1_out_of_sync();
 
                 // We synchronize the state of our `honor_ps1` setting with the value passed from the shell.
                 // Note that we ALWAYS want this to be synced properly since the shell determines the prompt

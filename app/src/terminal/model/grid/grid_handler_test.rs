@@ -1366,9 +1366,12 @@ fn test_emoji_variation_selector() {
     let mut blockgrid = BlockGrid::new(
         size,
         MAX_SCROLL_LIMIT,
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+            ChannelEventListener::new_for_test(),
+        )),
         ObfuscateSecrets::No,
         PerformResetGridChecks::default(),
+        crate::terminal::event_listener::host_determine_secret_level,
     );
 
     blockgrid.start();

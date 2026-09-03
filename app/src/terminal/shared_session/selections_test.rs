@@ -13,6 +13,7 @@ use crate::terminal::{
     shared_session::tests::terminal_model_for_viewer,
     GridType, SizeInfo, SizeUpdate, SizeUpdateReason, TerminalModel,
 };
+use crate::terminal::shared_session::selections::WithinBlockSessionSharing as _;
 use warpui::text::SelectionType;
 
 /// Creates a [`SelectionType::Simple`], left-to-right text selection

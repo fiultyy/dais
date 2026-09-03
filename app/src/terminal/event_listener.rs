@@ -123,6 +123,10 @@ impl terminal_grid_model::grid::GridEventSink for GridEventSinkAdapter {
         ));
     }
 
+    fn send_honor_ps1_out_of_sync(&self) {
+        self.0.send_terminal_event(TerminalEvent::HonorPS1OutOfSync);
+    }
+
     fn send_text_selection_changed(&self) {
         self.0
             .send_terminal_event(TerminalEvent::TextSelectionChanged);

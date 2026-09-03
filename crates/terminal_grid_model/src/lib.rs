@@ -11,6 +11,11 @@ pub mod grid;
 pub mod image_map;
 pub mod secrets;
 mod size_info;
+pub mod text_location;
+
 
 pub use size_info::{ClipboardType, SizeInfo, SizeUpdate, SizeUpdateReason};
+pub use text_location::TextLocation;
+pub use grid::{BlockPadding, BlockSize, GridType};
+pub use grid::block_types::WithinBlock;
 
