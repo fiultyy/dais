@@ -13674,6 +13674,7 @@ dependencies = [
  "terminal_model",
  "unicode-width 0.1.14",
  "urlocator",
+ "vec1",
  "vte",
  "warp_core",
  "warp_features",
