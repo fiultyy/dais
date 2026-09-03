@@ -5,10 +5,12 @@
 //! 由 app 装配注入,本 crate 零 app 依赖。
 
 pub mod ansi;
+pub mod bootstrap;
 pub mod find;
 pub mod grid;
 pub mod image_map;
 pub mod secrets;
 mod size_info;
 
-pub use size_info::{ClipboardType, SizeInfo};
+pub use size_info::{ClipboardType, SizeInfo, SizeUpdate, SizeUpdateReason};
+

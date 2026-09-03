@@ -1070,8 +1070,11 @@ impl TerminalModel {
         let alt_screen = AltScreen::new(
             sizes.size,
             0, /* max_scroll_limit */
-            event_proxy.clone(),
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                event_proxy.clone(),
+            )),
             obfuscate_secrets,
+            crate::terminal::event_listener::host_determine_secret_level,
         );
         let block_list = BlockList::new(
             restored_blocks,

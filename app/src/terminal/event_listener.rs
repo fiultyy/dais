@@ -123,6 +123,11 @@ impl terminal_grid_model::grid::GridEventSink for GridEventSinkAdapter {
         ));
     }
 
+    fn send_text_selection_changed(&self) {
+        self.0
+            .send_terminal_event(TerminalEvent::TextSelectionChanged);
+    }
+
     fn send_image_received(
         &self,
         image_id: u32,

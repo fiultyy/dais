@@ -13,12 +13,12 @@ macro_rules! assert_lines_approx_eq {
     }};
 }
 
-pub mod alt_screen;
+pub use terminal_grid_model::grid::alt_screen;
 pub mod ansi;
 pub mod block;
 pub mod blockgrid;
 pub mod blocks;
-pub mod bootstrap;
+pub use terminal_grid_model::bootstrap;
 pub use ::terminal_model::completions;
 pub mod header_grid;
 pub use ::terminal_model::rich_content;

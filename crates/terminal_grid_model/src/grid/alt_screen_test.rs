@@ -1,7 +1,18 @@
+
+#[allow(unused_macros)]
+macro_rules! assert_lines_approx_eq {
+    ($actual:expr, $expected:expr) => {{
+        float_cmp::assert_approx_eq!(
+            warpui::units::Lines,
+            $actual,
+            warpui::units::IntoLines::into_lines($expected)
+        )
+    }};
+}
 use warpui::units::IntoLines as _;
 
 use super::*;
-use crate::terminal::SizeUpdateReason;
+use crate::SizeUpdateReason;
 
 fn default_size() -> SizeInfo {
     SizeInfo::new_without_font_metrics(10, 7)
@@ -11,8 +22,9 @@ fn new_alt_screen(size: SizeInfo) -> AltScreen {
     AltScreen::new(
         size,
         1_000, /* max_scroll_limit */
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(NoopEventSink),
         ObfuscateSecrets::No,
+        crate::secrets::dfa_determine_secret_level,
     )
 }
 

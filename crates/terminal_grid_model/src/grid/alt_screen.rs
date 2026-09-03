@@ -2,34 +2,32 @@ use std::collections::HashMap;
 use std::io;
 use std::ops::{Range, RangeInclusive};
 
-use super::find::RegexDFAs;
-use super::grid::RespectDisplayedOutput;
-use super::image_map::StoredImageMetadata;
-use super::index::Direction;
-use super::kitty::{KittyAction, KittyResponse};
-use super::secrets::RespectObfuscatedSecrets;
-use super::selection::{ExpandedSelectionRange, ScrollDelta};
-use crate::terminal::event::Event as TerminalEvent;
-use crate::terminal::event_listener::ChannelEventListener;
-use crate::terminal::grid_renderer::ColorSampler;
-use crate::terminal::model::ansi;
-use crate::terminal::model::ansi::{
+use crate::find::RegexDFAs;
+use crate::grid::RespectDisplayedOutput;
+use crate::image_map::StoredImageMetadata;
+use terminal_model::index::Direction;
+use terminal_model::kitty::{KittyAction, KittyResponse};
+use crate::secrets::RespectObfuscatedSecrets;
+use crate::grid::selection::{ExpandedSelectionRange, ScrollDelta};
+use crate::grid::color_sampler::ColorSampler;
+use crate::ansi;
+use crate::ansi::{
     Attr, CharsetIndex, ClearMode, CommandFinishedValue, CursorShape, CursorStyle, LineClearMode,
     Mode, PrecmdValue, PreexecValue, StandardCharset, TabulationClearMode,
 };
-use crate::terminal::model::grid::grid_handler::{
+use crate::grid::grid_handler::{
     FragmentBoundary, GridHandler, Link, PerformResetGridChecks, PossiblePath, TermMode,
 };
-use crate::terminal::model::grid::{Dimensions, GridStorage};
-use crate::terminal::model::index::{Point, Side, VisibleRow};
-use crate::terminal::model::iterm_image::ITermImage;
-use crate::terminal::model::secrets::ObfuscateSecrets;
-use crate::terminal::model::selection::{Selection, SelectionRange};
-use crate::terminal::{SizeInfo, SizeUpdate};
+use crate::grid::{Dimensions, GridStorage, GridEventSink, NoopEventSink};
+use terminal_model::index::{Point, Side, VisibleRow};
+use terminal_model::iterm_image::ITermImage;
+use crate::secrets::{ObfuscateSecrets, SecretLevel};
+use crate::grid::selection::{Selection, SelectionRange};
+use crate::{SizeInfo, SizeUpdate};
 use itertools::Itertools;
 use num_traits::Float as _;
 use parking_lot::Mutex;
-use pathfinder_color::ColorU;
+use warpui::color::ColorU;
 use std::sync::Arc;
 use vec1::Vec1;
 use warp_core::semantic_selection::SemanticSelection;
@@ -61,26 +59,25 @@ pub struct AltScreen {
     /// the output grid.
     pub bg_color_sampler: Arc<Mutex<ColorSampler>>,
 
-    event_proxy: ChannelEventListener,
+    event_sink: std::sync::Arc<dyn GridEventSink>,
 }
 
 impl AltScreen {
     pub fn new(
         size_info: SizeInfo,
         max_scroll_limit: usize,
-        event_proxy: ChannelEventListener,
+        event_sink: std::sync::Arc<dyn GridEventSink>,
         obfuscate_secrets: ObfuscateSecrets,
+        determine_secret_level: crate::grid::DetermineSecretLevelFn,
     ) -> Self {
         let grid_handler = GridHandler::new(
             size_info,
             max_scroll_limit,
-            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
-                event_proxy.clone(),
-            )),
+            event_sink.clone(),
             true,
             obfuscate_secrets,
             PerformResetGridChecks::default(),
-            crate::terminal::event_listener::host_determine_secret_level,
+        determine_secret_level,
         );
 
         AltScreen {
@@ -89,7 +86,7 @@ impl AltScreen {
             selection: None,
             smart_select_override: None,
             bg_color_sampler: Arc::new(Mutex::new(ColorSampler::new())),
-            event_proxy,
+            event_sink,
         }
     }
 
@@ -101,7 +98,7 @@ impl AltScreen {
         self.smart_select_override = None;
     }
 
-    pub(super) fn grid_storage(&self) -> &GridStorage {
+    pub fn grid_storage(&self) -> &GridStorage {
         self.grid_handler.grid_storage()
     }
 
@@ -109,7 +106,7 @@ impl AltScreen {
         self.grid_handler.cursor_style()
     }
 
-    pub(super) fn grid_storage_mut(&mut self) -> &mut GridStorage {
+    pub fn grid_storage_mut(&mut self) -> &mut GridStorage {
         self.grid_handler.grid_storage_mut()
     }
 
@@ -239,14 +236,12 @@ impl AltScreen {
 
     fn set_selection(&mut self, value: Selection) {
         self.selection = Some(value);
-        self.event_proxy
-            .send_terminal_event(TerminalEvent::TextSelectionChanged);
+        self.event_sink.send_text_selection_changed();
     }
 
     pub fn clear_selection(&mut self) {
         self.selection = None;
-        self.event_proxy
-            .send_terminal_event(TerminalEvent::TextSelectionChanged);
+        self.event_sink.send_text_selection_changed();
     }
 
     pub fn selection_to_string(&self, semantic_selection: &SemanticSelection) -> Option<String> {
@@ -336,7 +331,7 @@ impl AltScreen {
     }
 
     /// Sets whether any content within a grid that is "secret-like" should be obfuscated.
-    pub(super) fn set_obfuscate_secrets(&mut self, obfuscate_secrets: ObfuscateSecrets) {
+    pub fn set_obfuscate_secrets(&mut self, obfuscate_secrets: ObfuscateSecrets) {
         self.grid_handler.set_obfuscate_secrets(obfuscate_secrets);
     }
 
@@ -354,12 +349,12 @@ impl AltScreen {
         &mut self.grid_handler
     }
 
-    pub(super) fn set_marked_text(&mut self, marked_text: &str, selected_range: &Range<usize>) {
+    pub fn set_marked_text(&mut self, marked_text: &str, selected_range: &Range<usize>) {
         self.grid_handler
             .set_marked_text(marked_text, selected_range);
     }
 
-    pub(super) fn clear_marked_text(&mut self) {
+    pub fn clear_marked_text(&mut self) {
         self.grid_handler.clear_marked_text();
     }
 

@@ -9,6 +9,8 @@ pub mod selection;
 mod selection_cursor;
 pub mod storage;
 
+pub mod alt_screen;
+pub mod color_sampler;
 pub mod ansi_handler;
 pub mod ansi_state;
 pub mod image_geometry;
@@ -73,6 +75,8 @@ pub trait GridEventSink: Send + Sync + 'static {
         respond: ClipboardRespondFn,
     );
     fn send_image_received(&self, image_id: u32, image_data: Vec<u8>, protocol: ImageProtocol);
+    /// R13: alt_screen 下沉新增——选择变化通知(app 映射 TerminalEvent::TextSelectionChanged)。
+    fn send_text_selection_changed(&self);
 }
 
 /// clipboard 回读回调: 入参为系统剪贴板文本,返回需写回 pty 的响应串。
@@ -94,6 +98,7 @@ impl GridEventSink for NoopEventSink {
     fn send_clipboard_store(&self, _kind: crate::ClipboardType, _text: std::sync::Arc<str>) {}
     fn send_clipboard_load(&self, _kind: crate::ClipboardType, _respond: ClipboardRespondFn) {}
     fn send_image_received(&self, _id: u32, _data: Vec<u8>, _protocol: ImageProtocol) {}
+    fn send_text_selection_changed(&self) {}
 }
 
 /// R10 缝: 富内容 secret 检测策略(app ai::blocklist),构造注入。
