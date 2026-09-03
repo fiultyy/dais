@@ -306,24 +306,6 @@ enum StorageRow {
     FlatStorage(usize),
 }
 
-/// R10 缝: app 侧 ansi::Handler 方法钩子。wrapline/newline/on_finish_byte_processing
-/// 定义在 app 的 `impl ansi::Handler for GridHandler`(依赖 app Event/trait),
-/// 本 crate 内的 combine/收尾逻辑经此调用,app 装配注入。
-#[derive(Clone, Copy)]
-pub struct GridHandlerHooks {
-    pub wrapline: fn(&mut GridHandler),
-    pub newline: fn(&mut GridHandler),
-}
-
-impl Default for GridHandlerHooks {
-    fn default() -> Self {
-        Self {
-            wrapline: |_| {},
-            newline: |_| {},
-        }
-    }
-}
-
 /// An implementation of `ansi::Handler` that writes to a `Grid`.
 #[derive(Clone)]
 pub struct GridHandler {
