@@ -19,3 +19,8 @@ pub mod rich_content;
 pub mod tmux;
 
 pub use executor_event::{ExecutedExecutorCommandEvent, ParseGeneratorOutputError};
+
+/// R10: 自 app terminal_model.rs 提升的范围 trait(grid/terminal_grid_model 共用)。
+pub trait RangeInModel {
+    fn range(&self) -> std::ops::RangeInclusive<crate::index::Point>;
+}
