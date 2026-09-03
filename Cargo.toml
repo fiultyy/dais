@@ -47,6 +47,7 @@ ssh_manager_ui = { path = "crates/ssh_manager_ui" }
 sftp_manager_ui = { path = "crates/sftp_manager_ui" }
 code_review_model = { path = "crates/code_review_model" }
 workspace_model = { path = "crates/workspace_model" }
+terminal_grid_model = { path = "crates/terminal_grid_model" }
 terminal_model = { path = "crates/terminal_model" }
 code_model = { path = "crates/code_model" }
 context_chips_ui = { path = "crates/context_chips_ui" }
@@ -116,6 +117,8 @@ websocket = { path = "crates/websocket" }
 # here to copying-and-pasting versions.
 axum = "0.8.4"
 anyhow = "1.0"
+bimap = "0.6.2"
+bounded-vec-deque = "0.1"
 arboard = { version = "3.6.1", default-features = false }
 arrayvec = "0.7.4"
 async-broadcast = "0.7.2"
