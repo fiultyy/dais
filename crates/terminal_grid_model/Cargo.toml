@@ -1,0 +1,38 @@
+[package]
+name = "terminal_grid_model"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bimap.workspace = true
+bounded-vec-deque.workspace = true
+itertools.workspace = true
+lazy_static.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+pathfinder_geometry.workspace = true
+rangemap.workspace = true
+regex.workspace = true
+regex-automata.workspace = true
+ordered-float.workspace = true
+serde.workspace = true
+shellexpand.workspace = true
+string-offset.workspace = true
+terminal_model.workspace = true
+unicode-width.workspace = true
+urlocator.workspace = true
+warp_core.workspace = true
+warp_terminal.workspace = true
+warp_util.workspace = true
+warpui.workspace = true
+
+[features]
+# R1 先例: 宿主测试可见的构造器/辅助。
+test-support = []
+
+[dev-dependencies]
+warp_features = { workspace = true, features = ["test-util"] }
+warp_terminal = { workspace = true, features = ["test-util"] }

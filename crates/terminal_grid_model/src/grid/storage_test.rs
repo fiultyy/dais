@@ -1,6 +1,6 @@
-use crate::terminal::model::cell::Cell;
-use crate::terminal::model::grid::row::Row;
-use crate::terminal::model::grid::storage::Storage;
+use warp_terminal::model::grid::cell::Cell;
+use crate::grid::row::Row;
+use crate::grid::storage::Storage;
 
 // Use a large value for `MAX_CACHE_SIZE` for testing.
 const MAX_CACHE_SIZE: usize = 1_000;
@@ -84,11 +84,11 @@ fn testing_visible_row_to_grid_indexing() {
     let mut storage = Storage::with_capacity(10, 1, false);
     storage.initialize(5, 1);
     assert_eq!(
-        storage.to_grid_index(crate::terminal::model::index::VisibleRow(9)),
+        storage.to_grid_index(terminal_model::index::VisibleRow(9)),
         14
     );
     assert_eq!(
-        storage.to_grid_index(crate::terminal::model::index::VisibleRow(0)),
+        storage.to_grid_index(terminal_model::index::VisibleRow(0)),
         5
     );
 }

@@ -1,6 +1,6 @@
 use regex::Regex;
 
-use super::*;
+use crate::terminal::model::secrets::*;
 
 #[test]
 fn test_firebase_domain() {

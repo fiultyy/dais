@@ -3,10 +3,10 @@
 use std::cmp::{min, Ordering};
 use std::mem;
 
-use crate::terminal::model::cell::{Cell, Flags};
-use crate::terminal::model::grid::grid_storage::{Dimensions, GridStorage};
-use crate::terminal::model::grid::row::Row;
-use crate::terminal::model::index::{VisiblePoint, VisibleRow};
+use warp_terminal::model::grid::cell::{Cell, Flags};
+use crate::grid::grid_storage::{Dimensions, GridStorage};
+use crate::grid::row::Row;
+use terminal_model::index::{VisiblePoint, VisibleRow};
 
 impl GridStorage {
     /// Resize the grid's width and/or height.
@@ -77,7 +77,7 @@ impl GridStorage {
     /// of the terminal window.
     ///
     /// Alacritty takes the same approach.
-    pub(crate) fn shrink_lines(&mut self, target: usize) {
+    pub fn shrink_lines(&mut self, target: usize) {
         // Scroll up to keep content inside the window.
         let required_scrolling = (self.cursor.point.row + 1).saturating_sub(target).0;
         let last_row = VisibleRow(target - 1);

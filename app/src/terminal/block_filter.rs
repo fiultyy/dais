@@ -42,7 +42,8 @@ const MAXIMUM_CONTEXT_LINES: u16 = 99;
 /// The maximum buffer length that we allow in the context line editor.
 const MAXIMUM_CONTEXT_LINE_EDITOR_BUFFER_LENGTH: usize = 2;
 pub type ContextLines = u16;
-pub const DEFAULT_CONTEXT_LINES_VALUE: ContextLines = 0;
+// R10: 常量单源迁至 terminal_grid_model,旧路径保持兼容。
+pub use terminal_grid_model::grid::DEFAULT_CONTEXT_LINES_VALUE;
 const CONTEXT_LINE_EDITOR_TOOLTIP_LABEL: &str = "Show context lines around matches";
 const REGEX_TOOLTIP_LABEL: &str = "Regex toggle";
 const CASE_SENSITIVITY_TOOLTIP_LABEL: &str = "Case sensitive search";

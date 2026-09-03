@@ -4,7 +4,7 @@ use std::ops::{Range, RangeInclusive};
 use bimap::BiMap;
 use itertools::Itertools;
 
-use crate::terminal::model::index::Point;
+use terminal_model::index::Point;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DisplaySource {
@@ -20,7 +20,7 @@ pub struct DisplayedRows {
 }
 
 impl DisplayedRows {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn new(range: RangeInclusive<usize>, source: DisplaySource) -> Self {
         Self { range, source }
     }
@@ -54,7 +54,7 @@ pub struct DisplayedOutput {
 /// NOTE: `Left` = original row and `Right` = offset/translated row
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct RowTranslationMap {
-    pub(crate) inner: BiMap<usize, usize>,
+    pub inner: BiMap<usize, usize>,
 }
 
 impl From<BiMap<usize, usize>> for RowTranslationMap {
@@ -548,7 +548,7 @@ impl DisplayedOutput {
             .find(|(_, rows)| *rows.range.start() <= row)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn new_for_test(displayed_rows: Vec<RangeInclusive<usize>>) -> Self {
         DisplayedOutput::new_from_displayed_lines(
             displayed_rows

@@ -6,9 +6,97 @@ use warpui::text::words::is_default_word_boundary;
 
 use crate::terminal::model::secrets::{ObfuscateSecrets, SecretLevel};
 use crate::terminal::model::{blockgrid::BlockGrid, secrets::IsObfuscated};
+use crate::terminal::event_listener::ChannelEventListener;
+use crate::terminal::model::ansi::{self, Handler};
 use crate::test_util::mock_blockgrid;
+use warp_terminal::model::ansi::{Color, NamedColor};
 
 use super::*;
+use crate::terminal::model::grid::grid_handler::Fragment;
+
+// R10: 原父模块的可见 use 集,随模块下沉后显式补齐。
+#[allow(unused_imports)]
+use crate::terminal::model::grid::ansi_state::State;
+#[allow(unused_imports)]
+use std::borrow::Cow;
+#[allow(unused_imports)]
+use std::cmp::max;
+#[allow(unused_imports)]
+use std::collections::{HashMap, HashSet};
+#[allow(unused_imports)]
+use std::num::NonZeroUsize;
+#[allow(unused_imports)]
+use std::ops::{Range, RangeInclusive};
+#[allow(unused_imports)]
+use std::{ cmp::{min, Ordering}, mem, };
+#[allow(unused_imports)]
+use bounded_vec_deque::BoundedVecDeque;
+#[allow(unused_imports)]
+use itertools::Itertools;
+#[allow(unused_imports)]
+use lazy_static::lazy_static;
+#[allow(unused_imports)]
+use unicode_width::UnicodeWidthChar;
+#[allow(unused_imports)]
+use urlocator::{UrlLocation, UrlLocator};
+#[allow(unused_imports)]
+use warp_core::features::FeatureFlag;
+#[allow(unused_imports)]
+use warp_core::semantic_selection::{SemanticSelection, SMART_SELECT_MATCH_WINDOW_LIMIT};
+#[allow(unused_imports)]
+use warp_core::{safe_assert, safe_assert_eq};
+#[allow(unused_imports)]
+use warp_terminal::model::grid::CellType;
+#[allow(unused_imports)]
+use warp_terminal::model::grid::FlatStorage;
+#[allow(unused_imports)]
+use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
+#[allow(unused_imports)]
+use warp_util::path::CleanPathResult;
+#[allow(unused_imports)]
+use warpui::color::ColorU;
+#[allow(unused_imports)]
+use warp_terminal::model::grid::cell::{Cell, Flags, LineLength, DEFAULT_CHAR};
+#[allow(unused_imports)]
+use warp_terminal::model::char_or_str::PushCharOrStr;
+#[allow(unused_imports)]
+use crate::terminal::model::grid::{Dimensions, GridStorage};
+#[allow(unused_imports)]
+use crate::terminal::model::image_map::ImageMap;
+#[allow(unused_imports)]
+use terminal_model::index::{IndexRange, Point, VisibleRow};
+#[allow(unused_imports)]
+use crate::terminal::model::secrets::SecretMap;
+#[allow(unused_imports)]
+use crate::terminal::SizeInfo;
+#[allow(unused_imports)]
+use warp_util::TrimStringExt;
+#[allow(unused_imports)]
+use crate::terminal::model::grid::RespectDisplayedOutput;
+#[allow(unused_imports)]
+use crate::terminal::model::secrets::RespectObfuscatedSecrets;
+#[allow(unused_imports)]
+use terminal_model::RangeInModel;
+#[allow(unused_imports)]
+use crate::terminal::model::find::{Match, RegexDFAs};
+#[allow(unused_imports)]
+use terminal_model::index::Direction;
+#[allow(unused_imports)]
+use crate::terminal::model::secrets::{Secret, SecretHandle};
+#[allow(unused_imports)]
+use super::displayed_output::DisplayedOutput;
+#[allow(unused_imports)]
+use super::grapheme_cursor::{self, GraphemeCursor};
+#[allow(unused_imports)]
+use super::row::Row;
+#[allow(unused_imports)]
+use super::{ConvertToAbsolute as _, Cursor, SelectionCursor};
+#[allow(unused_imports)]
+
+#[allow(unused_imports)]
+use super::{GridEventSink, NoopEventSink};
+#[allow(unused_imports)]
+use string_offset::ByteOffset;
 
 const MAX_SCROLL_LIMIT: usize = 1000;
 
@@ -411,11 +499,15 @@ fn test_basic_input_and_newline() {
     let mut grid = GridHandler::new(
         size,
         MAX_SCROLL_LIMIT,
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+            ChannelEventListener::new_for_test(),
+        )),
         false,
         ObfuscateSecrets::No,
         PerformResetGridChecks::default(),
-    );
+        crate::terminal::event_listener::host_determine_secret_level,
+    )
+    .with_host_hooks(crate::terminal::model::grid::ansi_handler::host_hooks());
     grid.input('a');
     grid.linefeed();
     grid.carriage_return();
@@ -441,11 +533,15 @@ fn test_empty_grid_bounds_to_string() {
     let grid_handler = GridHandler::new(
         size,
         MAX_SCROLL_LIMIT,
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+            ChannelEventListener::new_for_test(),
+        )),
         false,
         ObfuscateSecrets::No,
         PerformResetGridChecks::No,
-    );
+        crate::terminal::event_listener::host_determine_secret_level,
+    )
+    .with_host_hooks(crate::terminal::model::grid::ansi_handler::host_hooks());
     assert_eq!(
         grid_handler.bounds_to_string(
             Point::new(0, 0),

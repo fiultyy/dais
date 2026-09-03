@@ -1,13 +1,12 @@
-#[path = "ansi_handler.rs"]
-mod ansi_handler;
 #[path = "filtering.rs"]
-mod filtering;
+pub mod filtering;
 #[path = "image.rs"]
 mod image;
 #[path = "resize.rs"]
 mod resize;
 #[path = "secrets.rs"]
 mod secrets;
+use super::ansi_state::State;
 
 use std::borrow::Cow;
 use std::cmp::max;
@@ -34,31 +33,30 @@ use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
 use warp_util::path::CleanPathResult;
 use warpui::color::ColorU;
 
-use crate::terminal::event_listener::ChannelEventListener;
-use crate::terminal::model::ansi::{self, Color, CursorStyle, Handler, NamedColor};
-use crate::terminal::model::cell::{Cell, Flags, LineLength, DEFAULT_CHAR};
-use crate::terminal::model::char_or_str::{CharOrStr, PushCharOrStr};
-use crate::terminal::model::grid::{Dimensions, GridStorage};
-use crate::terminal::model::image_map::ImageMap;
-use crate::terminal::model::index::{IndexRange, Point, VisibleRow};
-use crate::terminal::model::secrets::{ObfuscateSecrets, SecretMap};
-use crate::terminal::SizeInfo;
-use crate::util::extensions::TrimStringExt;
 
-use crate::terminal::model::grid::RespectDisplayedOutput;
-use crate::terminal::model::secrets::RespectObfuscatedSecrets;
-use crate::terminal::model::terminal_model::RangeInModel;
-use crate::terminal::model::{
-    find::{Match, RegexDFAs},
-    index::Direction,
-};
-use crate::terminal::model::{Secret, SecretHandle};
+use warp_terminal::model::ansi::{self, Color, CursorStyle, NamedColor};
+use warp_terminal::model::grid::cell::{Cell, Flags, LineLength, DEFAULT_CHAR};
+use warp_terminal::model::char_or_str::{CharOrStr, PushCharOrStr};
+use crate::grid::{Dimensions, GridStorage};
+use crate::image_map::ImageMap;
+use terminal_model::index::{IndexRange, Point, VisibleRow};
+use crate::secrets::{ObfuscateSecrets, SecretMap};
+use crate::SizeInfo;
+use warp_util::TrimStringExt;
+
+use crate::grid::RespectDisplayedOutput;
+use crate::secrets::RespectObfuscatedSecrets;
+use terminal_model::RangeInModel;
+use crate::find::{Match, RegexDFAs};
+use terminal_model::index::Direction;
+use crate::secrets::{Secret, SecretHandle};
 
 use super::displayed_output::DisplayedOutput;
 use super::grapheme_cursor::{self, GraphemeCursor};
 use super::row::Row;
 use super::{ConvertToAbsolute as _, Cursor, SelectionCursor};
-use filtering::FilterState;
+pub use filtering::{add_displayed_rows_with_cursor_line, trim_context_lines, FilterState};
+use super::{GridEventSink, NoopEventSink};
 use string_offset::ByteOffset;
 
 /// Used to match equal brackets, when performing a bracket-pair selection.
@@ -73,7 +71,7 @@ const URL_SCAN_CHARACTER_MAX_COUNT: usize = 1000;
 /// Max depth for the kitty keyboard mode stack.
 /// Per the kitty keyboard protocol, this should be
 /// bounded to prevent denial of service attacks.
-const KEYBOARD_MODE_STACK_MAX_DEPTH: usize = 4096;
+pub const KEYBOARD_MODE_STACK_MAX_DEPTH: usize = 4096;
 
 /// For escape sequences
 const CSI_START: &str = "\x1b[";
@@ -103,9 +101,9 @@ lazy_static! {
 /// Represents a range of cells with information on their combined content and total
 /// cell width.
 #[derive(Debug, PartialEq, Eq)]
-struct Fragment {
-    content: String,
-    total_cell_width: usize,
+pub struct Fragment {
+    pub content: String,
+    pub total_cell_width: usize,
 }
 
 impl Fragment {
@@ -126,7 +124,7 @@ impl ContainsPoint for FragmentBoundary {
 }
 
 /// Whether to include the first wide char when parsing line into fragments.
-enum IncludeFirstWideChar {
+pub enum IncludeFirstWideChar {
     Yes,
     No,
 }
@@ -307,31 +305,49 @@ enum StorageRow {
     FlatStorage(usize),
 }
 
+/// R10 缝: app 侧 ansi::Handler 方法钩子。wrapline/newline/on_finish_byte_processing
+/// 定义在 app 的 `impl ansi::Handler for GridHandler`(依赖 app Event/trait),
+/// 本 crate 内的 combine/收尾逻辑经此调用,app 装配注入。
+#[derive(Clone, Copy)]
+pub struct GridHandlerHooks {
+    pub wrapline: fn(&mut GridHandler),
+    pub newline: fn(&mut GridHandler),
+}
+
+impl Default for GridHandlerHooks {
+    fn default() -> Self {
+        Self {
+            wrapline: |_| {},
+            newline: |_| {},
+        }
+    }
+}
+
 /// An implementation of `ansi::Handler` that writes to a `Grid`.
 #[derive(Clone)]
 pub struct GridHandler {
-    grid: GridStorage,
+    pub grid: GridStorage,
 
-    pub(crate) flat_storage: FlatStorage,
+    pub flat_storage: FlatStorage,
 
-    finished: bool,
+    pub finished: bool,
 
-    ansi_handler_state: ansi_handler::State,
+    pub ansi_handler_state: State,
 
     /// Info about the subset of rows we want to show to the user. If None, we
     /// show the entire blockgrid to the user.
-    displayed_output: Option<DisplayedOutput>,
+    pub displayed_output: Option<DisplayedOutput>,
     /// Info about the output filter applied to the blockgrid.
-    filter_state: Option<FilterState>,
+    pub filter_state: Option<FilterState>,
 
-    pub(super) secrets: SecretMap,
+    pub secrets: SecretMap,
     /// Given a plaintext, this map returns all secrets with the same plaintext.
-    secrets_in_plaintext: HashMap<String, HashSet<SecretHandle>>,
-    secret_obfuscation_mode: ObfuscateSecrets,
+    pub secrets_in_plaintext: HashMap<String, HashSet<SecretHandle>>,
+    pub secret_obfuscation_mode: ObfuscateSecrets,
     /// Determines whether all bytes have been processed to detect secrets.
-    all_bytes_scanned_for_secrets: bool,
-    pub(super) images: ImageMap,
-    marked_text: Option<String>,
+    pub all_bytes_scanned_for_secrets: bool,
+    pub images: ImageMap,
+    pub marked_text: Option<String>,
 
     /// Bottommost row with content that should contribute to trimmed CLI agent
     /// block height, updated per PTY-read batch in `on_finish_byte_processing`
@@ -339,22 +355,30 @@ pub struct GridHandler {
     ///
     /// `None` = not yet computed or no visible content.
     /// `Some(row)` = bottommost visible content row index.
-    bottommost_visible_content_row: Option<usize>,
+    pub bottommost_visible_content_row: Option<usize>,
+
+    /// R10 缝: 富内容 secret 检测策略(app ai::blocklist),构造注入。
+    pub host_determine_secret_level: crate::grid::DetermineSecretLevelFn,
+
+    /// R10 缝: app ansi::Handler 侧方法钩子(wrapline/newline/on_finish_byte_processing
+    /// 为 app trait 方法,本 crate 不可见),由 app 装配注入;默认 no-op。
+    pub host_hooks: GridHandlerHooks,
 
     /// When true, `on_finish_byte_processing` computes
     /// `bottommost_visible_content_row` via backward scan. Set by the owning
     /// `BlockGrid` when `trim_trailing_blank_rows` is active.
-    track_content_length: bool,
+    pub track_content_length: bool,
 }
 
 impl GridHandler {
     pub fn new(
         size_info: SizeInfo,
         max_scroll_limit: usize,
-        event_proxy: ChannelEventListener,
+        event_sink: std::sync::Arc<dyn GridEventSink>,
         is_alt_screen: bool,
         obfuscate_secrets: ObfuscateSecrets,
         perform_reset_grid_checks: PerformResetGridChecks,
+        host_determine_secret_level: crate::grid::DetermineSecretLevelFn,
     ) -> Self {
         // We set the maximum scrollback for grid storage to zero, as the
         // scrollback is stored in flat storage _instead_.  `GridHandler`
@@ -370,9 +394,9 @@ impl GridHandler {
             obfuscate_secrets,
         );
 
-        let ansi_handler_state = ansi_handler::State::new(
+        let ansi_handler_state = State::new(
             &size_info,
-            event_proxy,
+            event_sink,
             is_alt_screen,
             obfuscate_secrets,
             perform_reset_grid_checks,
@@ -393,15 +417,57 @@ impl GridHandler {
             marked_text: None,
             bottommost_visible_content_row: None,
             track_content_length: false,
+            host_determine_secret_level,
+            host_hooks: GridHandlerHooks::default(),
         }
     }
 
-    #[cfg(test)]
+    /// R10 缝装配: 注入 app Handler 侧钩子(返回自身以支持链式构造)。
+    pub fn with_host_hooks(mut self, hooks: GridHandlerHooks) -> Self {
+        self.host_hooks = hooks;
+        self
+    }
+
+    /// 字节处理收尾: 原 app `ansi::Handler::on_finish_byte_processing` 实现体,
+    /// 纯 grid 侧逻辑,R10 下沉至此;app trait 实现委托本方法。
+    pub fn finish_byte_processing(&mut self) {
+        // Make sure the max cursor and dirty cell range are up-to-date.
+        self.grid.update_max_cursor();
+        self.update_dirty_cells_range();
+
+        self.maybe_scan_dirty_cells_for_secrets();
+
+        if self.finished && self.num_lines_truncated() > 0 {
+            // Occasionally upon finishing the grid there are truncated rows that we have
+            // not yet accounted for.
+            self.refilter_lines();
+        } else {
+            self.maybe_filter_dirty_lines();
+        }
+
+        self.reset_dirty_cells_range_to_cursor_point();
+
+        // Update bottommost visible content row for content_len() trimming.
+        if self.track_content_length {
+            self.bottommost_visible_content_row = self.bottommost_visible_content_row_backward();
+        }
+
+        if self.ansi_handler_state.is_alt_screen {
+            debug_assert_eq!(
+                self.flat_storage.total_rows(),
+                0,
+                "the alt screen grid should never put any rows in flat storage"
+            );
+        }
+    }
+
+
+    #[cfg(any(test, feature = "test-support"))]
     pub fn new_for_test(rows: usize, columns: usize) -> Self {
         Self::new_for_test_with_scroll_limit(rows, columns, 0)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn new_for_test_with_scroll_limit(
         rows: usize,
         columns: usize,
@@ -410,27 +476,25 @@ impl GridHandler {
         Self::new(
             SizeInfo::new_without_font_metrics(rows, columns),
             max_scroll_limit,
-            ChannelEventListener::new_for_test(),
+            std::sync::Arc::new(NoopEventSink),
             false,
             ObfuscateSecrets::No,
             PerformResetGridChecks::No,
+            crate::secrets::dfa_determine_secret_level,
         )
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn new_for_alt_screen_test(rows: usize, columns: usize) -> Self {
         Self::new(
             SizeInfo::new_without_font_metrics(rows, columns),
             0,
-            ChannelEventListener::new_for_test(),
+            std::sync::Arc::new(NoopEventSink),
             true,
             ObfuscateSecrets::No,
             PerformResetGridChecks::No,
+            crate::secrets::dfa_determine_secret_level,
         )
-    }
-
-    pub(in crate::terminal::model) fn ansi_handler(&mut self) -> &mut impl ansi::Handler {
-        self
     }
 
     pub fn set_track_content_length(&mut self, track: bool) {
@@ -443,7 +507,7 @@ impl GridHandler {
         }
     }
 
-    pub(crate) fn set_supports_emoji_presentation_selector(
+    pub fn set_supports_emoji_presentation_selector(
         &mut self,
         supports_emoji_presentation_selector: bool,
     ) {
@@ -519,6 +583,8 @@ impl GridHandler {
             marked_text: None,
             bottommost_visible_content_row: None,
             track_content_length: false,
+            host_determine_secret_level: self.host_determine_secret_level,
+            host_hooks: self.host_hooks,
         };
 
         // Scan the full grid for secrets.  This is less performant than
@@ -533,11 +599,11 @@ impl GridHandler {
         self.obfuscate_secrets(obfuscate_secrets);
     }
 
-    pub(in crate::terminal::model) fn grid_storage(&self) -> &GridStorage {
+    pub fn grid_storage(&self) -> &GridStorage {
         &self.grid
     }
 
-    pub(in crate::terminal::model) fn grid_storage_mut(&mut self) -> &mut GridStorage {
+    pub fn grid_storage_mut(&mut self) -> &mut GridStorage {
         &mut self.grid
     }
 
@@ -762,7 +828,7 @@ impl GridHandler {
     }
 
     /// Converts a cell to a string, with ansi escape sequences
-    fn cell_to_string(cell: &Cell) -> String {
+    pub fn cell_to_string(cell: &Cell) -> String {
         let cell_content = cell.content_for_display();
 
         let style_checker = Flags::BOLD
@@ -1335,7 +1401,7 @@ impl GridHandler {
     }
 
     // Chunk line into an array of fragments with the separators.
-    fn line_to_fragments(
+    pub fn line_to_fragments(
         &self,
         row: usize,
         mut cols: Range<usize>,
@@ -1456,7 +1522,7 @@ impl GridHandler {
         self.ansi_handler_state.cursor_style
     }
 
-    pub(in crate::terminal::model) fn scroll_region(&self) -> &Range<VisibleRow> {
+    pub fn scroll_region(&self) -> &Range<VisibleRow> {
         &self.ansi_handler_state.scroll_region
     }
 
@@ -1472,8 +1538,8 @@ impl GridHandler {
     }
 
     /// Updates the cursor point to be at the provided row and column.
-    #[cfg(test)]
-    pub(super) fn set_cursor_point(&mut self, row: usize, col: usize) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_cursor_point(&mut self, row: usize, col: usize) {
         self.update_cursor(|cursor| {
             cursor.point.row = VisibleRow(row);
             cursor.point.col = col;
@@ -1503,7 +1569,7 @@ impl GridHandler {
     /// Updates the active [`Cursor`] using the provided `update_cursor_fn`,
     /// but must only be used to move the cursor forward.
     #[inline]
-    fn move_cursor_forward<T: FnOnce(&mut Cursor)>(&mut self, update_cursor_fn: T) {
+    pub fn move_cursor_forward<T: FnOnce(&mut Cursor)>(&mut self, update_cursor_fn: T) {
         #[cfg(debug_assertions)]
         let old_cursor_point = self.cursor_point();
 
@@ -1522,19 +1588,19 @@ impl GridHandler {
     /// This does not perform assertions that the cursor did not move
     /// backwards.
     #[inline]
-    fn move_cursor_forward_unchecked<T: FnOnce(&mut Cursor)>(&mut self, update_cursor_fn: T) {
+    pub fn move_cursor_forward_unchecked<T: FnOnce(&mut Cursor)>(&mut self, update_cursor_fn: T) {
         (update_cursor_fn)(&mut self.grid.cursor);
     }
 
-    #[cfg(test)]
-    fn set_max_scroll_limit(&mut self, max_scroll_limit: usize) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_max_scroll_limit(&mut self, max_scroll_limit: usize) {
         self.flat_storage.set_max_rows(Some(max_scroll_limit));
     }
 
     /// Returns an inclusive range of cells that have been dirtied in the
     /// current pty output processing pass, or [`None`] if the range is
     /// empty.
-    pub(in crate::terminal::model) fn dirty_cells_range(&self) -> Option<RangeInclusive<Point>> {
+    pub fn dirty_cells_range(&self) -> Option<RangeInclusive<Point>> {
         let range = &self.ansi_handler_state.dirty_cells_range;
         if range.is_empty() {
             return None;
@@ -1550,7 +1616,7 @@ impl GridHandler {
     }
 
     /// Updates the dirty cells range based on the current cursor position.
-    fn update_dirty_cells_range(&mut self) {
+    pub fn update_dirty_cells_range(&mut self) {
         let mut cursor_point = self.cursor_point();
         // If the cursor is ready to wrap to the next line, the cell under it
         // should be included in the range.
@@ -1565,7 +1631,7 @@ impl GridHandler {
         *dirty_cells_range = range_start..range_end;
     }
 
-    fn reset_dirty_cells_range_to_cursor_point(&mut self) {
+    pub fn reset_dirty_cells_range_to_cursor_point(&mut self) {
         let cursor_point_offset = self.cursor_point();
         // Initialize the dirty cells range to be the current point of the cursor, since this is
         // where the cursor will be upon the next run of the PTY event loop.
@@ -1635,7 +1701,7 @@ impl GridHandler {
         // We can't rely on this being done by the PTY reader thread, as if a
         // new block is started as part of the same PTY read, we'll only end up
         // calling the finish byte processing hook on _that_ block.
-        self.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+        self.finish_byte_processing();
 
         // If we're using flat storage, push as many rows as possible into
         // flat storage to minimize memory consumption.
@@ -1811,7 +1877,7 @@ impl GridHandler {
     /// How many bytes are traversed when advancing from one point to another. This is needed in
     /// order to correctly account for characters containing wide-spacers and for unicode multibyte
     /// characters
-    fn byte_offset_between_points(&self, mut start: Point, mut end: Point) -> ByteOffset {
+    pub fn byte_offset_between_points(&self, mut start: Point, mut end: Point) -> ByteOffset {
         if start > end {
             mem::swap(&mut start, &mut end);
         }
@@ -1833,7 +1899,7 @@ impl GridHandler {
     /// in multibyte characters.
     /// TODO(andy): Update this to bias left or right. Currently it only biases right.
     /// TODO(andy): Update this to go forward or backward. Currently it only goes forward.
-    fn advance_point_by_bytes(&self, start: Point, bytes: ByteOffset) -> Point {
+    pub fn advance_point_by_bytes(&self, start: Point, bytes: ByteOffset) -> Point {
         let mut bytes = bytes.as_usize();
         let mut cursor = self.grapheme_cursor_from(start, grapheme_cursor::Wrap::All);
 
@@ -1986,7 +2052,7 @@ impl GridHandler {
     /// `right` until the `left` Point is reached.
     ///
     /// The origin is always included in the regex.
-    fn regex_search_leftwards(&self, dfas: &RegexDFAs, right: Point, left: Point) -> Option<Match> {
+    pub fn regex_search_leftwards(&self, dfas: &RegexDFAs, right: Point, left: Point) -> Option<Match> {
         dfas.regex_search_leftwards(right, left, self)
     }
 
@@ -1994,7 +2060,7 @@ impl GridHandler {
     /// and searching until the `right` Point is reached, inclusive of both points.
     ///
     /// The origin is always included in the regex.
-    fn regex_search_rightwards(
+    pub fn regex_search_rightwards(
         &self,
         dfas: &RegexDFAs,
         left: Point,
@@ -2204,7 +2270,7 @@ impl GridHandler {
         }
     }
 
-    pub(in crate::terminal::model) fn row_wraps(&self, row_idx: usize) -> bool {
+    pub fn row_wraps(&self, row_idx: usize) -> bool {
         match self.storage_row(row_idx) {
             Some(StorageRow::GridStorage(row_idx)) => self.grid.row_wraps(row_idx),
             Some(StorageRow::FlatStorage(row_idx)) => self.flat_storage.row_wraps(row_idx),
@@ -2216,7 +2282,7 @@ impl GridHandler {
     ///
     /// Returns [`None`] if the given point is not within the bounds of the
     /// grid.
-    pub(in crate::terminal::model) fn cell_type(&self, point: Point) -> Option<CellType> {
+    pub fn cell_type(&self, point: Point) -> Option<CellType> {
         match self.storage_row(point.row)? {
             StorageRow::GridStorage(row_idx) => {
                 let row = self.grid.get(row_idx)?;
@@ -2258,7 +2324,7 @@ impl GridHandler {
         point
     }
 
-    pub(in crate::terminal::model) fn has_visible_chars(&self) -> bool {
+    pub fn has_visible_chars(&self) -> bool {
         let mut cursor = self.grapheme_cursor_from(Point::new(0, 0), grapheme_cursor::Wrap::All);
         while let Some(current_item) = cursor.current_item() {
             if current_item.cell().is_visible() {
@@ -2270,7 +2336,7 @@ impl GridHandler {
     }
 
     /// Append the contents of another grid to this one, cell-by-cell.
-    pub(in crate::terminal::model) fn append_cells_from_grid(&mut self, other: &GridHandler) {
+    pub fn append_cells_from_grid(&mut self, other: &GridHandler) {
         let max_point = other.grid.max_cursor_point.convert_to_absolute(other);
 
         // We ensure that we don't copy "extra" empty cells over - only copy till the end of the "real content".
@@ -2291,7 +2357,7 @@ impl GridHandler {
             for col in 0..=max_col {
                 // Move cursor to next line, if needed (in combined grid).
                 if self.grid.cursor().input_needs_wrap {
-                    self.wrapline();
+                    (self.host_hooks.wrapline)(self);
                 }
                 // Copy over the current cell from the other grid to the current cursor position in the combined grid.
                 let cur_cursor_point = self.grid.cursor_point();
@@ -2319,14 +2385,14 @@ impl GridHandler {
             // If we don't have a soft-wrap (from the "other" grid), then we need to hard-wrap the line
             // (in combined grid), to match the intended text layout.
             if !other.row_wraps(row_idx) && row_idx < max_row {
-                self.newline();
+                (self.host_hooks.newline)(self);
             }
         }
     }
 
     /// Marks a location in the grid as being the end of a shell prompt (and
     /// the start of the user's command).
-    pub(in crate::terminal::model) fn mark_end_of_prompt(
+    pub fn mark_end_of_prompt(
         &mut self,
         prompt_end_point: Point,
         has_extra_trailing_newline: bool,
@@ -2352,7 +2418,7 @@ impl GridHandler {
     /// "end of prompt" marker. This is used to demarcate the logical boundary between the
     /// prompt and command within a combined prompt/command grid. Returns None if no such valid
     /// marker exists.
-    pub(in crate::terminal::model) fn prompt_end_point(&self) -> Option<Point> {
+    pub fn prompt_end_point(&self) -> Option<Point> {
         for row_idx in 0..self.total_rows() {
             let row = self.row(row_idx)?;
             for col in (0..self.columns()).rev() {
@@ -2366,7 +2432,7 @@ impl GridHandler {
     }
 
     /// Returns the bottommost nonempty row index. If the Grid has no rows, returns None.
-    fn bottommost_nonempty_row(&self) -> Option<usize> {
+    pub fn bottommost_nonempty_row(&self) -> Option<usize> {
         let mut max_nonempty_row: Option<usize> = None;
         for row_idx in 0..self.total_rows() {
             let row = self.row(row_idx)?;
@@ -2403,7 +2469,7 @@ impl GridHandler {
     /// Scans backward from the max cursor row to find the bottommost row that
     /// should contribute to trimmed display height. O(trailing_blank_rows × cols)
     /// for the common cell-only case.
-    fn bottommost_visible_content_row_backward(&self) -> Option<usize> {
+    pub fn bottommost_visible_content_row_backward(&self) -> Option<usize> {
         let max_row = self.grid.max_cursor_point.row.0 + self.history_size();
         (0..=max_row)
             .rev()
@@ -2427,7 +2493,7 @@ impl GridHandler {
 
     /// Returns the index of the right-most cell with visible contents in the
     /// given row.  Returns [`None`] if there are no such cells in the row.
-    pub(in crate::terminal::model) fn rightmost_visible_nonempty_cell_in_row(
+    pub fn rightmost_visible_nonempty_cell_in_row(
         &self,
         row_idx: usize,
     ) -> Option<usize> {
@@ -2478,8 +2544,8 @@ impl GridHandler {
     ///
     /// If the written text wraps to a new line, the WRAPLINE flag will be set
     /// appropriately.
-    #[cfg(test)]
-    pub(super) fn input_at_cursor(&mut self, text: &str) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn input_at_cursor(&mut self, text: &str) {
         use warp_terminal::model::VisiblePoint;
 
         let columns = self.columns();
@@ -2503,7 +2569,7 @@ impl GridHandler {
             };
         }
 
-        self.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+        self.finish_byte_processing();
     }
 
     pub fn set_marked_text(&mut self, marked_text: &str, _selected_range: &Range<usize>) {
@@ -2650,6 +2716,3 @@ impl Dimensions for GridHandler {
     }
 }
 
-#[cfg(test)]
-#[path = "grid_handler_test.rs"]
-mod tests;

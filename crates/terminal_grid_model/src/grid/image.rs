@@ -1,4 +1,4 @@
-use crate::terminal::model::image_map::ImagePlacementData;
+use crate::image_map::ImagePlacementData;
 
 use super::{AbsolutePoint, AbsoluteRectangle, GridHandler};
 use warp_terminal::model::Point;
@@ -38,7 +38,7 @@ impl GridHandler {
             .collect()
     }
 
-    pub(in crate::terminal::model) fn has_image_in_row(&self, displayed_row: usize) -> bool {
+    pub fn has_image_in_row(&self, displayed_row: usize) -> bool {
         if self.has_displayed_output() {
             return false;
         }

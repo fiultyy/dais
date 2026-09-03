@@ -1,7 +1,9 @@
 use regex::Regex;
+use crate::terminal::model::ansi::Handler as _;
 use serial_test::serial;
 
 use crate::terminal::{
+
     event_listener::ChannelEventListener,
     model::{
         ansi::{self, Handler as _},
@@ -11,6 +13,24 @@ use crate::terminal::{
 };
 
 use super::*;
+// R10: 原父模块的可见 use 集,随模块下沉后显式补齐。
+#[allow(unused_imports)]
+use std::{collections::HashSet, ops::RangeInclusive};
+#[allow(unused_imports)]
+use itertools::Itertools as _;
+#[allow(unused_imports)]
+use crate::terminal::model::grid::{grapheme_cursor, Dimensions as _};
+#[allow(unused_imports)]
+use terminal_model::RangeInModel;
+#[allow(unused_imports)]
+use crate::terminal::model::grid::RespectDisplayedOutput;
+#[allow(unused_imports)]
+use terminal_model::index::{Direction, Point};
+#[allow(unused_imports)]
+use crate::terminal::model::secrets::{ IsObfuscated, ObfuscateSecrets, Secret, SecretAndHandle, SecretHandle, SecretLevel, SECRETS_DFA, };
+#[allow(unused_imports)]
+use super::GridHandler;
+
 
 fn secret_ranges(grid_handler: &GridHandler) -> Vec<RangeInclusive<Point>> {
     grid_handler

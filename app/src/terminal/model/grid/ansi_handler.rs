@@ -1,8 +1,5 @@
 // path attribute needed due to current non-fs-based nesting of ansi_handler
 // under grid_handler.
-#[path = "ansi_handler/tab_stops.rs"]
-mod tab_stops;
-
 use std::cmp::min;
 use std::collections::HashMap;
 use std::io;
@@ -21,9 +18,7 @@ use warp_terminal::model::grid::cell;
 use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
 use warpui::image_cache::{resize_dimensions, FitType};
 
-use crate::server::telemetry::ImageProtocol;
-use crate::terminal::event::Event;
-use crate::terminal::event_listener::ChannelEventListener;
+use crate::terminal::model::grid::ImageProtocol;
 use crate::terminal::model::ansi::{
     self, Attr, Color, CursorStyle, Handler as _, NamedColor, PrecmdValue, PreexecValue,
 };
@@ -41,117 +36,31 @@ use crate::terminal::model::selection::ScrollDelta;
 use crate::terminal::model::ObfuscateSecrets;
 use crate::terminal::{ClipboardType, SizeInfo};
 
-use super::{AbsolutePoint, GridHandler, PerformResetGridChecks, TermMode};
+use super::{AbsolutePoint, GridHandler, PerformResetGridChecks, State, TermMode};
+use crate::terminal::model::grid::tab_stops::TabStops;
+use crate::terminal::model::grid::ResetGridChecks;
 
-use tab_stops::TabStops;
-
-const MAX_IMAGE_CELL_HEIGHT: u32 = 255;
-
-/// State needed for the grid-level implementation of [`ansi::Handler`].
-#[derive(Clone)]
-pub(super) struct State {
-    /// Information about cell dimensions.
-    pub cell_width: usize,
-    pub cell_height: usize,
-
-    /// Mode flags.
-    pub mode: TermMode,
-
-    /// Tabstops.
-    pub tabs: TabStops,
-
-    /// Current style of the cursor.
-    pub cursor_style: CursorStyle,
-
-    /// Index into `charsets`, pointing to what ASCII is currently being mapped to.
-    pub active_charset: CharsetIndex,
-
-    /// Scroll region.
-    ///
-    /// Range going from top to bottom of the terminal.
-    pub scroll_region: Range<VisibleRow>,
-
-    /// Proxy for sending events to the event loop.
-    pub event_proxy: ChannelEventListener,
-
-    /// Whether the grid is for the alt screen.
-    pub is_alt_screen: bool,
-
-    /// Whether or not to obfuscate secrets on copy, respecting the Safe Mode setting.
-    pub obfuscate_secrets: ObfuscateSecrets,
-
-    /// Whether this Grid is in a shell context which supports handling the emoji presentation selector
-    /// correctly. Notably, Zsh does NOT support this well in bracketed paste mode (which we use for all Dais
-    /// commands), which can lead to cursor misalignment issues.
-    pub supports_emoji_presentation_selector: bool,
-
-    /// State related to the Reset Grid logic for ConPTY.
-    reset_grid_checks: ResetGridChecks,
-
-    /// Range of cells that were dirtied during the current run of byte parsing. See
-    /// [`Self::finish_byte_processing`] for where this is reset.
-    pub dirty_cells_range: Range<Point>,
-
-    // Dimension of pane.
-    pub pane_size: Vector2F,
-
-    /// The currently active keyboard mode.
-    pub keyboard_mode: KeyboardModes,
-
-    /// Kitty keyboard enhancement protocol mode stack.
-    /// Used purely for push/pop save/restore semantics.
-    /// `push` appends the new mode; `pop` truncates and restores
-    /// the previous entry as the active mode.
-    pub keyboard_mode_stack: BoundedVecDeque<KeyboardModes>,
-}
-
-impl State {
-    pub fn new(
-        size_info: &SizeInfo,
-        event_proxy: ChannelEventListener,
-        is_alt_screen: bool,
-        obfuscate_secrets: ObfuscateSecrets,
-        perform_reset_grid_checks: PerformResetGridChecks,
-    ) -> Self {
-        let scroll_region = VisibleRow(0)..VisibleRow(size_info.rows());
-        let tabs = TabStops::new(size_info.columns());
-        let reset_grid_checks = match perform_reset_grid_checks {
-            PerformResetGridChecks::Yes => ResetGridChecks::Enabled {
-                received_osc: false,
-            },
-            PerformResetGridChecks::No => ResetGridChecks::Disabled,
-        };
-
-        Self {
-            cell_width: size_info.cell_width_px.as_f32() as usize,
-            cell_height: size_info.cell_height_px.as_f32() as usize,
-            mode: Default::default(),
-            tabs,
-            cursor_style: Default::default(),
-            active_charset: Default::default(),
-            scroll_region,
-            event_proxy,
-            is_alt_screen,
-            obfuscate_secrets,
-            // Assume that the Grid supports emoji presentation selector, until set otherwise.
-            supports_emoji_presentation_selector: true,
-            reset_grid_checks,
-            dirty_cells_range: Default::default(),
-            pane_size: size_info.pane_size_px(),
-            keyboard_mode: KeyboardModes::NO_MODE,
-            keyboard_mode_stack: BoundedVecDeque::new(super::KEYBOARD_MODE_STACK_MAX_DEPTH),
-        }
+/// R10 缝装配: 供 blockgrid/alt_screen 构造 GridHandler 时注入 host 钩子。
+pub(crate) fn host_hooks() -> crate::terminal::model::grid::GridHandlerHooks {
+    use crate::terminal::model::ansi::Handler as _;
+    fn wrapline_host(g: &mut GridHandler) {
+        GridHandlerHelper::wrapline(g);
+    }
+    fn newline_host(g: &mut GridHandler) {
+        // ansi::Handler::newline(私有 trait 方法,app 域内可见)
+        use crate::terminal::model::ansi::Handler as _H;
+        _H::newline(g);
+    }
+    crate::terminal::model::grid::GridHandlerHooks {
+        wrapline: wrapline_host,
+        newline: newline_host,
     }
 }
 
-#[derive(Default, Clone, Copy, PartialEq, Debug)]
-enum ResetGridChecks {
-    /// Checks are enabled for the grid.
-    Enabled { received_osc: bool },
-    /// Checks are disabled for the grid.
-    #[default]
-    Disabled,
-}
+
+const MAX_IMAGE_CELL_HEIGHT: u32 = 255;
+
+
 
 impl ansi::Handler for GridHandler {
     fn set_title(&mut self, _: Option<String>) {
@@ -163,10 +72,9 @@ impl ansi::Handler for GridHandler {
 
         // Notify UI about blinking changes.
         self.ansi_handler_state
-            .event_proxy
-            .send_terminal_event(Event::CursorBlinkingChange(
+            .event_sink.send_cursor_blinking_change(
                 self.ansi_handler_state.cursor_style.blinking,
-            ));
+            );
     }
 
     fn set_cursor_shape(&mut self, shape: ansi::CursorShape) {
@@ -549,8 +457,7 @@ impl ansi::Handler for GridHandler {
     fn bell(&mut self) {
         log::trace!("Bell");
         self.ansi_handler_state
-            .event_proxy
-            .send_terminal_event(Event::Bell);
+            .event_sink.send_bell();
     }
 
     fn substitute(&mut self) {}
@@ -902,8 +809,7 @@ impl ansi::Handler for GridHandler {
 
         let blinking = self.ansi_handler_state.cursor_style.blinking;
         self.ansi_handler_state
-            .event_proxy
-            .send_terminal_event(Event::CursorBlinkingChange(blinking));
+            .event_sink.send_cursor_blinking_change(blinking);
     }
 
     fn reverse_index(&mut self) -> ScrollDelta {
@@ -980,22 +886,19 @@ impl ansi::Handler for GridHandler {
                     .mode
                     .insert(TermMode::MOUSE_REPORT_CLICK);
                 self.ansi_handler_state
-                    .event_proxy
-                    .send_terminal_event(Event::MouseCursorDirty);
+                    .event_sink.send_mouse_cursor_dirty();
             }
             ansi::Mode::ReportCellMouseMotion => {
                 self.ansi_handler_state.mode.remove(TermMode::MOUSE_MODE);
                 self.ansi_handler_state.mode.insert(TermMode::MOUSE_DRAG);
                 self.ansi_handler_state
-                    .event_proxy
-                    .send_terminal_event(Event::MouseCursorDirty);
+                    .event_sink.send_mouse_cursor_dirty();
             }
             ansi::Mode::ReportAllMouseMotion => {
                 self.ansi_handler_state.mode.remove(TermMode::MOUSE_MODE);
                 self.ansi_handler_state.mode.insert(TermMode::MOUSE_MOTION);
                 self.ansi_handler_state
-                    .event_proxy
-                    .send_terminal_event(Event::MouseCursorDirty);
+                    .event_sink.send_mouse_cursor_dirty();
             }
             ansi::Mode::ReportFocusInOut => {
                 self.ansi_handler_state.mode.insert(TermMode::FOCUS_IN_OUT)
@@ -1028,8 +931,7 @@ impl ansi::Handler for GridHandler {
             ansi::Mode::BlinkingCursor => {
                 self.ansi_handler_state.cursor_style.blinking = true;
                 self.ansi_handler_state
-                    .event_proxy
-                    .send_terminal_event(Event::CursorBlinkingChange(true));
+                    .event_sink.send_cursor_blinking_change(true);
             }
             ansi::Mode::SyncOutput => {}
         }
@@ -1049,20 +951,17 @@ impl ansi::Handler for GridHandler {
                     .mode
                     .remove(TermMode::MOUSE_REPORT_CLICK);
                 self.ansi_handler_state
-                    .event_proxy
-                    .send_terminal_event(Event::MouseCursorDirty);
+                    .event_sink.send_mouse_cursor_dirty();
             }
             ansi::Mode::ReportCellMouseMotion => {
                 self.ansi_handler_state.mode.remove(TermMode::MOUSE_DRAG);
                 self.ansi_handler_state
-                    .event_proxy
-                    .send_terminal_event(Event::MouseCursorDirty);
+                    .event_sink.send_mouse_cursor_dirty();
             }
             ansi::Mode::ReportAllMouseMotion => {
                 self.ansi_handler_state.mode.remove(TermMode::MOUSE_MOTION);
                 self.ansi_handler_state
-                    .event_proxy
-                    .send_terminal_event(Event::MouseCursorDirty);
+                    .event_sink.send_mouse_cursor_dirty();
             }
             ansi::Mode::ReportFocusInOut => {
                 self.ansi_handler_state.mode.remove(TermMode::FOCUS_IN_OUT)
@@ -1088,8 +987,7 @@ impl ansi::Handler for GridHandler {
             ansi::Mode::BlinkingCursor => {
                 self.ansi_handler_state.cursor_style.blinking = false;
                 self.ansi_handler_state
-                    .event_proxy
-                    .send_terminal_event(Event::CursorBlinkingChange(false));
+                    .event_sink.send_cursor_blinking_change(false);
             }
             _ => {}
         }
@@ -1156,8 +1054,7 @@ impl ansi::Handler for GridHandler {
         if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(base64) {
             if let Ok(text) = String::from_utf8(bytes) {
                 self.ansi_handler_state
-                    .event_proxy
-                    .send_terminal_event(Event::ClipboardStore(clipboard_type, text));
+                    .event_sink.send_clipboard_store(clipboard_type, std::sync::Arc::from(text.as_str()));
             }
         }
     }
@@ -1172,14 +1069,10 @@ impl ansi::Handler for GridHandler {
         let terminator = terminator.to_owned();
 
         self.ansi_handler_state
-            .event_proxy
-            .send_terminal_event(Event::ClipboardLoad(
-                clipboard_type,
-                Arc::new(move |text| {
+            .event_sink.send_clipboard_load(clipboard_type, Arc::new(move |text| {
                     let base64 = base64::engine::general_purpose::STANDARD.encode(text);
                     format!("\x1b]52;{};{}{}", clipboard as char, base64, terminator)
-                }),
-            ));
+                }),);
     }
 
     fn decaln(&mut self) {
@@ -1218,34 +1111,8 @@ impl ansi::Handler for GridHandler {
     }
 
     fn on_finish_byte_processing(&mut self, _: &ansi::ProcessorInput<'_>) {
-        // Make sure the max cursor and dirty cell range are up-to-date.
-        self.grid.update_max_cursor();
-        self.update_dirty_cells_range();
-
-        self.maybe_scan_dirty_cells_for_secrets();
-
-        if self.finished && self.num_lines_truncated() > 0 {
-            // Occasionally upon finishing the grid there are truncated rows that we have
-            // not yet accounted for.
-            self.refilter_lines();
-        } else {
-            self.maybe_filter_dirty_lines();
-        }
-
-        self.reset_dirty_cells_range_to_cursor_point();
-
-        // Update bottommost visible content row for content_len() trimming.
-        if self.track_content_length {
-            self.bottommost_visible_content_row = self.bottommost_visible_content_row_backward();
-        }
-
-        if self.ansi_handler_state.is_alt_screen {
-            debug_assert_eq!(
-                self.flat_storage.total_rows(),
-                0,
-                "the alt screen grid should never put any rows in flat storage"
-            );
-        }
+        // R10: 实现体下沉 crate(finish_byte_processing),此处仅委托。
+        self.finish_byte_processing();
     }
 
     fn on_reset_grid(&mut self) {
@@ -1365,12 +1232,7 @@ impl ansi::Handler for GridHandler {
         let placement_id = rand::thread_rng().gen();
 
         self.ansi_handler_state
-            .event_proxy
-            .send_terminal_event(Event::ImageReceived {
-                image_id,
-                image_data: image.data,
-                image_protocol: ImageProtocol::ITerm,
-            });
+            .event_sink.send_image_received(image_id, image.data, ImageProtocol::ITerm);
 
         self.images.add_image_placement_data(
             image_id,
@@ -1452,7 +1314,42 @@ impl ansi::Handler for GridHandler {
 }
 
 /// Helper functions for the [`ansi::Handler`] implementation.
-impl GridHandler {
+/// R10: 原为 inherent impl;GridHandler 下沉 terminal_grid_model 后,
+/// 宿主侧以扩展 trait 承载(同模块内方法解析不变)。
+pub(crate) trait GridHandlerHelper {
+
+    fn advance_cursor_by_one_cell(&mut self);
+    #[inline]
+    fn wrapline(&mut self);
+
+    fn reset_wide_char_at_start_boundary(&mut self, row: usize, col: usize, bg: Color);
+
+    fn reset_wide_char_at_end_boundary(&mut self, row: usize, col: usize, bg: Color);
+    #[inline(always)]
+    fn write_at_cursor(&mut self, c: char) -> &mut Cell;
+    #[inline]
+    fn scroll_down_relative(&mut self, origin_row: VisibleRow, lines: usize) -> ScrollDelta;
+    #[inline]
+    fn scroll_up_relative(&mut self, origin_row: VisibleRow, lines: usize) -> ScrollDelta;
+
+    fn scroll_region_up(&mut self, region: Range<VisibleRow>, lines: usize);
+
+    fn deccolm(&mut self);
+
+    fn clear_viewport(&mut self);
+
+    fn disable_reset_grid_checks(&mut self);
+
+    fn reset_received_osc(&mut self);
+    fn handle_completed_kitty_action_internal(
+        &mut self,
+        action: KittyAction,
+        metadata: &mut HashMap<u32, StoredImageMetadata>,
+    ) -> Result<(), KittyError>;
+}
+
+impl GridHandlerHelper for GridHandler {
+
     /// Advances the cursor by one cell, handling wrapping appropriately.
     fn advance_cursor_by_one_cell(&mut self) {
         let num_cols = self.columns();
@@ -1468,7 +1365,7 @@ impl GridHandler {
 
     /// Insert a linebreak at the current cursor position.
     #[inline]
-    pub(crate) fn wrapline(&mut self) {
+    fn wrapline(&mut self) {
         if !self.ansi_handler_state.mode.contains(TermMode::LINE_WRAP) {
             return;
         }
@@ -1699,13 +1596,13 @@ impl GridHandler {
         }
     }
 
-    pub(in crate::terminal::model) fn disable_reset_grid_checks(&mut self) {
+    fn disable_reset_grid_checks(&mut self) {
         self.ansi_handler_state.reset_grid_checks = ResetGridChecks::Disabled;
     }
 
     /// Marks the grid as having NOT received the Reset Grid OSC.
     /// This is useful for grids that expect to receive multiple OSCs.
-    pub(in crate::terminal::model) fn reset_received_osc(&mut self) {
+    fn reset_received_osc(&mut self) {
         if let ResetGridChecks::Enabled { received_osc } =
             &mut self.ansi_handler_state.reset_grid_checks
         {
@@ -1739,12 +1636,7 @@ impl GridHandler {
                 }
 
                 self.ansi_handler_state
-                    .event_proxy
-                    .send_terminal_event(Event::ImageReceived {
-                        image_id: action.image_id,
-                        image_data: action.image.data,
-                        image_protocol: ImageProtocol::Kitty,
-                    });
+                    .event_sink.send_image_received(action.image_id, action.image.data, ImageProtocol::Kitty);
             }
             KittyAction::StoreAndDisplay(action) => {
                 let metadata = match metadata.get(&action.image_id) {
@@ -1800,12 +1692,7 @@ impl GridHandler {
                     (width_px as f32 / (self.ansi_handler_state.cell_width as f32)).ceil() as usize;
 
                 self.ansi_handler_state
-                    .event_proxy
-                    .send_terminal_event(Event::ImageReceived {
-                        image_id: action.image_id,
-                        image_data: action.image.data,
-                        image_protocol: ImageProtocol::Kitty,
-                    });
+                    .event_sink.send_image_received(action.image_id, action.image.data, ImageProtocol::Kitty);
 
                 self.images.add_image_placement_data(
                     action.image_id,

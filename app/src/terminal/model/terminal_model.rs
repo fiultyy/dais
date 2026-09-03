@@ -159,9 +159,7 @@ pub enum WithinModel<T> {
     BlockList(WithinBlock<T>),
 }
 
-pub trait RangeInModel {
-    fn range(&self) -> RangeInclusive<Point>;
-}
+pub use terminal_model::RangeInModel;
 
 impl<T> WithinModel<T> {
     pub fn get_inner(&self) -> &T {

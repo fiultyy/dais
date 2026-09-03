@@ -17,6 +17,7 @@ use crate::terminal::model::ansi::{
     Attr, CharsetIndex, ClearMode, CommandFinishedValue, CursorShape, CursorStyle, LineClearMode,
     Mode, PrecmdValue, PreexecValue, StandardCharset, TabulationClearMode,
 };
+use crate::terminal::model::grid::ansi_handler::GridHandlerHelper as _;
 use crate::terminal::model::grid::grid_handler::{
     FragmentBoundary, GridHandler, Link, PerformResetGridChecks, PossiblePath, TermMode,
 };
@@ -74,11 +75,15 @@ impl AltScreen {
         let grid_handler = GridHandler::new(
             size_info,
             max_scroll_limit,
-            event_proxy.clone(),
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                event_proxy.clone(),
+            )),
             true,
             obfuscate_secrets,
             PerformResetGridChecks::default(),
-        );
+            crate::terminal::event_listener::host_determine_secret_level,
+        )
+        .with_host_hooks(crate::terminal::model::grid::ansi_handler::host_hooks());
 
         AltScreen {
             grid_handler,
@@ -348,7 +353,7 @@ impl AltScreen {
     }
 
     fn ansi_handler(&mut self) -> &mut impl ansi::Handler {
-        self.grid_handler.ansi_handler()
+        &mut self.grid_handler
     }
 
     pub(super) fn set_marked_text(&mut self, marked_text: &str, selected_range: &Range<usize>) {

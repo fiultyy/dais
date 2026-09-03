@@ -4,11 +4,8 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ops::Bound::Included;
 
-use super::{
-    grid::grid_handler::{AbsolutePoint, AbsoluteRectangle},
-    iterm_image::ITermImageMetadata,
-    kitty::KittyImageMetadata,
-};
+use crate::grid::grid_handler::{AbsolutePoint, AbsoluteRectangle};
+use terminal_model::{iterm_image::ITermImageMetadata, kitty::KittyImageMetadata};
 
 /// This image cache stores the absolute positions of points, relative to the number of rows
 /// that haven't been truncated yet. Stored absolute points are nearly always stale as we store

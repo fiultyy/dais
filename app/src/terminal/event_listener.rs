@@ -82,3 +82,76 @@ use crate::terminal::model::terminal_model::HandlerEvent;
 
 #[cfg(test)]
 pub use testing::*;
+
+/// R10 缝装配: 把 terminal_grid_model::GridEventSink 事件映射回 app Event 循环。
+#[derive(Clone)]
+pub struct GridEventSinkAdapter(pub ChannelEventListener);
+
+impl terminal_grid_model::grid::GridEventSink for GridEventSinkAdapter {
+    fn send_cursor_blinking_change(&self, blinking: bool) {
+        self.0
+            .send_terminal_event(TerminalEvent::CursorBlinkingChange(blinking));
+    }
+
+    fn send_bell(&self) {
+        self.0.send_terminal_event(TerminalEvent::Bell);
+    }
+
+    fn send_mouse_cursor_dirty(&self) {
+        self.0.send_terminal_event(TerminalEvent::MouseCursorDirty);
+    }
+
+    fn send_clipboard_store(
+        &self,
+        kind: crate::terminal::ClipboardType,
+        text: std::sync::Arc<str>,
+    ) {
+        self.0.send_terminal_event(TerminalEvent::ClipboardStore(
+            kind,
+            text.to_string(),
+        ));
+    }
+
+    fn send_clipboard_load(
+        &self,
+        kind: crate::terminal::ClipboardType,
+        respond: terminal_grid_model::grid::ClipboardRespondFn,
+    ) {
+        self.0.send_terminal_event(TerminalEvent::ClipboardLoad(
+            kind,
+            Arc::new(move |text: &str| respond(text.to_string())),
+        ));
+    }
+
+    fn send_image_received(
+        &self,
+        image_id: u32,
+        image_data: Vec<u8>,
+        protocol: terminal_grid_model::grid::ImageProtocol,
+    ) {
+        let protocol = match protocol {
+            terminal_grid_model::grid::ImageProtocol::Kitty => {
+                crate::server::telemetry::ImageProtocol::Kitty
+            }
+            terminal_grid_model::grid::ImageProtocol::ITerm => {
+                crate::server::telemetry::ImageProtocol::ITerm
+            }
+        };
+        self.0.send_terminal_event(TerminalEvent::ImageReceived {
+            image_id,
+            image_data,
+            image_protocol: protocol,
+        });
+    }
+}
+
+/// R10 缝装配: 富内容 secret 检测(ai::blocklist 留守 app)。
+pub fn host_determine_secret_level(plaintext: &str) -> crate::terminal::model::secrets::SecretLevel {
+    let secrets_with_levels =
+        crate::ai::blocklist::block::secret_redaction::find_secrets_in_text_with_levels(plaintext);
+    secrets_with_levels
+        .into_iter()
+        .map(|(_, level)| level)
+        .max_by_key(|level| level.priority())
+        .unwrap_or(crate::terminal::model::secrets::SecretLevel::User)
+}

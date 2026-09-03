@@ -6,11 +6,9 @@ use std::{
 
 use itertools::Itertools as _;
 
-use crate::terminal::model::{
-    find::RegexDFAs,
-    grid::displayed_output::{DisplaySource, DisplayedOutput, DisplayedRows},
-    index::Point,
-};
+use crate::find::RegexDFAs;
+use crate::grid::displayed_output::{DisplaySource, DisplayedOutput, DisplayedRows};
+use terminal_model::index::Point;
 
 use super::GridHandler;
 
@@ -39,7 +37,7 @@ impl FilterState {
     ///
     /// Invariant: Caller must ensure that the new matches lie within the dirty
     /// range. New matches should be in descending order.
-    fn update_dirty_matches(
+    pub fn update_dirty_matches(
         &mut self,
         dirty_range: RangeInclusive<usize>,
         new_matches: Vec<RangeInclusive<Point>>,
@@ -101,9 +99,9 @@ impl FilterState {
     }
 
     /// Returns a FilterState with a dummy DFA and the provided matches.
-    #[cfg(test)]
-    fn new_with_matches_for_test(matches: Vec<RangeInclusive<Point>>) -> FilterState {
-        use crate::terminal::block_filter::DEFAULT_CONTEXT_LINES_VALUE;
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn new_with_matches_for_test(matches: Vec<RangeInclusive<Point>>) -> FilterState {
+        use crate::grid::DEFAULT_CONTEXT_LINES_VALUE;
 
         Self {
             dfas: Arc::new(RegexDFAs::new("").unwrap()),
@@ -121,7 +119,7 @@ impl FilterState {
 
 impl GridHandler {
     /// Clear the grid's displayed output and filter matches.
-    pub(super) fn clear_displayed_rows_and_filter_matches(&mut self) {
+    pub fn clear_displayed_rows_and_filter_matches(&mut self) {
         if let Some(filter_state) = self.filter_state.as_mut() {
             filter_state.clear_matches();
         }
@@ -248,7 +246,7 @@ impl GridHandler {
     /// Return the matches and the logical lines they are contained in from this
     /// grid. Matches are found starting from the last row, last column. Logical
     /// lines are found starting from the last row.
-    fn find_with_matched_lines(
+    pub fn find_with_matched_lines(
         &self,
         dfas: &RegexDFAs,
     ) -> (Vec<RangeInclusive<Point>>, Vec<RangeInclusive<usize>>) {
@@ -296,14 +294,14 @@ impl GridHandler {
 
     /// Returns the logical lines in the grid that do not contain any matches,
     /// in decreasing order.
-    fn find_non_matching_lines(&self, dfas: &RegexDFAs) -> Vec<RangeInclusive<usize>> {
+    pub fn find_non_matching_lines(&self, dfas: &RegexDFAs) -> Vec<RangeInclusive<usize>> {
         let matches: Vec<RangeInclusive<Point>> = self.find(dfas).collect();
         self.get_non_matching_line_ranges_from_matches(&matches, 0, self.max_content_row())
     }
 
     /// Returns the logical lines in the grid within a certain range that do not
     /// contain any matches, in decreasing order.
-    fn find_non_matching_lines_in_range(
+    pub fn find_non_matching_lines_in_range(
         &self,
         dfas: &RegexDFAs,
         start: Point,
@@ -441,7 +439,7 @@ impl GridHandler {
 
     /// Re-runs the applied filter (if any) on the dirty cells and update the
     /// filter state.
-    pub(super) fn maybe_filter_dirty_lines(&mut self) {
+    pub fn maybe_filter_dirty_lines(&mut self) {
         let Some(filter_state) = self.filter_state.as_ref() else {
             return;
         };
@@ -535,7 +533,7 @@ impl GridHandler {
     /// Augments the line ranges with the context lines above and below each
     /// input line range. Returns a vector of [`DisplayedRows`] objects representing
     /// the line ranges and context lines in ascending order.
-    fn add_context_lines<'a>(
+    pub fn add_context_lines<'a>(
         &self,
         line_ranges: impl Iterator<Item = &'a RangeInclusive<usize>>,
         num_lines: usize,
@@ -581,7 +579,7 @@ impl GridHandler {
     /// is non-inclusive, so the range will not include the line of the given
     /// row. If a bound is given, the returned range will not extend past the
     /// bound.
-    fn lines_range_left(
+    pub fn lines_range_left(
         &self,
         row: usize,
         num_lines: usize,
@@ -614,7 +612,7 @@ impl GridHandler {
     /// is non-inclusive, so the range will not include the line of the given
     /// row. If a bound is given, the returned range will not extend past the
     /// bound.
-    fn lines_range_right(
+    pub fn lines_range_right(
         &self,
         row: usize,
         num_lines: usize,
@@ -663,7 +661,7 @@ impl GridHandler {
     /// Invariant: Caller must ensure that any new non-context lines lie within
     /// the dirty range. Context lines at the beginning/end of the new displayed
     /// rows are allowed to exceed the dirty range.
-    fn update_filtered_dirty_lines(
+    pub fn update_filtered_dirty_lines(
         &mut self,
         dirty_range: RangeInclusive<usize>,
         mut new_displayed_rows: Vec<DisplayedRows>,
@@ -1001,8 +999,8 @@ impl GridHandler {
         replace_end_idx
     }
 
-    #[cfg(test)]
-    pub(super) fn set_displayed_output(&mut self, displayed_output: DisplayedOutput) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_displayed_output(&mut self, displayed_output: DisplayedOutput) {
         self.displayed_output = Some(displayed_output);
     }
 }
@@ -1018,7 +1016,7 @@ impl GridHandler {
 ///   - All of the line ranges must correspond to logical lines in the grid. A
 ///     range bound cannot be in the middle of a logical line.
 ///   - The given line ranges must be in ascending order.
-fn add_displayed_rows_with_cursor_line(
+pub fn add_displayed_rows_with_cursor_line(
     cursor_line_range: RangeInclusive<usize>,
     line_ranges: impl Iterator<Item = DisplayedRows>,
     mut add_displayed_rows_fn: impl FnMut(DisplayedRows),
@@ -1055,7 +1053,7 @@ fn add_displayed_rows_with_cursor_line(
 ///
 /// Does nothing if no bounds are passed or if the given displayed rows does not
 /// start/end with context lines.
-fn trim_context_lines(
+pub fn trim_context_lines(
     displayed_rows: &mut Vec<DisplayedRows>,
     left_bound: Option<usize>,
     right_bound: Option<usize>,
@@ -1081,6 +1079,3 @@ fn trim_context_lines(
     }
 }
 
-#[cfg(test)]
-#[path = "filtering_tests.rs"]
-mod tests;

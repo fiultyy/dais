@@ -7,7 +7,7 @@ use warp_terminal::model::{
     Point, VisiblePoint, VisibleRow,
 };
 
-use crate::terminal::{model::grid::Cursor, SizeInfo};
+use crate::{grid::Cursor, SizeInfo};
 
 use super::GridHandler;
 
@@ -55,7 +55,7 @@ impl GridHandler {
         self.refilter_lines();
     }
 
-    pub(super) fn resize_storage(&mut self, num_rows: usize, num_cols: usize) {
+    pub fn resize_storage(&mut self, num_rows: usize, num_cols: usize) {
         use std::cmp::min;
 
         // If this is the alt screen, we can skip reflowing the grid and simply

@@ -3,14 +3,12 @@ use std::ops::{Index, IndexMut, Range, RangeFrom, RangeFull, RangeTo};
 use warp_terminal::model::grid::cell::Cell;
 use warp_terminal::model::grid::row::Row;
 
-use crate::terminal::model::{
-    grid::Dimensions as _,
-    index::{Point, VisiblePoint, VisibleRow},
-};
+use crate::grid::Dimensions as _;
+use terminal_model::index::{Point, VisiblePoint, VisibleRow};
 
 use super::{grid_handler::GridHandler, GridStorage};
 
-pub(in crate::terminal::model) trait ConvertToAbsolute {
+pub trait ConvertToAbsolute {
     type Output;
 
     /// Transforms a value from the VisibleScreen coordinate space to the grid

@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-use crate::terminal::model::index::IndexRange;
+use terminal_model::index::IndexRange;
 
 /// Default tab interval, corresponding to terminfo `it` value.
 const INITIAL_TABSTOPS: usize = 8;

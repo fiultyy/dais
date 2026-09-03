@@ -6,6 +6,7 @@ use crate::terminal::model::ansi::{
     PrecmdValue, PreexecValue, StandardCharset, TabulationClearMode,
 };
 use crate::terminal::model::grid::grid_handler::{GridHandler, PerformResetGridChecks, RegexIter};
+use crate::terminal::model::grid::ansi_handler::GridHandlerHelper as _;
 use crate::terminal::model::index::{Point, VisibleRow};
 use crate::terminal::model::iterm_image::ITermImage;
 
@@ -97,11 +98,15 @@ impl BlockGrid {
         let grid_handler = GridHandler::new(
             size_info,
             max_scroll_limit,
-            event_proxy,
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                event_proxy,
+            )),
             false,
             should_scan_for_secrets,
             perform_reset_grid_checks,
-        );
+            crate::terminal::event_listener::host_determine_secret_level,
+        )
+        .with_host_hooks(crate::terminal::model::grid::ansi_handler::host_hooks());
 
         BlockGrid {
             grid_handler,
@@ -688,7 +693,7 @@ impl BlockGrid {
     }
 
     fn ansi_handler(&mut self) -> &mut impl ansi::Handler {
-        self.grid_handler.ansi_handler()
+        &mut self.grid_handler
     }
 
     pub(super) fn set_marked_text(&mut self, marked_text: &str, selected_range: &Range<usize>) {

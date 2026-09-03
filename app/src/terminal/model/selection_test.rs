@@ -8,10 +8,13 @@ fn grid_handler(rows: usize, cols: usize) -> GridHandler {
     GridHandler::new(
         SizeInfo::new_without_font_metrics(rows, cols),
         1000, /* max_scroll_limit */
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+            ChannelEventListener::new_for_test(),
+        )),
         false,
         ObfuscateSecrets::No,
         PerformResetGridChecks::No,
+        crate::terminal::event_listener::host_determine_secret_level,
     )
 }
 

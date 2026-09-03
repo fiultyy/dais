@@ -3,8 +3,8 @@ use std::cmp::{max, PartialEq};
 use std::mem;
 use std::ops::{Index, IndexMut};
 
-use crate::terminal::model::grid::row::Row;
-use crate::terminal::model::index::VisibleRow;
+use crate::grid::row::Row;
+use terminal_model::index::VisibleRow;
 
 /// A circular buffer for optimizing indexing and rotation. In other words, a performant implementation of
 /// a grid API.
@@ -81,7 +81,7 @@ use crate::terminal::model::index::VisibleRow;
 /// 9: │Henry V (1598)                  │
 ///    └────────────────────────────────┘
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub(super) struct Storage {
+pub struct Storage {
     inner: Vec<Row>,
 
     /// The bottommost row of the visible grid. This is the furthest the grid extends and the maximum grid index.

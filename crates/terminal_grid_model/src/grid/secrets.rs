@@ -2,16 +2,13 @@ use std::{collections::HashSet, ops::RangeInclusive};
 
 use itertools::Itertools as _;
 
-use crate::ai::blocklist::block::secret_redaction::find_secrets_in_text_with_levels;
-use crate::terminal::model::grid::{grapheme_cursor, Dimensions as _};
-use crate::terminal::model::terminal_model::RangeInModel;
-use crate::terminal::model::{
-    grid::RespectDisplayedOutput,
-    index::{Direction, Point},
-    secrets::{
-        IsObfuscated, ObfuscateSecrets, Secret, SecretAndHandle, SecretHandle, SecretLevel,
-        SECRETS_DFA,
-    },
+use crate::grid::{grapheme_cursor, Dimensions as _};
+use terminal_model::RangeInModel;
+use crate::grid::RespectDisplayedOutput;
+use terminal_model::index::{Direction, Point};
+use crate::secrets::{
+    IsObfuscated, ObfuscateSecrets, Secret, SecretAndHandle, SecretHandle, SecretLevel,
+    SECRETS_DFA,
 };
 
 use super::GridHandler;
@@ -64,7 +61,7 @@ impl GridHandler {
         }
     }
 
-    pub(in crate::terminal::model) fn obfuscate_secrets(
+    pub fn obfuscate_secrets(
         &mut self,
         obfuscate_secrets: ObfuscateSecrets,
     ) {
@@ -89,7 +86,7 @@ impl GridHandler {
     }
 
     /// Marks the range of points identified by `range` as a secret within the grid.
-    pub(in crate::terminal::model::grid) fn mark_secret_range(
+    pub fn mark_secret_range(
         &mut self,
         range: RangeInclusive<Point>,
         is_obfuscated: IsObfuscated,
@@ -109,7 +106,7 @@ impl GridHandler {
     }
 
     /// Clears any secrets currently stored in the grid.
-    pub(in crate::terminal::model) fn clear_secrets(&mut self) {
+    pub fn clear_secrets(&mut self) {
         self.secrets.clear();
         self.secrets_in_plaintext.clear();
         self.set_all_bytes_scanned_for_secrets(true);
@@ -186,7 +183,7 @@ impl GridHandler {
     }
 
     /// Rescans the entire grid for secrets after a resize.
-    pub(super) fn scan_for_secrets_after_resize(&mut self) {
+    pub fn scan_for_secrets_after_resize(&mut self) {
         // Clear the entire secret range map since the underlying ranges stored within the map may
         // be out of date after the resize.
         self.secrets.clear_ranges_after_resize();
@@ -273,26 +270,19 @@ impl GridHandler {
     /// Determines the secret level by re-scanning the plaintext using the rich content detection
     /// which includes secret level information
     fn determine_secret_level(&self, plaintext: &str) -> SecretLevel {
-        let secrets_with_levels = find_secrets_in_text_with_levels(plaintext);
-
-        // Find the first match that corresponds to our plaintext
-        // In case of multiple matches, we return the highest priority level
-        secrets_with_levels
-            .into_iter()
-            .map(|(_, level)| level)
-            .max_by_key(|level| level.priority())
-            .unwrap_or(SecretLevel::User) // Default to User level if no matches found
+        // R10 缝: 富内容检测(redaction)留在 app(ai::blocklist),经构造注入。
+        (self.host_determine_secret_level)(plaintext)
     }
 
     fn set_all_bytes_scanned_for_secrets(&mut self, value: bool) {
         self.all_bytes_scanned_for_secrets = value;
     }
 
-    pub(in crate::terminal::model) fn all_bytes_scanned_for_secrets(&self) -> bool {
+    pub fn all_bytes_scanned_for_secrets(&self) -> bool {
         self.all_bytes_scanned_for_secrets
     }
 
-    pub(super) fn maybe_scan_dirty_cells_for_secrets(&mut self) {
+    pub fn maybe_scan_dirty_cells_for_secrets(&mut self) {
         if self.secret_obfuscation_mode.should_redact_secret() {
             self.scan_dirty_cells_for_secrets();
             self.all_bytes_scanned_for_secrets &= true;
@@ -301,7 +291,3 @@ impl GridHandler {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "secrets_tests.rs"]
-mod tests;

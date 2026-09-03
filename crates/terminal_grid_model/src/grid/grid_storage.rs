@@ -8,13 +8,13 @@ use std::ops::{Index, IndexMut, Range};
 use serde::{Deserialize, Serialize};
 pub use warp_terminal::model::grid::Dimensions;
 
-use crate::features::FeatureFlag;
-use crate::terminal::model::ansi::{CharsetIndex, StandardCharset};
-use crate::terminal::model::cell::{Cell, Flags};
-use crate::terminal::model::grid::row::Row;
-use crate::terminal::model::grid::storage::Storage;
-use crate::terminal::model::index::{IndexRange, Point, VisiblePoint, VisibleRow};
-use crate::terminal::model::secrets::ObfuscateSecrets;
+use warp_core::features::FeatureFlag;
+use warp_terminal::model::ansi::{CharsetIndex, StandardCharset};
+use warp_terminal::model::grid::cell::{Cell, Flags};
+use crate::grid::row::Row;
+use crate::grid::storage::Storage;
+use terminal_model::index::{IndexRange, Point, VisiblePoint, VisibleRow};
+use crate::secrets::ObfuscateSecrets;
 
 impl ::std::cmp::PartialEq for GridStorage {
     fn eq(&self, other: &Self) -> bool {
@@ -79,7 +79,7 @@ impl IndexMut<CharsetIndex> for Charsets {
 pub struct GridStorage {
     /// Current cursor for writing data.
     #[serde(skip)]
-    pub(super) cursor: Cursor,
+    pub cursor: Cursor,
 
     /// The maximum line and column the cursor has been on.
     #[serde(skip)]
@@ -91,16 +91,16 @@ pub struct GridStorage {
 
     /// VisibleRows in the grid. Each row holds a list of cells corresponding to the
     /// columns in that row.
-    pub(super) raw: Storage,
+    pub raw: Storage,
 
     /// Number of columns.
-    pub(crate) columns: usize,
+    pub columns: usize,
 
     /// Number of visible rows.
-    pub(crate) rows: usize,
+    pub rows: usize,
 
     /// Maximum number of lines in history.
-    pub(crate) max_scroll_limit: usize,
+    pub max_scroll_limit: usize,
 
     #[serde(skip)]
     /// The number of lines that have been truncated due
@@ -109,12 +109,12 @@ pub struct GridStorage {
     /// This is specifically of type [`u64`] to ensure
     /// that we don't overflow for blocks with a lot of truncation.
     /// We might want to consider using a smalluint if this becomes a problem.
-    pub(super) num_lines_truncated: u64,
+    pub num_lines_truncated: u64,
 
     /// Whether the resize fix feature flag is enabled (Alacritty cursor reflow bug during resize). Gating
     /// fix to gain confidence in the fix before enabling for all users.
     #[serde(skip)]
-    pub(crate) resize_fix_ff_enabled: bool,
+    pub resize_fix_ff_enabled: bool,
 }
 
 impl GridStorage {
@@ -146,7 +146,7 @@ impl GridStorage {
     /// `initial_history_size` is the number of rows in the parent
     /// [`GridHandler`] that are in scrollback.  This is needed to properly
     /// convert [`VisiblePoint`]s to [`Point`]s.
-    pub(in crate::terminal::model) fn new_for_split(
+    pub fn new_for_split(
         &self,
         mut rows: Vec<Row>,
         num_preceding_rows: usize,
@@ -209,7 +209,7 @@ impl GridStorage {
         grid
     }
 
-    pub(super) fn set_stored_rows(
+    pub fn set_stored_rows(
         &mut self,
         mut rows: Vec<Row>,
         visible_rows: usize,
@@ -246,7 +246,7 @@ impl GridStorage {
         }
     }
 
-    pub(crate) fn decrease_scroll_limit(&mut self, count: usize) {
+    pub fn decrease_scroll_limit(&mut self, count: usize) {
         let count = min(count, self.history_size());
         if count != 0 {
             self.raw.shrink_lines(min(count, self.history_size()));
@@ -271,7 +271,7 @@ impl GridStorage {
         &self.cursor
     }
 
-    pub(super) fn row_wraps(&self, row_idx: usize) -> bool {
+    pub fn row_wraps(&self, row_idx: usize) -> bool {
         let Some(cell) = self.get(row_idx).and_then(|row| row.last()) else {
             return false;
         };
@@ -423,7 +423,7 @@ impl GridStorage {
 
     /// Clear the grid, leaving the cursor's line at the top and preserving the cursor location
     /// within the line.
-    pub(super) fn clear_and_reset_saving_cursor_line(&mut self) {
+    pub fn clear_and_reset_saving_cursor_line(&mut self) {
         self.clear_history();
 
         self.raw.swap_lines(self.cursor.point.row, VisibleRow(0));
@@ -450,7 +450,7 @@ impl GridStorage {
     }
 
     /// Populate grid from 2D char array - particularly useful for testing purposes.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn populate_from_array(&mut self, arr: &[&[char]]) {
         for (i, row) in arr.iter().enumerate() {
             for (j, &cell) in row.iter().enumerate() {
@@ -499,7 +499,7 @@ impl GridStorage {
 
     /// Truncate all rows after the cursor's row from the Grid.
     #[inline]
-    pub(super) fn truncate_to_cursor_rows(&mut self) {
+    pub fn truncate_to_cursor_rows(&mut self) {
         let cursor_absolute_row = self.rows_to_cursor();
 
         // We want to include the line _with_ the cursor, so add one here.
@@ -529,7 +529,7 @@ impl GridStorage {
 
     /// Truncate all columns to the right of the cursor (including the column of the cursor, if the cursor is
     /// not at the end of a line that needs to wrap for the next character).
-    pub(super) fn truncate_to_cursor_cols(&mut self) {
+    pub fn truncate_to_cursor_cols(&mut self) {
         // If the cursor indicates that the input needs to wrap for the next character AND the cursor is at the
         // end of the line, then, by definition, the entire line that the cursor is on, INCLUDING the column that
         // the cursor is on, should be preserved. Hence, we don't need to truncate any columns.
@@ -559,7 +559,7 @@ impl GridStorage {
         &mut self[&point]
     }
 
-    pub(super) fn cursor_point(&self) -> Point {
+    pub fn cursor_point(&self) -> Point {
         Point::new(
             self.history_size() + self.cursor.point.row.0,
             self.cursor.point.col,
@@ -592,6 +592,3 @@ impl Dimensions for GridStorage {
     }
 }
 
-#[cfg(test)]
-#[path = "grid_test.rs"]
-mod tests;

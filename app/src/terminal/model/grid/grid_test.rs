@@ -1,16 +1,38 @@
 use std::num::NonZeroUsize;
+use crate::terminal::model::ansi::Handler as _;
 
 use crate::terminal::model::ansi::{self, Handler as _};
 use crate::terminal::model::grid::grid_handler::GridHandler;
 use crate::terminal::model::index::Point;
 use crate::terminal::model::secrets::ObfuscateSecrets;
 use crate::terminal::model::{
+
     grid::Dimensions,
     index::{VisiblePoint, VisibleRow},
 };
 use crate::terminal::SizeInfo;
 
 use super::GridStorage;
+// R10: 原父模块的可见 use 集,随模块下沉后显式补齐。
+#[allow(unused_imports)]
+use std::cmp::min;
+#[allow(unused_imports)]
+use std::ops::{Index, IndexMut, Range};
+#[allow(unused_imports)]
+use serde::{Deserialize, Serialize};
+#[allow(unused_imports)]
+use warp_core::features::FeatureFlag;
+#[allow(unused_imports)]
+use warp_terminal::model::ansi::{CharsetIndex, StandardCharset};
+#[allow(unused_imports)]
+use warp_terminal::model::grid::cell::{Cell, Flags};
+#[allow(unused_imports)]
+use crate::terminal::model::grid::row::Row;
+#[allow(unused_imports)]
+use crate::terminal::model::grid::storage::Storage;
+#[allow(unused_imports)]
+use terminal_model::index::IndexRange;
+
 
 macro_rules! assert_cell_char_eq {
     ($grid:ident[$row:literal][$col:literal], $expected:literal) => {

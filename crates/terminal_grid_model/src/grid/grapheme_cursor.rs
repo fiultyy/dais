@@ -6,7 +6,7 @@ use warp_terminal::model::grid::{
     CellType,
 };
 
-use crate::terminal::model::index::Point;
+use terminal_model::index::Point;
 
 use super::{grid_handler::GridHandler, CursorDirection, CursorState, Dimensions as _};
 
