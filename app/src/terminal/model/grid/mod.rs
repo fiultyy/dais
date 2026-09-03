@@ -4,9 +4,6 @@
 //! Handler 驱动的测试留守在此。
 pub use terminal_grid_model::grid::*;
 
-#[path = "ansi_handler.rs"]
-pub(crate) mod ansi_handler;
-
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;

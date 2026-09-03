@@ -6,7 +6,6 @@ use crate::terminal::model::ansi::{
     PrecmdValue, PreexecValue, StandardCharset, TabulationClearMode,
 };
 use crate::terminal::model::grid::grid_handler::{GridHandler, PerformResetGridChecks, RegexIter};
-use crate::terminal::model::grid::ansi_handler::GridHandlerHelper as _;
 use crate::terminal::model::index::{Point, VisibleRow};
 use crate::terminal::model::iterm_image::ITermImage;
 
@@ -105,8 +104,7 @@ impl BlockGrid {
             should_scan_for_secrets,
             perform_reset_grid_checks,
             crate::terminal::event_listener::host_determine_secret_level,
-        )
-        .with_host_hooks(crate::terminal::model::grid::ansi_handler::host_hooks());
+        );
 
         BlockGrid {
             grid_handler,

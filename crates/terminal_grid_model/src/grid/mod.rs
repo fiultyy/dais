@@ -8,7 +8,30 @@ pub mod indexing;
 mod selection_cursor;
 pub mod storage;
 
+pub mod ansi_handler;
 pub mod ansi_state;
+pub mod image_geometry;
+pub use image_geometry::{resize_dimensions, FitType};
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ScrollDelta {
+    Up { lines: usize },
+    Down { lines: usize },
+}
+
+impl ScrollDelta {
+    /// Technically, `Self::Down { lines: 0 }` and `Self::Up { lines: 0 }` are equivalent.
+    pub fn zero() -> Self {
+        Self::Down { lines: 0 }
+    }
+}
+
+impl Default for ScrollDelta {
+    fn default() -> Self {
+        ScrollDelta::zero()
+    }
+}
+
 pub mod tab_stops;
 
 pub mod grapheme_cursor;

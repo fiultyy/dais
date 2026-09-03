@@ -17,7 +17,6 @@ use crate::terminal::model::ansi::{
     Attr, CharsetIndex, ClearMode, CommandFinishedValue, CursorShape, CursorStyle, LineClearMode,
     Mode, PrecmdValue, PreexecValue, StandardCharset, TabulationClearMode,
 };
-use crate::terminal::model::grid::ansi_handler::GridHandlerHelper as _;
 use crate::terminal::model::grid::grid_handler::{
     FragmentBoundary, GridHandler, Link, PerformResetGridChecks, PossiblePath, TermMode,
 };
@@ -82,8 +81,7 @@ impl AltScreen {
             obfuscate_secrets,
             PerformResetGridChecks::default(),
             crate::terminal::event_listener::host_determine_secret_level,
-        )
-        .with_host_hooks(crate::terminal::model::grid::ansi_handler::host_hooks());
+        );
 
         AltScreen {
             grid_handler,

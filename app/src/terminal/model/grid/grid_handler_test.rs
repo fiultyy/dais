@@ -506,8 +506,7 @@ fn test_basic_input_and_newline() {
         ObfuscateSecrets::No,
         PerformResetGridChecks::default(),
         crate::terminal::event_listener::host_determine_secret_level,
-    )
-    .with_host_hooks(crate::terminal::model::grid::ansi_handler::host_hooks());
+    );
     grid.input('a');
     grid.linefeed();
     grid.carriage_return();
@@ -540,8 +539,7 @@ fn test_empty_grid_bounds_to_string() {
         ObfuscateSecrets::No,
         PerformResetGridChecks::No,
         crate::terminal::event_listener::host_determine_secret_level,
-    )
-    .with_host_hooks(crate::terminal::model::grid::ansi_handler::host_hooks());
+    );
     assert_eq!(
         grid_handler.bounds_to_string(
             Point::new(0, 0),

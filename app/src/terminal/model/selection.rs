@@ -253,25 +253,8 @@ pub enum SelectAction<T> {
     End,
 }
 
-/// A scroll position delta, either up or down.
-#[derive(Copy, Clone)]
-pub enum ScrollDelta {
-    Up { lines: usize },
-    Down { lines: usize },
-}
-
-impl ScrollDelta {
-    /// Technically, `Self::Down { lines: 0 }` and `Self::Up { lines: 0 }` are equivalent.
-    pub fn zero() -> Self {
-        Self::Down { lines: 0 }
-    }
-}
-
-impl Default for ScrollDelta {
-    fn default() -> Self {
-        ScrollDelta::zero()
-    }
-}
+// R11: ScrollDelta 定义下沉 terminal_grid_model,旧路径保持兼容。
+pub use terminal_grid_model::grid::ScrollDelta;
 
 /// Describes a region of a 2-dimensional area.
 ///

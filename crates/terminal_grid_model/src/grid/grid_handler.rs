@@ -57,6 +57,7 @@ use super::row::Row;
 use super::{ConvertToAbsolute as _, Cursor, SelectionCursor};
 pub use filtering::{add_displayed_rows_with_cursor_line, trim_context_lines, FilterState};
 use super::{GridEventSink, NoopEventSink};
+use crate::ansi::Handler as _;
 use string_offset::ByteOffset;
 
 /// Used to match equal brackets, when performing a bracket-pair selection.
@@ -362,7 +363,6 @@ pub struct GridHandler {
 
     /// R10 缝: app ansi::Handler 侧方法钩子(wrapline/newline/on_finish_byte_processing
     /// 为 app trait 方法,本 crate 不可见),由 app 装配注入;默认 no-op。
-    pub host_hooks: GridHandlerHooks,
 
     /// When true, `on_finish_byte_processing` computes
     /// `bottommost_visible_content_row` via backward scan. Set by the owning
@@ -418,15 +418,9 @@ impl GridHandler {
             bottommost_visible_content_row: None,
             track_content_length: false,
             host_determine_secret_level,
-            host_hooks: GridHandlerHooks::default(),
         }
     }
 
-    /// R10 缝装配: 注入 app Handler 侧钩子(返回自身以支持链式构造)。
-    pub fn with_host_hooks(mut self, hooks: GridHandlerHooks) -> Self {
-        self.host_hooks = hooks;
-        self
-    }
 
     /// 字节处理收尾: 原 app `ansi::Handler::on_finish_byte_processing` 实现体,
     /// 纯 grid 侧逻辑,R10 下沉至此;app trait 实现委托本方法。
@@ -584,7 +578,6 @@ impl GridHandler {
             bottommost_visible_content_row: None,
             track_content_length: false,
             host_determine_secret_level: self.host_determine_secret_level,
-            host_hooks: self.host_hooks,
         };
 
         // Scan the full grid for secrets.  This is less performant than
@@ -2357,7 +2350,7 @@ impl GridHandler {
             for col in 0..=max_col {
                 // Move cursor to next line, if needed (in combined grid).
                 if self.grid.cursor().input_needs_wrap {
-                    (self.host_hooks.wrapline)(self);
+                    self.wrapline();
                 }
                 // Copy over the current cell from the other grid to the current cursor position in the combined grid.
                 let cur_cursor_point = self.grid.cursor_point();
@@ -2385,7 +2378,7 @@ impl GridHandler {
             // If we don't have a soft-wrap (from the "other" grid), then we need to hard-wrap the line
             // (in combined grid), to match the intended text layout.
             if !other.row_wraps(row_idx) && row_idx < max_row {
-                (self.host_hooks.newline)(self);
+                self.newline();
             }
         }
     }

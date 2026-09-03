@@ -16,46 +16,30 @@ use warp_core::features::FeatureFlag;
 use warp_terminal::model::ansi::CharsetIndex;
 use warp_terminal::model::grid::cell;
 use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
-use warpui::image_cache::{resize_dimensions, FitType};
+use crate::grid::image_geometry::{resize_dimensions, FitType};
 
-use crate::terminal::model::grid::ImageProtocol;
-use crate::terminal::model::ansi::{
+use crate::grid::ImageProtocol;
+use crate::ansi::{
     self, Attr, Color, CursorStyle, Handler as _, NamedColor, PrecmdValue, PreexecValue,
 };
-use crate::terminal::model::cell::{Cell, Flags};
-use crate::terminal::model::char_or_str::CharOrStr;
-use crate::terminal::model::grid::indexing::IndexRegion as _;
-use crate::terminal::model::grid::{grapheme_cursor, Dimensions as _};
-use crate::terminal::model::image_map::{ImagePlacementData, ImageType, StoredImageMetadata};
-use crate::terminal::model::index::{Point, VisibleRow};
-use crate::terminal::model::iterm_image::{ITermImage, ITermImageDimensionUnit};
-use crate::terminal::model::kitty::{
+use warp_terminal::model::grid::cell::{Cell, Flags};
+use warp_terminal::model::char_or_str::CharOrStr;
+use crate::grid::indexing::IndexRegion as _;
+use crate::grid::{grapheme_cursor, Dimensions as _};
+use crate::image_map::{ImagePlacementData, ImageType, StoredImageMetadata};
+use terminal_model::index::{Point, VisibleRow};
+use terminal_model::iterm_image::{ITermImage, ITermImageDimensionUnit};
+use terminal_model::kitty::{
     CursorMovementPolicy, KittyAction, KittyError, KittyResponse, StorageError,
 };
-use crate::terminal::model::selection::ScrollDelta;
-use crate::terminal::model::ObfuscateSecrets;
-use crate::terminal::{ClipboardType, SizeInfo};
+use crate::grid::ScrollDelta;
+use crate::secrets::ObfuscateSecrets;
+use crate::{ClipboardType, SizeInfo};
 
 use super::{AbsolutePoint, GridHandler, PerformResetGridChecks, State, TermMode};
-use crate::terminal::model::grid::tab_stops::TabStops;
-use crate::terminal::model::grid::ResetGridChecks;
+use crate::grid::tab_stops::TabStops;
+use crate::grid::ResetGridChecks;
 
-/// R10 缝装配: 供 blockgrid/alt_screen 构造 GridHandler 时注入 host 钩子。
-pub(crate) fn host_hooks() -> crate::terminal::model::grid::GridHandlerHooks {
-    use crate::terminal::model::ansi::Handler as _;
-    fn wrapline_host(g: &mut GridHandler) {
-        GridHandlerHelper::wrapline(g);
-    }
-    fn newline_host(g: &mut GridHandler) {
-        // ansi::Handler::newline(私有 trait 方法,app 域内可见)
-        use crate::terminal::model::ansi::Handler as _H;
-        _H::newline(g);
-    }
-    crate::terminal::model::grid::GridHandlerHooks {
-        wrapline: wrapline_host,
-        newline: newline_host,
-    }
-}
 
 
 const MAX_IMAGE_CELL_HEIGHT: u32 = 255;
@@ -1316,39 +1300,7 @@ impl ansi::Handler for GridHandler {
 /// Helper functions for the [`ansi::Handler`] implementation.
 /// R10: 原为 inherent impl;GridHandler 下沉 terminal_grid_model 后,
 /// 宿主侧以扩展 trait 承载(同模块内方法解析不变)。
-pub(crate) trait GridHandlerHelper {
-
-    fn advance_cursor_by_one_cell(&mut self);
-    #[inline]
-    fn wrapline(&mut self);
-
-    fn reset_wide_char_at_start_boundary(&mut self, row: usize, col: usize, bg: Color);
-
-    fn reset_wide_char_at_end_boundary(&mut self, row: usize, col: usize, bg: Color);
-    #[inline(always)]
-    fn write_at_cursor(&mut self, c: char) -> &mut Cell;
-    #[inline]
-    fn scroll_down_relative(&mut self, origin_row: VisibleRow, lines: usize) -> ScrollDelta;
-    #[inline]
-    fn scroll_up_relative(&mut self, origin_row: VisibleRow, lines: usize) -> ScrollDelta;
-
-    fn scroll_region_up(&mut self, region: Range<VisibleRow>, lines: usize);
-
-    fn deccolm(&mut self);
-
-    fn clear_viewport(&mut self);
-
-    fn disable_reset_grid_checks(&mut self);
-
-    fn reset_received_osc(&mut self);
-    fn handle_completed_kitty_action_internal(
-        &mut self,
-        action: KittyAction,
-        metadata: &mut HashMap<u32, StoredImageMetadata>,
-    ) -> Result<(), KittyError>;
-}
-
-impl GridHandlerHelper for GridHandler {
+impl GridHandler {
 
     /// Advances the cursor by one cell, handling wrapping appropriately.
     fn advance_cursor_by_one_cell(&mut self) {
@@ -1365,7 +1317,7 @@ impl GridHandlerHelper for GridHandler {
 
     /// Insert a linebreak at the current cursor position.
     #[inline]
-    fn wrapline(&mut self) {
+    pub fn wrapline(&mut self) {
         if !self.ansi_handler_state.mode.contains(TermMode::LINE_WRAP) {
             return;
         }
@@ -1596,13 +1548,13 @@ impl GridHandlerHelper for GridHandler {
         }
     }
 
-    fn disable_reset_grid_checks(&mut self) {
+    pub fn disable_reset_grid_checks(&mut self) {
         self.ansi_handler_state.reset_grid_checks = ResetGridChecks::Disabled;
     }
 
     /// Marks the grid as having NOT received the Reset Grid OSC.
     /// This is useful for grids that expect to receive multiple OSCs.
-    fn reset_received_osc(&mut self) {
+    pub fn reset_received_osc(&mut self) {
         if let ResetGridChecks::Enabled { received_osc } =
             &mut self.ansi_handler_state.reset_grid_checks
         {

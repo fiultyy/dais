@@ -377,44 +377,8 @@ pub struct SubshellSuccessBlockInfo {
     pub session_type: BootstrapSessionType,
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TmuxInstallationState {
-    /// This means tmux was installed by Dais in this session, successfully or unsuccessfully.
-    /// It also means we had root access and used a package manager to install tmux and all
-    /// dependencies.
-    InstalledByWarpRootInThisSession,
-    /// This means tmux was installed by Dais in this session, successfully or unsuccessfully.
-    InstalledByWarpInThisSession,
-    InstalledByWarpInPriorSession,
-    /// This means that warp did not install it locally. It was either installed by the user
-    /// or it was installed by warp in a prior session using the package manager.
-    InstalledByUser,
-    /// This means we never tried to install tmux in this session.
-    #[default]
-    NotInstalled,
-}
-
-impl FromStr for TmuxInstallationState {
-    type Err = anyhow::Error;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        match input {
-            "installed_by_warp_root_in_this_session" => {
-                Ok(TmuxInstallationState::InstalledByWarpRootInThisSession)
-            }
-            "installed_by_warp_in_this_session" => {
-                Ok(TmuxInstallationState::InstalledByWarpInThisSession)
-            }
-            "warp" | "installed_by_warp_in_prior_session" => {
-                Ok(TmuxInstallationState::InstalledByWarpInPriorSession)
-            }
-            "user" | "installed_by_user" => Ok(TmuxInstallationState::InstalledByUser),
-            "not_installed" => Ok(TmuxInstallationState::NotInstalled),
-            _ => Err(anyhow::anyhow!("Invalid TmuxInstallationState")),
-        }
-    }
-}
+// R11: TmuxInstallationState 提升 terminal_model crate(ansi/handler.rs 消费)。
+pub use terminal_model::TmuxInstallationState;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WarpInitiatedTmuxControlMode {

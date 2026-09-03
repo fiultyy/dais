@@ -3,9 +3,10 @@ use warp_core::command::ExitCode;
 use warpui::color::ColorU;
 
 use super::*;
-use crate::terminal::model::index::VisibleRow;
-use crate::terminal::model::session::SessionId;
-use crate::terminal::model::{ansi::InputBufferValue, selection::ScrollDelta};
+use terminal_model::index::VisibleRow;
+use warp_core::SessionId;
+use crate::ansi::InputBufferValue;
+use crate::grid::ScrollDelta;
 use std::{collections::HashSet, io, io::Write, path::PathBuf};
 
 const HEX_ENCODED_JSON_DCS_START: &[u8] = &[0x1b, 0x50, 0x24, 0x64];
