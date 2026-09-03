@@ -430,3 +430,15 @@ impl StepLite for RangeMapPoint {
 pub fn dfa_determine_secret_level(_plaintext: &str) -> SecretLevel {
     SecretLevel::User
 }
+
+/// R14: 自 app model/secrets_tooltip.rs 下沉(原 include! 内联)。
+#[derive(Clone, Debug)]
+pub struct RichContentSecretTooltipInfo {
+    pub secret: String,
+    pub secret_range: warpui::elements::SecretRange,
+    pub location: crate::TextLocation,
+    pub is_obfuscated: bool,
+    pub position_id: String,
+    pub view_id: warpui::EntityId,
+    pub secret_level: SecretLevel,
+}
