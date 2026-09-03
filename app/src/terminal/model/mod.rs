@@ -225,7 +225,9 @@ pub mod secrets {
 }
 
 }
-pub mod selection;
+// R12: selection 域下沉 terminal_grid_model,旧路径保持兼容(含 ScrollDelta 再导出)。
+pub use terminal_grid_model::grid::selection;
+pub use terminal_grid_model::grid::ScrollDelta;
 pub mod session;
 pub mod terminal_model;
 #[cfg(test)]

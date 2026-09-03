@@ -5,6 +5,7 @@ pub mod displayed_output;
 pub mod grid_handler;
 mod grid_storage;
 pub mod indexing;
+pub mod selection;
 mod selection_cursor;
 pub mod storage;
 

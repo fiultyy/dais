@@ -1,20 +1,17 @@
 use super::*;
-use crate::terminal::event_listener::ChannelEventListener;
-use crate::terminal::model::grid::grid_handler::PerformResetGridChecks;
-use crate::terminal::model::secrets::ObfuscateSecrets;
-use crate::terminal::SizeInfo;
+use crate::grid::grid_handler::PerformResetGridChecks;
+use crate::secrets::ObfuscateSecrets;
+use crate::SizeInfo;
 
 fn grid_handler(rows: usize, cols: usize) -> GridHandler {
     GridHandler::new(
         SizeInfo::new_without_font_metrics(rows, cols),
         1000, /* max_scroll_limit */
-        std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
-            ChannelEventListener::new_for_test(),
-        )),
+        std::sync::Arc::new(crate::grid::NoopEventSink),
         false,
         ObfuscateSecrets::No,
         PerformResetGridChecks::No,
-        crate::terminal::event_listener::host_determine_secret_level,
+        crate::secrets::dfa_determine_secret_level,
     )
 }
 

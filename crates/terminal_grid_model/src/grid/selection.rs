@@ -8,13 +8,13 @@ use std::fmt::Debug;
 use vec1::Vec1;
 use warp_terminal::model::grid::cell;
 
-use crate::terminal::model::ansi::CursorShape;
-use crate::terminal::model::cell::Flags;
-use crate::terminal::model::grid::grid_handler::GridHandler;
-use crate::terminal::model::grid::Dimensions;
-use crate::terminal::model::index::{Point, Side};
-use crate::terminal::model::GridStorage;
-use crate::terminal::Vector2F;
+use crate::ansi::CursorShape;
+use warp_terminal::model::grid::cell::Flags;
+use crate::grid::grid_handler::GridHandler;
+use crate::grid::Dimensions;
+use terminal_model::index::{Point, Side};
+use crate::grid::GridStorage;
+use pathfinder_geometry::vector::Vector2F;
 use std::cmp::{max, min};
 use std::mem;
 use std::ops::RangeInclusive;
@@ -23,7 +23,7 @@ use warp_core::semantic_selection::SemanticSelection;
 use warpui::text::SelectionType;
 use warpui::units::Lines;
 
-use super::index::{Direction, VisibleRow};
+use terminal_model::index::{Direction, VisibleRow};
 
 /// A Point and side within that point.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -254,7 +254,7 @@ pub enum SelectAction<T> {
 }
 
 // R11: ScrollDelta 定义下沉 terminal_grid_model,旧路径保持兼容。
-pub use terminal_grid_model::grid::ScrollDelta;
+pub use crate::grid::ScrollDelta;
 
 /// Describes a region of a 2-dimensional area.
 ///
