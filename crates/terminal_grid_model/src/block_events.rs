@@ -44,3 +44,12 @@ pub struct BlockMetadataReceivedEvent {
     /// Whether the session has fully completed the bootstrapping process.
     pub is_done_bootstrapping: bool,
 }
+
+/// R17: 自 app session/command_executor 提升(零状态自由函数)。
+/// In-band commands are prefixed with a leading space for Fish, which is done to omit them from
+/// fish's command history.  Thus we strip leading whitespace before matching the `command`.
+pub fn is_in_band_command(command: &str) -> bool {
+    let trimmed = command.trim_start();
+    trimmed.starts_with("Zap-Run-GeneratorCommand ")
+        || trimmed.starts_with("warp_run_generator_command ")
+}
