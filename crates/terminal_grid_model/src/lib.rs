@@ -13,6 +13,7 @@ pub mod find;
 pub mod grid;
 pub mod image_map;
 pub mod secrets;
+pub mod selected_blocks;
 mod size_info;
 pub mod text_location;
 

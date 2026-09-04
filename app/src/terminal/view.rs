@@ -15962,7 +15962,7 @@ impl TerminalView {
         let selected_block_ids = {
             let model = self.model.lock();
             self.selected_blocks
-                .to_block_ids(model.block_list())
+                .to_block_ids(|idx| model.block_list().block_at(idx).map(|b| b.id()))
                 .cloned()
                 .collect_vec()
         };
@@ -17534,11 +17534,14 @@ impl TerminalView {
             );
         }
 
-        let selected_block_ids = self
-            .selected_blocks
-            .to_block_ids(self.model.lock().block_list())
-            .cloned()
-            .collect_vec();
+        let selected_block_ids = {
+            let model_lock = self.model.lock();
+            let block_list = model_lock.block_list();
+            self.selected_blocks
+                .to_block_ids(|idx| block_list.block_at(idx).map(|b| b.id()))
+                .cloned()
+                .collect_vec()
+        };
 
         self.input().update(ctx, |input, ctx| {
             if let Some(initial_query) = initial_query {

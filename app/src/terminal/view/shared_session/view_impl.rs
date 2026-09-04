@@ -549,7 +549,7 @@ impl TerminalView {
         // First check if we have any selected blocks.
         let selected_block_ids = self
             .selected_blocks
-            .to_block_ids(model_lock.block_list())
+            .to_block_ids(|idx| model_lock.block_list().block_at(idx).map(|b| b.id()))
             .map(|id| id.to_string().into())
             .collect_vec();
         if !selected_block_ids.is_empty() {
