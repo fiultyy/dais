@@ -1,106 +1,32 @@
-use std::collections::HashSet;
-
-use crate::ai::agent::conversation::AIConversationId;
-use crate::ai::agent::task::TaskId;
-use crate::ai::agent::AIAgentActionId;
-use crate::ai::blocklist::block::cli_controller::LongRunningCommandControlState;
-use crate::terminal::model::block::{
-    has_block_failed, AgentViewVisibility, Block, BlockState, PromptInfo,
-    MAX_SERIALIZED_STYLIZED_OUTPUT_LINES,
-};
-use crate::terminal::model::session::SessionId;
-use crate::terminal::model::BlockId;
-use crate::terminal::ShellHost;
-use crate::util::extensions::TrimStringExt;
-use chrono::{DateTime, Local, TimeZone as _};
+//! R17: SerializedBlock 数据面半下沉 terminal_grid_model::block_serialized。
+//! 留守件: SerializedAIMetadata(依赖 app ai cli_controller 类型)、
+//! From<&Block>(依赖 15 个 app Block 输出方法)、
+//! persistence 转换经扩展 trait(孤儿规则)。
 use serde::{Deserialize, Serialize};
-use serde_bytes_repr::{ByteFmtDeserializer, ByteFmtSerializer};
+use chrono::{DateTime, Local, TimeZone as _};
 use warp_core::command::ExitCode;
-
-use super::AgentInteractionMetadata;
-
-/// Serialization-stable representation of [`AgentViewVisibility`].
-///
-/// This type decouples the persisted format from the in-app format, allowing
-/// internal changes to `AgentViewVisibility` without breaking serialization.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum SerializedAgentViewVisibility {
-    Terminal {
-        #[serde(default)]
-        pending_conversation_ids: HashSet<AIConversationId>,
-        conversation_ids: HashSet<AIConversationId>,
-    },
-    Agent {
-        #[serde(alias = "conversation_id")]
-        origin_conversation_id: AIConversationId,
-        #[serde(default)]
-        pending_other_conversation_ids: HashSet<AIConversationId>,
-        #[serde(default)]
-        other_conversation_ids: HashSet<AIConversationId>,
-    },
-}
-
-impl From<AgentViewVisibility> for SerializedAgentViewVisibility {
-    fn from(value: AgentViewVisibility) -> Self {
-        match value {
-            AgentViewVisibility::Terminal {
-                pending_conversation_ids,
-                conversation_ids,
-            } => SerializedAgentViewVisibility::Terminal {
-                pending_conversation_ids,
-                conversation_ids,
-            },
-            AgentViewVisibility::Agent {
-                origin_conversation_id,
-                pending_other_conversation_ids,
-                other_conversation_ids,
-            } => SerializedAgentViewVisibility::Agent {
-                origin_conversation_id,
-                pending_other_conversation_ids,
-                other_conversation_ids,
-            },
-        }
-    }
-}
-
-impl From<SerializedAgentViewVisibility> for AgentViewVisibility {
-    fn from(value: SerializedAgentViewVisibility) -> Self {
-        match value {
-            SerializedAgentViewVisibility::Terminal {
-                pending_conversation_ids,
-                conversation_ids,
-            } => AgentViewVisibility::Terminal {
-                pending_conversation_ids,
-                conversation_ids,
-            },
-            SerializedAgentViewVisibility::Agent {
-                origin_conversation_id,
-                pending_other_conversation_ids,
-                other_conversation_ids,
-            } => AgentViewVisibility::Agent {
-                origin_conversation_id,
-                pending_other_conversation_ids,
-                other_conversation_ids,
-            },
-        }
-    }
-}
 
 fn default_as_true() -> bool {
     true
 }
 
-/// `should_hide_block` 的序列化判定：仅当值为 `false`（可见）时写入 JSON。
-///
-/// 历史上该字段被无条件 `skip`，导致 CLI subagent 等需要保持可见的块在重启恢复后
-/// 被 `default = true` 误判为隐藏。这里收窄为「只持久化可见状态」：
-/// - `true`（隐藏，默认）：不序列化，反序列化走 `default_as_true`，与旧数据兼容。
-/// - `false`（可见）：序列化写入，恢复后保持可见。
 fn skip_hide_when_true(value: &bool) -> bool {
     *value
 }
 
-/// Blocklist AI metadata associated with this block.
+
+use crate::terminal::model::block::{
+    AgentInteractionMetadata, AgentViewVisibility, Block, BlockState, PromptInfo,
+    MAX_SERIALIZED_STYLIZED_OUTPUT_LINES,
+};
+use crate::util::extensions::TrimStringExt as _;
+use agent_ids::{AIAgentActionId, AIConversationId, TaskId};
+use crate::ai::blocklist::block::cli_controller::LongRunningCommandControlState;
+
+pub use terminal_grid_model::block_serialized::{
+    SerializedAgentViewVisibility, SerializedBlock, SerializedBlockListItem, ShellHost,
+};
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SerializedAIMetadata {
     /// The ID of the `AIAgentAction` associated with this block's requested command execution.
@@ -151,130 +77,6 @@ impl From<SerializedAIMetadata> for AgentInteractionMetadata {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Default, Deserialize, PartialEq)]
-pub struct SerializedBlock {
-    pub id: BlockId,
-    /// The input lines with their corresponding escape sequences so it can be rendered outside of
-    /// the terminal.
-    #[serde(with = "serde_bytes")]
-    pub stylized_command: Vec<u8>,
-
-    /// The output lines with their corresponding escape sequences so it can be rendered outside of
-    /// the terminal.
-    /// They are truncated to MAX_SERIALIZED_STYLIZED_OUTPUT_LINES lines.
-    #[serde(with = "serde_bytes")]
-    pub stylized_output: Vec<u8>,
-
-    /// The current working directory of the block.
-    pub pwd: Option<String>,
-
-    #[serde(alias = "git_branch")]
-    pub git_head: Option<String>,
-
-    #[serde(default)]
-    pub git_branch_name: Option<String>,
-
-    pub virtual_env: Option<String>,
-
-    pub conda_env: Option<String>,
-
-    pub node_version: Option<String>,
-
-    pub exit_code: ExitCode,
-
-    /// True iff the block _started_ executing (i.e. preexec was received) or it's a static block.
-    pub did_execute: bool,
-
-    pub completed_ts: Option<DateTime<Local>>,
-
-    pub start_ts: Option<DateTime<Local>>,
-
-    pub ps1: Option<String>,
-
-    pub rprompt: Option<String>,
-
-    pub honor_ps1: bool,
-
-    pub is_background: bool,
-
-    pub session_id: Option<SessionId>,
-
-    pub shell_host: Option<ShellHost>,
-
-    /// JSON-serialized representation of the Dais prompt snapshot (Context Chips). Note that this
-    /// is different from PS1 and RPROMPT1
-    pub prompt_snapshot: Option<String>,
-
-    /// JSON-serialized representation of [`SerializedAIMetadata`].
-    pub ai_metadata: Option<String>,
-
-    /// Whether this block was created locally (true) or remotely (false)
-    #[serde(default)]
-    pub is_local: Option<bool>,
-
-    /// Tracks which views (terminal and/or agent conversations) this block should be visible in.
-    #[serde(default)]
-    pub agent_view_visibility: Option<SerializedAgentViewVisibility>,
-}
-
-impl SerializedBlock {
-    /// Sets the command & output and `did_execute` to true.
-    /// Everything else is a default value.
-    #[cfg(test)]
-    pub fn new_for_test(stylized_command: Vec<u8>, stylized_output: Vec<u8>) -> SerializedBlock {
-        SerializedBlock {
-            stylized_command,
-            stylized_output,
-            did_execute: true,
-            start_ts: Some(Local::now()),
-            completed_ts: Some(Local::now()),
-            ..Default::default()
-        }
-    }
-
-    /// Sets only the command with no output, and `did_execute` to false.
-    /// Everything else is a default value.
-    #[cfg(test)]
-    pub fn new_active_block_for_test() -> SerializedBlock {
-        SerializedBlock::default()
-    }
-
-    /// Serialize this block to JSON bytes.
-    ///
-    /// The command and output contents are base64-encoded. This is *not* the default serde behavior,
-    /// and blocks encoded this way must be deserialized with [`Self::from_json`].
-    pub fn to_json(&self) -> anyhow::Result<Vec<u8>> {
-        let mut buf = Vec::new();
-        let mut ser = serde_json::Serializer::new(&mut buf);
-        let base64_config = base64::engine::GeneralPurposeConfig::new();
-        let base64_ser =
-            ByteFmtSerializer::base64(&mut ser, base64::alphabet::STANDARD, base64_config);
-        self.serialize(base64_ser)
-            .map_err(|e| anyhow::anyhow!("Failed to serialize block to JSON: {e}"))?;
-        Ok(buf)
-    }
-
-    /// Deserialize a block from JSON bytes produced by [`Self::to_json`]
-    /// or [`serde_json`].
-    pub fn from_json(json: &[u8]) -> anyhow::Result<Self> {
-        let mut de = serde_json::Deserializer::from_slice(json);
-        let base64_config = base64::engine::GeneralPurposeConfig::new();
-        let base64_de =
-            ByteFmtDeserializer::new_base64(&mut de, base64::alphabet::STANDARD, base64_config);
-        Self::deserialize(base64_de)
-            .map_err(|e| anyhow::anyhow!("Failed to deserialize block from JSON: {e}"))
-    }
-
-    pub fn has_failed(&self) -> bool {
-        let block_state = match self.did_execute {
-            true => BlockState::DoneWithExecution,
-            false => BlockState::DoneWithNoExecution,
-        };
-        has_block_failed(self.exit_code, block_state)
-    }
-}
-
-/// We should only be serializing a block that has finished.
 impl From<&Block> for SerializedBlock {
     fn from(block: &Block) -> Self {
         let stylized_command = block
@@ -351,11 +153,62 @@ impl From<&Block> for SerializedBlock {
     }
 }
 
-impl From<crate::persistence::model::Block> for SerializedBlock {
-    fn from(block: crate::persistence::model::Block) -> Self {
+impl From<AgentViewVisibility> for SerializedAgentViewVisibility {
+    fn from(value: AgentViewVisibility) -> Self {
+        match value {
+            AgentViewVisibility::Terminal {
+                pending_conversation_ids,
+                conversation_ids,
+            } => SerializedAgentViewVisibility::Terminal {
+                pending_conversation_ids,
+                conversation_ids,
+            },
+            AgentViewVisibility::Agent {
+                origin_conversation_id,
+                pending_other_conversation_ids,
+                other_conversation_ids,
+            } => SerializedAgentViewVisibility::Agent {
+                origin_conversation_id,
+                pending_other_conversation_ids,
+                other_conversation_ids,
+            },
+        }
+    }
+}
+
+impl From<SerializedAgentViewVisibility> for AgentViewVisibility {
+    fn from(value: SerializedAgentViewVisibility) -> Self {
+        match value {
+            SerializedAgentViewVisibility::Terminal {
+                pending_conversation_ids,
+                conversation_ids,
+            } => AgentViewVisibility::Terminal {
+                pending_conversation_ids,
+                conversation_ids,
+            },
+            SerializedAgentViewVisibility::Agent {
+                origin_conversation_id,
+                pending_other_conversation_ids,
+                other_conversation_ids,
+            } => AgentViewVisibility::Agent {
+                origin_conversation_id,
+                pending_other_conversation_ids,
+                other_conversation_ids,
+            },
+        }
+    }
+}
+
+/// R17: persistence 转换(app 扩展 trait;From impl 因孤儿规则不可用)。
+pub trait SerializedBlockFromPersisted {
+    fn from_persisted(value: crate::persistence::model::Block) -> Self;
+}
+
+impl SerializedBlockFromPersisted for SerializedBlock {
+    fn from_persisted(block: crate::persistence::model::Block) -> Self {
         let exit_code = ExitCode::from(block.exit_code);
         Self {
-            shell_host: ShellHost::try_from_persisted_block(&block),
+            shell_host: crate::terminal::history::try_from_persisted_block(&block),
             id: block.block_id.into(),
             stylized_command: block.stylized_command,
             stylized_output: block.stylized_output,
@@ -388,38 +241,14 @@ impl From<crate::persistence::model::Block> for SerializedBlock {
     }
 }
 
-#[cfg(test)]
-#[path = "serialized_block_tests.rs"]
-mod tests;
-
-// R16: 自 ai/blocklist/persistence.rs 提升(单变体壳;TODO 删壳留待后续)。
-///
-/// TODO(roland): now that there is no AI serialized block, consider removing this enum wrapper
-#[derive(Debug, Clone, PartialEq)]
-pub enum SerializedBlockListItem {
-    Command { block: Box<SerializedBlock> },
+pub trait SerializedBlockListItemFromPersisted {
+    fn from_persisted(value: crate::persistence::model::Block) -> Self;
 }
 
-impl SerializedBlockListItem {
-    pub(crate) fn start_ts(&self) -> Option<DateTime<Local>> {
-        match self {
-            Self::Command { block } => block.start_ts,
-        }
-    }
-}
-
-impl From<crate::persistence::model::Block> for SerializedBlockListItem {
-    fn from(value: crate::persistence::model::Block) -> Self {
+impl SerializedBlockListItemFromPersisted for SerializedBlockListItem {
+    fn from_persisted(value: crate::persistence::model::Block) -> Self {
         Self::Command {
-            block: Box::new(SerializedBlock::from(value)),
-        }
-    }
-}
-
-impl From<SerializedBlock> for SerializedBlockListItem {
-    fn from(value: SerializedBlock) -> Self {
-        Self::Command {
-            block: Box::new(value),
+            block: Box::new(SerializedBlock::from_persisted(value)),
         }
     }
 }

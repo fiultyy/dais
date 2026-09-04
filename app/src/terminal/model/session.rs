@@ -397,7 +397,7 @@ impl Sessions {
 
         History::handle(ctx).update(ctx, |history, ctx| {
             let session_id = session.id();
-            let shell_host = ShellHost::from_session(session.as_ref());
+            let shell_host = crate::terminal::history::shell_host_from_session(session.as_ref());
 
             history.init_session(session, ctx);
 

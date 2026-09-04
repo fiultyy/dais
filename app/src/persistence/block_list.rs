@@ -1,6 +1,7 @@
 //! Manages how we write to and read from our SQLite database for our AI features.
 
 use std::{collections::HashMap, sync::Arc};
+use crate::terminal::model::block::SerializedBlockListItemFromPersisted as _;
 
 use chrono::{Local, NaiveDateTime, TimeZone};
 use diesel::{prelude::*, result::Error, sqlite::SqliteConnection};
@@ -148,7 +149,10 @@ pub(super) fn get_all_restored_blocks(
         .map(|(blocks, terminal_pane)| {
             (
                 PaneUuid(terminal_pane.uuid),
-                blocks.into_iter().map(Into::into).collect(),
+                blocks
+                    .into_iter()
+                    .map(SerializedBlockListItem::from_persisted)
+                    .collect(),
             )
         })
         .collect::<HashMap<_, Vec<SerializedBlockListItem>>>();

@@ -11,8 +11,8 @@ use objects::ids::SyncId;
 use crate::server::telemetry::ImageProtocol;
 // R16: 载荷提升 terminal_grid_model::block_events。
 pub use terminal_grid_model::block_events::{BlockLatencyData, BlockMetadataReceivedEvent};
-use crate::terminal::model::block::BlockMetadata;
-use crate::terminal::model::block::SerializedBlock;
+use terminal_grid_model::block_events::BlockMetadata;
+use terminal_grid_model::block_serialized::SerializedBlock;
 use crate::terminal::model::completions::ShellCompletion;
 use crate::terminal::model::terminal_model::HandlerEvent;
 use crate::terminal::shell::ShellType;

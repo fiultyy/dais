@@ -10563,7 +10563,7 @@ impl TerminalView {
                     .session_id()
                     .and_then(|id| self.sessions.as_ref(ctx).get(id))
                 {
-                    let shell_host = ShellHost::from_session(session.as_ref());
+                    let shell_host = crate::terminal::history::shell_host_from_session(session.as_ref());
                     self.model
                         .lock()
                         .block_list_mut()
