@@ -18,7 +18,7 @@ use crate::terminal::model::block::{AgentViewVisibility, Block, SerializedBlock}
 use crate::terminal::model::bootstrap::BootstrapStage;
 use crate::terminal::model::index::{Point, VisibleRow};
 use crate::terminal::model::iterm_image::ITermImage;
-use crate::terminal::view::SeparatorId;
+use terminal_grid_model::banner_types::SeparatorId;
 use crate::terminal::view::WithinBlockBanner;
 use crate::terminal::{
     event::{
