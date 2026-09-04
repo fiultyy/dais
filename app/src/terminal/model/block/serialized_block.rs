@@ -252,3 +252,7 @@ impl SerializedBlockListItemFromPersisted for SerializedBlockListItem {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "serialized_block_tests.rs"]
+mod tests;
