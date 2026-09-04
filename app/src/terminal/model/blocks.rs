@@ -19,7 +19,7 @@ use crate::terminal::model::bootstrap::BootstrapStage;
 use crate::terminal::model::index::{Point, VisibleRow};
 use crate::terminal::model::iterm_image::ITermImage;
 use terminal_grid_model::banner_types::SeparatorId;
-use crate::terminal::view::WithinBlockBanner;
+use terminal_grid_model::banner_types::WithinBlockBannerKind;
 use crate::terminal::{
     event::{
         BlockType, Event as TerminalEvent,
@@ -1514,7 +1514,7 @@ impl BlockList {
     /// keep that data structure in sync.
     pub(in crate::terminal) fn set_active_block_banner(
         &mut self,
-        block_banner: Option<WithinBlockBanner>,
+        block_banner: Option<WithinBlockBannerKind>,
     ) {
         self.active_block_mut().block_banner = block_banner;
         self.update_active_block_height();

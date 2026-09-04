@@ -23,7 +23,7 @@ use terminal_grid_model::agent_view::{AgentViewDisplayMode, AgentViewState};
 use crate::{
     ai::agent::redaction::redact_secrets,
     context_chips::prompt_snapshot::PromptSnapshot,
-    terminal::{ block_filter::BlockFilterQuery, block_list_element::GridType, event::{ BlockCompletedEvent, BlockLatencyData, BlockMetadataReceivedEvent, BlockType, Event, UserBlockCompleted, }, event_listener::ChannelEventListener, model::{ ansi::{self, PrecmdValue, PreexecValue, Processor}, blockgrid::BlockGrid, grid::grid_handler::TermMode, index::{Point, VisibleRow}, iterm_image::ITermImage, secrets::ObfuscateSecrets, session::SessionId, terminal_model::{BlockIndex, WithinBlock}, GridStorage, }, shell::ShellType, view::WithinBlockBanner, BlockPadding, ShellHost, SizeInfo, },
+    terminal::{ block_filter::BlockFilterQuery, block_list_element::GridType, event::{ BlockCompletedEvent, BlockLatencyData, BlockMetadataReceivedEvent, BlockType, Event, UserBlockCompleted, }, event_listener::ChannelEventListener, model::{ ansi::{self, PrecmdValue, PreexecValue, Processor}, blockgrid::BlockGrid, grid::grid_handler::TermMode, index::{Point, VisibleRow}, iterm_image::ITermImage, secrets::ObfuscateSecrets, session::SessionId, terminal_model::{BlockIndex, WithinBlock}, GridStorage, }, shell::ShellType, BlockPadding, ShellHost, SizeInfo, },
 };
 use objects::ids::SyncId;
 
@@ -335,7 +335,7 @@ pub struct Block {
     interaction_mode: InteractionMode,
 
     /// This represents when a banner appears in this Block above the prompt.
-    pub(super) block_banner: Option<WithinBlockBanner>,
+    pub(super) block_banner: Option<terminal_grid_model::banner_types::WithinBlockBannerKind>,
 
     /// If true, we should discard the next right prompt data we receive
     /// (whether it comes from a precmd hook or from a marked prompt
@@ -1069,13 +1069,13 @@ impl Block {
     }
 
     #[cfg(not(feature = "integration_tests"))]
-    pub(in crate::terminal) fn block_banner(&self) -> Option<&WithinBlockBanner> {
-        self.block_banner.as_ref()
+    pub(in crate::terminal) fn block_banner(&self) -> Option<terminal_grid_model::banner_types::WithinBlockBannerKind> {
+        self.block_banner
     }
 
     #[cfg(feature = "integration_tests")]
-    pub fn block_banner(&self) -> Option<&WithinBlockBanner> {
-        self.block_banner.as_ref()
+    pub fn block_banner(&self) -> Option<terminal_grid_model::banner_types::WithinBlockBannerKind> {
+        self.block_banner
     }
 
     /// Prefer using the `reset_block_index` fn on the BlockList instead.

@@ -155,7 +155,8 @@ pub use action::{AgentOnboardingVersion, OnboardingIntention, OnboardingVersion,
 use ai::api_keys::{ApiKeyManager, AwsCredentialsState};
 
 use crate::terminal::shared_session::protocol::{SessionEndedReason, SessionSourceType};
-pub use block_banner::{WithinBlockBanner, BLOCK_BANNER_HEIGHT};
+pub use block_banner::BLOCK_BANNER_HEIGHT;
+use terminal_grid_model::banner_types::WithinBlockBannerKind;
 use block_onboarding::onboarding_agentic_suggestions_block::{
     OnboardingAgenticSuggestionsBlock, OnboardingAgenticSuggestionsBlockEvent, OnboardingChipType,
 };
@@ -2515,6 +2516,8 @@ pub struct TerminalView {
     find_model: ModelHandle<TerminalFindModel>,
 
     warpify_state: WarpifyState,
+    /// R18/R19 锚2: warpify banner UI 状态(model 侧仅存 Kind 投影,presence 为 gate)。
+    active_warpify_banner: Option<WarpifyBannerState>,
 
     /// The keystroke bound to canceling a command.
     ///
@@ -3889,6 +3892,7 @@ impl TerminalView {
             input_hoverable_handle: Default::default(),
             find_model,
             warpify_state: Default::default(),
+            active_warpify_banner: None,
             cancel_command_keystroke: keybinding_name_to_keystroke(CANCEL_COMMAND_KEYBINDING, ctx),
             is_file_drop_target: false,
             is_ssh_file_uploader: false,
@@ -8297,6 +8301,8 @@ impl TerminalView {
             let mut model = self.model.lock();
             model.block_list_mut().set_active_block_banner(None);
         }
+        // R19 锚2: UI 状态与 model presence 双清。
+        self.active_warpify_banner = None;
 
         // Also clear the warpify footer so it doesn't linger after warpification
         // starts, fails, or is cancelled.
@@ -8354,11 +8360,15 @@ impl TerminalView {
             None => format!("You can Warpify this {lowercase_title} for more Dais features."),
         };
 
+        // R19 锚2: model 存 Kind 投影,完整 UI 状态存 view 侧(model presence 为渲染 gate)。
+        let kind = match &input {
+            WarpificationMode::Ssh { .. } => WithinBlockBannerKind::Ssh,
+            WarpificationMode::Subshell { .. } => WithinBlockBannerKind::Subshell,
+        };
+        self.active_warpify_banner = Some(WarpifyBannerState::new(input, warpify_keybinding));
         model
             .block_list_mut()
-            .set_active_block_banner(Some(WithinBlockBanner::WarpifyBanner(
-                WarpifyBannerState::new(input, warpify_keybinding),
-            )));
+            .set_active_block_banner(Some(kind));
 
         let a11y_content = AccessibilityContent::new(
             format!("{title} recognized."),
@@ -21313,15 +21323,19 @@ impl TerminalView {
         // Currently, it is assumed that only the active block can have a block banner, which
         // implies that there can only be one at a time. This assumption can be relaxed once we
         // have an actual use case for that.
-        let block_banner = model
+        // R19 锚2: model presence gate + view 侧完整状态(Block::finish 置 None 后不再读 UI 态)。
+        let block_banner = if model
             .block_list()
             .active_block()
             .block_banner()
-            .map(|banner| match banner {
-                WithinBlockBanner::WarpifyBanner(state) => {
-                    render_warpification_banner(state, appearance, app)
-                }
-            });
+            .is_some()
+        {
+            self.active_warpify_banner
+                .as_ref()
+                .map(|state| render_warpification_banner(state, appearance, app))
+        } else {
+            None
+        };
 
         let bookmarked_blocks: HashSet<_> = self.bookmarked_blocks.keys().copied().collect();
         let filtered_blocks: HashSet<_> = model.block_list().filtered_blocks();
@@ -24997,14 +25011,15 @@ impl View for TerminalView {
             context.set.insert(init::ROOT_AMBIENT_AGENT_PANE_KEY);
         }
 
-        if let Some(WithinBlockBanner::WarpifyBanner(state)) =
-            model_lock.block_list().active_block().block_banner()
-        {
-            if state.is_ssh() {
+        // R19 锚2: keymap 判别走 Kind 投影(无需 UI 状态)。
+        match model_lock.block_list().active_block().block_banner() {
+            Some(WithinBlockBannerKind::Ssh) => {
                 context.set.insert("SshWarpificationBanner");
-            } else {
+            }
+            Some(WithinBlockBannerKind::Subshell) => {
                 context.set.insert("SubshellBanner");
             }
+            None => {}
         }
 
         // Also set the warpify context when the footer (flag-gated replacement

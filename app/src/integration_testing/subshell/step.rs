@@ -7,7 +7,7 @@ use warpui::{
 
 use crate::{
     integration_testing::{ step::assert_no_pending_model_events, terminal::{ assert_long_running_block_executing_for_single_terminal_in_tab, execute_command_for_single_terminal_in_tab, util::ExpectedExitStatus, validate_block_output, wait_until_bootstrapped_pane, }, view_getters::{single_terminal_view, terminal_view}, },
-    terminal::{model::rich_content::RichContentType, view::WithinBlockBanner},
+    terminal::model::rich_content::RichContentType,
 };
 
 use super::util::{ssh_command, user_host};
@@ -74,13 +74,14 @@ pub fn assert_subshell_banner_is_showing() -> TestStep {
         .add_assertion(move |app, window_id| {
             let terminal_view = single_terminal_view(app, window_id);
             terminal_view.read(app, |view, _ctx| {
+                // R19 锚2: model 侧改 Kind 投影。
                 async_assert!(matches!(
                     view.model
                         .lock()
                         .block_list_mut()
                         .active_block()
                         .block_banner(),
-                    Some(WithinBlockBanner::WarpifyBanner(..))
+                    Some(terminal_grid_model::banner_types::WithinBlockBannerKind::Subshell)
                 ))
             })
         })
