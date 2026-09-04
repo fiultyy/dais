@@ -13,6 +13,7 @@ use warpui::{
 };
 
 use crate::chip_configurator::{ChipConfigurator, ChipConfiguratorAction, ChipConfiguratorLayout};
+use crate::context_chips::ContextChipKindExt as _;
 use crate::context_chips::prompt::{Prompt, PromptConfiguration, PromptSelection};
 use crate::context_chips::renderer::Renderer as ContextChipRenderer;
 use crate::context_chips::{

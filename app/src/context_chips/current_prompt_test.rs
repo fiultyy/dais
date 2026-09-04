@@ -15,6 +15,7 @@ use warpui_extras::user_preferences;
 
 #[cfg(feature = "local_fs")]
 use crate::code_review::diff_state::DiffStats;
+use crate::context_chips::ContextChipKindExt as _;
 #[cfg(feature = "local_fs")]
 use crate::code_review::git_status_update::{GitRepoStatusModel, GitStatusMetadata};
 #[cfg(windows)]

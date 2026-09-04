@@ -16,6 +16,7 @@ mod vertical_tabs;
 mod vtab_projection;
 
 use crate::objects_display::StoredObjectHostExt;
+use crate::context_chips::ContextChipKindExt as _;
 use objects::StoredObject as _;
 use self::vertical_tabs::telemetry::{VerticalTabsDisplayOption, VerticalTabsTelemetryEvent};
 use self::vertical_tabs::{

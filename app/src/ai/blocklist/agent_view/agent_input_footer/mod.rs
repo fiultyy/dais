@@ -21,6 +21,7 @@ use crate::{
     workspace::{view::TOGGLE_PROJECT_EXPLORER_BINDING_NAME, ToastStack},
     workspaces::user_workspaces::UserWorkspaces,
 };
+use crate::context_chips::ContextChipKindExt as _;
 use toolbar_item::AgentToolbarItemKind;
 // Dais Wave 7-3:`warp_cli::agent::Harness` import was removed with the hosted-mode footer.
 

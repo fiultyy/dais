@@ -22,6 +22,8 @@ regex.workspace = true
 regex-automata.workspace = true
 ordered-float.workspace = true
 serde.workspace = true
+settings_value.workspace = true
+schemars.workspace = true
 objects = { path = "../objects" }
 sum_tree.workspace = true
 float-cmp.workspace = true

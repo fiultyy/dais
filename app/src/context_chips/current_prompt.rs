@@ -1,4 +1,5 @@
 use crate::features::FeatureFlag;
+use crate::context_chips::ContextChipKindExt as _;
 use crate::report_if_error;
 use crate::settings::{InputSettings, WarpPromptSeparator};
 use crate::terminal::event::{BlockType, UserBlockCompleted};
@@ -31,7 +32,8 @@ use super::{
 #[cfg(feature = "local_fs")]
 use crate::code_review::git_status_update::{GitRepoStatusEvent, GitRepoStatusModel};
 #[cfg(feature = "local_fs")]
-use crate::context_chips::display_chip::GitLineChanges;
+use terminal_grid_model::prompt_snapshot::GitLineChanges;
+use crate::context_chips::display_chip::GitLineChangesExt as _;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash as _, Hasher as _};
 use std::sync::Arc;
