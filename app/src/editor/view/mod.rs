@@ -4307,9 +4307,10 @@ impl EditorView {
         // If there is a pending passive ai block, we don't want ctrl+c to clear the buffer.
         let is_pending_passive_ai_block = terminal_view.is_some_and(|terminal_view| {
             let terminal_model = terminal_view.as_ref(ctx).model.lock();
-            terminal_model
-                .block_list()
-                .last_non_hidden_ai_block_handle(ctx)
+            crate::ai::blocklist::view_util::last_non_hidden_ai_block_handle(
+                terminal_model.block_list(),
+                ctx,
+            )
                 .is_some_and(|ai_block| {
                     let block = ai_block.as_ref(ctx);
                     // Ctrl+c should dismiss the passive ai block only if the keybindings for the block are not hidden.

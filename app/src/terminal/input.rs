@@ -8878,7 +8878,7 @@ impl Input {
                             }
 
                             let has_active_ai_block =
-                                self.model.lock().block_list().has_active_ai_block(ctx);
+                                crate::ai::blocklist::view_util::has_active_ai_block(self.model.lock().block_list(), ctx);
                             // We only focus the input if there is no active AI
                             // block. Otherwise, the input is incorrectly focused
                             // when executing an AI query from the history menu.
@@ -13738,9 +13738,11 @@ impl View for Input {
         // blocklist that is undismissed (i.e. keybindings are shown in the banner/block).
         // This is to prevent any keybinding conflicts (with actions such as split pane
         // down on non-Macs).
-        let has_undismissed_passive_code_diff = model_lock
-            .block_list()
-            .last_non_hidden_ai_block_handle(app)
+        let has_undismissed_passive_code_diff =
+            crate::ai::blocklist::view_util::last_non_hidden_ai_block_handle(
+                model_lock.block_list(),
+                app,
+            )
             .is_some_and(|ai_block| {
                 let block = ai_block.as_ref(app);
                 block.is_passive_conversation(app)

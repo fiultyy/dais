@@ -41,9 +41,10 @@ pub fn has_pending_code_or_unit_test_prompt_suggestion(
     terminal_model: &TerminalModel,
     app: &AppContext,
 ) -> bool {
-    terminal_model
-        .block_list()
-        .last_non_hidden_ai_block_handle(app)
+    crate::ai::blocklist::view_util::last_non_hidden_ai_block_handle(
+        terminal_model.block_list(),
+        app,
+    )
         .is_some_and(|ai_block| {
             let block = ai_block.as_ref(app);
             if !block.is_passive_conversation(app) || block.is_hidden(app) {

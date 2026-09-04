@@ -9,6 +9,8 @@ use instant::Instant;
 
 use objects::ids::SyncId;
 use crate::server::telemetry::ImageProtocol;
+// R16: 载荷提升 terminal_grid_model::block_events。
+pub use terminal_grid_model::block_events::{BlockLatencyData, BlockMetadataReceivedEvent};
 use crate::terminal::model::block::BlockMetadata;
 use crate::terminal::model::block::SerializedBlock;
 use crate::terminal::model::completions::ShellCompletion;
@@ -235,12 +237,6 @@ pub struct AfterBlockCompletedEvent {
     pub cloud_env_var_collection_id: Option<SyncId>,
 }
 
-#[derive(Clone)]
-pub struct BlockLatencyData {
-    pub command: &'static str,
-    /// When the block's command grid was started (i.e. when the user hit enter).
-    pub started_at: Instant,
-}
 
 #[derive(Clone, Debug)]
 /// Different types of blocks. `User` is for normal execution.
@@ -273,20 +269,8 @@ impl BlockType {
     }
 }
 
-#[derive(Clone, Debug)]
-/// A notification that the metadata for the active block & prompt is now
-/// available.
-pub struct BlockMetadataReceivedEvent {
-    pub block_metadata: BlockMetadata,
-    pub block_index: BlockIndex,
-    /// Whether the previous block was an in-band command.
-    pub is_after_in_band_command: bool,
-    /// Whether the session has fully completed the bootstrapping process.
-    pub is_done_bootstrapping: bool,
-}
-
-#[derive(Clone, Debug)]
 /// Contents of a normal block that a user executed.
+#[derive(Clone, Debug)]
 pub struct UserBlockCompleted {
     pub index: BlockIndex,
 

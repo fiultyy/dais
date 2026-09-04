@@ -391,3 +391,35 @@ impl From<crate::persistence::model::Block> for SerializedBlock {
 #[cfg(test)]
 #[path = "serialized_block_tests.rs"]
 mod tests;
+
+// R16: 自 ai/blocklist/persistence.rs 提升(单变体壳;TODO 删壳留待后续)。
+///
+/// TODO(roland): now that there is no AI serialized block, consider removing this enum wrapper
+#[derive(Debug, Clone, PartialEq)]
+pub enum SerializedBlockListItem {
+    Command { block: Box<SerializedBlock> },
+}
+
+impl SerializedBlockListItem {
+    pub(crate) fn start_ts(&self) -> Option<DateTime<Local>> {
+        match self {
+            Self::Command { block } => block.start_ts,
+        }
+    }
+}
+
+impl From<crate::persistence::model::Block> for SerializedBlockListItem {
+    fn from(value: crate::persistence::model::Block) -> Self {
+        Self::Command {
+            block: Box::new(SerializedBlock::from(value)),
+        }
+    }
+}
+
+impl From<SerializedBlock> for SerializedBlockListItem {
+    fn from(value: SerializedBlock) -> Self {
+        Self::Command {
+            block: Box::new(value),
+        }
+    }
+}

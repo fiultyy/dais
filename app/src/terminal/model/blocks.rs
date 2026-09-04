@@ -1,10 +1,11 @@
 mod selection;
 
-use crate::ai::agent::{conversation::AIConversationId, AIAgentActionId};
-use crate::ai::blocklist::SerializedBlockListItem;
+// R16: ai 锚类型改单源 crate 直连。
+use agent_ids::{AIAgentActionId, AIConversationId};
+use super::block::SerializedBlockListItem;
 use crate::terminal::block_filter::BlockFilterQuery;
 
-use crate::ai::blocklist::agent_view::{AgentViewDisplayMode, AgentViewState};
+use terminal_grid_model::agent_view::{AgentViewDisplayMode, AgentViewState};
 use crate::terminal::event::AfterBlockCompletedEvent;
 use crate::terminal::event_listener::ChannelEventListener;
 use crate::terminal::model::ansi;
@@ -59,7 +60,6 @@ use super::{ansi::InputBufferValue, block::SerializedAIMetadata};
 use super::selection::ScrollDelta;
 use super::terminal_model::RangeInModel;
 use super::{ansi::Handler, grid::grid_handler::Link};
-use crate::ai::blocklist::AIBlock;
 use crate::terminal::block_list_element::GridType;
 use crate::terminal::model::blockgrid::BlockGrid;
 use crate::terminal::model::grid::Dimensions;
@@ -3328,19 +3328,6 @@ impl BlockList {
         active_block.clear_marked_text();
     }
 
-    pub fn last_non_hidden_ai_block_handle(&self, app: &AppContext) -> Option<ViewHandle<AIBlock>> {
-        let rich_content_view_id = self
-            .last_non_hidden_rich_content_block_after_block(None)?
-            .1
-            .view_id;
-        let active_window_id = app.windows().active_window()?;
-        app.view_with_id::<AIBlock>(active_window_id, rich_content_view_id)
-    }
-
-    pub fn has_active_ai_block(&self, app: &AppContext) -> bool {
-        self.last_non_hidden_ai_block_handle(app)
-            .is_some_and(|handle| !handle.as_ref(app).is_finished())
-    }
 
     /// Returns the contents of all blocks associated with bootstrap.
     pub fn bootstrap_block_contents(&self) -> String {

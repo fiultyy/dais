@@ -18,8 +18,8 @@ pub use super::BlockId;
 use super::{bootstrap::BootstrapStage, find::RegexDFAs};
 use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
 
-use crate::ai::agent::conversation::AIConversationId;
-use crate::ai::blocklist::agent_view::{AgentViewDisplayMode, AgentViewState};
+use agent_ids::AIConversationId;
+use terminal_grid_model::agent_view::{AgentViewDisplayMode, AgentViewState};
 use crate::{
     ai::agent::redaction::redact_secrets,
     context_chips::prompt_snapshot::PromptSnapshot,
@@ -611,28 +611,9 @@ pub enum BlockState {
     Static,
 }
 
-#[derive(Debug, Clone)]
-pub struct BlockMetadata {
-    session_id: Option<SessionId>,
-    current_working_directory: Option<String>,
-}
-
-impl BlockMetadata {
-    pub fn new(session_id: Option<SessionId>, current_working_directory: Option<String>) -> Self {
-        BlockMetadata {
-            session_id,
-            current_working_directory,
-        }
-    }
-
-    pub fn session_id(&self) -> Option<SessionId> {
-        self.session_id
-    }
-
-    pub fn current_working_directory(&self) -> Option<&str> {
-        self.current_working_directory.as_deref()
-    }
-}
+// R16: BlockMetadata 提升 terminal_grid_model::block_events。
+pub use terminal_grid_model::block_events::BlockMetadata;
+pub use serialized_block::SerializedBlockListItem;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum BlockSection {
