@@ -125,7 +125,7 @@ fn ref_test(dir: &Path) {
         sizes,
         color::List::from(&Colors::default()),
         channel_event_proxy,
-        Arc::new(Background::default()),
+        std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
         false, /* should_show_bootstrap_block */
         false, /* should_show_in_band_command_blocks */
         false, /* should_show_memory_stats */

@@ -128,7 +128,7 @@ impl<'a> TestBlockListBuilder<'a> {
             self.restored_blocks,
             self.block_sizes,
             self.channel_event_proxy,
-            Arc::new(Background::default()),
+            std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
             false, /* show_warp_bootstrap_input */
             false, /* show_warp_bootstrap_input */
             false, /* show_memory_stats */
@@ -212,7 +212,7 @@ impl TestBlockBuilder {
             BlockId::new(),
             self.size,
             self.event_proxy,
-            Arc::new(Background::default()),
+            std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
             self.bootstrap_stage,
             false, /* show_warp_bootstrap_input */
             false, /* show_in_band_command_blocks */
@@ -264,7 +264,7 @@ impl TerminalModel {
             block_size(),
             color::List::from(&Colors::default()),
             event_proxy.unwrap_or_else(ChannelEventListener::new_for_test),
-            Arc::new(Background::default()),
+            std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
             false,
             restored_blocks,
             false,

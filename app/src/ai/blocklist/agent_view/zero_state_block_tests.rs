@@ -15,7 +15,7 @@ fn terminal_with_startup_path(startup_path: Option<&str>) -> TerminalModel {
         block_size(),
         color::List::from(&Colors::default()),
         ChannelEventListener::new_for_test(),
-        Arc::new(Background::default()),
+        std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
         false,
         None,
         false,

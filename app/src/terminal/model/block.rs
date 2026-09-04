@@ -97,7 +97,6 @@ const FLOATING_POINT_ROUNDING_ADJUSTMENT: f32 = 0.0001;
 /// text isn't printed twice. If a background block only contains typeahead, this
 /// causes a flicker as the block is briefly shown then hidden. To prevent this,
 /// we wait before rendering the block so that the typeahead stays hidden.
-#[cfg(not(test))]
 const BACKGROUND_OUTPUT_RENDER_DELAY_MS: u64 = 100;
 
 /// Minimum terminal width for truncation calculations, we use this to determine
@@ -282,7 +281,7 @@ pub struct Block {
 
     /// Executor used for spawning futures in the background
     #[allow(dead_code)]
-    background_executor: Arc<Background>,
+    timer_host: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
 
     event_proxy: ChannelEventListener,
 
@@ -832,7 +831,7 @@ impl Block {
         id: BlockId,
         sizes: BlockSize,
         event_proxy: ChannelEventListener,
-        background_executor: Arc<Background>,
+        timer_host: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
         bootstrap_stage: BootstrapStage,
         show_warp_bootstrap_input: bool,
         show_in_band_command_blocks: bool,
@@ -901,7 +900,7 @@ impl Block {
             conda_env: None,
             node_version: None,
             rprompt: None,
-            background_executor,
+            timer_host,
             event_proxy,
             bootstrap_stage,
             show_bootstrap_block: show_warp_bootstrap_input,
@@ -2067,10 +2066,18 @@ impl Block {
     ///
     /// TODO: this doesn't yet handle transitive aliases.
     pub fn top_level_command(&self, sessions: &Sessions) -> Option<String> {
-        // Get the session associated to the block.
+        // R18: 参数化内核(Sessions 留调用方)。
         let session = sessions.get(self.session_id?)?;
         let escape_char = session.shell_family().escape_char();
+        self.top_level_command_with(escape_char, |name| session.alias_value(name).map(str::to_owned))
+    }
 
+    /// R18: Block 下沉前置——Sessions 依赖参数化(alias 经闭包注入)。
+    pub fn top_level_command_with(
+        &self,
+        escape_char: warp_util::path::EscapeChar,
+        alias_value: impl Fn(&str) -> Option<String>,
+    ) -> Option<String> {
         // Parse the raw command string to get the top-level command.
         let command = warp_completer::parsers::simple::top_level_command(
             self.command_to_string(),
@@ -2078,9 +2085,7 @@ impl Block {
         )?;
 
         // Check for aliases.
-        session
-            .alias_value(command.as_str())
-            .map(|s| s.to_owned())
+        alias_value(command.as_str())
             // An alias can technically expand into an entire command (e.g. "gl" => "PAGER=0 git log").
             .and_then(|s| warp_completer::parsers::simple::top_level_command(s, escape_char))
             // If alias expansion didn't work, then just return the original top-level command.
@@ -2380,17 +2385,11 @@ impl Block {
         }
     }
 
-    #[cfg(test)]
-    fn wakeup_after_delay(&self) {
-        self.render_delay_complete.store(true, Ordering::Relaxed);
-        self.event_proxy.send_wakeup_event();
-    }
-
-    #[cfg(not(test))]
     fn wakeup_after_delay(&self) {
         // Spawn a future on the background thread to explicitly send a `Wakeup` event. This is so
         // we can force trigger a re-render for a command that is still running but may not have
         // any output (such as the `read` command).
+        // R18: Timer/executor 经 BlockTimerHost 注入(测试=立即同步,生产=后台延迟)。
         let event_proxy = self.event_proxy.clone();
         let ready_to_render = self.render_delay_complete.clone();
         let delay_ms = match self.state {
@@ -2398,13 +2397,13 @@ impl Block {
             _ => LONG_RUNNING_COMMAND_DURATION_MS,
         };
 
-        self.background_executor
-            .spawn(async move {
-                warpui::r#async::Timer::after(std::time::Duration::from_millis(delay_ms)).await;
+        self.timer_host.after_delay(
+            delay_ms,
+            Box::new(move || {
                 ready_to_render.store(true, Ordering::Relaxed);
                 event_proxy.send_wakeup_event();
-            })
-            .detach();
+            }),
+        );
     }
 
     /// Returns the number of lines from the top of the block given a blocksection

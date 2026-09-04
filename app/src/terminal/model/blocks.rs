@@ -279,7 +279,7 @@ pub struct BlockList {
     warp_prompt_height_lines: f32,
 
     /// Executor used for spawning threads in the background.
-    background_executor: Arc<Background>,
+    timer_host: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
 
     show_warp_bootstrap_block: bool,
 
@@ -507,7 +507,7 @@ impl BlockList {
         restored_blocks: Option<&[SerializedBlockListItem]>,
         sizes: BlockSize,
         event_proxy: ChannelEventListener,
-        background_executor: Arc<Background>,
+        timer_host: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
         show_warp_bootstrap_input: bool,
         show_in_band_command_blocks: bool,
         show_memory_stats: bool,
@@ -519,7 +519,7 @@ impl BlockList {
         let mut block_list = Self::new_internal(
             sizes,
             event_proxy,
-            background_executor,
+            timer_host,
             show_warp_bootstrap_input,
             show_in_band_command_blocks,
             show_memory_stats,
@@ -556,7 +556,7 @@ impl BlockList {
     fn new_internal(
         sizes: BlockSize,
         event_proxy: ChannelEventListener,
-        background_executor: Arc<Background>,
+        timer_host: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
         show_warp_bootstrap_input: bool,
         show_in_band_command_blocks: bool,
         show_memory_stats: bool,
@@ -583,7 +583,7 @@ impl BlockList {
             bootstrap_stage,
             padding: sizes.block_padding,
             warp_prompt_height_lines: sizes.warp_prompt_height_lines,
-            background_executor,
+            timer_host,
             show_warp_bootstrap_block: show_warp_bootstrap_input,
             show_in_band_command_blocks,
             show_memory_stats,
@@ -2544,7 +2544,7 @@ impl BlockList {
             block_id,
             self.block_size(),
             self.event_proxy.clone(),
-            self.background_executor.clone(),
+            self.timer_host.clone(),
             bootstrap_stage,
             self.show_warp_bootstrap_block,
             self.show_in_band_command_blocks,
@@ -2598,7 +2598,7 @@ impl BlockList {
             BlockId::new(),
             self.block_size(),
             self.event_proxy.clone(),
-            self.background_executor.clone(),
+            self.timer_host.clone(),
             self.bootstrap_stage,
             self.show_warp_bootstrap_block,
             self.show_in_band_command_blocks,

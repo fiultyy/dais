@@ -62,7 +62,7 @@ pub fn terminal_model_for_viewer(event_proxy: ChannelEventListener) -> TerminalM
         block_size(),
         List::from(&dark_theme().into()),
         event_proxy,
-        Arc::new(Background::default()),
+        std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
         false, /* show_memory_stats */
         false, /* honor_ps1 */
         false, /* is_inverted */

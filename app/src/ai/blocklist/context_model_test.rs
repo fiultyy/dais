@@ -47,7 +47,7 @@ fn build_test_context_model(app: &mut App) -> ModelHandle<BlocklistAIContextMode
         block_size(),
         color::List::from(&Colors::default()),
         ChannelEventListener::new_for_test(),
-        Arc::new(Background::default()),
+        std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
         false, /* should_show_bootstrap_block */
         None,  /* restored_blocks */
         false, /* honor_ps1 */

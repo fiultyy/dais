@@ -109,7 +109,9 @@ pub(super) fn create_terminal_model(
         sizes,
         terminal_colors_list(ctx),
         channel_event_proxy,
-        ctx.background_executor().clone(),
+        std::sync::Arc::new(crate::terminal::event_listener::TokioBlockTimerHost(
+            ctx.background_executor().clone(),
+        )),
         should_show_bootstrap_block,
         should_show_in_band_command_blocks,
         show_memory_stats,

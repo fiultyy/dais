@@ -79,7 +79,7 @@ impl TerminalView {
             sizes,
             colors,
             event_proxy,
-            ctx.background_executor().clone(),
+            std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
             false,
             restored_blocks,
             false, /* honor_ps1 */

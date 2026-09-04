@@ -8,6 +8,7 @@ pub mod agent_view;
 pub mod ansi;
 pub mod banner_types;
 pub mod block_events;
+pub mod block_host;
 pub mod block_filter;
 pub mod block_serialized;
 pub mod block_heights;

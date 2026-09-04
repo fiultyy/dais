@@ -164,3 +164,18 @@ pub fn host_determine_secret_level(plaintext: &str) -> crate::terminal::model::s
         .max_by_key(|level| level.priority())
         .unwrap_or(crate::terminal::model::secrets::SecretLevel::User)
 }
+
+/// R18: BlockTimerHost 生产装配(warpui Background+Timer)。
+pub struct TokioBlockTimerHost(pub std::sync::Arc<warpui::r#async::executor::Background>);
+
+impl terminal_grid_model::block_host::BlockTimerHost for TokioBlockTimerHost {
+    fn after_delay(&self, delay_ms: u64, f: Box<dyn FnOnce() + Send>) {
+        use warpui::r#async::Timer;
+        let bg = self.0.clone();
+        bg.spawn(async move {
+            Timer::after(std::time::Duration::from_millis(delay_ms)).await;
+            f();
+        })
+        .detach();
+    }
+}
