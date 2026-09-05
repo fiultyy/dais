@@ -6,7 +6,7 @@ use string_offset::CharOffset;
 
 use crate::safe_debug;
 use crate::terminal::view::CONTROL_MASTER_ERROR_REGEX;
-use crate::terminal::{event::Event as TerminalEvent, event_listener::ChannelEventListener};
+
 
 use super::ansi;
 use super::block::Block;
@@ -63,14 +63,15 @@ pub struct EarlyOutput {
 
     /// The event proxy sends terminal events (in this case, typeahead), to the
     /// terminal view.
-    event_proxy: ChannelEventListener,
+    /// R25: 发射点统一走 GridEventSink 缝。
+    event_sink: std::sync::Arc<dyn terminal_grid_model::grid::GridEventSink>,
     pending_background_block: Option<Block>,
 }
 
 impl EarlyOutput {
     /// Creates a new `EarlyOutput` model. The event proxy is used to notify
     /// the terminal view about new typeahead.
-    pub fn new(event_proxy: ChannelEventListener) -> Self {
+    pub fn new(event_sink: std::sync::Arc<dyn terminal_grid_model::grid::GridEventSink>) -> Self {
         Self {
             // Default to InputMatching as a baseline for all shells.
             mode: TypeaheadMode::InputMatching,
@@ -78,7 +79,7 @@ impl EarlyOutput {
             typeahead_chars_inserted: 0.into(),
             unmatched_input: VecDeque::new(),
             just_matched_carriage_return: false,
-            event_proxy,
+            event_sink,
             pending_background_block: None,
         }
     }
@@ -157,8 +158,7 @@ impl EarlyOutput {
                 );
             }
 
-            self.event_proxy
-                .send_terminal_event(TerminalEvent::Typeahead);
+            self.event_sink.send_typeahead();
         }
         is_typeahead
     }
@@ -346,7 +346,7 @@ impl ansi::Handler for EarlyOutputHandler<'_> {
                     me.typeahead
                 );
             }
-            me.event_proxy.send_terminal_event(TerminalEvent::Typeahead);
+            me.event_sink.send_typeahead();
             safe_debug!(
                 safe: ("Received shell input buffer for typeahead"),
                 full: ("Received shell input buffer for typeahead: {:?}", me.typeahead)
@@ -388,9 +388,7 @@ impl ansi::Handler for EarlyOutputHandler<'_> {
                     .output_grid()
                     .contents_to_string(false /* include_escape_sequences */, Some(1));
                 if CONTROL_MASTER_ERROR_REGEX.is_match(&last_line) {
-                    self.inner()
-                        .event_proxy
-                        .send_terminal_event(TerminalEvent::SSHControlMasterError);
+                    self.inner().event_sink.send_ssh_control_master_error();
                 }
             }
 

@@ -127,7 +127,9 @@ impl<'a> TestBlockListBuilder<'a> {
         let mut block_list = BlockList::new(
             self.restored_blocks,
             self.block_sizes,
-            self.channel_event_proxy,
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                self.channel_event_proxy.clone(),
+            )),
             std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
             false, /* show_warp_bootstrap_input */
             false, /* show_warp_bootstrap_input */

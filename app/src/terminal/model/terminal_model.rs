@@ -585,7 +585,9 @@ impl TerminalModel {
         let block_list = BlockList::new(
             restored_blocks,
             sizes,
-            event_proxy.clone(),
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                event_proxy.clone(),
+            )),
             background_executor,
             should_show_bootstrap_block,
             should_show_in_band_command_blocks,

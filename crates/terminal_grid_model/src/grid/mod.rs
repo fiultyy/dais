@@ -100,6 +100,19 @@ pub trait GridEventSink: Send + Sync + 'static {
     fn send_wakeup_for_render(&self);
     /// R22: agent 被@状态变化(app 映射 TerminalEvent::AgentTaggedInChanged)。
     fn send_agent_tagged_in_changed(&self, is_tagged_in: bool);
+    // ---- R25: BlockList 发射点 4 法(E 半) ----
+    /// 清屏(app 映射 TerminalEvent::TerminalClear)。
+    fn send_terminal_clear(&self);
+    /// 后台 block 开始(app 映射 TerminalEvent::BackgroundBlockStarted)。
+    fn send_background_block_started(&self);
+    /// block 完成后(app 映射 TerminalEvent::AfterBlockCompleted)。
+    fn send_after_block_completed(&self, event: crate::block_events::AfterBlockCompletedEvent);
+    /// bootstrap precmd 完成(app 映射 TerminalEvent::BootstrapPrecmdDone)。
+    fn send_bootstrap_precmd_done(&self);
+    /// R25-F 前置: typeahead 提示(app 映射 TerminalEvent::Typeahead)。
+    fn send_typeahead(&self);
+    /// R25-F 前置: SSH ControlMaster 错误(app 映射 TerminalEvent::SSHControlMasterError)。
+    fn send_ssh_control_master_error(&self);
 }
 
 /// clipboard 回读回调: 入参为系统剪贴板文本,返回需写回 pty 的响应串。
@@ -130,6 +143,12 @@ impl GridEventSink for NoopEventSink {
     fn send_after_block_started(&self, _event: crate::block_events::AfterBlockStartedEvent) {}
     fn send_wakeup_for_render(&self) {}
     fn send_agent_tagged_in_changed(&self, _is_tagged_in: bool) {}
+    fn send_terminal_clear(&self) {}
+    fn send_background_block_started(&self) {}
+    fn send_after_block_completed(&self, _event: crate::block_events::AfterBlockCompletedEvent) {}
+    fn send_bootstrap_precmd_done(&self) {}
+    fn send_typeahead(&self) {}
+    fn send_ssh_control_master_error(&self) {}
 }
 
 /// R10 缝: 富内容 secret 检测策略(app ai::blocklist),构造注入。

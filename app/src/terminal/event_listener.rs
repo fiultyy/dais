@@ -88,6 +88,31 @@ pub use testing::*;
 pub struct GridEventSinkAdapter(pub ChannelEventListener);
 
 impl terminal_grid_model::grid::GridEventSink for GridEventSinkAdapter {
+    fn send_terminal_clear(&self) {
+        self.0.send_terminal_event(TerminalEvent::TerminalClear);
+    }
+    fn send_background_block_started(&self) {
+        self.0
+            .send_terminal_event(TerminalEvent::BackgroundBlockStarted);
+    }
+    fn send_after_block_completed(
+        &self,
+        event: terminal_grid_model::block_events::AfterBlockCompletedEvent,
+    ) {
+        self.0
+            .send_terminal_event(TerminalEvent::AfterBlockCompleted(event));
+    }
+    fn send_bootstrap_precmd_done(&self) {
+        self.0
+            .send_terminal_event(TerminalEvent::BootstrapPrecmdDone);
+    }
+    fn send_ssh_control_master_error(&self) {
+        self.0
+            .send_terminal_event(TerminalEvent::SSHControlMasterError);
+    }
+    fn send_typeahead(&self) {
+        self.0.send_terminal_event(TerminalEvent::Typeahead);
+    }
     fn send_agent_tagged_in_changed(&self, is_tagged_in: bool) {
         self.0
             .send_terminal_event(TerminalEvent::AgentTaggedInChanged { is_tagged_in });

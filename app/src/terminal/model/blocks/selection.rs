@@ -858,8 +858,7 @@ impl BlockList {
 
     pub fn clear_selection(&mut self) {
         self.selection = None;
-        self.event_proxy
-            .send_terminal_event(TerminalEvent::TextSelectionChanged);
+        self.event_sink.send_text_selection_changed();
     }
 
     pub fn set_smart_select_override(
@@ -1149,8 +1148,7 @@ impl BlockList {
 
     fn set_selection(&mut self, value: BlockListSelection) {
         self.selection = Some(value);
-        self.event_proxy
-            .send_terminal_event(TerminalEvent::TextSelectionChanged);
+        self.event_sink.send_text_selection_changed();
     }
 
     /// Return the list of corresponding rich content block view ids contained in the active

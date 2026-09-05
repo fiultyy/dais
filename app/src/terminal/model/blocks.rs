@@ -262,7 +262,8 @@ pub struct BlockList {
     max_grid_size_limit: usize,
 
     /// The event proxy that proxies terminal events (such as wakeups) to the view.
-    event_proxy: ChannelEventListener,
+    /// R25: 发射点统一走 GridEventSink 缝。
+    event_sink: std::sync::Arc<dyn terminal_grid_model::grid::GridEventSink>,
 
     /// The current block list selection.
     /// Do not set this value directly - use [`Self::set_selection`] and [`Self::clear_selection`] instead.
@@ -506,7 +507,7 @@ impl BlockList {
     pub fn new(
         restored_blocks: Option<&[SerializedBlockListItem]>,
         sizes: BlockSize,
-        event_proxy: ChannelEventListener,
+        event_sink: std::sync::Arc<dyn terminal_grid_model::grid::GridEventSink>,
         timer_host: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
         show_warp_bootstrap_input: bool,
         show_in_band_command_blocks: bool,
@@ -518,7 +519,7 @@ impl BlockList {
     ) -> Self {
         let mut block_list = Self::new_internal(
             sizes,
-            event_proxy,
+            event_sink.clone(),
             timer_host,
             show_warp_bootstrap_input,
             show_in_band_command_blocks,
@@ -555,7 +556,7 @@ impl BlockList {
     #[allow(clippy::too_many_arguments)]
     fn new_internal(
         sizes: BlockSize,
-        event_proxy: ChannelEventListener,
+        event_sink: std::sync::Arc<dyn terminal_grid_model::grid::GridEventSink>,
         timer_host: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
         show_warp_bootstrap_input: bool,
         show_in_band_command_blocks: bool,
@@ -577,7 +578,7 @@ impl BlockList {
             size: sizes.size,
             next_gap_height_in_lines: None,
             max_grid_size_limit: sizes.max_block_scroll_limit,
-            event_proxy: event_proxy.clone(),
+            event_sink: event_sink.clone(),
             selection: None,
             smart_select_override: None,
             bootstrap_stage,
@@ -591,7 +592,7 @@ impl BlockList {
             is_restored_session: false,
             restored_session_ts: None,
             latest_block_finished_time: None,
-            early_output: EarlyOutput::new(event_proxy),
+            early_output: EarlyOutput::new(event_sink.clone()),
             in_flight_in_band_command_count: 0,
             pending_clear_visible_screen: false,
             last_populated_precmd_payload: None,
@@ -922,7 +923,7 @@ impl BlockList {
                 .push(BlockHeightItem::Block(active_block_height));
         }
 
-        self.event_proxy.send_terminal_event(TerminalClear);
+        self.event_sink.send_terminal_clear();
     }
 
     #[cfg(feature = "local_fs")]
@@ -1108,7 +1109,7 @@ impl BlockList {
         );
 
         // Force a re-draw since the blocklist has changed.
-        self.event_proxy.send_wakeup_event();
+        self.event_sink.send_wakeup_for_render();
 
         inserted_index
     }
@@ -1156,7 +1157,7 @@ impl BlockList {
             new_tree
         };
 
-        self.event_proxy.send_wakeup_event();
+        self.event_sink.send_wakeup_for_render();
     }
 
     /// Marks the rich content item with the given view ID as needing its height
@@ -1198,7 +1199,7 @@ impl BlockList {
             self.update_block_height_indices(BlockHeightUpdate::Removal(index), true);
 
             // Force a re-draw since the blocklist has changed.
-            self.event_proxy.send_wakeup_event();
+            self.event_sink.send_wakeup_for_render();
         }
     }
 
@@ -1314,7 +1315,7 @@ impl BlockList {
         );
 
         // Force a re-draw since the blocklist has changed.
-        self.event_proxy.send_wakeup_event();
+        self.event_sink.send_wakeup_for_render();
 
         inserted_index
     }
@@ -1326,7 +1327,7 @@ impl BlockList {
             let is_visible = !block.toggle_hidden();
 
             // Force a re-draw since the blocklist has changed.
-            self.event_proxy.send_wakeup_event();
+            self.event_sink.send_wakeup_for_render();
             return Some(is_visible);
         }
         None
@@ -1337,7 +1338,7 @@ impl BlockList {
             block.unhide();
 
             // Force a re-draw since the blocklist has changed.
-            self.event_proxy.send_wakeup_event();
+            self.event_sink.send_wakeup_for_render();
         }
     }
 
@@ -1488,7 +1489,7 @@ impl BlockList {
         }
 
         // Force a re-draw since the blocklist has changed.
-        self.event_proxy.send_wakeup_event();
+        self.event_sink.send_wakeup_for_render();
     }
 
     /// Gets the active background block, if one exists.
@@ -2543,9 +2544,7 @@ impl BlockList {
         let mut block = Block::new(
             block_id,
             self.block_size(),
-            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
-                self.event_proxy.clone(),
-            )),
+            self.event_sink.clone(),
             crate::terminal::event_listener::host_determine_secret_level,
             self.timer_host.clone(),
             bootstrap_stage,
@@ -2600,9 +2599,7 @@ impl BlockList {
         Block::new(
             BlockId::new(),
             self.block_size(),
-            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
-                self.event_proxy.clone(),
-            )),
+            self.event_sink.clone(),
             crate::terminal::event_listener::host_determine_secret_level,
             self.timer_host.clone(),
             self.bootstrap_stage,
@@ -2766,8 +2763,8 @@ impl BlockList {
         };
         self.update_live_block_height(background_block_index);
 
-        self.event_proxy
-            .send_terminal_event(TerminalEvent::BackgroundBlockStarted);
+        self.event_sink
+            .send_background_block_started();
     }
 
     /// Initializes a [`BlockSize`] for a new block
@@ -2996,8 +2993,8 @@ impl BlockList {
         self.active_block_mut().finish(block.exit_code);
         self.update_active_block_height();
 
-        self.event_proxy
-            .send_terminal_event(AfterBlockCompleted(AfterBlockCompletedEvent {
+        self.event_sink
+            .send_after_block_completed(AfterBlockCompletedEvent {
                 command_finished_to_precmd_delay: None,
                 block_type: BlockType::Restored,
                 num_secrets_obfuscated: self.active_block().num_secrets_obfuscated(),
@@ -3005,7 +3002,7 @@ impl BlockList {
                 // We don't track if a restored block was a cloud workflow execution.
                 cloud_workflow_id: None,
                 cloud_env_var_collection_id: None,
-            }));
+            });
 
         // Set the completed_ts to the saved completed_ts _after_ `finish`ing the block (which would have set its own completed_ts).
         self.active_block_mut().override_completed_ts(completed_ts);
@@ -3065,15 +3062,15 @@ impl BlockList {
     /// session restoration or a bootstrapping block).
     fn send_after_block_completed_event(&self, finished_block: &Block, delay: Option<Duration>) {
         let block_type = finished_block.into();
-        self.event_proxy
-            .send_terminal_event(AfterBlockCompleted(AfterBlockCompletedEvent {
+        self.event_sink
+            .send_after_block_completed(AfterBlockCompletedEvent {
                 command_finished_to_precmd_delay: delay,
                 block_type,
                 num_secrets_obfuscated: finished_block.num_secrets_obfuscated(),
                 exit_code: finished_block.exit_code().value(),
                 cloud_workflow_id: finished_block.cloud_workflow_state(),
                 cloud_env_var_collection_id: finished_block.cloud_env_var_collection_state(),
-            }));
+            });
     }
 
     /// Finish the active background output block, if there is one. This also
@@ -3094,8 +3091,7 @@ impl BlockList {
                 // This is similar to send_after_block_completed_event, but we can't
                 // call it because background_block mutably borrows self.
                 let block_type = background_block.into();
-                self.event_proxy.send_terminal_event(AfterBlockCompleted(
-                    AfterBlockCompletedEvent {
+                self.event_sink.send_after_block_completed(AfterBlockCompletedEvent {
                         command_finished_to_precmd_delay: None,
                         block_type,
                         num_secrets_obfuscated: num_secrets_obfuscated.unwrap_or_default(),
@@ -3103,8 +3099,7 @@ impl BlockList {
                         // Background blocks are not tracked as cloud workflow executions.
                         cloud_workflow_id: None,
                         cloud_env_var_collection_id: None,
-                    },
-                ));
+                    });
             }
 
             // Now that the block is no longer active, its height may have changed.
@@ -3307,7 +3302,7 @@ impl BlockList {
 
         self.removable_blocklist_item_positions
             .insert(RemovableBlocklistItem::RichContent(view_id), inserted_index);
-        self.event_proxy.send_wakeup_event();
+        self.event_sink.send_wakeup_for_render();
 
         true
     }
@@ -3768,8 +3763,8 @@ impl ansi::Handler for BlockList {
         if let Some(previous_block) = previous_block {
             self.send_after_block_completed_event(previous_block, block_finished_to_precmd_delay);
         } else {
-            self.event_proxy
-                .send_terminal_event(TerminalEvent::BootstrapPrecmdDone);
+            self.event_sink
+                .send_bootstrap_precmd_done();
         }
 
         // 如果之前 Ctrl+L 被延迟了 (active block 当时 prompt 还没到),现在远端
