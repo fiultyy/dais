@@ -23,6 +23,9 @@ regex-automata.workspace = true
 ordered-float.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+dirs.workspace = true
+pathfinder_color.workspace = true
+warp_completer.workspace = true
 settings_value.workspace = true
 schemars.workspace = true
 objects = { path = "../objects" }

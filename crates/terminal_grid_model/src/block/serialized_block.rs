@@ -1,4 +1,4 @@
-//! R17: SerializedBlock 数据面半下沉 terminal_grid_model::block_serialized。
+//! R17: SerializedBlock 数据面半下沉 crate::block_serialized。
 //! 留守件: SerializedAIMetadata(依赖 app ai cli_controller 类型)、
 //! From<&Block>(依赖 15 个 app Block 输出方法)、
 //! persistence 转换经扩展 trait(孤儿规则)。
@@ -15,15 +15,12 @@ fn skip_hide_when_true(value: &bool) -> bool {
 }
 
 
-use crate::terminal::model::block::{
-    AgentInteractionMetadata, AgentViewVisibility, Block, BlockState, PromptInfo,
-    MAX_SERIALIZED_STYLIZED_OUTPUT_LINES,
-};
-use crate::util::extensions::TrimStringExt as _;
+use crate::interaction::LongRunningCommandControlState;
 use agent_ids::{AIAgentActionId, AIConversationId, TaskId};
-use crate::ai::blocklist::block::cli_controller::LongRunningCommandControlState;
 
-pub use terminal_grid_model::block_serialized::{
+use super::{AgentInteractionMetadata, AgentViewVisibility, Block, BlockState, PromptInfo, MAX_SERIALIZED_STYLIZED_OUTPUT_LINES};
+
+pub use crate::block_serialized::{
     SerializedAgentViewVisibility, SerializedBlock, SerializedBlockListItem, ShellHost,
 };
 
@@ -97,7 +94,9 @@ impl From<&Block> for SerializedBlock {
             // newline will cause the Grid::max_cursor::column to go to 0. That is a problem b/c we
             // assume that the Grid::max_cursor::column is the length of the rprompt, and that
             // value is used to calculate the left-alignment position when painting the block.
-            grid_content.trim_trailing_newline();
+            while grid_content.ends_with('\n') || grid_content.ends_with('\r') {
+                grid_content.pop();
+            }
             hex::encode(grid_content)
         });
         let prompt_snapshot = block
@@ -198,61 +197,3 @@ impl From<SerializedAgentViewVisibility> for AgentViewVisibility {
         }
     }
 }
-
-/// R17: persistence 转换(app 扩展 trait;From impl 因孤儿规则不可用)。
-pub trait SerializedBlockFromPersisted {
-    fn from_persisted(value: crate::persistence::model::Block) -> Self;
-}
-
-impl SerializedBlockFromPersisted for SerializedBlock {
-    fn from_persisted(block: crate::persistence::model::Block) -> Self {
-        let exit_code = ExitCode::from(block.exit_code);
-        Self {
-            shell_host: crate::terminal::history::try_from_persisted_block(&block),
-            id: block.block_id.into(),
-            stylized_command: block.stylized_command,
-            stylized_output: block.stylized_output,
-            pwd: block.pwd,
-            git_head: block.git_branch,
-            git_branch_name: block.git_branch_name,
-            virtual_env: block.virtual_env,
-            conda_env: block.conda_env,
-            node_version: None, // Database does not store node_version yet
-            exit_code,
-            did_execute: block.did_execute,
-            completed_ts: block
-                .completed_ts
-                .map(|naive_ts| Local.from_utc_datetime(&naive_ts)),
-            start_ts: block
-                .start_ts
-                .map(|naive_ts| Local.from_utc_datetime(&naive_ts)),
-            ps1: block.ps1,
-            rprompt: block.rprompt,
-            honor_ps1: block.honor_ps1,
-            session_id: None,
-            is_background: block.is_background,
-            prompt_snapshot: block.prompt_snapshot,
-            ai_metadata: block.ai_metadata,
-            is_local: block.is_local,
-            agent_view_visibility: block
-                .agent_view_visibility
-                .and_then(|json| serde_json::from_str(&json).ok()),
-        }
-    }
-}
-
-pub trait SerializedBlockListItemFromPersisted {
-    fn from_persisted(value: crate::persistence::model::Block) -> Self;
-}
-
-impl SerializedBlockListItemFromPersisted for SerializedBlockListItem {
-    fn from_persisted(value: crate::persistence::model::Block) -> Self {
-        Self::Command {
-            block: Box::new(SerializedBlock::from_persisted(value)),
-        }
-    }
-}
-
-#[cfg(test)]
-#[path = "serialized_block_tests.rs"]
-mod tests;

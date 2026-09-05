@@ -1,3 +1,4 @@
+use agent_ids::TaskId;
 use super::*;
 
 /// Serialized block JSON with byte fields encoded as base64 strings, as produced by `to_json`.

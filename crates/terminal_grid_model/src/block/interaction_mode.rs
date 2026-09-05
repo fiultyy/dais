@@ -1,10 +1,11 @@
 use anyhow::anyhow;
 use warp_terminal::model::{grid::Dimensions, Point};
 
-use crate::{
-    ai::{ agent::{conversation::AIConversationId, task::TaskId, AIAgentActionId} },
-    terminal::{ event::Event, model::{ grid::{grid_handler::GridHandler, RespectDisplayedOutput}, RespectObfuscatedSecrets, }, },
-};
+use agent_ids::{AIAgentActionId, AIConversationId, TaskId};
+
+use crate::grid::grid_handler::GridHandler;
+use crate::grid::RespectDisplayedOutput;
+use crate::secrets::RespectObfuscatedSecrets;
 
 use super::{Block, SerializedAIMetadata};
 
@@ -277,8 +278,8 @@ impl Block {
         }
     }
 }
-// R23: InteractionMode 类型族提升 terminal_grid_model::interaction;本文件仅存 Block 交互方法。
-pub use terminal_grid_model::interaction::{
+// R23: InteractionMode 类型族提升 crate::interaction;本文件仅存 Block 交互方法。
+pub use crate::interaction::{
     AgentInteractionMetadata, InteractionMode, LongRunningCommandControlState,
     UpdateInteractionModeError, UserMode, UserTakeOverReason,
 };

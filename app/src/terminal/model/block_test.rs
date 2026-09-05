@@ -1,6 +1,24 @@
 use std::{collections::HashMap, pin::pin, time::Duration};
 
 use super::*;
+// R24: Block 迁移后 super::* 显式化补引。
+use agent_ids::AIConversationId;
+use warp_terminal::model::BlockIndex;
+use terminal_grid_model::block_events::BlockType;
+use terminal_grid_model::bootstrap::BootstrapStage;
+use crate::terminal::event::Event;
+use crate::terminal::event_listener::ChannelEventListener;
+use terminal_model::index::Point;
+use terminal_grid_model::grid::RespectDisplayedOutput;
+use terminal_grid_model::secrets::RespectObfuscatedSecrets;
+use terminal_grid_model::SizeInfo;
+use terminal_grid_model::block::calculate_optimal_row_counts;
+
+use terminal_grid_model::ansi::{self, PrecmdValue, PreexecValue};
+use terminal_grid_model::ansi::Handler as _;
+use warpui::units::{Lines, IntoLines as _};
+use terminal_grid_model::block::BlockState;
+use terminal_grid_model::block_serialized::SerializedBlock;
 use super::super::session::Sessions;
 use crate::{
     ai::blocklist::agent_view::AgentViewState,
@@ -10,29 +28,7 @@ use crate::{
 use float_cmp::assert_approx_eq;
 use futures_lite::stream::StreamExt;
 
-impl float_cmp::ApproxEq for BlockSection {
-    type Margin = float_cmp::F64Margin;
-
-    fn approx_eq<M: Into<Self::Margin>>(self, other: Self, margin: M) -> bool {
-        // Use a minimum epsilon value of 3 * the smallest value that can be
-        // represented in an f64.  This allows for a very small (but non-zero)
-        // amount of _accumulated_ floating-point error.
-        let mut margin: Self::Margin = margin.into();
-        if margin.epsilon < f64::EPSILON * 3. {
-            margin = margin.epsilon(f64::EPSILON * 3.);
-        }
-
-        match (self, other) {
-            (BlockSection::PromptAndCommandGrid(r1), BlockSection::PromptAndCommandGrid(r2)) => {
-                r1.approx_eq(r2, margin)
-            }
-            (BlockSection::OutputGrid(r1), BlockSection::OutputGrid(r2)) => {
-                r1.approx_eq(r2, margin)
-            }
-            (a, b) => std::mem::discriminant(&a) == std::mem::discriminant(&b),
-        }
-    }
-}
+// R24: ApproxEq for BlockSection(现为 crate 类型)随 Block 迁 crate test-support。
 
 #[test]
 pub fn test_find() {
