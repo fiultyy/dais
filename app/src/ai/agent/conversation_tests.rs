@@ -14,7 +14,7 @@ use crate::ai::byop_readiness::{
 };
 use crate::persistence::model::AgentConversationData;
 use crate::persistence::ModelEvent;
-use crate::terminal::model::block::{
+use terminal_grid_model::block::{
     AgentInteractionMetadata, AgentViewVisibility, SerializedAIMetadata, SerializedBlock,
 };
 use crate::terminal::model::BlockId;

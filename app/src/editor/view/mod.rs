@@ -72,7 +72,7 @@ use crate::settings::{
     AppEditorSettingsChangedEvent, CursorDisplayType, InputSettings, SelectionSettings,
 };
 use crate::terminal::grid_size_util::grid_cell_dimensions;
-use crate::terminal::model::block::BlockId;
+use terminal_grid_model::block::BlockId;
 use crate::themes::theme::Fill;
 use crate::ui_components::avatar::{Avatar, AvatarContent};
 use crate::util::bindings::{cmd_or_ctrl_shift, keybinding_name_to_keystroke, CustomAction};

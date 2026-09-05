@@ -54,12 +54,13 @@ use crate::terminal::session_settings::AgentToolbarChipSelection;
 use crate::view_components::find::FindWithinBlockState;
 
 use crate::persistence::model::AgentConversationData;
-use crate::terminal::model::ansi::{self, InitShellValue};
-use crate::terminal::model::ansi::{BootstrappedValue, PreexecValue};
-use crate::terminal::model::block::{
+use terminal_grid_model::ansi::{self, InitShellValue};
+use terminal_grid_model::ansi::{BootstrappedValue, PreexecValue};
+use terminal_grid_model::block::{
     AgentInteractionMetadata, AgentViewVisibility, BlockId, SerializedAIMetadata, SerializedBlock,
 };
-use crate::terminal::model::blocks::{insert_block, TotalIndex};
+use terminal_grid_model::block::blocks::TotalIndex;
+use crate::terminal::model::blocks::insert_block;
 use crate::terminal::model::terminal_model::WithinBlock;
 use crate::terminal::view::load_ai_conversation::RestoredAIConversation;
 use crate::test_util::ai_agent_tasks::{
@@ -1194,7 +1195,7 @@ fn test_clear_session_flag_state() {
     use warp_terminal::shell::ShellType;
 
     use crate::ai::blocklist::SerializedBlockListItem;
-    use crate::terminal::model::block::SerializedBlock;
+    use terminal_grid_model::block::SerializedBlock;
     use crate::terminal::ShellHost;
 
     App::test((), |mut app| async move {

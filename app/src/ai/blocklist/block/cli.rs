@@ -60,7 +60,7 @@ use crate::send_telemetry_from_ctx;
 use crate::server::telemetry::TelemetryEvent;
 use crate::settings::{AISettings, SelectionSettings};
 use crate::terminal::input::SET_INPUT_MODE_TERMINAL_ACTION_NAME;
-use crate::terminal::model::block::{AgentInteractionMetadata, BlockId};
+use terminal_grid_model::block::{AgentInteractionMetadata, BlockId};
 use crate::terminal::{ShellLaunchData, TerminalModel};
 use crate::view_components::DismissibleToast;
 use crate::workspace::WorkspaceAction;

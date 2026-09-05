@@ -1,6 +1,6 @@
 use warp_util::path::user_friendly_path;
 
-use crate::terminal::model::block::Block;
+use terminal_grid_model::block::Block;
 use crate::terminal::model::session::Sessions;
 
 use super::model::session::SessionType;

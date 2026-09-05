@@ -99,7 +99,7 @@ struct ServerTask {
 }
 
 mod optimistic {
-    use crate::terminal::model::block::BlockId;
+    use terminal_grid_model::block::BlockId;
 
     #[derive(Debug, Clone)]
     pub(super) struct CLIAgentSubtask {

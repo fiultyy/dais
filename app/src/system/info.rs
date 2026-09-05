@@ -478,7 +478,7 @@ impl MemoryUsageStats {
     fn add_blocks<'a>(
         &mut self,
         now: DateTime<Local>,
-        blocks: impl Iterator<Item = &'a crate::terminal::model::block::Block>,
+        blocks: impl Iterator<Item = &'a terminal_grid_model::block::Block>,
     ) {
         // We compute block-related memory stats across various intervals.
         // "Activity" refers to how recently the block was painted.

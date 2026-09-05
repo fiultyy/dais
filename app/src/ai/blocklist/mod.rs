@@ -52,7 +52,7 @@ pub(crate) use passive_suggestions::{
 #[cfg_attr(target_family = "wasm", allow(unused))]
 pub(crate) use persistence::PersistedAIInputType;
 pub(crate) use persistence::PersistedAIInput;
-pub use crate::terminal::model::block::SerializedBlockListItem;
+pub use terminal_grid_model::block::SerializedBlockListItem;
 pub(crate) use view_util::{
     ai_brand_color, ai_indicator_height, get_ai_block_overflow_menu_element_position_id,
     get_attached_blocks_chip_element_position_id, render_ai_agent_mode_icon,

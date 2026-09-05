@@ -155,7 +155,7 @@ pub struct ButtonProps<'a> {
 pub struct ForceRefreshButtonProps<'a> {
     pub button_handle: &'a MouseStateHandle,
     /// The block the force-refresh should target.
-    pub block_id: crate::terminal::model::block::BlockId,
+    pub block_id: terminal_grid_model::block::BlockId,
 }
 
 pub fn render_warping_indicator<V: View>(

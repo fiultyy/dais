@@ -24,7 +24,7 @@ use crate::ai::blocklist::permissions::CommandExecutionPermission;
 use crate::ai::blocklist::BlocklistAIPermissions;
 use crate::ai::execution_profiles::WriteToPtyPermission;
 use crate::terminal::event::BlockMetadataReceivedEvent;
-use crate::terminal::model::block::{
+use terminal_grid_model::block::{
     formatted_terminal_contents_for_input, Block, BlockId, CURSOR_MARKER,
 };
 use crate::terminal::shell::ShellType;

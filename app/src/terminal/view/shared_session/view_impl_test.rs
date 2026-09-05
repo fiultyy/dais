@@ -6,7 +6,7 @@ use warpui::App;
 use crate::context_chips::prompt_type::PromptType;
 
 use crate::assert_lines_approx_eq;
-use crate::terminal::model::blocks::{ToTotalIndex as _, INLINE_BANNER_HEIGHT};
+use terminal_grid_model::block::blocks::{ToTotalIndex as _, INLINE_BANNER_HEIGHT};
 use crate::terminal::session_settings::SessionSettings;
 use crate::terminal::view::shared_session::test_utils::terminal_view_for_viewer;
 use crate::test_util::add_window_with_terminal;

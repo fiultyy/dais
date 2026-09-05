@@ -14,7 +14,7 @@ use crate::ai::agent::conversation::{
 };
 use crate::ai::agent::task::Task;
 use crate::persistence::model::{AgentConversation, AgentConversationData};
-use crate::terminal::model::block::SerializedBlock;
+use terminal_grid_model::block::SerializedBlock;
 
 #[cfg(feature = "local_fs")]
 use crate::persistence::agent::read_agent_conversation_by_id;

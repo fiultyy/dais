@@ -2,7 +2,7 @@ use crate::ai::agent::task::TaskId;
 use crate::ai::agent::{
     AIAgentActionResult, AIAgentActionResultType, TransferShellCommandControlToUserResult,
 };
-use crate::terminal::model::block::BlockId;
+use terminal_grid_model::block::BlockId;
 use warp_core::command::ExitCode;
 use warp_multi_agent_api as api;
 

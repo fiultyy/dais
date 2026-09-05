@@ -21,10 +21,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::ChipValue;
-use crate::terminal::model::{
-    block::{Block, BlockMetadata},
-    session::{Session, SessionId},
-};
+use crate::terminal::model::session::{Session, SessionId};
+use terminal_grid_model::block::{Block, BlockMetadata};
 
 // R5 路径兼容 shim:纯模型类型面已下沉 crates/context_chips_ui,
 // `crate::context_chips::context_chip::*` 旧路径全部可解析。

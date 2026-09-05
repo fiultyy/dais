@@ -1,6 +1,6 @@
 use super::{display_working_directory, format_session_location};
 use crate::ai::blocklist::agent_view::zero_state_block::current_working_directory_for_zero_state;
-use crate::terminal::model::ansi::{Handler, InitShellValue, PrecmdValue, SSHValue};
+use terminal_grid_model::ansi::{Handler, InitShellValue, PrecmdValue, SSHValue};
 use crate::terminal::model::test_utils::block_size;
 use crate::terminal::model::{session::Session, TerminalModel};
 use crate::terminal::{

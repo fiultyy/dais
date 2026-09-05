@@ -7,7 +7,7 @@ use warpui::text::words::is_default_word_boundary;
 use crate::terminal::model::secrets::{ObfuscateSecrets, SecretLevel};
 use crate::terminal::model::{blockgrid::BlockGrid, secrets::IsObfuscated};
 use crate::terminal::event_listener::ChannelEventListener;
-use crate::terminal::model::ansi::{self, Handler};
+use terminal_grid_model::ansi::{self, Handler};
 use crate::test_util::mock_blockgrid;
 use warp_terminal::model::ansi::{Color, NamedColor};
 

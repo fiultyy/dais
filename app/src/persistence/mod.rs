@@ -45,7 +45,7 @@ use crate::server::experiments::ServerExperiment;
 use objects::ids::SyncId;
 use crate::suggestions::ignored_suggestions_model::SuggestionType;
 use crate::terminal::history::PersistedCommand;
-use crate::terminal::model::block::{SerializedAgentViewVisibility, SerializedBlock};
+use terminal_grid_model::block::{SerializedAgentViewVisibility, SerializedBlock};
 use crate::terminal::model::session::SessionId;
 use crate::workflows::WorkflowObject;
 use crate::workspaces::user_profiles::UserProfileWithUID;

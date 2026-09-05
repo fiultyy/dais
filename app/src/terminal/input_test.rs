@@ -51,9 +51,10 @@ use crate::workspaces::user_workspaces::UserWorkspaces;
 
 use crate::terminal::block_list_viewport::ScrollPosition;
 use crate::terminal::local_tty::shell::ShellStarter;
-use crate::terminal::model::ansi::{Handler, PrecmdValue};
-use crate::terminal::model::block::SerializedBlock;
-use crate::terminal::model::blocks::{insert_block, BlockListPoint};
+use terminal_grid_model::ansi::{Handler, PrecmdValue};
+use terminal_grid_model::block::SerializedBlock;
+use terminal_grid_model::block::blocks::BlockListPoint;
+use crate::terminal::model::blocks::insert_block;
 use crate::terminal::model::grid::Dimensions as _;
 use crate::terminal::model::index::Side;
 use crate::terminal::model::session::{BootstrapSessionType, SessionInfo};

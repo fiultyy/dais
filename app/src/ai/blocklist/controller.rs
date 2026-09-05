@@ -56,7 +56,7 @@ use crate::network::NetworkStatus;
 use crate::notebooks::editor::model::FileLinkResolutionContext;
 use crate::persistence::ModelEvent;
 use crate::search::slash_command_menu::static_commands::commands;
-use crate::terminal::model::block::{
+use terminal_grid_model::block::{
     formatted_terminal_contents_for_input, BlockId, CURSOR_MARKER,
 };
 use crate::terminal::ssh::util::InteractiveSshCommand;

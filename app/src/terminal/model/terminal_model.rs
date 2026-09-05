@@ -7,7 +7,7 @@ use crate::terminal::event::{
     SourcedRcFileInSubshellEvent, SshLoginStatus, TerminalMode,
 };
 use crate::terminal::event_listener::ChannelEventListener;
-use crate::terminal::model::ansi;
+use terminal_grid_model::ansi;
 use crate::terminal::model::bootstrap::BootstrapStage;
 use crate::terminal::model::completions::{
     ShellCompletion, ShellCompletionUpdate, ShellData as CompletionsShellData,
@@ -51,7 +51,7 @@ use super::{
     ansi::BootstrappedValue,
 };
 use super::{tmux, Secret, SecretHandle};
-use crate::terminal::model::ansi::{
+use terminal_grid_model::ansi::{
     ClearValue, CommandFinishedValue, ExitShellValue, InitShellValue, InitSshValue,
     InitSubshellValue, PreInteractiveSSHSessionValue, PrecmdValue, PreexecValue, SSHValue,
     SourcedRcFileForWarpValue,

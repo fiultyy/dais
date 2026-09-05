@@ -1,7 +1,7 @@
 use std::num::NonZeroUsize;
-use crate::terminal::model::ansi::Handler as _;
+use terminal_grid_model::ansi::Handler as _;
 
-use crate::terminal::model::ansi::{self, Handler as _};
+use terminal_grid_model::ansi::{self, Handler as _};
 use crate::terminal::model::grid::grid_handler::GridHandler;
 use crate::terminal::model::index::Point;
 use crate::terminal::model::secrets::ObfuscateSecrets;

@@ -227,7 +227,7 @@ where
 // (模型层不得伸手进 ai View 层;底层 last_non_hidden_rich_content_block_after_block
 // 仍为 BlockList pub 纯模型方法)。
 pub fn last_non_hidden_ai_block_handle(
-    block_list: &crate::terminal::model::blocks::BlockList,
+    block_list: &terminal_grid_model::block::blocks::BlockList,
     app: &warpui::AppContext,
 ) -> Option<warpui::ViewHandle<crate::ai::blocklist::AIBlock>> {
     let rich_content_view_id = block_list
@@ -239,7 +239,7 @@ pub fn last_non_hidden_ai_block_handle(
 }
 
 pub fn has_active_ai_block(
-    block_list: &crate::terminal::model::blocks::BlockList,
+    block_list: &terminal_grid_model::block::blocks::BlockList,
     app: &warpui::AppContext,
 ) -> bool {
     last_non_hidden_ai_block_handle(block_list, app)

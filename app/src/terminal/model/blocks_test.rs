@@ -30,7 +30,7 @@ use crate::ai::agent::AIAgentActionId;
 use crate::ai::blocklist::agent_view::{
     AgentViewDisplayMode, AgentViewEntryOrigin, AgentViewState,
 };
-use crate::terminal::model::block::AgentInteractionMetadata;
+use terminal_grid_model::block::AgentInteractionMetadata;
 use crate::terminal::model::test_utils;
 use crate::terminal::view::{InlineBannerItem, InlineBannerType};
 use crate::terminal::BlockListSettings;

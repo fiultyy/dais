@@ -1,5 +1,5 @@
 use warp_terminal::model::grid::cell::Flags;
-use crate::terminal::model::ansi::Handler as _;
+use terminal_grid_model::ansi::Handler as _;
 
 use crate::{
 

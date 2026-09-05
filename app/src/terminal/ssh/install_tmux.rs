@@ -4,7 +4,7 @@ use crate::ai::blocklist::inline_action::requested_action::{ENTER_KEYSTROKE, ESC
 use crate::ai::blocklist::inline_action::requested_script::{self, RequestedScriptMouseStates};
 use crate::ai::blocklist::inline_action::requested_script::{RequestedScriptStatus, TitledScript};
 use crate::appearance::Appearance;
-use crate::terminal::model::ansi::SystemDetails;
+use terminal_grid_model::ansi::SystemDetails;
 use crate::terminal::model::escape_sequences;
 use crate::terminal::warpify::render;
 use crate::terminal::warpify::settings::WarpifySettings;

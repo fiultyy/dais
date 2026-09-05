@@ -1,6 +1,6 @@
 use crate::auth::UserUid;
-use crate::terminal::model::ansi::{CommandFinishedValue, Handler};
-use crate::terminal::model::blocks::BlockList;
+use terminal_grid_model::ansi::{CommandFinishedValue, Handler};
+use terminal_grid_model::block::blocks::BlockList;
 use crate::terminal::model::test_utils::TestBlockListBuilder;
 use crate::terminal::shared_session::presence_manager::{PresenceManager, PRESET_COLORS};
 

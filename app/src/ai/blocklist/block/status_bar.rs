@@ -1161,7 +1161,7 @@ pub enum BlocklistAIStatusBarAction {
     /// immediately with a fresh snapshot, bypassing its agent-set timer. Dispatched
     /// by the inline `Check now` affordance in the warping indicator.
     ForceRefreshAgentView {
-        block_id: crate::terminal::model::block::BlockId,
+        block_id: terminal_grid_model::block::BlockId,
     },
 }
 

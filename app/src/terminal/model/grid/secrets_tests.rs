@@ -1,5 +1,5 @@
 use regex::Regex;
-use crate::terminal::model::ansi::Handler as _;
+use terminal_grid_model::ansi::Handler as _;
 use serial_test::serial;
 
 use crate::terminal::{

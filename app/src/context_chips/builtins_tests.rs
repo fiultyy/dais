@@ -101,7 +101,7 @@ fn test_remote_sessions() {
 #[test]
 fn test_node_version() {
     use crate::context_chips::context_chip::Environment;
-    use crate::terminal::model::block::BlockMetadata;
+    use terminal_grid_model::block::BlockMetadata;
     use crate::terminal::model::session::Session;
 
     let session = Session::test();

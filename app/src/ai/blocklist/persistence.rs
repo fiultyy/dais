@@ -364,6 +364,6 @@ impl TryFrom<PersistedAIAgentActionType> for AIAgentActionType {
 }
 
 /// The types of "blocks" we can store in our SQLite database for session restoration. Only command
-/// blocks are true [`crate::terminal::model::block::Block`]s.
+/// blocks are true [`terminal_grid_model::block::Block`]s.
 // R16: SerializedBlockListItem 定义提升 terminal::model::block(终端域错放,ai 仅生产)。
-pub use crate::terminal::model::block::SerializedBlockListItem;
+pub use terminal_grid_model::block::SerializedBlockListItem;

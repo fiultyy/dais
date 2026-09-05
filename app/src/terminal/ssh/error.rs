@@ -1,5 +1,5 @@
 use crate::appearance::Appearance;
-use crate::terminal::model::ansi::WarpificationUnavailableReason;
+use terminal_grid_model::ansi::WarpificationUnavailableReason;
 use crate::terminal::warpify;
 use crate::terminal::warpify::render::apply_spacing_styles;
 use crate::terminal::warpify::render::build_description_row;

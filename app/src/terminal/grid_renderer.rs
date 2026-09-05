@@ -4,7 +4,7 @@ mod cell_type;
 use crate::appearance::Appearance;
 use crate::terminal::grid_size_util::calculate_grid_baseline_position;
 use crate::terminal::blockgrid_renderer::BlockGridRenderExt as _;
-use crate::terminal::model::ansi::{Color, CursorShape, CursorStyle};
+use terminal_grid_model::ansi::{Color, CursorShape, CursorStyle};
 use crate::terminal::model::cell::{Cell, Flags};
 use crate::terminal::{color, SizeInfo};
 
