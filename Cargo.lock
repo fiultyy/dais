@@ -13694,6 +13694,7 @@ dependencies = [
  "string-offset",
  "sum_tree",
  "terminal_model",
+ "thiserror 2.0.18",
  "unicode-width 0.1.14",
  "urlocator",
  "vec1",
