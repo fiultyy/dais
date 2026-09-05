@@ -24,7 +24,12 @@ pub use terminal_grid_model::grid::header_grid;
 pub use ::terminal_model::rich_content;
 pub use ::terminal_model::tmux;
 
-pub mod early_output;
+// R25: EarlyOutput 迁移 terminal_grid_model::block::early_output;mod 级 shim。
+pub use terminal_grid_model::block::early_output::*;
+
+#[cfg(test)]
+#[path = "early_output_tests.rs"]
+mod early_output_tests;
 pub use terminal_grid_model::find;
 pub mod grid;
 pub use terminal_grid_model::image_map;

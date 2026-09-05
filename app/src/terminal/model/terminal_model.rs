@@ -588,6 +588,7 @@ impl TerminalModel {
             std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
                 event_proxy.clone(),
             )),
+            crate::terminal::event_listener::host_determine_secret_level,
             background_executor,
             should_show_bootstrap_block,
             should_show_in_band_command_blocks,
@@ -2329,7 +2330,12 @@ impl ansi::Handler for TerminalModel {
 
         self.block_list
             .early_output_mut()
-            .init_session(&fully_populated_session_info);
+            .init_session(
+                fully_populated_session_info
+                    .shell
+                    .input_reporting_sequence()
+                    .is_some(),
+            );
 
         let spawning_command = fully_populated_session_info
             .subshell_info

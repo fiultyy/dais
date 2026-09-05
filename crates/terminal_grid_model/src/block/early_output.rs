@@ -1,23 +1,29 @@
+use regex::Regex;
+
+/// R25: 自 app terminal::view 提升(纯 regex; view 侧原 static 同源)。
+pub static CONTROL_MASTER_ERROR_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?m)^channel (\d)+: open failed:").expect("The regex should compile")
+});
+use once_cell::sync::Lazy;
+
+use crate::grid::GridEventSink;
+use crate::size_info::SizeInfo;
+
 use std::collections::VecDeque;
 use std::mem;
 
 use pathfinder_color::ColorU;
 use string_offset::CharOffset;
 
-use crate::safe_debug;
-use crate::terminal::view::CONTROL_MASTER_ERROR_REGEX;
 
 
-use super::ansi;
-use super::block::Block;
+use crate::ansi;
+use super::Block;
 use super::blocks::BlockList;
-use super::selection::ScrollDelta;
-use super::session::SessionInfo;
+use crate::grid::selection::ScrollDelta;
 use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
 
-#[cfg(test)]
-#[path = "early_output_tests.rs"]
-mod tests;
+use warp_core::safe_debug;
 
 /// The approach we're using to detect user typeahead.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -44,7 +50,7 @@ pub enum TypeaheadMode {
 ///    outside the context of a running block. Additionally, the shell might
 ///    print messages about job completion.
 pub struct EarlyOutput {
-    mode: TypeaheadMode,
+    pub mode: TypeaheadMode,
 
     /// The currently-accumulated typeahead.
     typeahead: String,
@@ -64,14 +70,14 @@ pub struct EarlyOutput {
     /// The event proxy sends terminal events (in this case, typeahead), to the
     /// terminal view.
     /// R25: 发射点统一走 GridEventSink 缝。
-    event_sink: std::sync::Arc<dyn terminal_grid_model::grid::GridEventSink>,
+    event_sink: std::sync::Arc<dyn crate::grid::GridEventSink>,
     pending_background_block: Option<Block>,
 }
 
 impl EarlyOutput {
     /// Creates a new `EarlyOutput` model. The event proxy is used to notify
     /// the terminal view about new typeahead.
-    pub fn new(event_sink: std::sync::Arc<dyn terminal_grid_model::grid::GridEventSink>) -> Self {
+    pub fn new(event_sink: std::sync::Arc<dyn crate::grid::GridEventSink>) -> Self {
         Self {
             // Default to InputMatching as a baseline for all shells.
             mode: TypeaheadMode::InputMatching,
@@ -86,8 +92,8 @@ impl EarlyOutput {
 
     /// Configures the typeahead mode to use given the features that the current
     /// shell session supports.
-    pub fn init_session(&mut self, session_info: &SessionInfo) {
-        let supports_input_reporting = session_info.shell.input_reporting_sequence().is_some();
+    /// R25: SessionInfo(app session 域)参数化——调用方判定 shell 输入上报能力。
+    pub fn init_session(&mut self, supports_input_reporting: bool) {
         self.mode = if supports_input_reporting {
             TypeaheadMode::ShellReported
         } else {
@@ -434,11 +440,11 @@ impl ansi::Handler for EarlyOutputHandler<'_> {
         delegate!(self.set_cursor_shape(shape));
     }
 
-    fn goto(&mut self, row: super::index::VisibleRow, col: usize) {
+    fn goto(&mut self, row: terminal_model::index::VisibleRow, col: usize) {
         delegate!(self.goto(row, col));
     }
 
-    fn goto_line(&mut self, row: super::index::VisibleRow) {
+    fn goto_line(&mut self, row: terminal_model::index::VisibleRow) {
         delegate!(self.goto_line(row));
     }
 

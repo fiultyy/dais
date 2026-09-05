@@ -21,7 +21,7 @@ pub mod secrets;
 pub mod interaction;
 pub mod prompt_snapshot;
 pub mod selected_blocks;
-mod size_info;
+pub mod size_info;
 pub mod text_location;
 
 

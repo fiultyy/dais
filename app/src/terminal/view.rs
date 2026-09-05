@@ -572,9 +572,7 @@ lazy_static! {
 
     // A regex to detect a class of error strings indicating the ControlMaster connection is
     // broken.
-    pub static ref CONTROL_MASTER_ERROR_REGEX: regex::Regex =
-        regex::Regex::new(r"(?m)^channel (\d)+: open failed:")
-        .expect("The regex should compile");
+
 
     /// A regex to detect Unix- or Windows-style line feeds in text.
     pub static ref LINEFEED_REGEX: Regex = Regex::new("\r?\n").expect("should not fail to compile regex");

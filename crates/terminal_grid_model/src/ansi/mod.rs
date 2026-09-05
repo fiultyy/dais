@@ -10,7 +10,7 @@
 //! executing one of Dais's DCS hooks, etc. [`Handler`] should be implemented by
 //! an app-level model that updates the terminal's state accordingly.
 mod ansi_c_decoder;
-mod dcs_hooks;
+pub mod dcs_hooks;
 mod handler;
 
 use ansi_c_decoder::*;

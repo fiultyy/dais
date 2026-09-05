@@ -44,7 +44,7 @@ fn new_block_list(event_proxy: ChannelEventListener, mode: TypeaheadMode) -> Blo
     .merge_from_bootstrapped_value(bootstrapped_value.clone(), false);
 
     block_list.bootstrapped(bootstrapped_value);
-    block_list.early_output_mut().init_session(&session_info);
+    block_list.early_output_mut().init_session(session_info.shell.input_reporting_sequence().is_some());
     assert_eq!(block_list.early_output_mut().mode, mode);
 
     block_list.command_finished(Default::default());

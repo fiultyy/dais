@@ -130,6 +130,7 @@ impl<'a> TestBlockListBuilder<'a> {
             std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
                 self.channel_event_proxy.clone(),
             )),
+            crate::terminal::event_listener::host_determine_secret_level,
             std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
             false, /* show_warp_bootstrap_input */
             false, /* show_warp_bootstrap_input */

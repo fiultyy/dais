@@ -1,4 +1,6 @@
 mod interaction_mode;
+pub mod blocks;
+pub mod early_output;
 mod serialized_block;
 
 pub use interaction_mode::*;
@@ -285,7 +287,7 @@ pub struct Block {
     rprompt_grid: BlockGrid,
     pub output_grid: BlockGrid,
     padding: BlockPadding,
-    pub state: BlockState,
+    state: BlockState,
     precmd_state: PrecmdState,
     pub pwd: Option<String>,
     pub git_branch: Option<String>,
@@ -306,7 +308,7 @@ pub struct Block {
 
     render_delay_complete: Arc<AtomicBool>,
     was_long_running: AtomicBool,
-    bootstrap_stage: BootstrapStage,
+    pub bootstrap_stage: BootstrapStage,
 
     show_bootstrap_block: bool,
     show_in_band_command_blocks: bool,
@@ -351,7 +353,7 @@ pub struct Block {
     /// Represents the 'interaction mode' for a command block with respect to the agent.
     ///
     /// See doc comment on [`InteractionMode`] for detailed explanation of semantics.
-    pub interaction_mode: InteractionMode,
+    interaction_mode: InteractionMode,
 
     /// This represents when a banner appears in this Block above the prompt.
     pub block_banner: Option<crate::banner_types::WithinBlockBannerKind>,

@@ -13678,6 +13678,7 @@ dependencies = [
  "log",
  "num-traits",
  "objects",
+ "once_cell",
  "ordered-float 3.9.2",
  "parking_lot",
  "pathfinder_color",

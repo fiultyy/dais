@@ -656,6 +656,7 @@ local_computer_use = []
 local_fs = [
     "ai/local_fs",
     "persistence/local_fs",
+    "terminal_grid_model/local_fs",
     "repo_metadata/local_fs",
     "warp_core/local_fs",
     "code_model/local_fs",

@@ -23,6 +23,7 @@ regex-automata.workspace = true
 ordered-float.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+once_cell.workspace = true
 dirs.workspace = true
 pathfinder_color.workspace = true
 warp_completer.workspace = true
@@ -58,6 +59,8 @@ warpui.workspace = true
 integration_tests = []
 # R1 先例: 宿主测试可见的构造器/辅助。
 test-support = []
+# R25: 自 app feature 转发迁入(append_session_restoration_separator 门控)。
+local_fs = []
 
 [dev-dependencies]
 warp_core = { workspace = true, features = ["test-util"] }

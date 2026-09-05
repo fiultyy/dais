@@ -1,5 +1,4 @@
 use std::{cmp::max, fmt::Debug, mem, ops::RangeInclusive};
-use crate::terminal::model::blocks::BlockListPointExt as _;
 
 use sum_tree::SeekBias;
 use vec1::{vec1, Vec1};
@@ -11,11 +10,13 @@ use warpui::{
     AppContext, EntityId, ViewAsRef as _,
 };
 
-use crate::{
-    ai::blocklist::AIBlock,
-    env_vars::env_var_collection_block::EnvVarCollectionBlock,
-    terminal::{ event::Event as TerminalEvent, model::{ block::BlockSection, index::{Direction, Point, Side}, selection::{ExpandedSelectionRange, Selection, SelectionDirection}, terminal_model::{BlockIndex, WithinBlock}, }, warpify::success_block::WarpifySuccessBlock, GridType, },
-};
+use crate::block::BlockSection;
+use crate::grid::selection::{ExpandedSelectionRange, Selection, SelectionDirection};
+use crate::GridType;
+use terminal_model::index::{Direction, Point, Side};
+use warp_terminal::model::BlockIndex;
+use crate::grid::block_types::WithinBlock;
+use super::BlockListPointExt as _;
 
 use super::{
     BlockHeight, BlockHeightItem, BlockHeightSummary, BlockList, BlockListPoint, RichContentItem,
@@ -25,8 +26,8 @@ use super::{
 /// the top of all blocks.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd)]
 pub struct BlockAnchor {
-    point: BlockListPoint,
-    side: Side,
+    pub point: BlockListPoint,
+    pub side: Side,
 }
 
 impl BlockAnchor {
@@ -37,14 +38,14 @@ impl BlockAnchor {
 
 #[derive(Debug, Clone)]
 pub struct BlockListSelection {
-    head: BlockAnchor,
-    tail: BlockAnchor,
-    selection_type: SelectionType,
+    pub head: BlockAnchor,
+    pub tail: BlockAnchor,
+    pub selection_type: SelectionType,
     /// If this is Some, and if smart-select is enabled, double-clicking within this range will
     /// select this range instead of the normal smart-select logic. The purpose of this is to
     /// allow double-click selection to work on the TerminalView::highlighted_link even when it
     /// contains spaces. Smart-select never traverses across whitespace.
-    smart_select_override: Option<RangeInclusive<WithinBlock<Point>>>,
+    pub smart_select_override: Option<RangeInclusive<WithinBlock<Point>>>,
 }
 
 impl BlockListSelection {
@@ -1469,25 +1470,20 @@ impl BlockList {
     }
 }
 
-/// R16: 统一 rich-content selected-text provider——按 AIBlock→EnvVar→Warpify 顺序
-/// 嗅探(同一 EntityId 只命中一个 view,三分支互斥),替代原分散三连读点。
-/// 行为差异修复申报: 原 Regular 分支丢弃 EnvVar 文本而 None 分支返回,统一后一致。
-fn read_selected_text_from_rich_content_view(view_id: EntityId, app: &AppContext) -> Option<String> {
-    let active_window_id = app.windows().active_window()?;
+/// R25: rich-content selected-text 策略缝——AIBlock→EnvVar→Warpify 三分支嗅探为
+/// app 视图域逻辑,经 OnceLock 注入(app 启动时 register);crate 内 4 读点消费。
+pub type RichContentSelectedTextFn =
+    std::sync::Arc<dyn Fn(EntityId, &AppContext) -> Option<String> + Send + Sync>;
 
-    if let Some(ai_block) = app.view_with_id::<AIBlock>(active_window_id, view_id) {
-        return app.view(&ai_block).selected_text(app);
-    }
-    if let Some(env_var_block) = app.view_with_id::<EnvVarCollectionBlock>(active_window_id, view_id)
-    {
-        return app.view(&env_var_block).selected_text(app);
-    }
-    if let Some(ssh_block) = app.view_with_id::<WarpifySuccessBlock>(active_window_id, view_id) {
-        return app.view(&ssh_block).selected_text();
-    }
-    None
+static RICH_CONTENT_SELECTED_TEXT: std::sync::OnceLock<RichContentSelectedTextFn> =
+    std::sync::OnceLock::new();
+
+pub fn register_rich_content_selected_text(provider: RichContentSelectedTextFn) {
+    let _ = RICH_CONTENT_SELECTED_TEXT.set(provider);
 }
 
-#[cfg(test)]
-#[path = "selection_tests.rs"]
-mod tests;
+fn read_selected_text_from_rich_content_view(view_id: EntityId, app: &AppContext) -> Option<String> {
+    RICH_CONTENT_SELECTED_TEXT
+        .get()
+        .and_then(|provider| provider(view_id, app))
+}

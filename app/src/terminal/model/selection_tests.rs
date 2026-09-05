@@ -1,3 +1,14 @@
+#[allow(unused_imports)]
+macro_rules! assert_lines_approx_eq {
+    ($actual:expr, $expected:expr) => {{
+        float_cmp::assert_approx_eq!(
+            warpui::units::Lines,
+            $actual,
+            warpui::units::IntoLines::into_lines($expected)
+        )
+    }};
+}
+
 use float_cmp::assert_approx_eq;
 use crate::terminal::model::blocks::BlockListPointExt as _;
 use warpui::App;
@@ -8,6 +19,11 @@ use crate::{
 };
 
 use super::*;
+use warp_core::semantic_selection::SemanticSelection;
+use warpui::text::SelectionType;
+use terminal_model::index::{Point, Side};
+use terminal_grid_model::grid::block_types::WithinBlock;
+use terminal_grid_model::GridType;
 
 #[test]
 pub fn test_selection_range_cleared_when_block_finishes() {
