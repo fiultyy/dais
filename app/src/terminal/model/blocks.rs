@@ -2543,7 +2543,9 @@ impl BlockList {
         let mut block = Block::new(
             block_id,
             self.block_size(),
-            self.event_proxy.clone(),
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                self.event_proxy.clone(),
+            )),
             self.timer_host.clone(),
             bootstrap_stage,
             self.show_warp_bootstrap_block,
@@ -2597,7 +2599,9 @@ impl BlockList {
         Block::new(
             BlockId::new(),
             self.block_size(),
-            self.event_proxy.clone(),
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                self.event_proxy.clone(),
+            )),
             self.timer_host.clone(),
             self.bootstrap_stage,
             self.show_warp_bootstrap_block,

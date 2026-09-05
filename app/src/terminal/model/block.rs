@@ -832,7 +832,8 @@ impl Block {
     pub fn new(
         id: BlockId,
         sizes: BlockSize,
-        event_proxy: ChannelEventListener,
+        // R22: 构造链穿参(锚5 首处)——Block 直接收 GridEventSink 缝。
+        event_sink: std::sync::Arc<dyn terminal_grid_model::grid::GridEventSink>,
         timer_host: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
         bootstrap_stage: BootstrapStage,
         show_warp_bootstrap_input: bool,
@@ -851,9 +852,7 @@ impl Block {
         };
         let header_grid = HeaderGrid::new(
             sizes.clone(),
-            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
-                event_proxy.clone(),
-            )),
+            event_sink.clone(),
             should_scan_for_secrets,
             honor_ps1,
             perform_reset_grid_checks,
@@ -864,9 +863,7 @@ impl Block {
             // Even though prompt is most likely only 1-2 lines, we allow for the bigger
             // max_scroll_limit, to account for resizing the window/pane.
             sizes.max_block_scroll_limit,
-            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
-                event_proxy.clone(),
-            )),
+            event_sink.clone(),
             should_scan_for_secrets,
             PerformResetGridChecks::No,
             crate::terminal::event_listener::host_determine_secret_level,
@@ -874,9 +871,7 @@ impl Block {
         let output_grid = BlockGrid::new(
             sizes.size,
             sizes.max_block_scroll_limit,
-            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
-                event_proxy.clone(),
-            )),
+            event_sink.clone(),
             should_scan_for_secrets,
             perform_reset_grid_checks,
             crate::terminal::event_listener::host_determine_secret_level,
@@ -903,9 +898,7 @@ impl Block {
             node_version: None,
             rprompt: None,
             timer_host,
-            event_sink: std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
-                event_proxy.clone(),
-            )),
+            event_sink,
             bootstrap_stage,
             show_bootstrap_block: show_warp_bootstrap_input,
             show_in_band_command_blocks,
