@@ -1,32 +1,24 @@
 use std::fmt;
 use std::fmt::{Debug, Formatter};
-use std::num::ParseIntError;
-use std::string::FromUtf8Error;
 use std::sync::Arc;
-use std::time::Duration;
 
-use instant::Instant;
 
-use objects::ids::SyncId;
 use crate::server::telemetry::ImageProtocol;
 // R16: 载荷提升 terminal_grid_model::block_events。
 pub use terminal_grid_model::block_events::{
     AfterBlockCompletedEvent, BlockCompletedEvent, BlockLatencyData, BlockMetadataReceivedEvent,
     BlockType, UserBlockCompleted,
 };
-use terminal_grid_model::block_events::BlockMetadata;
-use terminal_grid_model::block_serialized::SerializedBlock;
 use crate::terminal::model::completions::ShellCompletion;
 use crate::terminal::model::terminal_model::HandlerEvent;
 use crate::terminal::shell::ShellType;
 use crate::terminal::ClipboardType;
-use crate::util::AsciiDebug;
 
 use super::history::HistoryEntry;
 use terminal_grid_model::ansi::{FinishUpdateValue, WarpificationUnavailableReason};
 use terminal_grid_model::block::BlockId;
 use super::model::session::{SessionId, SessionInfo};
-use super::model::terminal_model::{BlockIndex, ExitReason, TmuxInstallationState};
+use super::model::terminal_model::{ExitReason, TmuxInstallationState};
 
 pub use remote_server::setup::RemoteServerSetupState;
 

@@ -27,7 +27,6 @@ use crate::terminal::{grid_renderer, SizeInfo};
 use crate::themes::theme::{Fill, WarpTheme};
 use crate::ui_components::{self, icons as UIIcon};
 use crate::util::color::Opacity;
-use enum_iterator::Sequence;
 use itertools::Itertools;
 use parking_lot::FairMutex;
 use vec1::Vec1;

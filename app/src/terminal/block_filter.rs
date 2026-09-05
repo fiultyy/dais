@@ -1,6 +1,5 @@
 use pathfinder_color::ColorU;
 use pathfinder_geometry::vector::vec2f;
-use regex_automata::hybrid::BuildError;
 use warp_editor::editor::NavigationKey;
 use warpui::elements::{Align, Dash};
 use warpui::ui_components::components::UiComponent;
@@ -26,7 +25,6 @@ use crate::{
     ui_components::{blended_colors, icons::Icon},
 };
 
-use super::model::find::{FindConfig, RegexDFAs};
 
 const BLOCK_FILTER_BAR_WIDTH: f32 = 380.;
 const BLOCK_FILTER_BAR_PADDING: f32 = 4.;
