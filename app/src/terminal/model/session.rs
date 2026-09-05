@@ -1757,3 +1757,12 @@ pub mod testing {
 #[cfg(test)]
 #[path = "session_test.rs"]
 mod test;
+
+/// R23: Block.top_level_command(Sessions 依赖)迁出为自由函数(孤儿规则预备)。
+pub fn top_level_command(block: &crate::terminal::model::block::Block, sessions: &Sessions) -> Option<String> {
+    let session = sessions.get(block.session_id()?)?;
+    let escape_char = session.shell_family().escape_char();
+    block.top_level_command_with(escape_char, |name| {
+        session.alias_value(name).map(str::to_owned)
+    })
+}

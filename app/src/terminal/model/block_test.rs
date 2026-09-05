@@ -1,6 +1,7 @@
 use std::{collections::HashMap, pin::pin, time::Duration};
 
 use super::*;
+use super::super::session::Sessions;
 use crate::{
     ai::blocklist::agent_view::AgentViewState,
     terminal::model::{ ansi::{Attr, Handler}, cell::Flags, header_grid::PromptEndPoint, session::SessionInfo, test_utils::{create_test_block_with_grids, TestBlockBuilder}, },
@@ -1230,7 +1231,7 @@ fn test_top_level_command() {
         block.input(c);
     }
 
-    assert_eq!(block.top_level_command(&sessions), Some("git".to_string()));
+    assert_eq!(crate::terminal::model::session::top_level_command(&block, &sessions), Some("git".to_string()));
 
     let mut block = TestBlockBuilder::new()
         .with_size_info(SizeInfo::new_without_font_metrics(1, 20))
@@ -1244,7 +1245,7 @@ fn test_top_level_command() {
         block.input(c);
     }
 
-    assert_eq!(block.top_level_command(&sessions), Some("git".to_string()));
+    assert_eq!(crate::terminal::model::session::top_level_command(&block, &sessions), Some("git".to_string()));
 }
 
 #[test]
@@ -1269,7 +1270,7 @@ fn test_top_level_command_with_aliases() {
     for c in "git status".chars() {
         block.input(c);
     }
-    assert_eq!(block.top_level_command(&sessions), Some("git2".to_string()));
+    assert_eq!(crate::terminal::model::session::top_level_command(&block, &sessions), Some("git2".to_string()));
 
     let mut block = TestBlockBuilder::new()
         .with_size_info(SizeInfo::new_without_font_metrics(1, 20))
@@ -1282,7 +1283,7 @@ fn test_top_level_command_with_aliases() {
     for c in "gs --ignored".chars() {
         block.input(c);
     }
-    assert_eq!(block.top_level_command(&sessions), Some("git".to_string()));
+    assert_eq!(crate::terminal::model::session::top_level_command(&block, &sessions), Some("git".to_string()));
 
     let mut block = TestBlockBuilder::new()
         .with_size_info(SizeInfo::new_without_font_metrics(1, 20))
@@ -1295,7 +1296,7 @@ fn test_top_level_command_with_aliases() {
     for c in "PAGER= gl --flag".chars() {
         block.input(c);
     }
-    assert_eq!(block.top_level_command(&sessions), Some("git".to_string()));
+    assert_eq!(crate::terminal::model::session::top_level_command(&block, &sessions), Some("git".to_string()));
 }
 
 #[test]

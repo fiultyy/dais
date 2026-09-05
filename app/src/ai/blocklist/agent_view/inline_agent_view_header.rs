@@ -102,7 +102,7 @@ impl View for InlineAgentViewHeader {
                     .long_running_control_state()
                     .is_some_and(LongRunningCommandControlState::is_user_in_control),
                 active_block.is_agent_blocked(),
-                active_block.top_level_command(sessions),
+                crate::terminal::model::session::top_level_command(active_block, sessions),
             )
         };
         if is_agent_tagged_in {

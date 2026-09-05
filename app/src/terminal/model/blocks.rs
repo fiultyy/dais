@@ -2546,6 +2546,7 @@ impl BlockList {
             std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
                 self.event_proxy.clone(),
             )),
+            crate::terminal::event_listener::host_determine_secret_level,
             self.timer_host.clone(),
             bootstrap_stage,
             self.show_warp_bootstrap_block,
@@ -2602,6 +2603,7 @@ impl BlockList {
             std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
                 self.event_proxy.clone(),
             )),
+            crate::terminal::event_listener::host_determine_secret_level,
             self.timer_host.clone(),
             self.bootstrap_stage,
             self.show_warp_bootstrap_block,

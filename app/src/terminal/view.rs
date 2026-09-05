@@ -10538,12 +10538,13 @@ impl TerminalView {
             ModelEvent::TerminalModeSwapped(mode) => {
                 #[cfg(feature = "local_tty")]
                 {
-                    let active_command = self
-                        .model
-                        .lock()
-                        .block_list()
-                        .active_block()
-                        .top_level_command(self.sessions.as_ref(ctx));
+                    let active_command = {
+                        let model = self.model.lock();
+                        crate::terminal::model::session::top_level_command(
+                            model.block_list().active_block(),
+                            self.sessions.as_ref(ctx),
+                        )
+                    };
                     if FeatureFlag::RemoveAltScreenPadding.is_enabled()
                         // If we don't know what the top-level command is,
                         // we should still perform the redundant resize.
@@ -12326,10 +12327,12 @@ impl TerminalView {
                 }
 
                 let correct_size_info = *view.size_info;
-                let active_command = model
-                    .block_list()
-                    .active_block()
-                    .top_level_command(view.sessions.as_ref(ctx));
+                let active_command = {
+                    crate::terminal::model::session::top_level_command(
+                        model.block_list().active_block(),
+                        view.sessions.as_ref(ctx),
+                    )
+                };
 
                 // Drop the lock since the resize methods will take an explicit lock.
                 drop(model);
@@ -25368,10 +25371,8 @@ pub fn create_size_info(
 ) -> SizeInfo {
     let cell_size_px =
         grid_cell_dimensions(font_cache, font_family_id, font_size, line_height_ratio);
-    let active_command = model
-        .block_list()
-        .active_block()
-        .top_level_command(sessions);
+    let active_command =
+        crate::terminal::model::session::top_level_command(model.block_list().active_block(), sessions);
 
     match *TerminalSettings::as_ref(ctx).alt_screen_padding {
         AltScreenPaddingMode::Custom { uniform_padding }

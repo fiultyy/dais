@@ -14,7 +14,6 @@ use super::image_map::StoredImageMetadata;
 use super::kitty::{KittyAction, KittyResponse};
 use super::secrets::RespectObfuscatedSecrets;
 use super::selection::ScrollDelta;
-use super::session::{command_executor, Sessions};
 pub use super::BlockId;
 use super::{bootstrap::BootstrapStage, find::RegexDFAs};
 use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
@@ -834,6 +833,8 @@ impl Block {
         sizes: BlockSize,
         // R22: 构造链穿参(锚5 首处)——Block 直接收 GridEventSink 缝。
         event_sink: std::sync::Arc<dyn terminal_grid_model::grid::GridEventSink>,
+        // R23: secret 检测策略注入(host_determine_secret_level 留 app)。
+        determine_secret_level: terminal_grid_model::grid::DetermineSecretLevelFn,
         timer_host: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
         bootstrap_stage: BootstrapStage,
         show_warp_bootstrap_input: bool,
@@ -856,7 +857,7 @@ impl Block {
             should_scan_for_secrets,
             honor_ps1,
             perform_reset_grid_checks,
-            crate::terminal::event_listener::host_determine_secret_level,
+            determine_secret_level.clone(),
         );
         let rprompt_grid = BlockGrid::new(
             sizes.size,
@@ -866,7 +867,7 @@ impl Block {
             event_sink.clone(),
             should_scan_for_secrets,
             PerformResetGridChecks::No,
-            crate::terminal::event_listener::host_determine_secret_level,
+            determine_secret_level.clone(),
         );
         let output_grid = BlockGrid::new(
             sizes.size,
@@ -874,7 +875,7 @@ impl Block {
             event_sink.clone(),
             should_scan_for_secrets,
             perform_reset_grid_checks,
-            crate::terminal::event_listener::host_determine_secret_level,
+            determine_secret_level.clone(),
         );
 
         Block {
@@ -2056,17 +2057,7 @@ impl Block {
         self.header_grid.command_to_string()
     }
 
-    /// Returns the top-level command executed in this block.
-    /// Aliases are also resolved.
-    ///
-    /// TODO: this doesn't yet handle transitive aliases.
-    pub fn top_level_command(&self, sessions: &Sessions) -> Option<String> {
-        // R18: 参数化内核(Sessions 留调用方)。
-        let session = sessions.get(self.session_id?)?;
-        let escape_char = session.shell_family().escape_char();
-        self.top_level_command_with(escape_char, |name| session.alias_value(name).map(str::to_owned))
-    }
-
+    
     /// R18: Block 下沉前置——Sessions 依赖参数化(alias 经闭包注入)。
     pub fn top_level_command_with(
         &self,
@@ -3154,7 +3145,7 @@ impl ansi::Handler for Block {
 
         self.header_grid.preexec(data.clone());
 
-        let is_for_in_band_command = command_executor::is_in_band_command(data.command.as_str());
+        let is_for_in_band_command = terminal_grid_model::block_events::is_in_band_command(data.command.as_str());
         if self.bootstrap_stage() == BootstrapStage::PostBootstrapPrecmd {
             self.event_sink
                 .send_after_block_started(AfterBlockStartedEvent {

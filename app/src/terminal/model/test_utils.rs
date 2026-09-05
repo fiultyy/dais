@@ -214,6 +214,7 @@ impl TestBlockBuilder {
             std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
                 self.event_proxy.clone(),
             )),
+            crate::terminal::event_listener::host_determine_secret_level,
             std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
             self.bootstrap_stage,
             false, /* show_warp_bootstrap_input */
