@@ -17,6 +17,7 @@ pub mod find;
 pub mod grid;
 pub mod image_map;
 pub mod secrets;
+pub mod interaction;
 pub mod prompt_snapshot;
 pub mod selected_blocks;
 mod size_info;
