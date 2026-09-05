@@ -26,12 +26,12 @@ use warpui::{
 };
 
 use super::input::InputRenderStateModel;
-use super::model::block::Block;
+use terminal_grid_model::block::Block;
 use super::shell::ShellType;
 use crate::settings::FontSettings;
 use crate::terminal::input::get_input_box_top_border_width;
 
-use super::model::blocks::CachedPromptData;
+use terminal_grid_model::block::blocks::CachedPromptData;
 use super::safe_mode_settings::get_secret_obfuscation_mode;
 use super::session_settings::SessionSettings;
 use super::settings::TerminalSettings;

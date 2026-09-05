@@ -7300,6 +7300,7 @@ dependencies = [
  "strum_macros 0.27.2",
  "sum_tree",
  "sysinfo",
+ "terminal_grid_model",
  "version-compare",
  "warp-command-signatures",
  "warp-workflows",

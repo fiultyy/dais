@@ -9,7 +9,7 @@ use crate::terminal::model::selection::ExpandedSelectionRange;
 use chrono::{DateTime, Local};
 use vec1::vec1;
 use warp_core::command::ExitCode;
-use warp_terminal::model::ansi::ClearMode;
+use terminal_grid_model::ansi::ClearMode;
 use warpui::text::str_to_byte_vec;
 use warpui::text::SelectionType;
 
@@ -377,7 +377,7 @@ fn compare_within_block_points() {
 fn test_alt_screen_toggle() {
     let mut terminal = TerminalModel::mock(None, None);
 
-    terminal.set_mode(ansi::Mode::SwapScreen {
+    terminal.set_mode(terminal_grid_model::ansi::Mode::SwapScreen {
         save_cursor_and_clear_screen: true,
     });
     assert!(terminal.alt_screen_active);
@@ -385,17 +385,17 @@ fn test_alt_screen_toggle() {
     // Some programs send the control codes to enter/exit the alternate
     // screen multiple times (such as `info`). This should still leave the
     // screen in the expected state (instead of flipping back and forth).
-    terminal.set_mode(ansi::Mode::SwapScreen {
+    terminal.set_mode(terminal_grid_model::ansi::Mode::SwapScreen {
         save_cursor_and_clear_screen: true,
     });
     assert!(terminal.alt_screen_active);
 
-    terminal.unset_mode(ansi::Mode::SwapScreen {
+    terminal.unset_mode(terminal_grid_model::ansi::Mode::SwapScreen {
         save_cursor_and_clear_screen: true,
     });
     assert!(!terminal.alt_screen_active);
 
-    terminal.unset_mode(ansi::Mode::SwapScreen {
+    terminal.unset_mode(terminal_grid_model::ansi::Mode::SwapScreen {
         save_cursor_and_clear_screen: true,
     });
     assert!(!terminal.alt_screen_active);

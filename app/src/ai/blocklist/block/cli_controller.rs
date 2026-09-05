@@ -1,3 +1,4 @@
+use terminal_grid_model::block::BlockId;
 use std::{collections::HashMap, sync::Arc};
 // R23: LongRunningCommandControlState/UserTakeOverReason 提升 terminal_grid_model::interaction。
 #[derive(Debug, Clone, Default)]
@@ -18,7 +19,7 @@ use warpui::{Entity, EntityId, ModelContext, ModelHandle, SingletonEntity};
 use crate::ai::blocklist::context_model::block_context_from_terminal_model;
 use crate::{
     ai::{ agent::{ conversation::AIConversationId, task::TaskId, AIAgentActionId, AIAgentActionResultType, AIAgentContext, CancellationReason, ReadShellCommandOutputResult, RequestCommandOutputResult, TransferShellCommandControlToUserResult, WriteToLongRunningShellCommandResult, }, blocklist::{ agent_view::{AgentViewController, AgentViewEntryOrigin}, BlocklistAIActionEvent, BlocklistAIActionModel, BlocklistAIController, BlocklistAIHistoryEvent, }, },
-    terminal::{ model::block::BlockId, model_events::{ModelEvent, ModelEventDispatcher}, TerminalModel, },
+    terminal::{ model_events::{ModelEvent, ModelEventDispatcher}, TerminalModel, },
     BlocklistAIHistoryModel,
 };
 

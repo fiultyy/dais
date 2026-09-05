@@ -1,3 +1,4 @@
+use terminal_grid_model::block::BlockState;
 use pathfinder_geometry::rect::RectF;
 use regex::Regex;
 use settings::Setting as _;
@@ -14,7 +15,7 @@ use crate::{
     ai::blocklist::agent_view::AgentViewState,
     integration_testing::view_getters::{ single_input_view_for_tab, single_terminal_view, single_terminal_view_for_tab, terminal_view, },
     settings::InputModeSettings,
-    terminal::{ block_list_viewport::InputMode, block_list_viewport::ScrollPosition, model::block::BlockState, model::bootstrap::BootstrapStage, model::grid::grid_handler::TermMode, model::{blocks::BlockFilter, terminal_model::BlockIndex}, view::TerminalViewState, History, },
+    terminal::{ block_list_viewport::InputMode, block_list_viewport::ScrollPosition, model::bootstrap::BootstrapStage, model::grid::grid_handler::TermMode, model::{blocks::BlockFilter, terminal_model::BlockIndex}, view::TerminalViewState, History, },
     workspace::{ActiveSession, Workspace},
 };
 

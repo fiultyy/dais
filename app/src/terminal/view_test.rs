@@ -1321,7 +1321,7 @@ fn test_insert() {
                 blocks.input('f');
                 blocks.linefeed();
                 blocks.preexec(PreexecValue::default());
-                blocks.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+                blocks.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
             }
             view.begin_block_text_selection(
                 BlockListPoint::new(1.0, 1),
@@ -1502,7 +1502,7 @@ fn test_copy_on_select() {
 
                 blocks.preexec(PreexecValue::default());
 
-                blocks.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+                blocks.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
             }
 
             view.begin_block_text_selection(
@@ -1532,7 +1532,7 @@ fn test_alt_screen_copy_on_select() {
             {
                 // Enter alt screen and add text
                 let mut model = view.model.lock();
-                model.set_mode(ansi::Mode::SwapScreen {
+                model.set_mode(terminal_grid_model::ansi::Mode::SwapScreen {
                     save_cursor_and_clear_screen: true,
                 });
                 assert!(model.is_alt_screen_active());
@@ -1575,10 +1575,10 @@ fn test_alt_screen_select_with_sgr_mouse() {
             {
                 // Enter alt screen and enable SGR Mouse
                 let mut model = view.model.lock();
-                model.set_mode(ansi::Mode::SwapScreen {
+                model.set_mode(terminal_grid_model::ansi::Mode::SwapScreen {
                     save_cursor_and_clear_screen: true,
                 });
-                model.set_mode(ansi::Mode::SgrMouse);
+                model.set_mode(terminal_grid_model::ansi::Mode::SgrMouse);
                 assert!(model.is_alt_screen_active());
                 assert!(!should_intercept_mouse(&model, false, ctx));
                 assert!(should_intercept_mouse(&model, true, ctx));
@@ -1768,7 +1768,7 @@ fn test_find_bar_select() {
 
                 blocks.preexec(PreexecValue::default());
 
-                blocks.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+                blocks.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
             }
 
             // Select 'foo'.

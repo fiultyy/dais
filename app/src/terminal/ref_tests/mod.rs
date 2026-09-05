@@ -149,7 +149,7 @@ fn ref_test(dir: &Path) {
     // tests.
     terminal.start_active_block_as_background_block();
 
-    let mut parser = ansi::Processor::new();
+    let mut parser = terminal_grid_model::ansi::Processor::new();
 
     parser.parse_bytes(&mut terminal, &recording, &mut io::sink());
 

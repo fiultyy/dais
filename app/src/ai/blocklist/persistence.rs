@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ai::{ agent::{ conversation::AIConversationId, AIAgentActionType, AIAgentAttachment, AIAgentContext, AIAgentExchangeId, AIAgentInput, AIAgentPtyWriteMode, AskUserQuestionItem, FileLocations, PassiveSuggestionResultType, ReadFilesRequest, UserQueryMode, }, llms::LLMId, },
-    terminal::model::block::{BlockId, SerializedBlock},
 };
+use terminal_grid_model::block::{BlockId, SerializedBlock};
 
 use super::AIQueryHistoryOutputStatus;
 /// Data we persist for each [`AIAgentExchange`] for use in history. Does not contain output data.

@@ -1,9 +1,10 @@
 use pathfinder_color::ColorU;
 
 use crate::{
-    terminal::{ color, model::{ ansi::{color_index, Color, NamedColor}, cell::{Cell, Flags}, ObfuscateSecrets, }, },
+    terminal::{ color, model::{ cell::{Cell, Flags}, ObfuscateSecrets, }, },
     util::color::OPAQUE,
 };
+use terminal_grid_model::ansi::{color_index, Color, NamedColor};
 
 use super::{BLOCK_FILTER_MATCH_COLOR, FOCUSED_MATCH_COLOR, MATCH_COLOR, URL_COLOR};
 

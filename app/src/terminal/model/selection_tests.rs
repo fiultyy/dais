@@ -9,13 +9,14 @@ macro_rules! assert_lines_approx_eq {
     }};
 }
 
+use terminal_grid_model::ansi::{self, Handler as _, PreexecValue};
 use float_cmp::assert_approx_eq;
 use terminal_grid_model::block::blocks::BlockListPointExt as _;
 use warpui::App;
 
 use crate::{
     ai::blocklist::agent_view::AgentViewState,
-    terminal::{ event_listener::ChannelEventListener, model::{ ansi::{self, Handler as _, PreexecValue}, blocks::{ insert_block, tests::{command_finished_and_precmd, input_string, new_bootstrapped_block_list}, }, test_utils, }, },
+    terminal::{ event_listener::ChannelEventListener, model::{ blocks::{ insert_block, tests::{command_finished_and_precmd, input_string, new_bootstrapped_block_list}, }, test_utils, }, },
 };
 
 use super::*;

@@ -1,3 +1,4 @@
+use terminal_grid_model::block::SerializedBlock;
 #[cfg(target_os = "macos")]
 use std::fs;
 use std::{path::PathBuf, sync::Arc};
@@ -7,7 +8,6 @@ use crate::{
     notebooks::{NotebookObject, NotebookObjectModel},
     persistence::{BlockCompleted, ModelEvent},
     tab::SelectedTabColor,
-    terminal::model::block::SerializedBlock,
     terminal::ShellLaunchData,
 };
 use objects::{Owner, ids::ClientId};

@@ -5,9 +5,9 @@ use warpui::{
     ViewHandle,
 };
 
+use terminal_grid_model::ansi::SystemDetails;
 use crate::terminal::{
     model::{
-        ansi::SystemDetails,
         block::BlockId,
         session::SessionId,
         terminal_model::{SubshellInitializationInfo, TmuxInstallationState},

@@ -14,7 +14,6 @@ macro_rules! assert_lines_approx_eq {
 }
 
 pub use terminal_grid_model::grid::alt_screen;
-pub mod ansi;
 pub mod block;
 pub use terminal_grid_model::grid::blockgrid;
 pub mod blocks;

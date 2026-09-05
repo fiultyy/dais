@@ -451,7 +451,7 @@ use crate::terminal::input::{InputState, MenuPositioning, MenuPositioningProvide
 use crate::terminal::keys::TerminalKeybindings;
 use terminal_grid_model::block::{AgentInteractionMetadata, BlockMetadata};
 use crate::terminal::terminal_activity::{TerminalActivityEvent, TerminalActivityModel};
-use terminal_grid_model::block::{Block, BlockId};
+use terminal_grid_model::block::{Block, BlockId, SerializedBlock};
 use terminal_grid_model::block::blocks::{BlockFilter, BlockList};
 use terminal_grid_model::block::blocks::{BlockHeight, BlockHeightItem, BlockHeightSummary, Gap};
 use crate::terminal::model::escape_sequences::{self, EscCodes, ToEscapeSequence, C1};
@@ -479,7 +479,6 @@ use crate::terminal::{
     block_list_element::BlockHoverAction,
     // find::{Event as FindEvent, Find, FindDirection},
     input::{Event as InputEvent, Input, INPUT_A11Y_HELPER_KEY, INPUT_A11Y_LABEL_KEY},
-    model::block::SerializedBlock,
     shell::ShellType,
     terminal_size_element::TerminalSizeElement,
     TerminalModel,
@@ -495,7 +494,8 @@ use crate::menu::{Event as MenuEvent, Menu, MenuItem, MenuItemFields, MenuVarian
 use crate::server::telemetry::{BlockLatencyInfo, BootstrappingInfo};
 use crate::terminal::{block_list_element::BlockListMenuSource, prompt};
 use crate::terminal::{color, History, SizeInfo};
-use crate::terminal::{color::List, model::block::LONG_RUNNING_BOTTOM_PADDING_LINES};
+use crate::terminal::color::List;
+use terminal_grid_model::block::LONG_RUNNING_BOTTOM_PADDING_LINES;
 use crate::terminal::{event::AfterBlockCompletedEvent, event::BlockLatencyData, event::BlockType};
 use crate::throttle::throttle;
 use crate::util::color::darken;
@@ -510,11 +510,11 @@ use super::available_shells::AvailableShell;
 use super::block_list_viewport::FindMatchScrollLocation;
 use super::event::SshLoginStatus;
 use super::find::FindOptions;
-use super::model::ansi::{SystemDetails, WarpificationUnavailableReason};
-use super::model::block::{
+use terminal_grid_model::ansi::{SystemDetails, WarpificationUnavailableReason};
+use terminal_grid_model::block::{
     BlockSection, BlocklistEnvVarMetadata, LONG_RUNNING_COMMAND_DURATION_MS,
 };
-use super::model::blocks::RichContentItem;
+use terminal_grid_model::block::blocks::RichContentItem;
 use super::model::completions::ShellCompletion;
 use super::model::rich_content::RichContentType;
 use super::model::secrets::RichContentSecretTooltipInfo;

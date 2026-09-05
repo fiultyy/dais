@@ -63,7 +63,7 @@ use warpui::platform::keyboard::KeyCode;
 use instant::Instant;
 use warpui::elements::{Radius, DEFAULT_UI_LINE_HEIGHT_RATIO};
 
-// Similar to the terminal::model::ansi::CursorShape, this Editor Element has different cursor
+// Similar to the terminal_grid_model::ansi::CursorShape, this Editor Element has different cursor
 // shapes. However, this element doesn't implement all the same variants, so we don't share that
 // enum.
 /// Width for cursor analogous to CursorShape::Beam.

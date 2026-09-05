@@ -42,6 +42,7 @@ pub use bootstrapping::*;
 pub use code_review::*;
 pub use ctrl_d::*;
 pub use file_tree::*;
+use terminal_grid_model::ansi::{Handler as _, InitShellValue};
 use float_cmp::assert_approx_eq;
 pub use goto_line::*;
 pub use history::*;
@@ -229,7 +230,6 @@ use dais::{
     terminal::{
         input::{Input, InputSuggestionsMode},
         model::{
-            ansi::{Handler, InitShellValue},
             blocks::{BlockHeightItem, TotalIndex},
             grid::Dimensions,
         },

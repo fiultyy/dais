@@ -18,8 +18,8 @@ use crate::terminal::{
     BlockPadding, SizeInfo,
 };
 
+use terminal_grid_model::ansi::{CommandFinishedValue, Handler, PrecmdValue, PreexecValue, Processor};
 use super::{
-    ansi::{CommandFinishedValue, Handler, PrecmdValue, PreexecValue, Processor},
     block::{Block, BlockId, BlockSize},
     blocks::BlockList,
     bootstrap::BootstrapStage,
@@ -65,7 +65,7 @@ fn block_padding() -> BlockPadding {
 /// ```no_run
 /// # use dais::terminal::event::{BlockType, Event};
 /// # use dais::terminal::event_listener::ChannelEventListener;
-/// # use dais::terminal::model::block::SerializedBlock;
+/// # use dais::terminal_grid_model::block::SerializedBlock;
 /// # use dais::terminal::model::test_utils::TestBlockListBuilder;
 ///
 /// let (events_tx, events_rx) = async_channel::unbounded();

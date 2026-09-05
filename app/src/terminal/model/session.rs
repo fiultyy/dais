@@ -44,7 +44,7 @@ use crate::terminal::shell::{Shell, ShellType};
 use crate::terminal::warpify::SubshellSource;
 use crate::terminal::History;
 
-use super::ansi::{BootstrappedValue, InitShellValue, SSHValue};
+use terminal_grid_model::ansi::{BootstrappedValue, InitShellValue, SSHValue};
 use super::terminal_model::{HistoryEntry, SubshellInitializationInfo};
 use crate::terminal::event::RemoteServerSetupState;
 

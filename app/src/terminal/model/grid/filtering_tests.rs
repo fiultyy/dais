@@ -3,7 +3,7 @@ use terminal_grid_model::ansi::Handler as _;
 
 use crate::{
 
-    terminal::model::{ ansi::Handler as _, blockgrid::BlockGrid, grid::Dimensions as _, index::{VisiblePoint, VisibleRow}, },
+    terminal::model::{ blockgrid::BlockGrid, grid::Dimensions as _, index::{VisiblePoint, VisibleRow}, },
     test_util::mock_blockgrid,
 };
 

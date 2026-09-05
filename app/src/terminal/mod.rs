@@ -1,6 +1,6 @@
 pub use block_list_element::GridType;
 use model::alt_screen::AltScreen;
-use model::blocks::BlockList;
+use terminal_grid_model::block::blocks::BlockList;
 use model::index::Side;
 pub use model::terminal_model::TerminalModel;
 use ordered_float::Float;

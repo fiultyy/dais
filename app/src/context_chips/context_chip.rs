@@ -117,7 +117,7 @@ impl ChipRuntimeCapabilities {
 }
 
 /// 宿主 ext trait(R3 PaneDataHost 模式):`from_block` 快照宿主
-/// `terminal::model::block::Block`,无法随 Environment POD 下沉。
+/// `terminal_grid_model::block::Block`,无法随 Environment POD 下沉。
 pub trait EnvironmentHostExt {
     fn from_block(block: &Block) -> Self;
 }

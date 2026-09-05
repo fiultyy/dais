@@ -22,9 +22,9 @@ use warp_multi_agent_api::{
 use crate::{
     ai::{ agent::comment::CodeReview, document::ai_document_model::{AIDocumentId, AIDocumentVersion}, },
     server::datetime_ext::DateTimeExt,
-    terminal::model::block::BlockId,
     AIAgentTodoList,
 };
+use terminal_grid_model::block::BlockId;
 
 use super::{
     api::{

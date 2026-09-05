@@ -17,10 +17,11 @@ use crate::terminal::model_events::AnsiHandlerEvent;
 use crate::terminal::view::LINEFEED_REGEX;
 #[cfg(not(target_family = "wasm"))]
 use crate::terminal::writeable_pty::bootstrap_file::{permanent_bootstrap_file, TempBootstrapFile};
+use terminal_grid_model::ansi::Handler;
 use crate::terminal::{
     bootstrap,
     line_editor_status::{LineEditorStatus, LineEditorStatusEvent},
-    model::{ansi::Handler, escape_sequences, session::SessionInfo},
+    model::{escape_sequences, session::SessionInfo},
     model_events::{ModelEvent, ModelEventDispatcher},
     shell::ShellType,
     SizeUpdate, TerminalModel,

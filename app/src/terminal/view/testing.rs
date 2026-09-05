@@ -1,4 +1,6 @@
 //! Module for test-only convenience methods on `TerminalView`.
+use crate::terminal::{event_listener::ChannelEventListener, BlockPadding};
+use terminal_grid_model::block::BlockSize;
 use warpui::ModelHandle;
 
 use crate::terminal::find::TerminalFindModel;
@@ -36,10 +38,7 @@ impl TerminalView {
         use pathfinder_geometry::vector::vec2f;
         use warpui::units::{IntoPixels as _, Pixels};
 
-        use crate::{
-    terminal::{ event_listener::ChannelEventListener, model::block::BlockSize, BlockPadding, },
-    themes::default_themes::dark_theme,
-};
+        use crate::themes::default_themes::dark_theme;
         let size_info = SizeInfo::new(
             vec2f(7., 10.5),
             1.0.into_pixels(),

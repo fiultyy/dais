@@ -16,7 +16,7 @@ use warpui::geometry::rect::RectF;
 use warpui::geometry::vector::{vec2f, Vector2F};
 use warpui::{AppContext, Element, EntityId, PaintContext};
 
-use super::model::ansi::{CursorShape, CursorStyle};
+use terminal_grid_model::ansi::{CursorShape, CursorStyle};
 use super::model::grid::RespectDisplayedOutput;
 use super::model::image_map::StoredImageMetadata;
 use super::model::SecretHandle;

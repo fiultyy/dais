@@ -1,8 +1,8 @@
+use terminal_grid_model::ansi::{self, Handler};
 use crate::ai::blocklist::agent_view::AgentViewState;
 use crate::terminal::{
     event_listener::ChannelEventListener,
     model::{
-        ansi::{self, Handler},
         blocks::BlockList,
         session::SessionInfo,
         test_utils::TestBlockListBuilder,

@@ -1,3 +1,4 @@
+use terminal_grid_model::block::{AgentInteractionMetadata, Block, SerializedAIMetadata, SerializedBlock};
 use chrono::{DateTime, Local, TimeZone as _};
 use futures::Future;
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,6 @@ use warp_core::command::ExitCode;
 use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
 
 use super::{
-    model::block::{AgentInteractionMetadata, Block, SerializedAIMetadata, SerializedBlock},
     shell::ShellType,
 };
 use crate::{

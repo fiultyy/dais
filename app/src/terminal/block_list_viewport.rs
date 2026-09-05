@@ -1,3 +1,4 @@
+use terminal_grid_model::block::blocks::RichContentItem;
 use std::{ops::Range, rc::Rc, sync::MutexGuard};
 
 use pathfinder_geometry::vector::Vector2F;
@@ -16,7 +17,6 @@ use crate::{
 };
 use crate::{
     ai::blocklist::agent_view::AgentViewState,
-    terminal::model::blocks::RichContentItem,
 };
 
 use super::{

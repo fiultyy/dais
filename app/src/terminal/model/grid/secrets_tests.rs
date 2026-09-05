@@ -1,16 +1,10 @@
 use regex::Regex;
-use terminal_grid_model::ansi::Handler as _;
 use serial_test::serial;
 
 use crate::terminal::{
-
-    event_listener::ChannelEventListener,
-    model::{
-        ansi::{self, Handler as _},
-        blockgrid::BlockGrid,
-    },
-    SizeInfo,
+    event_listener::ChannelEventListener, model::blockgrid::BlockGrid, SizeInfo,
 };
+use terminal_grid_model::ansi::{self, Handler as _};
 
 use super::*;
 // R10: 原父模块的可见 use 集,随模块下沉后显式补齐。
@@ -73,7 +67,7 @@ fn test_secret_redacted_after_byte_processing() {
     assert!(grid_handler.secrets.is_empty());
 
     grid_handler.input_at_cursor("ABCD");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There should be one secret in the range (0,0)..(0,3).
     assert_eq!(grid_handler.secrets.len(), 1);
@@ -86,7 +80,7 @@ fn test_secret_redacted_after_byte_processing() {
     // space).
     grid_handler.update_cursor(|cursor| cursor.point = cursor.point.wrapping_sub(10, 1));
     grid_handler.grid_storage_mut().cursor_cell().c = ' ';
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There should no longer be any secrets ("ABC" does not match the regex).
     assert!(grid_handler.secrets.is_empty());
@@ -108,7 +102,7 @@ fn test_secret_redacted_after_multiple_byte_processing() {
     assert!(grid_handler.secrets.is_empty());
 
     grid_handler.input_at_cursor("AB");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There should no longer be any secrets ("AB" does not match the regex).
     assert!(grid_handler.secrets.is_empty());
@@ -116,7 +110,7 @@ fn test_secret_redacted_after_multiple_byte_processing() {
 
     // Insert "C" into the grid.
     grid_handler.input_at_cursor("C");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There shouldn't be any secrets ("ABC" does not match the regex).
     assert!(grid_handler.secrets.is_empty());
@@ -124,7 +118,7 @@ fn test_secret_redacted_after_multiple_byte_processing() {
 
     // Insert "D" into the grid.
     grid_handler.input_at_cursor("D");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There should be one secret in the range (0,0)..(0,3).
     assert_eq!(grid_handler.secrets.len(), 1);
@@ -149,7 +143,7 @@ fn test_secret_redaction_unobfuscated_secret_remains_after_byte_processing() -> 
     assert!(grid_handler.secrets.is_empty());
 
     grid_handler.input_at_cursor("ABCD");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There should be one secret in the range (0,0)..(0,3).
     assert_eq!(grid_handler.secrets.len(), 1);
@@ -172,7 +166,7 @@ fn test_secret_redaction_unobfuscated_secret_remains_after_byte_processing() -> 
     }
 
     grid_handler.input_at_cursor("CD");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There should be one secret still.
     assert_eq!(grid_handler.secrets.len(), 1);
@@ -208,7 +202,7 @@ fn test_secret_redaction_secret_remains_after_resize() {
     assert!(grid_handler.secrets.is_empty());
 
     grid_handler.input_at_cursor("ABCDE");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There should be one secret in the range (0,0)..(0,3).
     assert_eq!(grid_handler.secrets.len(), 1);
@@ -243,7 +237,7 @@ fn test_bytes_processed_for_secrets_after_turning_redaction() {
     let grid_handler = blockgrid.grid_handler_mut();
 
     grid_handler.input_at_cursor("abcd");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There should be one secret in the range (0,0)..(0,3).
     assert_eq!(grid_handler.secrets.len(), 1);
@@ -258,7 +252,7 @@ fn test_bytes_processed_for_secrets_after_turning_redaction() {
 
     // There should still only be one secret and all bytes should not be processed.
     grid_handler.input_at_cursor("abcd");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
     assert_eq!(grid_handler.secrets.len(), 1);
     assert!(!grid_handler.all_bytes_scanned_for_secrets());
 }
@@ -275,7 +269,7 @@ fn test_bytes_processed_for_secrets_after_turning_redaction_on() {
     let grid_handler = blockgrid.grid_handler_mut();
 
     grid_handler.input_at_cursor("abcd");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There should no secrets.
     assert_eq!(grid_handler.secrets.len(), 0);
@@ -286,7 +280,7 @@ fn test_bytes_processed_for_secrets_after_turning_redaction_on() {
 
     // Insert another secret and assert that all bytes are not processed.
     grid_handler.input_at_cursor("abcd");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
     assert!(!grid_handler.all_bytes_scanned_for_secrets());
 }
 
@@ -302,7 +296,7 @@ fn test_bytes_processed_for_secrets_after_turning_redaction_off_then_on() {
     let grid_handler = blockgrid.grid_handler_mut();
 
     grid_handler.input_at_cursor("abcd");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There should be one secret in the range (0,0)..(0,3).
     assert_eq!(grid_handler.secrets.len(), 1);
@@ -315,14 +309,14 @@ fn test_bytes_processed_for_secrets_after_turning_redaction_off_then_on() {
     // Turn secret obfuscation off.
     grid_handler.obfuscate_secrets(ObfuscateSecrets::No);
     grid_handler.input_at_cursor("abcd");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
     assert_eq!(grid_handler.secrets.len(), 1);
     assert!(!grid_handler.all_bytes_scanned_for_secrets());
 
     // Turn secret obfuscation back on, and ensure that all bytes are still not processed.
     grid_handler.obfuscate_secrets(ObfuscateSecrets::Yes);
     grid_handler.input_at_cursor("abcd");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
     assert!(!grid_handler.all_bytes_scanned_for_secrets());
 }
 
@@ -338,7 +332,7 @@ fn test_bytes_processed_for_secrets_after_turning_redaction_on_then_off() {
     let grid_handler = blockgrid.grid_handler_mut();
 
     grid_handler.input_at_cursor("abcd");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There should be one secret in the range (0,0)..(0,3).
     assert_eq!(grid_handler.secrets.len(), 0);
@@ -347,12 +341,12 @@ fn test_bytes_processed_for_secrets_after_turning_redaction_on_then_off() {
     // Turn secret obfuscation on.
     grid_handler.obfuscate_secrets(ObfuscateSecrets::Yes);
     grid_handler.input_at_cursor("abcd");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
     assert!(!grid_handler.all_bytes_scanned_for_secrets());
 
     // Turn secret obfuscation back off, and ensure that all bytes are still not processed.
     grid_handler.obfuscate_secrets(ObfuscateSecrets::No);
     grid_handler.input_at_cursor("abcd");
-    grid_handler.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid_handler.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
     assert!(!grid_handler.all_bytes_scanned_for_secrets());
 }

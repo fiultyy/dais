@@ -17,14 +17,15 @@ use crate::terminal::model::index::VisibleRow;
 use crate::terminal::model::iterm_image::{ITermImage, ITermImageMetadata};
 use crate::terminal::shared_session::{ai_agent::encode_agent_response_event, SharedSessionStatus};
 use crate::terminal::ssh::util::{InteractiveSshCommand, SshLoginState};
-use crate::terminal::{block_filter::BlockFilterQuery, model::ansi::Handler};
+use crate::terminal::block_filter::BlockFilterQuery;
+use terminal_grid_model::ansi::Handler;
 use crate::terminal::{color, ssh, BlockPadding, SizeUpdate, SizeUpdateReason};
 use crate::terminal::{ShellLaunchData, ShellLaunchState};
 use crate::util::AsciiDebug;
 
 pub use crate::terminal::history::HistoryEntry;
 
-use super::ansi::{
+use terminal_grid_model::ansi::{
     FinishUpdateValue, InputBufferValue, Mode, PendingHook, TmuxInstallFailedInfo,
     WarpificationUnavailableReason,
 };
@@ -46,10 +47,8 @@ use super::secrets::{RespectObfuscatedSecrets, SecretAndHandle};
 use super::selection::ScrollDelta;
 use super::session::{InBandCommandOutputReceiver, SessionId};
 use super::tmux::commands::TmuxCommand;
-use super::{
-    super::{AltScreen, BlockList},
-    ansi::BootstrappedValue,
-};
+use super::super::{AltScreen, BlockList};
+use terminal_grid_model::ansi::BootstrappedValue;
 use super::{tmux, Secret, SecretHandle};
 use terminal_grid_model::ansi::{
     ClearValue, CommandFinishedValue, ExitShellValue, InitShellValue, InitSshValue,
@@ -1813,7 +1812,7 @@ impl TerminalModel {
     }
 }
 
-/// Used in the ansi::Handler implementation for TerminalModel below. Performs
+/// Used in the terminal_grid_model::ansi::Handler implementation for TerminalModel below. Performs
 /// the provided method call on the active handler, either the block_list or the
 /// alt_screen if it is active.
 macro_rules! delegate {
@@ -1886,7 +1885,7 @@ pub enum HandlerEvent {
     RunTmuxCommand(TmuxCommand),
 }
 
-impl ansi::Handler for TerminalModel {
+impl terminal_grid_model::ansi::Handler for TerminalModel {
     fn set_title(&mut self, title: Option<String>) {
         // Don't set the tab title if the title event is for a running in-band command.
         if self.block_list().is_writing_or_executing_in_band_command() {
@@ -1904,11 +1903,11 @@ impl ansi::Handler for TerminalModel {
         }
     }
 
-    fn set_cursor_style(&mut self, style: Option<ansi::CursorStyle>) {
+    fn set_cursor_style(&mut self, style: Option<terminal_grid_model::ansi::CursorStyle>) {
         delegate!(self.set_cursor_style(style));
     }
 
-    fn set_cursor_shape(&mut self, shape: ansi::CursorShape) {
+    fn set_cursor_shape(&mut self, shape: terminal_grid_model::ansi::CursorShape) {
         delegate!(self.set_cursor_shape(shape));
     }
 
@@ -2085,15 +2084,15 @@ impl ansi::Handler for TerminalModel {
         delegate!(self.restore_cursor_position());
     }
 
-    fn clear_line(&mut self, mode: ansi::LineClearMode) {
+    fn clear_line(&mut self, mode: terminal_grid_model::ansi::LineClearMode) {
         delegate!(self.clear_line(mode));
     }
 
-    fn clear_screen(&mut self, mode: ansi::ClearMode) {
+    fn clear_screen(&mut self, mode: terminal_grid_model::ansi::ClearMode) {
         delegate!(self.clear_screen(mode));
     }
 
-    fn clear_tabs(&mut self, mode: ansi::TabulationClearMode) {
+    fn clear_tabs(&mut self, mode: terminal_grid_model::ansi::TabulationClearMode) {
         delegate!(self.clear_tabs(mode));
     }
 
@@ -2109,13 +2108,13 @@ impl ansi::Handler for TerminalModel {
         delegate!(self.reverse_index())
     }
 
-    fn terminal_attribute(&mut self, attribute: ansi::Attr) {
+    fn terminal_attribute(&mut self, attribute: terminal_grid_model::ansi::Attr) {
         self.alt_screen.terminal_attribute(attribute);
         self.block_list.terminal_attribute(attribute);
     }
 
-    fn set_mode(&mut self, mode: ansi::Mode) {
-        if let ansi::Mode::SwapScreen {
+    fn set_mode(&mut self, mode: terminal_grid_model::ansi::Mode) {
+        if let terminal_grid_model::ansi::Mode::SwapScreen {
             save_cursor_and_clear_screen,
         } = mode
         {
@@ -2128,15 +2127,15 @@ impl ansi::Handler for TerminalModel {
         self.emit_handler_event(HandlerEvent::SetMode { mode });
     }
 
-    fn unset_mode(&mut self, mode: ansi::Mode) {
+    fn unset_mode(&mut self, mode: terminal_grid_model::ansi::Mode) {
         match mode {
-            ansi::Mode::SwapScreen {
+            terminal_grid_model::ansi::Mode::SwapScreen {
                 save_cursor_and_clear_screen,
             } => {
                 self.exit_alt_screen(save_cursor_and_clear_screen);
                 return;
             }
-            ansi::Mode::SyncOutput => {
+            terminal_grid_model::ansi::Mode::SyncOutput => {
                 // When synchronized output is turned off, we should redraw.
                 self.event_proxy.send_wakeup_event();
             }
@@ -2160,11 +2159,11 @@ impl ansi::Handler for TerminalModel {
         delegate!(self.unset_keypad_application_mode());
     }
 
-    fn set_active_charset(&mut self, index: ansi::CharsetIndex) {
+    fn set_active_charset(&mut self, index: terminal_grid_model::ansi::CharsetIndex) {
         delegate!(self.set_active_charset(index));
     }
 
-    fn configure_charset(&mut self, index: ansi::CharsetIndex, charset: ansi::StandardCharset) {
+    fn configure_charset(&mut self, index: terminal_grid_model::ansi::CharsetIndex, charset: terminal_grid_model::ansi::StandardCharset) {
         delegate!(self.configure_charset(index, charset));
     }
 
@@ -2226,21 +2225,21 @@ impl ansi::Handler for TerminalModel {
         delegate!(self.text_area_size_chars(writer));
     }
 
-    fn prompt_marker(&mut self, marker: ansi::PromptMarker) {
+    fn prompt_marker(&mut self, marker: terminal_grid_model::ansi::PromptMarker) {
         if matches!(
             self.is_receiving_completions_output,
             IsReceivingCompletionsOutput::Yes { .. }
-        ) && matches!(marker, ansi::PromptMarker::StartPrompt { .. })
+        ) && matches!(marker, terminal_grid_model::ansi::PromptMarker::StartPrompt { .. })
         {
             self.end_completions_output();
         }
 
         let event = match &marker {
-            ansi::PromptMarker::StartPrompt { kind } => match kind {
-                ansi::PromptKind::Initial => HandlerEvent::PromptStart,
-                ansi::PromptKind::Right => HandlerEvent::RPromptStart,
+            terminal_grid_model::ansi::PromptMarker::StartPrompt { kind } => match kind {
+                terminal_grid_model::ansi::PromptKind::Initial => HandlerEvent::PromptStart,
+                terminal_grid_model::ansi::PromptKind::Right => HandlerEvent::RPromptStart,
             },
-            ansi::PromptMarker::EndPrompt => HandlerEvent::PromptEnd,
+            terminal_grid_model::ansi::PromptMarker::EndPrompt => HandlerEvent::PromptEnd,
         };
         delegate!(self.prompt_marker(marker));
         self.emit_handler_event(event);
@@ -2580,7 +2579,7 @@ impl ansi::Handler for TerminalModel {
         }
     }
 
-    fn on_finish_byte_processing(&mut self, input: &ansi::ProcessorInput<'_>) {
+    fn on_finish_byte_processing(&mut self, input: &terminal_grid_model::ansi::ProcessorInput<'_>) {
         if let Some(SshLogin {
             notification_state, ..
         }) = &self.notify_on_end_of_ssh_login

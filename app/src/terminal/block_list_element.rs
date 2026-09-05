@@ -73,8 +73,8 @@ use super::find::{BlockListFindRun, BlockListMatch, TerminalFindModel};
 use super::grid_renderer::CellGlyphCache;
 
 use super::meta_shortcuts::handle_keystroke_despite_composing;
-use super::model::block::BlockId;
-use super::model::blocks::{RichContentItem, SelectionRange};
+use terminal_grid_model::block::BlockId;
+use terminal_grid_model::block::blocks::{RichContentItem, SelectionRange};
 use super::model::grid::grid_handler::{Link, TermMode};
 use super::model::image_map::StoredImageMetadata;
 use super::model::mouse::{MouseAction, MouseButton, MouseState};

@@ -1,3 +1,4 @@
+use terminal_grid_model::ansi::{Attr, Handler};
 use std::{collections::HashMap, pin::pin, time::Duration};
 
 use super::*;
@@ -22,7 +23,7 @@ use terminal_grid_model::block_serialized::SerializedBlock;
 use super::super::session::Sessions;
 use crate::{
     ai::blocklist::agent_view::AgentViewState,
-    terminal::model::{ ansi::{Attr, Handler}, cell::Flags, header_grid::PromptEndPoint, session::SessionInfo, test_utils::{create_test_block_with_grids, TestBlockBuilder}, },
+    terminal::model::{ cell::Flags, header_grid::PromptEndPoint, session::SessionInfo, test_utils::{create_test_block_with_grids, TestBlockBuilder}, },
     test_util::mock_blockgrid,
 };
 use float_cmp::assert_approx_eq;
@@ -135,7 +136,7 @@ pub fn test_find() {
     block.output_grid.linefeed();
     block
         .output_grid
-        .on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+        .on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     assert_eq!(block.header_grid.prompt_and_command_number_of_rows(), 3);
     assert_eq!(block.output_grid.len(), 3);
@@ -236,7 +237,7 @@ pub fn test_find() {
     block.output_grid.linefeed();
     block
         .output_grid
-        .on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+        .on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     assert_eq!(block.header_grid.prompt_and_command_number_of_rows(), 2);
     assert_eq!(block.output_grid.len(), 3);
@@ -407,7 +408,7 @@ pub fn test_block_height_non_bootstrapped_block() {
     // Add a few lines to the grid.
     block.linefeed();
     block.linefeed();
-    block.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    block.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // The block is empty since it was never started.
     assert!(block.is_empty(&AgentViewState::Inactive));
@@ -875,7 +876,7 @@ fn test_clone_command_from_blockgrid() {
     block
         .header_grid
         .prompt_and_command_grid_mut()
-        .set_mode(ansi::Mode::LineFeedNewLine);
+        .set_mode(terminal_grid_model::ansi::Mode::LineFeedNewLine);
 
     block.copy_command_grid(&grid_to_clone);
 
@@ -937,7 +938,7 @@ fn test_clone_command_from_blockgrid_long() {
     block
         .header_grid
         .prompt_and_command_grid_mut()
-        .set_mode(ansi::Mode::LineFeedNewLine);
+        .set_mode(terminal_grid_model::ansi::Mode::LineFeedNewLine);
 
     block.copy_command_grid(&grid_to_clone);
 
@@ -993,7 +994,7 @@ fn test_clone_command_from_blockgrid_from_empty() {
     block
         .header_grid
         .prompt_and_command_grid_mut()
-        .set_mode(ansi::Mode::LineFeedNewLine);
+        .set_mode(terminal_grid_model::ansi::Mode::LineFeedNewLine);
 
     block.copy_command_grid(&grid_to_clone);
 
@@ -1048,7 +1049,7 @@ fn test_clone_command_from_blockgrid_to_empty() {
     block
         .header_grid
         .prompt_and_command_grid_mut()
-        .set_mode(ansi::Mode::LineFeedNewLine);
+        .set_mode(terminal_grid_model::ansi::Mode::LineFeedNewLine);
 
     block.copy_command_grid(&grid_to_clone);
 

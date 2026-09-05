@@ -1,3 +1,4 @@
+use terminal_grid_model::block::LONG_RUNNING_COMMAND_DURATION_MS;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use super::{
@@ -25,7 +26,7 @@ use crate::{
     server::telemetry::TelemetryEvent,
     settings::{InputModeSettings, InputSettings},
     settings_view::keybindings::KeybindingChangedNotifier,
-    terminal::{ input::SET_INPUT_MODE_TERMINAL_ACTION_NAME, model::block::LONG_RUNNING_COMMAND_DURATION_MS, model_events::{ModelEvent, ModelEventDispatcher}, view::ambient_agent::{AmbientAgentViewModel, AmbientAgentViewModelEvent}, warpify::render::LEFT_STRIPE_WIDTH, TerminalModel, CANCEL_COMMAND_KEYBINDING, TOGGLE_AUTOEXECUTE_MODE_KEYBINDING, TOGGLE_HIDE_CLI_RESPONSES_KEYBINDING, TOGGLE_QUEUE_NEXT_PROMPT_KEYBINDING, },
+    terminal::{ input::SET_INPUT_MODE_TERMINAL_ACTION_NAME, model_events::{ModelEvent, ModelEventDispatcher}, view::ambient_agent::{AmbientAgentViewModel, AmbientAgentViewModelEvent}, warpify::render::LEFT_STRIPE_WIDTH, TerminalModel, CANCEL_COMMAND_KEYBINDING, TOGGLE_AUTOEXECUTE_MODE_KEYBINDING, TOGGLE_HIDE_CLI_RESPONSES_KEYBINDING, TOGGLE_QUEUE_NEXT_PROMPT_KEYBINDING, },
     util::bindings::keybinding_name_to_keystroke,
     BlocklistAIHistoryModel,
 };

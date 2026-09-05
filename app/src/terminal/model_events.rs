@@ -17,15 +17,15 @@ use warpui::SingletonEntity;
 use warpui::{Entity, ModelContext, ModelHandle};
 
 use super::event::SshLoginStatus;
-use super::model::ansi::{FinishUpdateValue, WarpificationUnavailableReason};
-use super::model::block::BlockId;
+use terminal_grid_model::ansi::{FinishUpdateValue, WarpificationUnavailableReason};
+use terminal_grid_model::block::BlockId;
 use super::model::completions::ShellCompletion;
 use super::model::terminal_model::{ExitReason, TmuxControlModeContext, TmuxInstallationState};
 use super::model::tmux::commands::TmuxCommand;
+use terminal_grid_model::ansi;
 use super::{
     event::BootstrappedEvent,
     model::{
-        ansi,
         session::{IsLegacySSHSession, SessionId, SessionInfo},
         terminal_model::{CommandType, HandlerEvent},
     },
@@ -79,7 +79,7 @@ impl ModelEventDispatcher {
     }
 
     /// Emits the corresponding `ModelEvent` for the received `HandlerEvent` emitted by
-    /// `TerminalModel` when some `ansi::Handler` method is called.
+    /// `TerminalModel` when some `terminal_grid_model::ansi::Handler` method is called.
     fn handle_terminal_model_event(&mut self, event: Event, ctx: &mut ModelContext<Self>) {
         let event_to_emit = match event {
             Event::Handler(HandlerEvent::InitShell {
@@ -176,10 +176,10 @@ impl ModelEventDispatcher {
                 _ => return,
             },
             Event::Handler(HandlerEvent::SetMode {
-                mode: ansi::Mode::BracketedPaste,
+                mode: terminal_grid_model::ansi::Mode::BracketedPaste,
             }) => ModelEvent::Handler(AnsiHandlerEvent::SetBracketedPaste),
             Event::Handler(HandlerEvent::UnsetMode {
-                mode: ansi::Mode::BracketedPaste,
+                mode: terminal_grid_model::ansi::Mode::BracketedPaste,
             }) => ModelEvent::Handler(AnsiHandlerEvent::UnsetBracketedPaste),
             Event::Handler(HandlerEvent::StartTmuxControlMode) => {
                 ModelEvent::Handler(AnsiHandlerEvent::StartTmuxControlMode)

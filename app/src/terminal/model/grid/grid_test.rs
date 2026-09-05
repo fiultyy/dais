@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
 use warp_core::features::FeatureFlag;
 #[allow(unused_imports)]
-use warp_terminal::model::ansi::{CharsetIndex, StandardCharset};
+use terminal_grid_model::ansi::{CharsetIndex, StandardCharset};
 #[allow(unused_imports)]
 use warp_terminal::model::grid::cell::{Cell, Flags};
 #[allow(unused_imports)]
@@ -566,7 +566,7 @@ fn test_split_grid_cursor_last_position() {
     // Grid splitting only ever occurs from the main thread, so pretend to
     // finish byte processing before we start the split.  This should clear
     // out the dirty cells range.
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
     assert!(grid.dirty_cells_range().is_none());
 
     // 2. Preconditions: Check initial state.
@@ -636,7 +636,7 @@ fn test_split_grid_cursor_in_grid1() {
 
     // Place the cursor somewhere in the first half of the grid.
     grid.set_cursor_point(1, 1); // Cursor at 'b'
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // 2. Preconditions: Check initial state.
     assert_eq!(
@@ -746,7 +746,7 @@ fn test_split_grid_cursor_at_split_point() {
     ]);
 
     grid.set_cursor_point(2, 3); // Cursor at 'c'
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     match grid.split(NonZeroUsize::new(2).expect("should not be zero")) {
         (grid, Some(bottom_grid)) => {
@@ -814,7 +814,7 @@ fn test_split_grid_scrollback_visible_rows() {
         &['a', '6', '\0', '\0', '\0', '\0'], // visible row 3
     ]);
     grid.set_cursor_point(6, 2);
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // Force rows to go into scrollback with consecutive resize operations.
     grid.resize(SizeInfo::new_without_font_metrics(18, 4));
@@ -888,7 +888,7 @@ fn test_split_grid_scrollback_visible_rows_out_of_bounds() {
         &['a', '6', '\0', '\0', '\0', '\0'], // visible row 3
     ]);
     grid.set_cursor_point(6, 2);
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // Force rows to go into scrollback with consecutive resize operations.
     grid.resize(SizeInfo::new_without_font_metrics(18, 4));

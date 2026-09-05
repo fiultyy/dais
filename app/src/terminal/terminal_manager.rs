@@ -1,3 +1,4 @@
+use terminal_grid_model::block::BlockSize;
 use parking_lot::FairMutex;
 use pathfinder_geometry::vector::Vector2F;
 use settings::Setting as _;
@@ -14,7 +15,6 @@ use crate::{
 use super::{
     color,
     event_listener::ChannelEventListener,
-    model::block::BlockSize,
     safe_mode_settings::get_secret_obfuscation_mode,
     session_settings::SessionSettings,
     settings::TerminalSettings,
