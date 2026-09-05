@@ -85,6 +85,21 @@ pub trait GridEventSink: Send + Sync + 'static {
     fn send_text_selection_changed(&self);
     /// R14: header_grid 下沉新增——PS1 honor 失同步通知(app 映射 TerminalEvent::HonorPS1OutOfSync)。
     fn send_honor_ps1_out_of_sync(&self);
+    // ---- R22: Block 发射点 5 法(Block 本体迁移当轮挂接, 死残留禁令) ----
+    /// 可见 bootstrap block 出现(app 映射 TerminalEvent::VisibleBootstrapBlock)。
+    fn send_visible_bootstrap_block(&self);
+    /// block 完成(app 映射 TerminalEvent::BlockCompleted)。
+    fn send_block_completed(&self, event: crate::block_events::BlockCompletedEvent);
+    /// prompt 更新(app 映射 TerminalEvent::PromptUpdated)。
+    fn send_prompt_updated(&self);
+    /// block 元数据到达(app 映射 TerminalEvent::BlockMetadataReceived)。
+    fn send_block_metadata_received(&self, event: crate::block_events::BlockMetadataReceivedEvent);
+    /// PostBootstrapPrecmd 后 block 启动(app 映射 TerminalEvent::AfterBlockStarted)。
+    fn send_after_block_started(&self, event: crate::block_events::AfterBlockStartedEvent);
+    /// R22: 长任务渲染唤醒(经 app wakeups_tx 通道, 非事件枚举)。
+    fn send_wakeup_for_render(&self);
+    /// R22: agent 被@状态变化(app 映射 TerminalEvent::AgentTaggedInChanged)。
+    fn send_agent_tagged_in_changed(&self, is_tagged_in: bool);
 }
 
 /// clipboard 回读回调: 入参为系统剪贴板文本,返回需写回 pty 的响应串。
@@ -108,6 +123,13 @@ impl GridEventSink for NoopEventSink {
     fn send_image_received(&self, _id: u32, _data: Vec<u8>, _protocol: ImageProtocol) {}
     fn send_text_selection_changed(&self) {}
     fn send_honor_ps1_out_of_sync(&self) {}
+    fn send_visible_bootstrap_block(&self) {}
+    fn send_block_completed(&self, _event: crate::block_events::BlockCompletedEvent) {}
+    fn send_prompt_updated(&self) {}
+    fn send_block_metadata_received(&self, _event: crate::block_events::BlockMetadataReceivedEvent) {}
+    fn send_after_block_started(&self, _event: crate::block_events::AfterBlockStartedEvent) {}
+    fn send_wakeup_for_render(&self) {}
+    fn send_agent_tagged_in_changed(&self, _is_tagged_in: bool) {}
 }
 
 /// R10 缝: 富内容 secret 检测策略(app ai::blocklist),构造注入。

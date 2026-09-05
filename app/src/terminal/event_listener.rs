@@ -88,6 +88,41 @@ pub use testing::*;
 pub struct GridEventSinkAdapter(pub ChannelEventListener);
 
 impl terminal_grid_model::grid::GridEventSink for GridEventSinkAdapter {
+    fn send_agent_tagged_in_changed(&self, is_tagged_in: bool) {
+        self.0
+            .send_terminal_event(TerminalEvent::AgentTaggedInChanged { is_tagged_in });
+    }
+    fn send_wakeup_for_render(&self) {
+        self.0.send_wakeup_event();
+    }
+    fn send_visible_bootstrap_block(&self) {
+        self.0.send_terminal_event(TerminalEvent::VisibleBootstrapBlock);
+    }
+    fn send_block_completed(&self, event: terminal_grid_model::block_events::BlockCompletedEvent) {
+        self.0
+            .send_terminal_event(TerminalEvent::BlockCompleted(event));
+    }
+    fn send_prompt_updated(&self) {
+        self.0.send_terminal_event(TerminalEvent::PromptUpdated);
+    }
+    fn send_block_metadata_received(
+        &self,
+        event: terminal_grid_model::block_events::BlockMetadataReceivedEvent,
+    ) {
+        self.0
+            .send_terminal_event(TerminalEvent::BlockMetadataReceived(event));
+    }
+    fn send_after_block_started(
+        &self,
+        event: terminal_grid_model::block_events::AfterBlockStartedEvent,
+    ) {
+        self.0.send_terminal_event(TerminalEvent::AfterBlockStarted {
+            block_id: event.block_id,
+            command: event.command,
+            is_for_in_band_command: event.is_for_in_band_command,
+        });
+    }
+
     fn send_cursor_blinking_change(&self, blinking: bool) {
         self.0
             .send_terminal_event(TerminalEvent::CursorBlinkingChange(blinking));

@@ -156,3 +156,11 @@ pub struct UserBlockCompleted {
     /// was active and receiving output.
     pub num_output_lines_truncated: u64,
 }
+
+/// R22: Block 发射点载荷(自 app event.rs AfterBlockStarted 字面量结构定形)。
+#[derive(Clone, Debug)]
+pub struct AfterBlockStartedEvent {
+    pub block_id: warp_terminal::model::BlockId,
+    pub command: String,
+    pub is_for_in_band_command: bool,
+}

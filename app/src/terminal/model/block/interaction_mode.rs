@@ -54,10 +54,7 @@ impl Block {
         {
             if *did_user_tag_in_agent != value {
                 *did_user_tag_in_agent = value;
-                self.event_proxy
-                    .send_terminal_event(Event::AgentTaggedInChanged {
-                        is_tagged_in: value,
-                    });
+                self.event_sink.send_agent_tagged_in_changed(value);
             }
         }
     }

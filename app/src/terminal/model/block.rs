@@ -3,6 +3,7 @@ mod serialized_block;
 
 pub use interaction_mode::*;
 pub use serialized_block::*;
+use terminal_grid_model::block_events::AfterBlockStartedEvent;
 use warp_core::features::FeatureFlag;
 
 use super::grid::grid_handler::{GridHandler, PerformResetGridChecks};
@@ -283,7 +284,8 @@ pub struct Block {
     #[allow(dead_code)]
     timer_host: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
 
-    event_proxy: ChannelEventListener,
+    /// R22: Block 发射点统一走 GridEventSink 缝(构造时自 event_proxy 包装)。
+    event_sink: std::sync::Arc<dyn terminal_grid_model::grid::GridEventSink>,
 
     render_delay_complete: Arc<AtomicBool>,
     was_long_running: AtomicBool,
@@ -901,7 +903,9 @@ impl Block {
             node_version: None,
             rprompt: None,
             timer_host,
-            event_proxy,
+            event_sink: std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                event_proxy.clone(),
+            )),
             bootstrap_stage,
             show_bootstrap_block: show_warp_bootstrap_input,
             show_in_band_command_blocks,
@@ -1101,8 +1105,7 @@ impl Block {
         // If we are in script execution stage and the shell starts a new block,
         // this means we have a visible bootstrap block.
         if self.bootstrap_stage() == BootstrapStage::ScriptExecution {
-            self.event_proxy
-                .send_terminal_event(Event::VisibleBootstrapBlock);
+            self.event_sink.send_visible_bootstrap_block();
         }
 
         self.header_grid.start_command_grid();
@@ -1474,16 +1477,15 @@ impl Block {
         self.block_banner = None;
 
         let block_type: BlockType = self.into();
-        self.event_proxy
-            .send_terminal_event(Event::BlockCompleted(BlockCompletedEvent {
-                block_type,
-                block_latency_data: self.block_latency_data(),
-                num_secrets_obfuscated: self.num_secrets_obfuscated(),
-                block_index: self.block_index,
-                block_id: self.id.clone(),
-                session_id: self.session_id,
-                restored_block_was_local: self.restored_block_was_local,
-            }));
+        self.event_sink.send_block_completed(BlockCompletedEvent {
+            block_type,
+            block_latency_data: self.block_latency_data(),
+            num_secrets_obfuscated: self.num_secrets_obfuscated(),
+            block_index: self.block_index,
+            block_id: self.id.clone(),
+            session_id: self.session_id,
+            restored_block_was_local: self.restored_block_was_local,
+        });
     }
 
     pub fn num_secrets_obfuscated(&self) -> usize {
@@ -2390,7 +2392,7 @@ impl Block {
         // we can force trigger a re-render for a command that is still running but may not have
         // any output (such as the `read` command).
         // R18: Timer/executor 经 BlockTimerHost 注入(测试=立即同步,生产=后台延迟)。
-        let event_proxy = self.event_proxy.clone();
+        let event_sink = self.event_sink.clone();
         let ready_to_render = self.render_delay_complete.clone();
         let delay_ms = match self.state {
             BlockState::Background => BACKGROUND_OUTPUT_RENDER_DELAY_MS,
@@ -2401,7 +2403,7 @@ impl Block {
             delay_ms,
             Box::new(move || {
                 ready_to_render.store(true, Ordering::Relaxed);
-                event_proxy.send_wakeup_event();
+                event_sink.send_wakeup_for_render();
             }),
         );
     }
@@ -3094,7 +3096,7 @@ impl ansi::Handler for Block {
                 }
                 // Reset the indicator for receiving prompt characters.
                 self.header_grid.receiving_chars_for_prompt = None;
-                self.event_proxy.send_terminal_event(Event::PromptUpdated);
+                self.event_sink.send_prompt_updated();
             }
         }
     }
@@ -3128,8 +3130,8 @@ impl ansi::Handler for Block {
         }
 
         self.precmd_state = PrecmdState::AfterPrecmd;
-        self.event_proxy
-            .send_terminal_event(Event::BlockMetadataReceived(BlockMetadataReceivedEvent {
+        self.event_sink
+            .send_block_metadata_received(BlockMetadataReceivedEvent {
                 block_metadata: self.metadata(),
                 block_index: self.block_index,
                 is_after_in_band_command,
@@ -3137,7 +3139,7 @@ impl ansi::Handler for Block {
                     self.bootstrap_stage,
                     BootstrapStage::PostBootstrapPrecmd
                 ),
-            }));
+            });
     }
 
     fn preexec(&mut self, data: PreexecValue) {
@@ -3161,8 +3163,8 @@ impl ansi::Handler for Block {
 
         let is_for_in_band_command = command_executor::is_in_band_command(data.command.as_str());
         if self.bootstrap_stage() == BootstrapStage::PostBootstrapPrecmd {
-            self.event_proxy
-                .send_terminal_event(Event::AfterBlockStarted {
+            self.event_sink
+                .send_after_block_started(AfterBlockStartedEvent {
                     block_id: self.id.clone(),
                     command: self.command_to_string(),
                     is_for_in_band_command,
