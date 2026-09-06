@@ -39,7 +39,7 @@ use super::grid::grid_handler::{
 };
 use terminal_grid_model::image_map::StoredImageMetadata;
 use terminal_model::index::Point;
-use super::kitty::{
+use terminal_model::kitty::{
     create_kitty_error_reply, create_kitty_ok_reply, DeletionType, KittyAction, KittyChunk,
     KittyMessage, KittyResponse, PendingKittyMessage,
 };

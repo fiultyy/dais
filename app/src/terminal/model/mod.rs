@@ -1,4 +1,3 @@
-pub use grid::GridStorage;
 pub use self::terminal_model::TerminalModel;
 
 #[cfg(test)]
@@ -16,7 +15,6 @@ macro_rules! assert_lines_approx_eq {
 pub use terminal_grid_model::grid::alt_screen;
 pub mod block;
 pub mod blocks;
-pub use terminal_grid_model::grid::header_grid;
 
 // R25: EarlyOutput 迁移 terminal_grid_model::block::early_output;mod 级 shim。
 pub use terminal_grid_model::block::early_output::*;
@@ -27,7 +25,6 @@ mod early_output_tests;
 pub use terminal_grid_model::find;
 pub mod grid;
 pub use ::terminal_model::iterm_image;
-pub use ::terminal_model::kitty;
 pub mod secrets {
     pub use terminal_grid_model::secrets::*;
 
@@ -217,8 +214,6 @@ pub mod secrets {
 }
 
 }
-// R12: selection 域下沉 terminal_grid_model,旧路径保持兼容(含 ScrollDelta 再导出)。
-pub use terminal_grid_model::grid::ScrollDelta;
 pub mod session;
 pub mod terminal_model;
 #[cfg(test)]

@@ -12,7 +12,7 @@ use crate::terminal::model::{
 };
 use crate::terminal::SizeInfo;
 
-use super::GridStorage;
+use terminal_grid_model::grid::GridStorage;
 // R10: 原父模块的可见 use 集,随模块下沉后显式补齐。
 #[allow(unused_imports)]
 use std::cmp::min;
