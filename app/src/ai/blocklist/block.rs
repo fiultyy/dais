@@ -42,7 +42,7 @@ use crate::code::editor::comment_editor::create_readonly_comment_markdown_editor
 use crate::code::editor::view::CodeEditorRenderOptions;
 use crate::code::editor_management::CodeSource;
 use crate::code_review::comment_rendering::{CommentViewCard, HeaderClickHandler};
-use warp_terminal::model::BlockId;
+use terminal_grid_model::block_id::BlockId;
 use crate::terminal::model_events::ModelEvent;
 use crate::terminal::model_events::ModelEventDispatcher;
 use crate::terminal::view::ambient_agent::AmbientAgentViewModel;

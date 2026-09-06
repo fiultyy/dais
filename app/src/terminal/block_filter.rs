@@ -15,7 +15,7 @@ use warpui::{
     AppContext, Element, Entity, SingletonEntity, TypedActionView, View, ViewContext, ViewHandle,
 };
 
-use crate::terminal::model::terminal_model::BlockIndex;
+use terminal_grid_model::block_index::BlockIndex;
 use crate::{
     appearance::Appearance,
     editor::{ EditOrigin, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, ValidInputType, },

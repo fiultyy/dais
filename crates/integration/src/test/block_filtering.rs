@@ -24,7 +24,9 @@ use dais::integration_testing::terminal::{
 use dais::integration_testing::view_getters::single_terminal_view_for_tab;
 
 use terminal_model::index::Point;
-use dais::terminal::model::terminal_model::{BlockIndex, WithinBlock, WithinModel};
+use dais::terminal::model::terminal_model::WithinModel;
+use terminal_grid_model::WithinBlock;
+use terminal_grid_model::block_index::BlockIndex;
 use dais::terminal::shell::ShellType;
 use dais::terminal::GridType;
 use warpui::{async_assert, async_assert_eq};

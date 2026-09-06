@@ -4,7 +4,7 @@ use std::cmp::{max, min};
 use std::ops::RangeInclusive;
 
 use serde::Serialize;
-use warp_terminal::model::{BlockId, BlockIndex};
+use crate::{block_id::BlockId, block_index::BlockIndex};
 
 /// Since a SelectedBlockRange is a range of blocks, it is possible that
 /// a debug/hidden block is within this range (even though it shouldn't be selected).

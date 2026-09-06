@@ -58,7 +58,7 @@ use crate::terminal::model::blocks::insert_block;
 use crate::terminal::model::grid::Dimensions as _;
 use terminal_model::index::Side;
 use crate::terminal::model::session::{BootstrapSessionType, SessionInfo};
-use crate::terminal::model::terminal_model::BlockIndex;
+use terminal_grid_model::block_index::BlockIndex;
 
 use chrono::Local;
 use warpui::text::SelectionType;

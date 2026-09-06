@@ -1,3 +1,4 @@
+use terminal_grid_model::block_index::BlockIndex;
 use settings::{RespectUserSyncSetting, SyncToCloud};
 use dais::{
     features::FeatureFlag,
@@ -17,7 +18,7 @@ use dais::{
     settings_view::{SettingsSection, SettingsView},
     sqlite_testing::set_user_and_hostname_for_blocks,
     terminal::{
-        model::{session::get_local_hostname, terminal_model::BlockIndex},
+        model::session::get_local_hostname,
         shell::ShellType,
         History, ShellHost, TerminalView,
     },

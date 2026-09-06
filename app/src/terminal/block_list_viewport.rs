@@ -1,3 +1,6 @@
+use terminal_grid_model::WithinBlock;
+use terminal_grid_model::selected_blocks::BlockSortDirection;
+use terminal_grid_model::block_index::BlockIndex;
 use terminal_grid_model::grid::selection::SelectionPoint;
 use terminal_model::index::Point as IndexPoint;
 use terminal_grid_model::block::blocks::RichContentItem;
@@ -33,7 +36,6 @@ use super::{
             BlockHeight, BlockHeightItem, BlockHeightSummary, BlockList, BlockListPoint,
             SelectionRange, TotalIndex,
         },
-        terminal_model::{BlockIndex, BlockSortDirection, WithinBlock},
     },
     view::BlockVisibilityMode,
     SizeInfo, HEIGHT_FUDGE_FACTOR_LINES,

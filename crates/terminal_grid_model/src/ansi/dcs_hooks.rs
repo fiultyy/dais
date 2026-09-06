@@ -1,6 +1,6 @@
 //! This module defines the schema for DCS hooks sent from the shell to the Rust
 //! app -- for example, the payloads sent from shell precmd and preexec.
-use warp_terminal::model::BlockId;
+use crate::block_id::BlockId;
 use warp_core::SessionId;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Deserializer, Serialize};

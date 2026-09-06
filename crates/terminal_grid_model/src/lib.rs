@@ -13,6 +13,8 @@ pub mod block_host;
 pub mod block_filter;
 pub mod block_serialized;
 pub mod block_heights;
+pub mod block_id;
+pub mod block_index;
 pub mod bootstrap;
 pub mod find;
 pub mod grid;

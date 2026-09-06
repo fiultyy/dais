@@ -42,6 +42,7 @@ pub use bootstrapping::*;
 pub use code_review::*;
 pub use ctrl_d::*;
 pub use file_tree::*;
+use terminal_grid_model::block_index::BlockIndex;
 use terminal_grid_model::ansi::{Handler as _, InitShellValue};
 use float_cmp::assert_approx_eq;
 pub use goto_line::*;
@@ -104,7 +105,7 @@ use dais::integration_testing::tab::{assert_pane_title, assert_tab_title};
 use dais::settings::CtrlTabBehavior;
 use dais::terminal::keys_settings::KeysSettings;
 use dais::terminal::{
-    model::{blocks::BlockHeightSummary, terminal_model::BlockIndex},
+    model::blocks::BlockHeightSummary,
     view::TerminalViewState,
 };
 use dais::workflows::categories::CategoriesView;

@@ -1,4 +1,7 @@
 //! This module implements terminal find functionality for the blocklist.
+use terminal_grid_model::WithinBlock;
+use terminal_grid_model::selected_blocks::BlockSortDirection;
+use terminal_grid_model::block_index::BlockIndex;
 use terminal_model::index::Point;
 use std::{collections::HashMap, iter, ops::RangeInclusive};
 
@@ -13,7 +16,6 @@ use crate::terminal::{
             TotalIndex,
         },
         find::{FindConfig, RegexDFAs},
-        terminal_model::{BlockIndex, BlockSortDirection},
     },
     GridType,
 };

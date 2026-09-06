@@ -1,3 +1,4 @@
+use terminal_grid_model::block_index::BlockIndex;
 use dais::{
     integration_testing::{
         agent_mode::AgentViewState,
@@ -11,7 +12,6 @@ use dais::{
         view_getters::single_terminal_view_for_tab,
     },
     terminal::{
-        model::terminal_model::BlockIndex,
         shell::{Shell, ShellType},
     },
 };

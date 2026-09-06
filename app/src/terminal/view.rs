@@ -460,7 +460,8 @@ use terminal_model::index::{Point, Side};
 use warp_terminal::model::mouse::MouseState;
 use terminal_grid_model::grid::selection::{SelectAction, SelectionDirection};
 use crate::terminal::model::session::{BootstrapSessionType, SessionType, Sessions, SessionsEvent};
-use crate::terminal::model::terminal_model::{BlockIndex, TerminalInputState};
+use terminal_grid_model::block_index::BlockIndex;
+use crate::terminal::model::terminal_model::TerminalInputState;
 use crate::terminal::model::terminal_model::{
     BlockSelectionCardinality, SelectedBlocks, WithinModel,
 };

@@ -5,7 +5,7 @@ use warp_core::command::ExitCode;
 
 use crate::terminal::event::UserBlockCompleted;
 use terminal_grid_model::block::BlockId;
-use crate::terminal::model::terminal_model::BlockIndex;
+use terminal_grid_model::block_index::BlockIndex;
 
 /// Contains context about a completed terminal command block.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

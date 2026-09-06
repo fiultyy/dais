@@ -15,7 +15,7 @@ use crate::integration_testing::view_getters::single_terminal_view_for_tab;
 use crate::integration_testing::{
     block::assert_num_blocks_in_model, terminal::assert_active_block_input_is_empty,
 };
-use crate::terminal::model::terminal_model::BlockIndex;
+use terminal_grid_model::block_index::BlockIndex;
 use crate::terminal::shell::ShellType;
 use crate::{
     cmd_or_ctrl_shift,

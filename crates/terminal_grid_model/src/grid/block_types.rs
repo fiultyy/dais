@@ -2,7 +2,7 @@
 //! block_list_element.rs/terminal/mod.rs 下沉)。
 use std::ops::RangeInclusive;
 use enum_iterator::Sequence;
-use warp_terminal::model::BlockIndex;
+use crate::block_index::BlockIndex;
 use terminal_model::index::Point;
 
 use crate::SizeInfo;

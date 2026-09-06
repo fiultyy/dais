@@ -2,7 +2,7 @@
 //! BlockHeightItem(变体载荷含 app view 类型)与 Item impl 留守 app。
 use std::ops::AddAssign;
 use sum_tree::Dimension;
-use warp_terminal::model::BlockIndex;
+use crate::block_index::BlockIndex;
 use warpui::units::{IntoLines, Lines};
 
 /// R15: 自 blocks.rs 提升(纯 Lines newtype)。

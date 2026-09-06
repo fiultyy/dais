@@ -1,10 +1,11 @@
+use terminal_grid_model::block_index::BlockIndex;
 use terminal_model::rich_content::RichContentType;
 use warpui::{prelude::ChildView, Element, EntityId, View, ViewContext, ViewHandle};
 
 use crate::{
     ai::{ agent::{conversation::AIConversationId, AIAgentExchangeId}, blocklist::{agent_view::AgentViewEntryOrigin, AIBlock}, },
     env_vars::env_var_collection_block::EnvVarCollectionBlock,
-    terminal::{ block_list_viewport::ScrollPositionUpdate, model::{ blocks::RichContentItem, terminal_model::BlockIndex, }, ssh::{error::SshErrorBlock, install_tmux::SshInstallTmuxBlock, warpify::SshWarpifyBlock}, view::{ ambient_agent::AmbientAgentEntryBlock, block_onboarding::onboarding_agentic_suggestions_block::OnboardingAgenticSuggestionsBlock, ssh_remote_server_choice_view::SshRemoteServerChoiceView, ssh_remote_server_failed_banner::SshRemoteServerFailedBanner, }, warpify::success_block::WarpifySuccessBlock, TerminalView, },
+    terminal::{ block_list_viewport::ScrollPositionUpdate, model::{ blocks::RichContentItem, }, ssh::{error::SshErrorBlock, install_tmux::SshInstallTmuxBlock, warpify::SshWarpifyBlock}, view::{ ambient_agent::AmbientAgentEntryBlock, block_onboarding::onboarding_agentic_suggestions_block::OnboardingAgenticSuggestionsBlock, ssh_remote_server_choice_view::SshRemoteServerChoiceView, ssh_remote_server_failed_banner::SshRemoteServerFailedBanner, }, warpify::success_block::WarpifySuccessBlock, TerminalView, },
 };
 
 /// Specifies where to insert rich content in the blocklist.

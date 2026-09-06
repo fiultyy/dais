@@ -3,7 +3,7 @@ use terminal_grid_model::{SizeInfo, ansi};
 use terminal_grid_model::size_info::SizeUpdate;
 use sum_tree::SeekBias;
 use terminal_grid_model::grid::block_types::BlockSize;
-use warp_terminal::model::BlockIndex;
+use terminal_grid_model::block_index::BlockIndex;
 use warpui::EntityId;
 use terminal_grid_model::ansi::PrecmdValue;
 use agent_ids::AIConversationId;

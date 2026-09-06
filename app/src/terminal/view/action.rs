@@ -1,3 +1,4 @@
+use terminal_grid_model::block_index::BlockIndex;
 use terminal_grid_model::grid::selection::{SelectAction, SelectionDirection};
 use terminal_model::index::Point;
 use warp_terminal::model::mouse::MouseState;
@@ -26,7 +27,7 @@ use crate::terminal::view::inline_banner::AgentModeSetupSpeedbumpBannerAction;
 use crate::terminal::view::passive_suggestions::PromptSuggestionResolution;
 use crate::workflows::workflow::Workflow;
 use crate::{
-    terminal::{ block_list_element::{ BlockHoverAction, BlockListMenuSource, BlockSelectAction, BlockTextSelectAction, }, block_list_viewport::OverhangingBlock, model::{ SecretHandle, terminal_model::{BlockIndex, WithinModel}, }, },
+    terminal::{ block_list_element::{ BlockHoverAction, BlockListMenuSource, BlockSelectAction, BlockTextSelectAction, }, block_list_viewport::OverhangingBlock, model::{ SecretHandle, terminal_model::WithinModel }, },
 };
 use objects::ids::SyncId;
 

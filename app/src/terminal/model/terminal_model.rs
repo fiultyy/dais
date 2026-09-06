@@ -1,3 +1,4 @@
+use terminal_grid_model::block_index::BlockIndex;
 use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::blocklist::SerializedBlockListItem;
 use crate::terminal::available_shells::AvailableShell;
@@ -84,7 +85,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use warp_core::features::FeatureFlag;
 use warp_core::semantic_selection::SemanticSelection;
-pub use warp_terminal::model::BlockIndex;
 use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
 use warpui::assets::asset_cache::Asset;
 use warpui::image_cache::ImageType;

@@ -92,7 +92,7 @@ use super::warpify::render::{draw_flag_pole, render_subshell_flag};
 use super::TerminalModel;
 use super::{heights_approx_eq, HEIGHT_FUDGE_FACTOR_LINES};
 use crate::terminal::blockgrid_renderer::BlockGridParams;
-use crate::terminal::model::terminal_model::BlockIndex;
+use terminal_grid_model::block_index::BlockIndex;
 use crate::terminal::warpify::SubshellSource;
 
 use warp_terminal::model::escape_sequences::{

@@ -6,7 +6,7 @@ use std::{collections::HashMap, pin::pin, time::Duration};
 use super::*;
 // R24: Block 迁移后 super::* 显式化补引。
 use agent_ids::AIConversationId;
-use warp_terminal::model::BlockIndex;
+use terminal_grid_model::block_index::BlockIndex;
 use terminal_grid_model::block_events::BlockType;
 use terminal_grid_model::bootstrap::BootstrapStage;
 use crate::terminal::event::Event;

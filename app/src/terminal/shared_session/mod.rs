@@ -1,3 +1,4 @@
+use terminal_grid_model::block_index::BlockIndex;
 use byte_unit::Byte;
 use instant::Duration;
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,7 @@ pub use protocol::ParticipantId;
 use protocol::{Role, Scrollback, ScrollbackBlock, SessionSourceType};
 
 use super::{
-    model::{block::SerializedBlock, terminal_model::BlockIndex},
+    model::{block::SerializedBlock},
     GridType, TerminalModel,
 };
 

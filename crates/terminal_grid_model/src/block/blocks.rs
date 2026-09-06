@@ -64,7 +64,7 @@ use crate::GridType;
 use crate::grid::blockgrid::BlockGrid;
 use warp_terminal::model::grid::Dimensions as _;
 use crate::secrets::ObfuscateSecrets;
-use warp_terminal::model::BlockIndex;
+use crate::block_index::BlockIndex;
 use crate::grid::block_types::WithinBlock;
 use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
 

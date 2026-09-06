@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use warp_core::SessionId;
-use warp_terminal::model::BlockId;
+use crate::block_id::BlockId;
 use warp_terminal::shell::ShellType;
 
 /// R17: 自 app/terminal/history.rs 提升(3 字段纯数据)。

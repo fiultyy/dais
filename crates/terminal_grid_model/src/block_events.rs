@@ -6,7 +6,7 @@ use objects::ids::SyncId;
 use crate::block_serialized::SerializedBlock;
 
 use warp_core::SessionId;
-use warp_terminal::model::{BlockId, BlockIndex};
+use crate::{block_id::BlockId, block_index::BlockIndex};
 
 #[derive(Clone)]
 pub struct BlockLatencyData {
@@ -160,7 +160,7 @@ pub struct UserBlockCompleted {
 /// R22: Block 发射点载荷(自 app event.rs AfterBlockStarted 字面量结构定形)。
 #[derive(Clone, Debug)]
 pub struct AfterBlockStartedEvent {
-    pub block_id: warp_terminal::model::BlockId,
+    pub block_id: crate::block_id::BlockId,
     pub command: String,
     pub is_for_in_band_command: bool,
 }

@@ -14,7 +14,7 @@ use crate::block::BlockSection;
 use crate::grid::selection::{ExpandedSelectionRange, Selection, SelectionDirection};
 use crate::GridType;
 use terminal_model::index::{Direction, Point, Side};
-use warp_terminal::model::BlockIndex;
+use crate::block_index::BlockIndex;
 use crate::grid::block_types::WithinBlock;
 use super::BlockListPointExt as _;
 

@@ -22,6 +22,7 @@ regex.workspace = true
 regex-automata.workspace = true
 ordered-float.workspace = true
 serde.workspace = true
+uuid.workspace = true
 thiserror.workspace = true
 once_cell.workspace = true
 dirs.workspace = true
