@@ -1,3 +1,4 @@
+use terminal_model::index::Point;
 use dais::integration_testing::terminal::{
     initialize_secret_regexes, open_context_menu_for_selected_block,
 };
@@ -14,7 +15,7 @@ use dais::{
         },
         view_getters::single_terminal_view,
     },
-    terminal::model::{index::Point, terminal_model::WithinModel},
+    terminal::model::terminal_model::WithinModel,
 };
 use warpui::{async_assert, integration::TestStep};
 

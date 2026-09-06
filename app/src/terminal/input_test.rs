@@ -56,7 +56,7 @@ use terminal_grid_model::block::SerializedBlock;
 use terminal_grid_model::block::blocks::BlockListPoint;
 use crate::terminal::model::blocks::insert_block;
 use crate::terminal::model::grid::Dimensions as _;
-use crate::terminal::model::index::Side;
+use terminal_model::index::Side;
 use crate::terminal::model::session::{BootstrapSessionType, SessionInfo};
 use crate::terminal::model::terminal_model::BlockIndex;
 

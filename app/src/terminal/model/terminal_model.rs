@@ -13,7 +13,7 @@ use terminal_model::completions::{
     ShellCompletion, ShellCompletionUpdate, ShellData as CompletionsShellData,
 };
 use warp_terminal::model::escape_sequences::ModeProvider;
-use crate::terminal::model::index::VisibleRow;
+use terminal_model::index::VisibleRow;
 use crate::terminal::model::iterm_image::{ITermImage, ITermImageMetadata};
 use crate::terminal::shared_session::{ai_agent::encode_agent_response_event, SharedSessionStatus};
 use crate::terminal::ssh::util::{InteractiveSshCommand, SshLoginState};
@@ -38,7 +38,7 @@ use super::grid::grid_handler::{
     ContainsPoint, FragmentBoundary, GridHandler, Link, PossiblePath, TermMode,
 };
 use super::image_map::StoredImageMetadata;
-use super::index::Point;
+use terminal_model::index::Point;
 use super::kitty::{
     create_kitty_error_reply, create_kitty_ok_reply, DeletionType, KittyAction, KittyChunk,
     KittyMessage, KittyResponse, PendingKittyMessage,

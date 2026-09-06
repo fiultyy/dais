@@ -10,7 +10,7 @@ use warp_util::path::is_network_resource;
 use warp_util::path::{CleanPathResult, LineAndColumnArg};
 
 use crate::terminal::model::grid::grid_handler::{ContainsPoint, Link};
-use crate::terminal::model::index::Point;
+use terminal_model::index::Point;
 use crate::terminal::ShellLaunchData;
 
 pub use self::external_editor::{open_file_path_in_external_editor, open_file_path_with_editor};

@@ -7301,6 +7301,7 @@ dependencies = [
  "sum_tree",
  "sysinfo",
  "terminal_grid_model",
+ "terminal_model",
  "version-compare",
  "warp-command-signatures",
  "warp-workflows",

@@ -1,3 +1,4 @@
+use terminal_model::index::Point;
 use std::ops::Deref;
 
 use serde::{Serialize, Serializer};
@@ -7,7 +8,7 @@ use warpui::{platform::Cursor, ViewContext};
 use crate::{
     send_telemetry_from_ctx,
     server::telemetry::{LinkOpenMethod, TelemetryEvent},
-    terminal::{ model::{ grid::grid_handler::Link, index::Point, terminal_model::{WithinBlock, WithinModel}, RespectObfuscatedSecrets, }, TerminalModel, },
+    terminal::{ model::{ grid::grid_handler::Link, terminal_model::{WithinBlock, WithinModel}, RespectObfuscatedSecrets, }, TerminalModel, },
 };
 
 cfg_if::cfg_if! {

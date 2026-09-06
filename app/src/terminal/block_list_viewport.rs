@@ -1,3 +1,4 @@
+use terminal_model::index::Point as IndexPoint;
 use terminal_grid_model::block::blocks::RichContentItem;
 use std::{ops::Range, rc::Rc, sync::MutexGuard};
 
@@ -13,7 +14,7 @@ use warpui::{
 
 use crate::{
     ai::blocklist::agent_view::AgentViewDisplayMode,
-    terminal::{input::inline_menu::InlineMenuPositioner, model::index::Point as IndexPoint},
+    terminal::input::inline_menu::InlineMenuPositioner,
 };
 use crate::{
     ai::blocklist::agent_view::AgentViewState,

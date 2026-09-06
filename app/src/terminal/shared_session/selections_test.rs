@@ -1,3 +1,4 @@
+use terminal_model::index::{Point, Side};
 use warp_core::semantic_selection::SemanticSelection;
 use warpui::App;
 
@@ -7,7 +8,6 @@ use crate::terminal::{
     model::{
         block::SerializedBlock,
         blocks::BlockListPoint,
-        index::{Point, Side},
         terminal_model::WithinBlock,
     },
     shared_session::tests::terminal_model_for_viewer,

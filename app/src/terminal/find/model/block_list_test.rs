@@ -1,3 +1,4 @@
+use terminal_model::index::Point;
 use std::collections::HashMap;
 
 use itertools::Itertools;
@@ -10,7 +11,6 @@ use crate::terminal::{
         BlockGridMatch,
     },
     model::{
-        index::Point,
         terminal_model::{BlockIndex, BlockSortDirection},
     },
     GridType, TerminalModel,

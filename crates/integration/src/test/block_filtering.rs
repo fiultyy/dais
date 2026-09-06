@@ -23,7 +23,7 @@ use dais::integration_testing::terminal::{
 };
 use dais::integration_testing::view_getters::single_terminal_view_for_tab;
 
-use dais::terminal::model::index::Point;
+use terminal_model::index::Point;
 use dais::terminal::model::terminal_model::{BlockIndex, WithinBlock, WithinModel};
 use dais::terminal::shell::ShellType;
 use dais::terminal::GridType;

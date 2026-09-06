@@ -1,6 +1,6 @@
 use super::{active_or_next_match, CachedBackgroundColor};
 use crate::terminal::grid_size_util::calculate_grid_baseline_position;
-use crate::terminal::model::index::Point;
+use terminal_model::index::Point;
 use crate::terminal::model::selection::SelectionPoint;
 use crate::terminal::{grid_renderer, SizeInfo};
 use anyhow::Result;

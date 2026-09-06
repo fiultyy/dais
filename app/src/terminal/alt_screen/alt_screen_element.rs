@@ -10,7 +10,7 @@ use warp_terminal::model::escape_sequences::{
 };
 use crate::terminal::model::grid::grid_handler::{Link, TermMode};
 use crate::terminal::model::grid::{Dimensions, RespectDisplayedOutput};
-use crate::terminal::model::index::Point;
+use terminal_model::index::Point;
 use warp_terminal::model::mouse::{MouseAction, MouseButton, MouseState};
 use crate::terminal::model::selection::{SelectAction, SelectionPoint};
 use crate::terminal::model::terminal_model::WithinModel;

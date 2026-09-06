@@ -1,4 +1,5 @@
-use crate::terminal::model::{index::Point, terminal_model::WithinBlock};
+use crate::terminal::model::terminal_model::WithinBlock;
+use terminal_model::index::Point;
 use terminal_grid_model::block::blocks::BlockList;
 use crate::terminal::shared_session::protocol::{BlockPoint, Point as SessionSharingPoint};
 

@@ -3,7 +3,7 @@ use crate::terminal::color;
 use crate::terminal::grid_renderer::{render_cursor, render_grid, CellGlyphCache};
 use crate::terminal::model::blockgrid::{BlockGrid, CursorDisplayPoint};
 use crate::terminal::model::grid::grid_handler::Link;
-use crate::terminal::model::index::Point;
+use terminal_model::index::Point;
 use crate::terminal::model::ObfuscateSecrets;
 use crate::terminal::SizeInfo;
 use crate::themes::theme::WarpTheme;

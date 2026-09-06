@@ -31,7 +31,6 @@ mod early_output_tests;
 pub use terminal_grid_model::find;
 pub mod grid;
 pub use terminal_grid_model::image_map;
-pub use ::terminal_model::index;
 pub use ::terminal_model::iterm_image;
 pub use ::terminal_model::kitty;
 pub mod secrets {

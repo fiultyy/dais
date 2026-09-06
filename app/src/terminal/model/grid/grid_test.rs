@@ -1,14 +1,14 @@
+use terminal_model::index::{VisiblePoint, VisibleRow};
 use std::num::NonZeroUsize;
 use terminal_grid_model::ansi::Handler as _;
 
 use terminal_grid_model::ansi::{self, Handler as _};
 use crate::terminal::model::grid::grid_handler::GridHandler;
-use crate::terminal::model::index::Point;
+use terminal_model::index::Point;
 use crate::terminal::model::secrets::ObfuscateSecrets;
 use crate::terminal::model::{
 
     grid::Dimensions,
-    index::{VisiblePoint, VisibleRow},
 };
 use crate::terminal::SizeInfo;
 

@@ -7,7 +7,7 @@ use crate::terminal::block_list_viewport::ScrollPositionUpdate;
 use terminal_grid_model::block::blocks::BlockListPointExt as _;
 use crate::terminal::shared_session::selections::WithinBlockSessionSharing as _;
 use terminal_grid_model::block::blocks::BlockListPoint;
-use crate::terminal::model::index::Point;
+use terminal_model::index::Point;
 use crate::terminal::model::terminal_model::WithinBlock;
 use crate::terminal::shared_session::protocol::RoleUpdatedReason;
 use crate::terminal::shared_session::protocol::SessionSourceType;

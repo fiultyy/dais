@@ -1,9 +1,10 @@
+use terminal_model::index::{VisiblePoint, VisibleRow};
 use warp_terminal::model::grid::cell::Flags;
 use terminal_grid_model::ansi::Handler as _;
 
 use crate::{
 
-    terminal::model::{ blockgrid::BlockGrid, grid::Dimensions as _, index::{VisiblePoint, VisibleRow}, },
+    terminal::model::{ blockgrid::BlockGrid, grid::Dimensions as _, },
     test_util::mock_blockgrid,
 };
 

@@ -1,4 +1,5 @@
 //! This module implements terminal find functionality for the blocklist.
+use terminal_model::index::Point;
 use std::{collections::HashMap, iter, ops::RangeInclusive};
 
 use itertools::Itertools;
@@ -12,7 +13,6 @@ use crate::terminal::{
             TotalIndex,
         },
         find::{FindConfig, RegexDFAs},
-        index::Point,
         terminal_model::{BlockIndex, BlockSortDirection},
     },
     GridType,

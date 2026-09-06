@@ -19,7 +19,7 @@ use terminal_grid_model::block::{Block, BlockSection};
 use terminal_grid_model::block::blocks::{
     BlockHeight, BlockHeightItem, BlockHeightSummary, BlockList, BlockListPoint, TotalIndex,
 };
-use crate::terminal::model::index::Point as IndexPoint;
+use terminal_model::index::Point as IndexPoint;
 use crate::terminal::model::selection::{SelectAction, SelectionPoint};
 use crate::terminal::safe_mode_settings::get_secret_obfuscation_mode;
 use crate::terminal::view::TerminalAction;

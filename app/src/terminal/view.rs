@@ -456,7 +456,7 @@ use terminal_grid_model::block::blocks::{BlockFilter, BlockList};
 use terminal_grid_model::block::blocks::{BlockHeight, BlockHeightItem, BlockHeightSummary, Gap};
 use warp_terminal::model::escape_sequences::{self, EscCodes, ToEscapeSequence, C1};
 use crate::terminal::model::grid::grid_handler::{FragmentBoundary, TermMode};
-use crate::terminal::model::index::{Point, Side};
+use terminal_model::index::{Point, Side};
 use warp_terminal::model::mouse::MouseState;
 use crate::terminal::model::selection::{SelectAction, SelectionDirection};
 use crate::terminal::model::session::{BootstrapSessionType, SessionType, Sessions, SessionsEvent};

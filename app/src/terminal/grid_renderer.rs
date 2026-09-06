@@ -9,7 +9,7 @@ use warp_terminal::model::grid::cell::{Cell, Flags};
 use crate::terminal::{color, SizeInfo};
 
 use crate::terminal::model::grid::Dimensions;
-use crate::terminal::model::index::Point;
+use terminal_model::index::Point;
 use crate::terminal::model::selection::SelectionPoint;
 use crate::terminal::model::{ObfuscateSecrets, SecretHandle};
 
