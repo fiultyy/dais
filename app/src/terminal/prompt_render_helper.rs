@@ -1,3 +1,4 @@
+use terminal_grid_model::grid::blockgrid::BlockGrid;
 use crate::ai::blocklist::BlocklistAIInputModel;
 use crate::context_chips::display::PromptDisplay;
 use crate::context_chips::spacing;
@@ -9,7 +10,7 @@ use crate::terminal::view::TerminalAction;
 use crate::themes::theme::PromptColors;
 use crate::{
     appearance::Appearance,
-    terminal::model::blockgrid::BlockGrid,
+
 };
 use settings::Setting as _;
 

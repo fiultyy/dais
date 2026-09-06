@@ -240,9 +240,9 @@ impl Default for TestBlockBuilder {
 
 pub fn create_test_block_with_grids(
     block_index: BlockIndex,
-    prompt_and_command_grid: super::blockgrid::BlockGrid,
-    rprompt_grid: super::blockgrid::BlockGrid,
-    output_grid: super::blockgrid::BlockGrid,
+    prompt_and_command_grid: terminal_grid_model::grid::blockgrid::BlockGrid,
+    rprompt_grid: terminal_grid_model::grid::blockgrid::BlockGrid,
+    output_grid: terminal_grid_model::grid::blockgrid::BlockGrid,
     honor_ps1: bool,
 ) -> super::block::Block {
     let mut block = TestBlockBuilder::new()

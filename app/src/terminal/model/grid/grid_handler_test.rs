@@ -1,3 +1,4 @@
+use terminal_grid_model::grid::blockgrid::BlockGrid;
 use std::ops::BitOrAssign;
 
 use warp_terminal::model::char_or_str::CharOrStr;
@@ -5,7 +6,7 @@ use warp_util::path::LineAndColumnArg;
 use warpui::text::words::is_default_word_boundary;
 
 use crate::terminal::model::secrets::{ObfuscateSecrets, SecretLevel};
-use crate::terminal::model::{blockgrid::BlockGrid, secrets::IsObfuscated};
+use crate::terminal::model::secrets::IsObfuscated;
 use crate::terminal::event_listener::ChannelEventListener;
 use terminal_grid_model::ansi::{self, Handler};
 use crate::test_util::mock_blockgrid;

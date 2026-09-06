@@ -1,3 +1,4 @@
+use terminal_grid_model::grid::blockgrid::BlockGrid;
 use crate::pane_group::focus_state::PaneFocusHandle;
 use crate::server::telemetry::MCPServerCollectionPaneEntrypoint;
 use crate::settings_view::mcp_servers_page::MCPServersSettingsPage;
@@ -10,7 +11,7 @@ use crate::{
     pane_group::{ pane::view, BackingView, Direction, PaneConfiguration, PaneEvent, SplitPaneState, },
     workspace::WorkspaceAction,
     settings::BlockVisibilitySettings,
-    terminal::{model::blockgrid::BlockGrid, SizeInfo},
+    terminal::SizeInfo,
     ui_components::icons,
     util::bindings::{ custom_tag_to_keystroke, keybinding_name_to_display_string, BindingGroup, CustomAction, },
     view_components::ToastFlavor,

@@ -1,9 +1,8 @@
 use regex::Regex;
 use serial_test::serial;
 
-use crate::terminal::{
-    event_listener::ChannelEventListener, model::blockgrid::BlockGrid, SizeInfo,
-};
+use crate::terminal::{event_listener::ChannelEventListener, SizeInfo};
+use terminal_grid_model::grid::blockgrid::BlockGrid;
 use terminal_grid_model::ansi::{self, Handler as _};
 
 use super::*;

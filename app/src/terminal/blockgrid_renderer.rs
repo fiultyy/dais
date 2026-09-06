@@ -1,7 +1,7 @@
 use crate::settings::EnforceMinimumContrast;
 use crate::terminal::color;
 use crate::terminal::grid_renderer::{render_cursor, render_grid, CellGlyphCache};
-use crate::terminal::model::blockgrid::{BlockGrid, CursorDisplayPoint};
+use terminal_grid_model::grid::blockgrid::{BlockGrid, CursorDisplayPoint};
 use crate::terminal::model::grid::grid_handler::Link;
 use terminal_model::index::Point;
 use crate::terminal::model::ObfuscateSecrets;
