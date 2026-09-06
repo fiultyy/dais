@@ -1,3 +1,4 @@
+use warp_terminal::model::escape_sequences;
 use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 
 use async_channel::{Receiver, Sender};
@@ -21,7 +22,7 @@ use terminal_grid_model::ansi::Handler;
 use crate::terminal::{
     bootstrap,
     line_editor_status::{LineEditorStatus, LineEditorStatusEvent},
-    model::{escape_sequences, session::SessionInfo},
+    model::{session::SessionInfo},
     model_events::{ModelEvent, ModelEventDispatcher},
     shell::ShellType,
     SizeUpdate, TerminalModel,

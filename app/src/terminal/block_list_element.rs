@@ -76,7 +76,7 @@ use terminal_grid_model::block::BlockId;
 use terminal_grid_model::block::blocks::{RichContentItem, SelectionRange};
 use super::model::grid::grid_handler::{Link, TermMode};
 use super::model::image_map::StoredImageMetadata;
-use super::model::mouse::{MouseAction, MouseButton, MouseState};
+use warp_terminal::model::mouse::{MouseAction, MouseButton, MouseState};
 use super::model::session::SessionId;
 use super::model::terminal_model::{SelectedBlocks, WithinBlock, WithinModel};
 use super::model::SecretHandle;
@@ -95,7 +95,7 @@ use crate::terminal::blockgrid_renderer::BlockGridParams;
 use crate::terminal::model::terminal_model::BlockIndex;
 use crate::terminal::warpify::SubshellSource;
 
-use crate::terminal::model::escape_sequences::{
+use warp_terminal::model::escape_sequences::{
     maybe_kitty_keyboard_escape_sequence, KeystrokeWithDetails, ToEscapeSequence,
 };
 

@@ -1,3 +1,4 @@
+use warp_terminal::model::mouse::MouseState;
 use std::fmt;
 
 use std::ops::Range;
@@ -23,7 +24,7 @@ use crate::terminal::view::inline_banner::AgentModeSetupSpeedbumpBannerAction;
 use crate::terminal::view::passive_suggestions::PromptSuggestionResolution;
 use crate::workflows::workflow::Workflow;
 use crate::{
-    terminal::{ block_list_element::{ BlockHoverAction, BlockListMenuSource, BlockSelectAction, BlockTextSelectAction, }, block_list_viewport::OverhangingBlock, model::{ SecretHandle, index::Point, mouse::MouseState, selection::{SelectAction, SelectionDirection}, terminal_model::{BlockIndex, WithinModel}, }, },
+    terminal::{ block_list_element::{ BlockHoverAction, BlockListMenuSource, BlockSelectAction, BlockTextSelectAction, }, block_list_viewport::OverhangingBlock, model::{ SecretHandle, index::Point, selection::{SelectAction, SelectionDirection}, terminal_model::{BlockIndex, WithinModel}, }, },
 };
 use objects::ids::SyncId;
 

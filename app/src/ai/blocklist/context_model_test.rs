@@ -20,7 +20,8 @@ use crate::objects::object_store::ObjectStore;
 use crate::terminal::color::{self, Colors};
 use crate::terminal::event_listener::ChannelEventListener;
 use crate::terminal::model::test_utils::block_size;
-use crate::terminal::model::{BlockId, TerminalModel};
+use crate::terminal::model::TerminalModel;
+use warp_terminal::model::BlockId;
 use crate::terminal::view::ambient_agent::AmbientAgentViewModel;
 
 impl BlocklistAIContextModel {

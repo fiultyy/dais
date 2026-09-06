@@ -1,3 +1,4 @@
+use warp_terminal::model::escape_sequences::{self, EscCodes};
 use super::{
     AgentOnboardingVersion, AskAISource, ContextMenuAction, OnboardingIntention, OnboardingVersion,
     TerminalAction,
@@ -22,7 +23,7 @@ use crate::util::bindings::{cmd_or_ctrl_shift, is_binding_pty_compliant};
 use crate::{
     channel::{Channel, ChannelState},
     features::FeatureFlag,
-    terminal::model::{ escape_sequences::{self, EscCodes}, selection::SelectionDirection, },
+    terminal::model::{ selection::SelectionDirection, },
     terminal::shared_session::SharedSessionStatus,
     terminal::TerminalView,
     util::bindings::CustomAction,

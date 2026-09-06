@@ -5,7 +5,7 @@ use crate::appearance::Appearance;
 use crate::terminal::grid_size_util::calculate_grid_baseline_position;
 use crate::terminal::blockgrid_renderer::BlockGridRenderExt as _;
 use terminal_grid_model::ansi::{Color, CursorShape, CursorStyle};
-use crate::terminal::model::cell::{Cell, Flags};
+use warp_terminal::model::grid::cell::{Cell, Flags};
 use crate::terminal::{color, SizeInfo};
 
 use crate::terminal::model::grid::Dimensions;
@@ -41,7 +41,7 @@ use self::cell_type::{CellType, IsFocused, Secret};
 
 use super::block_filter::{BLOCK_FILTER_DOTTED_LINE_DASH, BLOCK_FILTER_DOTTED_LINE_WIDTH};
 use super::blockgrid_renderer::GridRenderParams;
-use super::model::char_or_str::CharOrStr;
+use warp_terminal::model::char_or_str::CharOrStr;
 use super::model::grid::grid_handler::{ContainsPoint, GridHandler, Link};
 use super::model::grid::RespectDisplayedOutput;
 use super::model::image_map::{ImagePlacementData, StoredImageMetadata};

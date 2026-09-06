@@ -5,13 +5,13 @@ use crate::terminal::blockgrid_renderer::GridRenderParams;
 use crate::terminal::find::TerminalFindModel;
 use crate::terminal::grid_renderer::CellGlyphCache;
 use crate::terminal::meta_shortcuts::handle_keystroke_despite_composing;
-use crate::terminal::model::escape_sequences::{
+use warp_terminal::model::escape_sequences::{
     maybe_kitty_keyboard_escape_sequence, KeystrokeWithDetails, ToEscapeSequence,
 };
 use crate::terminal::model::grid::grid_handler::{Link, TermMode};
 use crate::terminal::model::grid::{Dimensions, RespectDisplayedOutput};
 use crate::terminal::model::index::Point;
-use crate::terminal::model::mouse::{MouseAction, MouseButton, MouseState};
+use warp_terminal::model::mouse::{MouseAction, MouseButton, MouseState};
 use crate::terminal::model::selection::{SelectAction, SelectionPoint};
 use crate::terminal::model::terminal_model::WithinModel;
 use crate::terminal::model::SecretHandle;

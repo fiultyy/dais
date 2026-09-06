@@ -5,7 +5,7 @@ use crate::ai::blocklist::inline_action::requested_script::{self, RequestedScrip
 use crate::ai::blocklist::inline_action::requested_script::{RequestedScriptStatus, TitledScript};
 use crate::appearance::Appearance;
 use terminal_grid_model::ansi::SystemDetails;
-use crate::terminal::model::escape_sequences;
+use warp_terminal::model::escape_sequences;
 use crate::terminal::warpify::render;
 use crate::terminal::warpify::settings::WarpifySettings;
 use crate::ui_components::blended_colors;

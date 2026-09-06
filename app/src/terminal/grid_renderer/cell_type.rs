@@ -1,7 +1,8 @@
+use warp_terminal::model::grid::cell::{Cell, Flags};
 use pathfinder_color::ColorU;
 
 use crate::{
-    terminal::{ color, model::{ cell::{Cell, Flags}, ObfuscateSecrets, }, },
+    terminal::{ color, model::{ ObfuscateSecrets, }, },
     util::color::OPAQUE,
 };
 use terminal_grid_model::ansi::{color_index, Color, NamedColor};

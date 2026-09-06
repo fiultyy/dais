@@ -12,7 +12,7 @@ use crate::terminal::model::bootstrap::BootstrapStage;
 use terminal_model::completions::{
     ShellCompletion, ShellCompletionUpdate, ShellData as CompletionsShellData,
 };
-use crate::terminal::model::escape_sequences::ModeProvider;
+use warp_terminal::model::escape_sequences::ModeProvider;
 use crate::terminal::model::index::VisibleRow;
 use crate::terminal::model::iterm_image::{ITermImage, ITermImageMetadata};
 use crate::terminal::shared_session::{ai_agent::encode_agent_response_event, SharedSessionStatus};

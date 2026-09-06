@@ -454,10 +454,10 @@ use crate::terminal::terminal_activity::{TerminalActivityEvent, TerminalActivity
 use terminal_grid_model::block::{Block, BlockId, SerializedBlock};
 use terminal_grid_model::block::blocks::{BlockFilter, BlockList};
 use terminal_grid_model::block::blocks::{BlockHeight, BlockHeightItem, BlockHeightSummary, Gap};
-use crate::terminal::model::escape_sequences::{self, EscCodes, ToEscapeSequence, C1};
+use warp_terminal::model::escape_sequences::{self, EscCodes, ToEscapeSequence, C1};
 use crate::terminal::model::grid::grid_handler::{FragmentBoundary, TermMode};
 use crate::terminal::model::index::{Point, Side};
-use crate::terminal::model::mouse::MouseState;
+use warp_terminal::model::mouse::MouseState;
 use crate::terminal::model::selection::{SelectAction, SelectionDirection};
 use crate::terminal::model::session::{BootstrapSessionType, SessionType, Sessions, SessionsEvent};
 use crate::terminal::model::terminal_model::{BlockIndex, TerminalInputState};
