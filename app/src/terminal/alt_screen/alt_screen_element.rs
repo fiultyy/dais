@@ -12,7 +12,7 @@ use crate::terminal::model::grid::grid_handler::{Link, TermMode};
 use crate::terminal::model::grid::{Dimensions, RespectDisplayedOutput};
 use terminal_model::index::Point;
 use warp_terminal::model::mouse::{MouseAction, MouseButton, MouseState};
-use crate::terminal::model::selection::{SelectAction, SelectionPoint};
+use terminal_grid_model::grid::selection::{SelectAction, SelectionPoint};
 use crate::terminal::model::terminal_model::WithinModel;
 use crate::terminal::model::SecretHandle;
 use crate::terminal::safe_mode_settings::get_secret_obfuscation_mode;

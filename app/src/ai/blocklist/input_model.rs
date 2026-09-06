@@ -5,6 +5,7 @@
 //! exposes methods for running query autodetection, where an algorithm determines if the current
 //! input contents are an AI query or shell command, which is then used to update the input mode.
 
+use terminal_model::rich_content::RichContentType;
 use std::sync::Arc;
 
 use futures::stream::AbortHandle;
@@ -31,7 +32,7 @@ use crate::{
     report_if_error,
     send_telemetry_from_ctx,
     settings::{AISettings, AISettingsChangedEvent, InputBoxType, InputSettings},
-    terminal::{ input::decorations::ParsedTokensSnapshot, model::{rich_content::RichContentType, session::SessionId}, History, TerminalModel, },
+    terminal::{ input::decorations::ParsedTokensSnapshot, model::session::SessionId, History, TerminalModel, },
     TelemetryEvent,
 };
 

@@ -44,7 +44,7 @@ use super::kitty::{
     KittyMessage, KittyResponse, PendingKittyMessage,
 };
 use super::secrets::{RespectObfuscatedSecrets, SecretAndHandle};
-use super::selection::ScrollDelta;
+use terminal_grid_model::grid::selection::ScrollDelta;
 use super::session::{InBandCommandOutputReceiver, SessionId};
 use super::tmux::commands::TmuxCommand;
 use super::super::{AltScreen, BlockList};

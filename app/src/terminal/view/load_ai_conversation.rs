@@ -17,7 +17,7 @@ use crate::ai::blocklist::{BlocklistAIContextModel, SerializedBlockListItem};
 use crate::terminal::input::message_bar::Message as InputMessage;
 use crate::terminal::input::message_bar::MessageItem;
 use terminal_grid_model::block::SerializedBlock;
-use crate::terminal::model::rich_content::RichContentType;
+use terminal_model::rich_content::RichContentType;
 use crate::terminal::model_events::ModelEventDispatcher;
 use crate::terminal::TerminalModel;
 use crate::util::bindings::keybinding_name_to_keystroke;

@@ -5,7 +5,7 @@ use terminal_grid_model::block::BlockId;
 use crate::terminal::model::bootstrap::BootstrapStage;
 use crate::terminal::model::grid::Dimensions as _;
 use terminal_model::index::Side;
-use crate::terminal::model::selection::ExpandedSelectionRange;
+use terminal_grid_model::grid::selection::ExpandedSelectionRange;
 use chrono::{DateTime, Local};
 use vec1::vec1;
 use warp_core::command::ExitCode;

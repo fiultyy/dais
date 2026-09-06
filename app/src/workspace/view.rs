@@ -14983,7 +14983,7 @@ impl Workspace {
         kind: PluginModalKind,
         ctx: &mut ViewContext<Self>,
     ) {
-        use crate::terminal::model::rich_content::RichContentType;
+        use terminal_model::rich_content::RichContentType;
         use crate::terminal::view::plugin_instructions_block::{
             PluginInstructionsBlock, PluginInstructionsBlockEvent,
         };

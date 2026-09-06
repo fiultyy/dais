@@ -1,3 +1,4 @@
+use terminal_grid_model::grid::selection::SelectionPoint;
 use terminal_model::index::Point as IndexPoint;
 use terminal_grid_model::block::blocks::RichContentItem;
 use std::{ops::Range, rc::Rc, sync::MutexGuard};
@@ -32,7 +33,6 @@ use super::{
             BlockHeight, BlockHeightItem, BlockHeightSummary, BlockList, BlockListPoint,
             SelectionRange, TotalIndex,
         },
-        selection::SelectionPoint,
         terminal_model::{BlockIndex, BlockSortDirection, WithinBlock},
     },
     view::BlockVisibilityMode,

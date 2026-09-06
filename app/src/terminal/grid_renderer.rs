@@ -10,7 +10,7 @@ use crate::terminal::{color, SizeInfo};
 
 use crate::terminal::model::grid::Dimensions;
 use terminal_model::index::Point;
-use crate::terminal::model::selection::SelectionPoint;
+use terminal_grid_model::grid::selection::SelectionPoint;
 use crate::terminal::model::{ObfuscateSecrets, SecretHandle};
 
 use crate::themes::theme::WarpTheme;

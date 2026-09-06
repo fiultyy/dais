@@ -458,7 +458,7 @@ use warp_terminal::model::escape_sequences::{self, EscCodes, ToEscapeSequence, C
 use crate::terminal::model::grid::grid_handler::{FragmentBoundary, TermMode};
 use terminal_model::index::{Point, Side};
 use warp_terminal::model::mouse::MouseState;
-use crate::terminal::model::selection::{SelectAction, SelectionDirection};
+use terminal_grid_model::grid::selection::{SelectAction, SelectionDirection};
 use crate::terminal::model::session::{BootstrapSessionType, SessionType, Sessions, SessionsEvent};
 use crate::terminal::model::terminal_model::{BlockIndex, TerminalInputState};
 use crate::terminal::model::terminal_model::{
@@ -516,9 +516,9 @@ use terminal_grid_model::block::{
 };
 use terminal_grid_model::block::blocks::RichContentItem;
 use terminal_model::completions::ShellCompletion;
-use super::model::rich_content::RichContentType;
+use terminal_model::rich_content::RichContentType;
 use super::model::secrets::RichContentSecretTooltipInfo;
-use super::model::selection::ExpandedSelectionRange;
+use terminal_grid_model::grid::selection::ExpandedSelectionRange;
 use super::model::session::SessionBootstrappedEvent;
 use super::settings::AltScreenPaddingMode;
 use super::ssh::error::{SshErrorBlock, SshErrorBlockEvent, SSH_ERROR_BLOCK_VISIBLE_KEY};
