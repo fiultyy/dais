@@ -6,6 +6,7 @@
 //! is marked as no_run only  because it's currently not possible
 //! to reference `#[cfg(test)]` symbols from doctests.
 
+use terminal_grid_model::bootstrap::BootstrapStage;
 use std::{io::sink, sync::Arc};
 
 use warp_core::command::ExitCode;
@@ -22,7 +23,6 @@ use terminal_grid_model::ansi::{CommandFinishedValue, Handler, PrecmdValue, Pree
 use super::{
     block::{Block, BlockId, BlockSize},
     blocks::BlockList,
-    bootstrap::BootstrapStage,
     terminal_model::BlockIndex,
     ObfuscateSecrets, TerminalModel,
 };

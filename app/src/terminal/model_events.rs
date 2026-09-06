@@ -21,7 +21,7 @@ use terminal_grid_model::ansi::{FinishUpdateValue, WarpificationUnavailableReaso
 use terminal_grid_model::block::BlockId;
 use terminal_model::completions::ShellCompletion;
 use super::model::terminal_model::{ExitReason, TmuxControlModeContext, TmuxInstallationState};
-use super::model::tmux::commands::TmuxCommand;
+use terminal_model::tmux::commands::TmuxCommand;
 use terminal_grid_model::ansi;
 use super::{
     event::BootstrappedEvent,

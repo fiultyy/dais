@@ -63,7 +63,7 @@ use warp_terminal::model::char_or_str::PushCharOrStr;
 #[allow(unused_imports)]
 use crate::terminal::model::grid::{Dimensions, GridStorage};
 #[allow(unused_imports)]
-use crate::terminal::model::image_map::ImageMap;
+use terminal_grid_model::image_map::ImageMap;
 #[allow(unused_imports)]
 use terminal_model::index::{IndexRange, Point, VisibleRow};
 #[allow(unused_imports)]

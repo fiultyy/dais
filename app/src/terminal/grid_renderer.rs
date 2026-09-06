@@ -44,7 +44,7 @@ use super::blockgrid_renderer::GridRenderParams;
 use warp_terminal::model::char_or_str::CharOrStr;
 use super::model::grid::grid_handler::{ContainsPoint, GridHandler, Link};
 use super::model::grid::RespectDisplayedOutput;
-use super::model::image_map::{ImagePlacementData, StoredImageMetadata};
+use terminal_grid_model::image_map::{ImagePlacementData, StoredImageMetadata};
 use super::model::terminal_model::RangeInModel;
 use crate::settings::EnforceMinimumContrast;
 

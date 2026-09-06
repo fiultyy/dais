@@ -16,9 +16,7 @@ macro_rules! assert_lines_approx_eq {
 pub use terminal_grid_model::grid::alt_screen;
 pub mod block;
 pub mod blocks;
-pub use terminal_grid_model::bootstrap;
 pub use terminal_grid_model::grid::header_grid;
-pub use ::terminal_model::tmux;
 
 // R25: EarlyOutput 迁移 terminal_grid_model::block::early_output;mod 级 shim。
 pub use terminal_grid_model::block::early_output::*;
@@ -28,7 +26,6 @@ pub use terminal_grid_model::block::early_output::*;
 mod early_output_tests;
 pub use terminal_grid_model::find;
 pub mod grid;
-pub use terminal_grid_model::image_map;
 pub use ::terminal_model::iterm_image;
 pub use ::terminal_model::kitty;
 pub mod secrets {

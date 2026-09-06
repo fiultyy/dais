@@ -13,7 +13,7 @@ use terminal_model::completions::ShellCompletion;
 use crate::terminal::model::session::{
     ExecutorCommandEvent, InBandCommandCancelledEvent, Sessions,
 };
-use crate::terminal::model::tmux::commands::TmuxCommand;
+use terminal_model::tmux::commands::TmuxCommand;
 use crate::terminal::model_events::AnsiHandlerEvent;
 use crate::terminal::view::LINEFEED_REGEX;
 #[cfg(not(target_family = "wasm"))]
@@ -784,7 +784,7 @@ impl<T: EventLoopSender> PtyController<T> {
                 return;
             }
             Some(TmuxControlMode::Active { primary_pane }) => {
-                crate::terminal::model::tmux::format_input(*primary_pane, &bytes_to_write)
+                terminal_model::tmux::format_input(*primary_pane, &bytes_to_write)
                     .as_bytes()
                     .to_owned()
                     .into()

@@ -18,7 +18,7 @@ use warpui::{AppContext, Element, EntityId, PaintContext};
 
 use terminal_grid_model::ansi::{CursorShape, CursorStyle};
 use super::model::grid::RespectDisplayedOutput;
-use super::model::image_map::StoredImageMetadata;
+use terminal_grid_model::image_map::StoredImageMetadata;
 use super::model::SecretHandle;
 
 pub struct GridRenderParams {

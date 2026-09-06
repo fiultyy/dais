@@ -1,3 +1,4 @@
+use terminal_grid_model::bootstrap::BootstrapStage;
 use std::collections::HashMap;
 
 use crate::Builder;
@@ -23,7 +24,6 @@ use dais::{
         view_getters::{single_terminal_view, single_terminal_view_for_tab},
     },
     terminal::{
-        model::bootstrap::BootstrapStage,
         session_settings::{StartupShell, StartupShellOverride},
         shell::ShellType,
     },

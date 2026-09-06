@@ -2,7 +2,7 @@ use super::*;
 use crate::terminal::ShellHost;
 use terminal_grid_model::ansi::{Handler, Processor};
 use terminal_grid_model::block::BlockId;
-use crate::terminal::model::bootstrap::BootstrapStage;
+use terminal_grid_model::bootstrap::BootstrapStage;
 use crate::terminal::model::grid::Dimensions as _;
 use terminal_model::index::Side;
 use terminal_grid_model::grid::selection::ExpandedSelectionRange;

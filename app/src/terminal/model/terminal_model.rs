@@ -8,7 +8,7 @@ use crate::terminal::event::{
 };
 use crate::terminal::event_listener::ChannelEventListener;
 use terminal_grid_model::ansi;
-use crate::terminal::model::bootstrap::BootstrapStage;
+use terminal_grid_model::bootstrap::BootstrapStage;
 use terminal_model::completions::{
     ShellCompletion, ShellCompletionUpdate, ShellData as CompletionsShellData,
 };
@@ -37,7 +37,7 @@ use terminal_grid_model::grid::blockgrid::BlockGrid;
 use super::grid::grid_handler::{
     ContainsPoint, FragmentBoundary, GridHandler, Link, PossiblePath, TermMode,
 };
-use super::image_map::StoredImageMetadata;
+use terminal_grid_model::image_map::StoredImageMetadata;
 use terminal_model::index::Point;
 use super::kitty::{
     create_kitty_error_reply, create_kitty_ok_reply, DeletionType, KittyAction, KittyChunk,
@@ -46,10 +46,11 @@ use super::kitty::{
 use super::secrets::{RespectObfuscatedSecrets, SecretAndHandle};
 use terminal_grid_model::grid::selection::ScrollDelta;
 use super::session::{InBandCommandOutputReceiver, SessionId};
-use super::tmux::commands::TmuxCommand;
+use terminal_model::tmux::commands::TmuxCommand;
 use super::super::{AltScreen, BlockList};
 use terminal_grid_model::ansi::BootstrappedValue;
-use super::{tmux, Secret, SecretHandle};
+use terminal_model::tmux;
+use super::{Secret, SecretHandle};
 use terminal_grid_model::ansi::{
     ClearValue, CommandFinishedValue, ExitShellValue, InitShellValue, InitSshValue,
     InitSubshellValue, PreInteractiveSSHSessionValue, PrecmdValue, PreexecValue, SSHValue,

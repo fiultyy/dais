@@ -75,7 +75,7 @@ use super::meta_shortcuts::handle_keystroke_despite_composing;
 use terminal_grid_model::block::BlockId;
 use terminal_grid_model::block::blocks::{RichContentItem, SelectionRange};
 use super::model::grid::grid_handler::{Link, TermMode};
-use super::model::image_map::StoredImageMetadata;
+use terminal_grid_model::image_map::StoredImageMetadata;
 use warp_terminal::model::mouse::{MouseAction, MouseButton, MouseState};
 use super::model::session::SessionId;
 use super::model::terminal_model::{SelectedBlocks, WithinBlock, WithinModel};
