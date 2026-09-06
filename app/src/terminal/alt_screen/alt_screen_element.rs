@@ -9,7 +9,8 @@ use warp_terminal::model::escape_sequences::{
     maybe_kitty_keyboard_escape_sequence, KeystrokeWithDetails, ToEscapeSequence,
 };
 use crate::terminal::model::grid::grid_handler::{Link, TermMode};
-use crate::terminal::model::grid::{Dimensions, RespectDisplayedOutput};
+use crate::terminal::model::grid::RespectDisplayedOutput;
+use warp_terminal::model::grid::Dimensions;
 use terminal_model::index::Point;
 use warp_terminal::model::mouse::{MouseAction, MouseButton, MouseState};
 use terminal_grid_model::grid::selection::{SelectAction, SelectionPoint};

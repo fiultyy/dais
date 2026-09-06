@@ -3,7 +3,7 @@ use crate::terminal::ShellHost;
 use terminal_grid_model::ansi::{Handler, Processor};
 use terminal_grid_model::block::BlockId;
 use terminal_grid_model::bootstrap::BootstrapStage;
-use crate::terminal::model::grid::Dimensions as _;
+use warp_terminal::model::grid::Dimensions as _;
 use terminal_model::index::Side;
 use terminal_grid_model::grid::selection::ExpandedSelectionRange;
 use chrono::{DateTime, Local};

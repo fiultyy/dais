@@ -8,7 +8,7 @@ use terminal_grid_model::ansi::{Color, CursorShape, CursorStyle};
 use warp_terminal::model::grid::cell::{Cell, Flags};
 use crate::terminal::{color, SizeInfo};
 
-use crate::terminal::model::grid::Dimensions;
+use warp_terminal::model::grid::Dimensions;
 use terminal_model::index::Point;
 use terminal_grid_model::grid::selection::SelectionPoint;
 use crate::terminal::model::{ObfuscateSecrets, SecretHandle};

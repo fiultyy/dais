@@ -6,11 +6,8 @@ use terminal_grid_model::ansi::{self, Handler as _};
 use crate::terminal::model::grid::grid_handler::GridHandler;
 use terminal_model::index::Point;
 use crate::terminal::model::secrets::ObfuscateSecrets;
-use crate::terminal::model::{
-
-    grid::Dimensions,
-};
 use crate::terminal::SizeInfo;
+use warp_terminal::model::grid::Dimensions;
 
 use terminal_grid_model::grid::GridStorage;
 // R10: 原父模块的可见 use 集,随模块下沉后显式补齐。

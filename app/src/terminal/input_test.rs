@@ -55,7 +55,7 @@ use terminal_grid_model::ansi::{Handler, PrecmdValue};
 use terminal_grid_model::block::SerializedBlock;
 use terminal_grid_model::block::blocks::BlockListPoint;
 use crate::terminal::model::blocks::insert_block;
-use crate::terminal::model::grid::Dimensions as _;
+use warp_terminal::model::grid::Dimensions as _;
 use terminal_model::index::Side;
 use crate::terminal::model::session::{BootstrapSessionType, SessionInfo};
 use terminal_grid_model::block_index::BlockIndex;

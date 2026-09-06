@@ -22,7 +22,7 @@ use warpui::App;
 
 use crate::pane_group::focus_state::PaneGroupFocusState;
 use crate::pane_group::{BackingView, TerminalPaneId};
-use crate::terminal::model::grid::Dimensions as _;
+use warp_terminal::model::grid::Dimensions as _;
 use crate::{
     terminal::alt_screen::should_intercept_mouse,
     test_util::terminal::add_window_with_id_and_terminal,

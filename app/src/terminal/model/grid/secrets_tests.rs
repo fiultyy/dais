@@ -12,7 +12,9 @@ use std::{collections::HashSet, ops::RangeInclusive};
 #[allow(unused_imports)]
 use itertools::Itertools as _;
 #[allow(unused_imports)]
-use crate::terminal::model::grid::{grapheme_cursor, Dimensions as _};
+use crate::terminal::model::grid::grapheme_cursor;
+#[allow(unused_imports)]
+use warp_terminal::model::grid::Dimensions as _;
 #[allow(unused_imports)]
 use terminal_model::RangeInModel;
 #[allow(unused_imports)]

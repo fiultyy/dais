@@ -14,7 +14,7 @@ use crate::terminal::blockgrid_element::BlockGridElement;
 use crate::terminal::grid_size_util::grid_cell_dimensions;
 use crate::terminal::ligature_settings::should_use_ligature_rendering;
 use terminal_grid_model::grid::blockgrid::BlockGrid;
-use crate::terminal::model::grid::Dimensions;
+use warp_terminal::model::grid::Dimensions;
 use crate::terminal::safe_mode_settings::get_secret_obfuscation_mode;
 use crate::terminal::SizeInfo;
 use pathfinder_geometry::vector::vec2f;

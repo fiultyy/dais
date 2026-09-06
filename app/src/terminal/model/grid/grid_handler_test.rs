@@ -61,7 +61,9 @@ use warp_terminal::model::grid::cell::{Cell, Flags, LineLength, DEFAULT_CHAR};
 #[allow(unused_imports)]
 use warp_terminal::model::char_or_str::PushCharOrStr;
 #[allow(unused_imports)]
-use crate::terminal::model::grid::{Dimensions, GridStorage};
+use crate::terminal::model::grid::GridStorage;
+#[allow(unused_imports)]
+use warp_terminal::model::grid::Dimensions;
 #[allow(unused_imports)]
 use terminal_grid_model::image_map::ImageMap;
 #[allow(unused_imports)]

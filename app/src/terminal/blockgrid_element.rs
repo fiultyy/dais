@@ -3,7 +3,7 @@ use crate::settings::EnforceMinimumContrast;
 use crate::terminal::blockgrid_renderer::BlockGridParams;
 use crate::terminal::blockgrid_renderer::BlockGridRenderExt as _;
 use terminal_grid_model::grid::blockgrid::BlockGrid;
-use crate::terminal::model::grid::Dimensions;
+use warp_terminal::model::grid::Dimensions;
 use crate::terminal::model::ObfuscateSecrets;
 use crate::terminal::{color, SizeInfo};
 use pathfinder_geometry::vector::{vec2f, Vector2F};

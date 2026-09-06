@@ -1,13 +1,10 @@
+use warp_terminal::model::grid::Dimensions as _;
 use terminal_grid_model::grid::blockgrid::BlockGrid;
 use terminal_model::index::{VisiblePoint, VisibleRow};
 use warp_terminal::model::grid::cell::Flags;
 use terminal_grid_model::ansi::Handler as _;
 
-use crate::{
-
-    terminal::model::grid::Dimensions as _,
-    test_util::mock_blockgrid,
-};
+use crate::test_util::mock_blockgrid;
 
 use super::*;
 use crate::terminal::model::grid::grid_handler::{add_displayed_rows_with_cursor_line, trim_context_lines};
