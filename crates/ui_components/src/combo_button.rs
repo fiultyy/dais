@@ -11,14 +11,12 @@
 
 use warp_core::ui::icons::{Icon, ICON_DIMENSIONS};
 use warp_core::ui::theme::color::internal_colors;
-use warp_core::ui::theme::{Fill, WarpTheme};
-use warpui::elements::Radius;
-use warpui::elements::{CornerRadius, MouseStateHandle};
+use warp_core::ui::theme::WarpTheme;
+use warpui::elements::MouseStateHandle;
 use warpui::ui_components::button::Button;
-use warpui::ui_components::components::{Coords, UiComponent, UiComponentStyles};
+use warpui::ui_components::components::{Coords, UiComponentStyles};
 
 const ICON_BUTTON_PADDING: f32 = 4.;
-const COMBO_BORDER_RADIUS: f32 = 4.;
 
 #[derive(Copy, Clone)]
 enum ButtonState {
