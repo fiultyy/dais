@@ -15,7 +15,7 @@ use crate::ai::agent::conversation::AIConversationId;
 use crate::code_review::telemetry_event::CodeReviewPaneEntrypoint;
 use crate::server::telemetry::{AgentModeRewindEntrypoint, ToggleBlockFilterSource};
 use crate::terminal::available_shells::AvailableShell;
-use crate::terminal::model::completions::ShellCompletion;
+use terminal_model::completions::ShellCompletion;
 use crate::terminal::shared_session::SharedSessionActionSource;
 use crate::terminal::ssh::error::SshErrorBlockAction;
 use crate::terminal::view::RichContentSecretTooltipInfo;

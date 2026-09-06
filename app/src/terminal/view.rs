@@ -515,7 +515,7 @@ use terminal_grid_model::block::{
     BlockSection, BlocklistEnvVarMetadata, LONG_RUNNING_COMMAND_DURATION_MS,
 };
 use terminal_grid_model::block::blocks::RichContentItem;
-use super::model::completions::ShellCompletion;
+use terminal_model::completions::ShellCompletion;
 use super::model::rich_content::RichContentType;
 use super::model::secrets::RichContentSecretTooltipInfo;
 use super::model::selection::ExpandedSelectionRange;

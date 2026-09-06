@@ -19,7 +19,7 @@ use warpui::{Entity, ModelContext, ModelHandle};
 use super::event::SshLoginStatus;
 use terminal_grid_model::ansi::{FinishUpdateValue, WarpificationUnavailableReason};
 use terminal_grid_model::block::BlockId;
-use super::model::completions::ShellCompletion;
+use terminal_model::completions::ShellCompletion;
 use super::model::terminal_model::{ExitReason, TmuxControlModeContext, TmuxInstallationState};
 use super::model::tmux::commands::TmuxCommand;
 use terminal_grid_model::ansi;

@@ -18,7 +18,6 @@ pub mod block;
 pub use terminal_grid_model::grid::blockgrid;
 pub mod blocks;
 pub use terminal_grid_model::bootstrap;
-pub use ::terminal_model::completions;
 pub use terminal_grid_model::grid::header_grid;
 pub use ::terminal_model::rich_content;
 pub use ::terminal_model::tmux;

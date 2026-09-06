@@ -8,7 +8,7 @@ use warpui::{Entity, EntityId, ModelContext, ModelHandle, SingletonEntity};
 
 use crate::ai::agent::AIAgentPtyWriteMode;
 use crate::terminal::input::CommandExecutionSource;
-use crate::terminal::model::completions::ShellCompletion;
+use terminal_model::completions::ShellCompletion;
 use crate::terminal::model::session::{
     ExecutorCommandEvent, InBandCommandCancelledEvent, Sessions,
 };

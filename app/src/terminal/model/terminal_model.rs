@@ -9,7 +9,7 @@ use crate::terminal::event::{
 use crate::terminal::event_listener::ChannelEventListener;
 use terminal_grid_model::ansi;
 use crate::terminal::model::bootstrap::BootstrapStage;
-use crate::terminal::model::completions::{
+use terminal_model::completions::{
     ShellCompletion, ShellCompletionUpdate, ShellData as CompletionsShellData,
 };
 use crate::terminal::model::escape_sequences::ModeProvider;
