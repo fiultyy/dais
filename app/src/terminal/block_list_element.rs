@@ -74,7 +74,7 @@ use super::grid_renderer::CellGlyphCache;
 use super::meta_shortcuts::handle_keystroke_despite_composing;
 use terminal_grid_model::block::BlockId;
 use terminal_grid_model::block::blocks::{RichContentItem, SelectionRange};
-use super::model::grid::grid_handler::{Link, TermMode};
+use terminal_grid_model::grid::grid_handler::{Link, TermMode};
 use terminal_grid_model::image_map::StoredImageMetadata;
 use warp_terminal::model::mouse::{MouseAction, MouseButton, MouseState};
 use super::model::session::SessionId;

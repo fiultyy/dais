@@ -4,6 +4,7 @@ use terminal_grid_model::ansi::{Attr, Handler};
 use std::{collections::HashMap, pin::pin, time::Duration};
 
 use super::*;
+use terminal_grid_model::block::*;
 // R24: Block 迁移后 super::* 显式化补引。
 use agent_ids::AIConversationId;
 use terminal_grid_model::block_index::BlockIndex;

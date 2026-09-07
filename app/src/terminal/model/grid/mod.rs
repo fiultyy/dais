@@ -1,8 +1,7 @@
 //! R10 shim: grid 模型层已下沉 crates/terminal_grid_model,
-//! 本模块 re-export 保持 `crate::terminal::model::grid::*` 旧路径全兼容。
+//! 本模块 re-export 保持 `terminal_grid_model::grid::*` 旧路径全兼容。
 //! ansi_handler(app ansi::Handler 实现,依赖 app Event/telemetry)与
 //! Handler 驱动的测试留守在此。
-pub use terminal_grid_model::grid::*;
 
 #[cfg(test)]
 #[path = "tests.rs"]

@@ -1,3 +1,4 @@
+use terminal_grid_model::block::SerializedBlock;
 use terminal_grid_model::block_index::BlockIndex;
 use byte_unit::Byte;
 use instant::Duration;
@@ -11,10 +12,7 @@ pub use protocol::ParticipantId;
 
 use protocol::{Role, Scrollback, ScrollbackBlock, SessionSourceType};
 
-use super::{
-    model::{block::SerializedBlock},
-    GridType, TerminalModel,
-};
+use super::{GridType, TerminalModel};
 
 pub mod ai_agent;
 pub mod participant_avatar_view;

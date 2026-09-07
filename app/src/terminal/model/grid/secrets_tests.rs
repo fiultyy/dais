@@ -6,25 +6,26 @@ use terminal_grid_model::grid::blockgrid::BlockGrid;
 use terminal_grid_model::ansi::{self, Handler as _};
 
 use super::*;
+use terminal_grid_model::grid::*;
 // R10: 原父模块的可见 use 集,随模块下沉后显式补齐。
 #[allow(unused_imports)]
 use std::{collections::HashSet, ops::RangeInclusive};
 #[allow(unused_imports)]
 use itertools::Itertools as _;
 #[allow(unused_imports)]
-use crate::terminal::model::grid::grapheme_cursor;
+use terminal_grid_model::grid::grapheme_cursor;
 #[allow(unused_imports)]
 use warp_terminal::model::grid::Dimensions as _;
 #[allow(unused_imports)]
 use terminal_model::RangeInModel;
 #[allow(unused_imports)]
-use crate::terminal::model::grid::RespectDisplayedOutput;
+use terminal_grid_model::grid::RespectDisplayedOutput;
 #[allow(unused_imports)]
 use terminal_model::index::{Direction, Point};
 #[allow(unused_imports)]
-use crate::terminal::model::secrets::{ IsObfuscated, ObfuscateSecrets, Secret, SecretAndHandle, SecretHandle, SecretLevel, SECRETS_DFA, };
+use terminal_grid_model::secrets::{ IsObfuscated, ObfuscateSecrets, Secret, SecretAndHandle, SecretHandle, SecretLevel, SECRETS_DFA, };
 #[allow(unused_imports)]
-use super::GridHandler;
+use terminal_grid_model::grid::grid_handler::GridHandler;
 
 
 fn secret_ranges(grid_handler: &GridHandler) -> Vec<RangeInclusive<Point>> {
@@ -56,7 +57,7 @@ fn empty_blockgrid(
 #[test]
 #[serial]
 fn test_secret_redacted_after_byte_processing() {
-    crate::terminal::model::secrets::set_user_and_enterprise_secret_regexes(
+    terminal_grid_model::secrets::set_user_and_enterprise_secret_regexes(
         [&Regex::new("ABCD").expect("Should be able to construct regex")],
         std::iter::empty(), // No enterprise secrets
     );
@@ -91,7 +92,7 @@ fn test_secret_redacted_after_byte_processing() {
 #[test]
 #[serial]
 fn test_secret_redacted_after_multiple_byte_processing() {
-    crate::terminal::model::secrets::set_user_and_enterprise_secret_regexes(
+    terminal_grid_model::secrets::set_user_and_enterprise_secret_regexes(
         [&Regex::new("ABCD").expect("Should be able to construct regex")],
         std::iter::empty(), // No enterprise secrets
     );
@@ -132,7 +133,7 @@ fn test_secret_redacted_after_multiple_byte_processing() {
 #[test]
 #[serial]
 fn test_secret_redaction_unobfuscated_secret_remains_after_byte_processing() -> anyhow::Result<()> {
-    crate::terminal::model::secrets::set_user_and_enterprise_secret_regexes(
+    terminal_grid_model::secrets::set_user_and_enterprise_secret_regexes(
         [&Regex::new("ABCD").expect("Should be able to construct regex")],
         std::iter::empty(), // No enterprise secrets
     );
@@ -191,7 +192,7 @@ fn test_secret_redaction_unobfuscated_secret_remains_after_byte_processing() -> 
 #[test]
 #[serial]
 fn test_secret_redaction_secret_remains_after_resize() {
-    crate::terminal::model::secrets::set_user_and_enterprise_secret_regexes(
+    terminal_grid_model::secrets::set_user_and_enterprise_secret_regexes(
         [&Regex::new("ABCD").expect("Should be able to construct regex")],
         std::iter::empty(), // No enterprise secrets
     );
@@ -229,7 +230,7 @@ fn test_secret_redaction_secret_remains_after_resize() {
 #[test]
 #[serial]
 fn test_bytes_processed_for_secrets_after_turning_redaction() {
-    crate::terminal::model::secrets::set_user_and_enterprise_secret_regexes(
+    terminal_grid_model::secrets::set_user_and_enterprise_secret_regexes(
         [&Regex::new("abcd").expect("Should be able to construct regex")],
         std::iter::empty(), // No enterprise secrets
     );
@@ -261,7 +262,7 @@ fn test_bytes_processed_for_secrets_after_turning_redaction() {
 #[test]
 #[serial]
 fn test_bytes_processed_for_secrets_after_turning_redaction_on() {
-    crate::terminal::model::secrets::set_user_and_enterprise_secret_regexes(
+    terminal_grid_model::secrets::set_user_and_enterprise_secret_regexes(
         [&Regex::new("abcd").expect("Should be able to construct regex")],
         std::iter::empty(), // No enterprise secrets
     );
@@ -288,7 +289,7 @@ fn test_bytes_processed_for_secrets_after_turning_redaction_on() {
 #[test]
 #[serial]
 fn test_bytes_processed_for_secrets_after_turning_redaction_off_then_on() {
-    crate::terminal::model::secrets::set_user_and_enterprise_secret_regexes(
+    terminal_grid_model::secrets::set_user_and_enterprise_secret_regexes(
         [&Regex::new("abcd").expect("Should be able to construct regex")],
         std::iter::empty(), // No enterprise secrets
     );
@@ -324,7 +325,7 @@ fn test_bytes_processed_for_secrets_after_turning_redaction_off_then_on() {
 #[test]
 #[serial]
 fn test_bytes_processed_for_secrets_after_turning_redaction_on_then_off() {
-    crate::terminal::model::secrets::set_user_and_enterprise_secret_regexes(
+    terminal_grid_model::secrets::set_user_and_enterprise_secret_regexes(
         [&Regex::new("abcd").expect("Should be able to construct regex")],
         std::iter::empty(), // No enterprise secrets
     );

@@ -1,11 +1,12 @@
+use terminal_grid_model::grid::*;
 use terminal_model::index::{VisiblePoint, VisibleRow};
 use std::num::NonZeroUsize;
 use terminal_grid_model::ansi::Handler as _;
 
 use terminal_grid_model::ansi::{self, Handler as _};
-use crate::terminal::model::grid::grid_handler::GridHandler;
+use terminal_grid_model::grid::grid_handler::GridHandler;
 use terminal_model::index::Point;
-use crate::terminal::model::secrets::ObfuscateSecrets;
+use terminal_grid_model::secrets::ObfuscateSecrets;
 use crate::terminal::SizeInfo;
 use warp_terminal::model::grid::Dimensions;
 
@@ -24,9 +25,9 @@ use terminal_grid_model::ansi::{CharsetIndex, StandardCharset};
 #[allow(unused_imports)]
 use warp_terminal::model::grid::cell::{Cell, Flags};
 #[allow(unused_imports)]
-use crate::terminal::model::grid::row::Row;
+use terminal_grid_model::grid::row::Row;
 #[allow(unused_imports)]
-use crate::terminal::model::grid::storage::Storage;
+use terminal_grid_model::grid::storage::Storage;
 #[allow(unused_imports)]
 use terminal_model::index::IndexRange;
 

@@ -21,11 +21,9 @@ use crate::terminal::{
 };
 
 use terminal_grid_model::ansi::{CommandFinishedValue, Handler, PrecmdValue, PreexecValue, Processor};
-use super::{
-    block::{Block, BlockId, BlockSize},
-    blocks::BlockList,
-    ObfuscateSecrets, TerminalModel,
-};
+use super::{ObfuscateSecrets, TerminalModel};
+use terminal_grid_model::block::{Block, BlockId, BlockSize};
+use terminal_grid_model::block::blocks::BlockList;
 
 pub fn block_size() -> BlockSize {
     BlockSize {
@@ -244,7 +242,7 @@ pub fn create_test_block_with_grids(
     rprompt_grid: terminal_grid_model::grid::blockgrid::BlockGrid,
     output_grid: terminal_grid_model::grid::blockgrid::BlockGrid,
     honor_ps1: bool,
-) -> super::block::Block {
+) -> terminal_grid_model::block::Block {
     let mut block = TestBlockBuilder::new()
         .with_block_index(block_index)
         .with_honor_ps1(honor_ps1)

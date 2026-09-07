@@ -1,3 +1,5 @@
+use terminal_grid_model::block::SerializedBlock;
+use terminal_grid_model::block::blocks::BlockListPoint;
 use terminal_model::index::{Point, Side};
 use warp_core::semantic_selection::SemanticSelection;
 use warpui::App;
@@ -6,10 +8,7 @@ use crate::terminal::{
     block_filter::BlockFilterQuery,
     event_listener::ChannelEventListener,
     model::{
-        block::SerializedBlock,
-        blocks::BlockListPoint,
-        terminal_model::WithinBlock,
-    },
+        terminal_model::WithinBlock},
     shared_session::tests::terminal_model_for_viewer,
     GridType, SizeInfo, SizeUpdate, SizeUpdateReason, TerminalModel,
 };

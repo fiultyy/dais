@@ -1,6 +1,6 @@
 //! Tests for the Grid.
 
-use crate::terminal::model::grid::grid_handler::GridHandler;
+use terminal_grid_model::grid::grid_handler::GridHandler;
 use warp_terminal::model::grid::cell;
 
 use crate::features::FeatureFlag;
@@ -8,10 +8,11 @@ use terminal_grid_model::ansi::Handler;
 use warp_terminal::model::grid::cell::{Cell, Flags};
 use warp_terminal::model::grid::Dimensions;
 use terminal_model::index::{Point, VisiblePoint, VisibleRow};
-use crate::terminal::model::secrets::ObfuscateSecrets;
+use terminal_grid_model::secrets::ObfuscateSecrets;
 use crate::terminal::SizeInfo;
 
 use super::*;
+use terminal_grid_model::grid::*;
 
 // Scroll up moves lines upward.
 #[test]

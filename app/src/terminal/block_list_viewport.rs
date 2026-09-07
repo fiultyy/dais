@@ -1,3 +1,8 @@
+use terminal_grid_model::block::{Block, BlockSection};
+use terminal_grid_model::block::blocks::{
+            BlockHeight, BlockHeightItem, BlockHeightSummary, BlockList, BlockListPoint,
+            SelectionRange, TotalIndex,
+        };
 use terminal_grid_model::WithinBlock;
 use terminal_grid_model::selected_blocks::BlockSortDirection;
 use terminal_grid_model::block_index::BlockIndex;
@@ -30,13 +35,6 @@ use super::{
     },
     height_in_range_approx, heights_approx_gt, heights_approx_gte, heights_approx_lt,
     heights_approx_lte,
-    model::{
-        block::{Block, BlockSection},
-        blocks::{
-            BlockHeight, BlockHeightItem, BlockHeightSummary, BlockList, BlockListPoint,
-            SelectionRange, TotalIndex,
-        },
-    },
     view::BlockVisibilityMode,
     SizeInfo, HEIGHT_FUDGE_FACTOR_LINES,
 };

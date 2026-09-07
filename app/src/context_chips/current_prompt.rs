@@ -1,3 +1,4 @@
+use terminal_grid_model::block::{Block, BlockMetadata};
 use crate::features::FeatureFlag;
 use crate::context_chips::ContextChipKindExt as _;
 use crate::report_if_error;
@@ -9,7 +10,7 @@ use crate::{
     debounce::debounce,
     editor::EditorView,
     menu::{MenuItem, MenuItemFields},
-    terminal::{ model::{ block::{Block, BlockMetadata}, session::Sessions, }, session_settings::{ GithubPrPromptChipDefaultValidation, SessionSettings, SessionSettingsChangedEvent, ToolbarChipSelection, }, view::{ContextMenuAction, PromptPart, PromptPosition, TerminalAction}, },
+    terminal::{ model::{session::Sessions}, session_settings::{ GithubPrPromptChipDefaultValidation, SessionSettings, SessionSettingsChangedEvent, ToolbarChipSelection, }, view::{ContextMenuAction, PromptPart, PromptPosition, TerminalAction}, },
 };
 use futures::{pin_mut, FutureExt as _};
 use itertools::Itertools;

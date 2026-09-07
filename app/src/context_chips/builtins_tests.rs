@@ -1,8 +1,9 @@
+use terminal_grid_model::block::BlockMetadata;
 use std::sync::Arc;
 
 use crate::{
     context_chips::context_chip::GeneratorContext,
-    terminal::model::{ block::BlockMetadata, session::{ command_executor::testing::TestCommandExecutor, BootstrapSessionType, Session, SessionInfo, }, },
+    terminal::model::{session::{ command_executor::testing::TestCommandExecutor, BootstrapSessionType, Session, SessionInfo, }},
     terminal::shell::ShellType,
 };
 

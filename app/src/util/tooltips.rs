@@ -1,6 +1,7 @@
 //! Shared tooltip UI components for file path and link tooltips
 
 #[cfg(feature = "local_fs")]
+use terminal_grid_model::secrets::SecretLevel;
 use std::path::Path;
 
 use warpui::{
@@ -11,12 +12,7 @@ use warpui::{
     AppContext, Element, EventContext, SingletonEntity,
 };
 
-use crate::{
-    appearance::Appearance,
-    settings::PrivacySettings,
-    terminal::model::secrets::SecretLevel,
-    ui_components::blended_colors,
-};
+use crate::{appearance::Appearance, settings::PrivacySettings, ui_components::blended_colors};
 
 /// A link to be shown in a tooltip
 pub struct TooltipLink<OnClick> {

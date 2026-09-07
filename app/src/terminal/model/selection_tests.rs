@@ -9,6 +9,7 @@ macro_rules! assert_lines_approx_eq {
     }};
 }
 
+use crate::terminal::model::blocks::{insert_block, tests::{command_finished_and_precmd, input_string, new_bootstrapped_block_list}};
 use terminal_grid_model::ansi::{self, Handler as _, PreexecValue};
 use float_cmp::assert_approx_eq;
 use terminal_grid_model::block::blocks::BlockListPointExt as _;
@@ -16,10 +17,11 @@ use warpui::App;
 
 use crate::{
     ai::blocklist::agent_view::AgentViewState,
-    terminal::{ event_listener::ChannelEventListener, model::{ blocks::{ insert_block, tests::{command_finished_and_precmd, input_string, new_bootstrapped_block_list}, }, test_utils, }, },
+    terminal::{ event_listener::ChannelEventListener, model::{test_utils}, },
 };
 
 use super::*;
+use terminal_grid_model::block::blocks::*;
 use warp_core::semantic_selection::SemanticSelection;
 use warpui::text::SelectionType;
 use terminal_model::index::{Point, Side};

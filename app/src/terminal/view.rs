@@ -455,7 +455,7 @@ use terminal_grid_model::block::{Block, BlockId, SerializedBlock};
 use terminal_grid_model::block::blocks::{BlockFilter, BlockList};
 use terminal_grid_model::block::blocks::{BlockHeight, BlockHeightItem, BlockHeightSummary, Gap};
 use warp_terminal::model::escape_sequences::{self, EscCodes, ToEscapeSequence, C1};
-use crate::terminal::model::grid::grid_handler::{FragmentBoundary, TermMode};
+use terminal_grid_model::grid::grid_handler::{FragmentBoundary, TermMode};
 use terminal_model::index::{Point, Side};
 use warp_terminal::model::mouse::MouseState;
 use terminal_grid_model::grid::selection::{SelectAction, SelectionDirection};
@@ -518,7 +518,7 @@ use terminal_grid_model::block::{
 use terminal_grid_model::block::blocks::RichContentItem;
 use terminal_model::completions::ShellCompletion;
 use terminal_model::rich_content::RichContentType;
-use super::model::secrets::RichContentSecretTooltipInfo;
+use terminal_grid_model::secrets::RichContentSecretTooltipInfo;
 use terminal_grid_model::grid::selection::ExpandedSelectionRange;
 use super::model::session::SessionBootstrappedEvent;
 use super::settings::AltScreenPaddingMode;

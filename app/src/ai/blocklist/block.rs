@@ -16,6 +16,7 @@ pub mod view_impl;
 pub use pending_user_query_block::{PendingUserQueryBlock, PendingUserQueryBlockEvent};
 
 #[cfg(feature = "agent_mode_debug")]
+use terminal_grid_model::secrets::RichContentSecretTooltipInfo;
 use self::code_diff_view::FileDiff;
 use crate::ai::agent::redaction::redact_secrets;
 use crate::ai::agent::telemetry::ForTelemetry as _;
@@ -183,7 +184,6 @@ use crate::view_components::find::FindEvent;
 
 use crate::terminal::{
     find::TerminalFindModel,
-    model::secrets::RichContentSecretTooltipInfo,
     safe_mode_settings::{
         get_secret_obfuscation_mode, SafeModeSettings, SafeModeSettingsChangedEvent,
     },

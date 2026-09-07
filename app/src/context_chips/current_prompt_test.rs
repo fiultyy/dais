@@ -1,3 +1,4 @@
+use terminal_grid_model::block::BlockMetadata;
 use std::{
     any::Any,
     collections::{HashMap, VecDeque},
@@ -26,7 +27,7 @@ use crate::{
     features::FeatureFlag,
     menu::MenuItem,
     settings::WarpPromptSeparator,
-    terminal::{ model::{ block::BlockMetadata, session::{CommandExecutor, ExecuteCommandOptions, SessionId, SessionInfo, Sessions}, }, session_settings::{GithubPrPromptChipDefaultValidation, SessionSettings}, shell::Shell, view::PromptPosition, History, },
+    terminal::{ model::{session::{CommandExecutor, ExecuteCommandOptions, SessionId, SessionInfo, Sessions}}, session_settings::{GithubPrPromptChipDefaultValidation, SessionSettings}, shell::Shell, view::PromptPosition, History, },
 };
 #[cfg(feature = "local_fs")]
 use repo_metadata::DirectoryWatcher;

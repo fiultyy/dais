@@ -1,3 +1,4 @@
+use terminal_grid_model::block::BlockId;
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 use chrono::Local;
@@ -8,7 +9,7 @@ use warpui::{AppContext, SingletonEntity};
 
 use crate::{
     ai::{ agent::{ conversation::AIConversationId, AIAgentAttachment, AIAgentContext, DocumentContentAttachmentSource, DriveObjectPayload, }, block_context::BlockContext, blocklist::BlocklistAIContextModel, document::ai_document_model::{AIDocumentId, AIDocumentModel}, facts::AIFactObjectModel, skills::list_skills, },
-    terminal::{ model::{block::BlockId, session::active_session::ActiveSession}, TerminalView, },
+    terminal::{ model::{session::active_session::ActiveSession}, TerminalView, },
 };
 use objects::{GenericStoredObject, GenericStringObjectFormat, JsonObjectType, ObjectType, model::generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel}};
 use objects::StoredStringObject;

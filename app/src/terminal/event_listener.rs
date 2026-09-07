@@ -215,14 +215,14 @@ impl terminal_grid_model::grid::GridEventSink for GridEventSinkAdapter {
 }
 
 /// R10 缝装配: 富内容 secret 检测(ai::blocklist 留守 app)。
-pub fn host_determine_secret_level(plaintext: &str) -> crate::terminal::model::secrets::SecretLevel {
+pub fn host_determine_secret_level(plaintext: &str) -> terminal_grid_model::secrets::SecretLevel {
     let secrets_with_levels =
         crate::ai::blocklist::block::secret_redaction::find_secrets_in_text_with_levels(plaintext);
     secrets_with_levels
         .into_iter()
         .map(|(_, level)| level)
         .max_by_key(|level| level.priority())
-        .unwrap_or(crate::terminal::model::secrets::SecretLevel::User)
+        .unwrap_or(terminal_grid_model::secrets::SecretLevel::User)
 }
 
 /// R18: BlockTimerHost 生产装配(warpui Background+Timer)。

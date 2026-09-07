@@ -1,3 +1,4 @@
+use terminal_grid_model::secrets::SecretLevel;
 use env_vars_ui::data::{AccessLevel, Editability, EnvVarData};
 use pathfinder_geometry::vector::{vec2f, Vector2F};
 
@@ -46,7 +47,7 @@ use crate::{
     search::external_secrets::view::ExternalSecretsMenu,
     send_telemetry_from_ctx,
     server::ids::SyncId,
-    terminal::{model::secrets::SecretLevel, safe_mode_settings::get_secret_obfuscation_mode},
+    terminal::{ safe_mode_settings::get_secret_obfuscation_mode},
     ui_components::{
         buttons::icon_button,
         icons::Icon,

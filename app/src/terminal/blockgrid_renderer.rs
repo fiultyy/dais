@@ -2,7 +2,7 @@ use crate::settings::EnforceMinimumContrast;
 use crate::terminal::color;
 use crate::terminal::grid_renderer::{render_cursor, render_grid, CellGlyphCache};
 use terminal_grid_model::grid::blockgrid::{BlockGrid, CursorDisplayPoint};
-use crate::terminal::model::grid::grid_handler::Link;
+use terminal_grid_model::grid::grid_handler::Link;
 use terminal_model::index::Point;
 use crate::terminal::model::ObfuscateSecrets;
 use crate::terminal::SizeInfo;
@@ -17,7 +17,7 @@ use warpui::geometry::vector::{vec2f, Vector2F};
 use warpui::{AppContext, Element, EntityId, PaintContext};
 
 use terminal_grid_model::ansi::{CursorShape, CursorStyle};
-use super::model::grid::RespectDisplayedOutput;
+use terminal_grid_model::grid::RespectDisplayedOutput;
 use terminal_grid_model::image_map::StoredImageMetadata;
 use super::model::SecretHandle;
 

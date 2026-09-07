@@ -7,7 +7,8 @@ use terminal_grid_model::ansi::Handler as _;
 use crate::test_util::mock_blockgrid;
 
 use super::*;
-use crate::terminal::model::grid::grid_handler::{add_displayed_rows_with_cursor_line, trim_context_lines};
+use terminal_grid_model::grid::*;
+use terminal_grid_model::grid::grid_handler::{add_displayed_rows_with_cursor_line, trim_context_lines};
 
 /// Converts a vector of ranges into DisplayedRows objects with source FilterMatch.
 // R10: 原父模块的可见 use 集,随模块下沉后显式补齐。
@@ -18,11 +19,11 @@ use itertools::Itertools as _;
 #[allow(unused_imports)]
 use crate::terminal::model::find::RegexDFAs;
 #[allow(unused_imports)]
-use crate::terminal::model::grid::displayed_output::{DisplaySource, DisplayedOutput, DisplayedRows};
+use terminal_grid_model::grid::displayed_output::{DisplaySource, DisplayedOutput, DisplayedRows};
 #[allow(unused_imports)]
 use terminal_model::index::Point;
 #[allow(unused_imports)]
-use super::GridHandler;
+use terminal_grid_model::grid::grid_handler::GridHandler;
 
 fn make_displayed_rows_from_ranges(ranges: Vec<RangeInclusive<usize>>) -> Vec<DisplayedRows> {
     ranges

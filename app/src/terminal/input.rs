@@ -24,6 +24,7 @@ mod terminal_message_bar;
 mod universal;
 pub mod user_query;
 
+use terminal_grid_model::block::{AgentInteractionMetadata, BlockId, BlockMetadata, BlocklistEnvVarMetadata};
 use crate::objects_display::StoredObjectHostExt;
 use crate::ai::agent::api::ServerConversationToken;
 use crate::ai::agent::conversation::AIConversationId;
@@ -222,10 +223,7 @@ use super::{
     block_list_viewport::InputMode,
     event::{BlockCompletedEvent, BlockType, UserBlockCompleted},
     ligature_settings::LigatureSettings,
-    model::{
-        block::{AgentInteractionMetadata, BlockId, BlockMetadata, BlocklistEnvVarMetadata},
-        session::{Session, SessionId, SessionType, Sessions},
-    },
+    model::{session::{Session, SessionId, SessionType, Sessions}},
     prompt,
     prompt_render_helper::{
         should_render_prompt_on_same_line, should_render_prompt_using_editor_decorator_elements,

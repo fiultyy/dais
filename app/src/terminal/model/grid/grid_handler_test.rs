@@ -5,19 +5,20 @@ use warp_terminal::model::char_or_str::CharOrStr;
 use warp_util::path::LineAndColumnArg;
 use warpui::text::words::is_default_word_boundary;
 
-use crate::terminal::model::secrets::{ObfuscateSecrets, SecretLevel};
-use crate::terminal::model::secrets::IsObfuscated;
+use terminal_grid_model::secrets::{ObfuscateSecrets, SecretLevel};
+use terminal_grid_model::secrets::IsObfuscated;
 use crate::terminal::event_listener::ChannelEventListener;
 use terminal_grid_model::ansi::{self, Handler};
 use crate::test_util::mock_blockgrid;
 use terminal_grid_model::ansi::{Color, NamedColor};
 
 use super::*;
-use crate::terminal::model::grid::grid_handler::Fragment;
+use terminal_grid_model::grid::*;
+use terminal_grid_model::grid::grid_handler::Fragment;
 
 // R10: 原父模块的可见 use 集,随模块下沉后显式补齐。
 #[allow(unused_imports)]
-use crate::terminal::model::grid::ansi_state::State;
+use terminal_grid_model::grid::ansi_state::State;
 #[allow(unused_imports)]
 use std::borrow::Cow;
 #[allow(unused_imports)]
@@ -61,7 +62,7 @@ use warp_terminal::model::grid::cell::{Cell, Flags, LineLength, DEFAULT_CHAR};
 #[allow(unused_imports)]
 use warp_terminal::model::char_or_str::PushCharOrStr;
 #[allow(unused_imports)]
-use crate::terminal::model::grid::GridStorage;
+use terminal_grid_model::grid::GridStorage;
 #[allow(unused_imports)]
 use warp_terminal::model::grid::Dimensions;
 #[allow(unused_imports)]
@@ -69,15 +70,15 @@ use terminal_grid_model::image_map::ImageMap;
 #[allow(unused_imports)]
 use terminal_model::index::{IndexRange, Point, VisibleRow};
 #[allow(unused_imports)]
-use crate::terminal::model::secrets::SecretMap;
+use terminal_grid_model::secrets::SecretMap;
 #[allow(unused_imports)]
 use crate::terminal::SizeInfo;
 #[allow(unused_imports)]
 use warp_util::TrimStringExt;
 #[allow(unused_imports)]
-use crate::terminal::model::grid::RespectDisplayedOutput;
+use terminal_grid_model::grid::RespectDisplayedOutput;
 #[allow(unused_imports)]
-use crate::terminal::model::secrets::RespectObfuscatedSecrets;
+use terminal_grid_model::secrets::RespectObfuscatedSecrets;
 #[allow(unused_imports)]
 use terminal_model::RangeInModel;
 #[allow(unused_imports)]
@@ -85,19 +86,20 @@ use crate::terminal::model::find::{Match, RegexDFAs};
 #[allow(unused_imports)]
 use terminal_model::index::Direction;
 #[allow(unused_imports)]
-use crate::terminal::model::secrets::{Secret, SecretHandle};
+use terminal_grid_model::secrets::{Secret, SecretHandle};
 #[allow(unused_imports)]
-use super::displayed_output::DisplayedOutput;
+use terminal_grid_model::grid::displayed_output::DisplayedOutput;
 #[allow(unused_imports)]
-use super::grapheme_cursor::{self, GraphemeCursor};
+use terminal_grid_model::grid::grapheme_cursor::{self, GraphemeCursor};
 #[allow(unused_imports)]
-use super::row::Row;
+use terminal_grid_model::grid::row::Row;
 #[allow(unused_imports)]
-use super::{ConvertToAbsolute as _, Cursor, SelectionCursor};
+use terminal_grid_model::grid::indexing::ConvertToAbsolute as _;
+use terminal_grid_model::grid::{Cursor, SelectionCursor};
 #[allow(unused_imports)]
 
 #[allow(unused_imports)]
-use super::{GridEventSink, NoopEventSink};
+use terminal_grid_model::grid::{GridEventSink, NoopEventSink};
 #[allow(unused_imports)]
 use string_offset::ByteOffset;
 

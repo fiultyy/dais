@@ -9,7 +9,7 @@ use std::sync::Arc;
 use warp_util::path::is_network_resource;
 use warp_util::path::{CleanPathResult, LineAndColumnArg};
 
-use crate::terminal::model::grid::grid_handler::{ContainsPoint, Link};
+use terminal_grid_model::grid::grid_handler::{ContainsPoint, Link};
 use terminal_model::index::Point;
 use crate::terminal::ShellLaunchData;
 

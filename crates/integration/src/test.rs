@@ -42,6 +42,9 @@ pub use bootstrapping::*;
 pub use code_review::*;
 pub use ctrl_d::*;
 pub use file_tree::*;
+use terminal_grid_model::grid::Dimensions;
+use terminal_grid_model::block::blocks::{BlockHeightItem, TotalIndex};
+use terminal_grid_model::grid::grid_handler::TermMode;
 use terminal_grid_model::block_index::BlockIndex;
 use terminal_grid_model::ansi::{Handler as _, InitShellValue};
 use float_cmp::assert_approx_eq;
@@ -104,10 +107,8 @@ use dais::integration_testing::terminal::assert_focused_editor_in_tab;
 use dais::integration_testing::tab::{assert_pane_title, assert_tab_title};
 use dais::settings::CtrlTabBehavior;
 use dais::terminal::keys_settings::KeysSettings;
-use dais::terminal::{
-    model::blocks::BlockHeightSummary,
-    view::TerminalViewState,
-};
+use dais::terminal::view::TerminalViewState;
+use terminal_grid_model::block::blocks::BlockHeightSummary;
 use dais::workflows::categories::CategoriesView;
 use dais::{
     appearance::Appearance,
@@ -161,7 +162,6 @@ use dais::{
     terminal::{
         alt_screen_reporting::MouseReportingEnabled,
         block_list_viewport::{InputMode, ScrollPosition},
-        model::grid::grid_handler::TermMode,
         session_settings::SessionSettings,
         session_settings::{HonorPS1, StartupShellOverride},
         view::BlockVisibilityMode,
@@ -230,10 +230,6 @@ use dais::{
     settings_view::{keybindings::KeybindingsView, SettingsSection, SettingsView},
     terminal::{
         input::{Input, InputSuggestionsMode},
-        model::{
-            blocks::{BlockHeightItem, TotalIndex},
-            grid::Dimensions,
-        },
         shell, TerminalView,
     },
     workspace::{Workspace, NEW_SESSION_MENU_BUTTON_POSITION_ID, NEW_TAB_BUTTON_POSITION_ID},

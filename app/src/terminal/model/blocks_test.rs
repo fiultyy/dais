@@ -27,6 +27,7 @@ use warpui::units::IntoLines;
 use warpui::{elements::DEFAULT_UI_LINE_HEIGHT_RATIO, App};
 
 use super::*;
+use terminal_grid_model::block::blocks::*;
 use crate::ai::agent::AIAgentActionId;
 use crate::ai::blocklist::agent_view::{
     AgentViewDisplayMode, AgentViewEntryOrigin, AgentViewState,

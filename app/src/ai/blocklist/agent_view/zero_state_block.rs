@@ -1,3 +1,4 @@
+use terminal_grid_model::block::blocks::BlockHeightItem;
 use itertools::Itertools as _;
 use markdown_parser::parse_markdown;
 use parking_lot::FairMutex;
@@ -21,7 +22,7 @@ use crate::{
     appearance::Appearance,
     report_if_error,
     settings::{InputSettings, InputSettingsChangedEvent},
-    terminal::{ self, event::BlockType, input::message_bar::{common::render_standard_message, Message, MessageItem}, model::{ blocks::BlockHeightItem, session::{BootstrapSessionType, Session, SessionType, Sessions}, }, model_events::{AnsiHandlerEvent, ModelEvent, ModelEventDispatcher}, prompt, view::{ ambient_agent::{AmbientAgentViewModel, AmbientAgentViewModelEvent}, TerminalAction, }, TerminalModel, },
+    terminal::{ self, event::BlockType, input::message_bar::{common::render_standard_message, Message, MessageItem}, model::{session::{BootstrapSessionType, Session, SessionType, Sessions}}, model_events::{AnsiHandlerEvent, ModelEvent, ModelEventDispatcher}, prompt, view::{ ambient_agent::{AmbientAgentViewModel, AmbientAgentViewModelEvent}, TerminalAction, }, TerminalModel, },
     util::time_format::format_approx_duration_from_now_utc,
 };
 

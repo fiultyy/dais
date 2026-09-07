@@ -30,12 +30,12 @@ use terminal_grid_model::ansi::{
     FinishUpdateValue, InputBufferValue, Mode, PendingHook, TmuxInstallFailedInfo,
     WarpificationUnavailableReason,
 };
-use super::block::{
+use terminal_grid_model::block::{
     AgentInteractionMetadata, Block, BlockId, BlockMetadata, BlockSize, BlocklistEnvVarMetadata,
     SerializedBlock,
 };
 use terminal_grid_model::grid::blockgrid::BlockGrid;
-use super::grid::grid_handler::{
+use terminal_grid_model::grid::grid_handler::{
     ContainsPoint, FragmentBoundary, GridHandler, Link, PossiblePath, TermMode,
 };
 use terminal_grid_model::image_map::StoredImageMetadata;
@@ -44,7 +44,7 @@ use terminal_model::kitty::{
     create_kitty_error_reply, create_kitty_ok_reply, DeletionType, KittyAction, KittyChunk,
     KittyMessage, KittyResponse, PendingKittyMessage,
 };
-use super::secrets::{RespectObfuscatedSecrets, SecretAndHandle};
+use terminal_grid_model::secrets::{RespectObfuscatedSecrets, SecretAndHandle};
 use terminal_grid_model::grid::selection::ScrollDelta;
 use super::session::{InBandCommandOutputReceiver, SessionId};
 use terminal_model::tmux::commands::TmuxCommand;
@@ -57,11 +57,11 @@ use terminal_grid_model::ansi::{
     InitSubshellValue, PreInteractiveSSHSessionValue, PrecmdValue, PreexecValue, SSHValue,
     SourcedRcFileForWarpValue,
 };
-use crate::terminal::model::grid::IndexRegion;
+use terminal_grid_model::grid::IndexRegion;
 use crate::terminal::model::session::SessionInfo;
 use crate::terminal::shell::{ShellName, ShellType};
 
-use crate::terminal::model::secrets::ObfuscateSecrets;
+use terminal_grid_model::secrets::ObfuscateSecrets;
 use crate::terminal::shared_session::protocol::SessionSourceType;
 use warp_core::report_error;
 #[cfg(not(target_family = "wasm"))]

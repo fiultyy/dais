@@ -1,6 +1,7 @@
 //! This module contains state management logic for pending context, where "pending context"
 //! is defined as additional context to be attached to the next AI query.
 
+use terminal_grid_model::block::BlockId;
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
@@ -22,7 +23,7 @@ use warpui::{AppContext, Entity, EntityId, ModelContext, ModelHandle, SingletonE
 use crate::ai::agent::conversation::{AIConversationAutoexecuteMode, ConversationStatus};
 use crate::{
     ai::{ agent::todos::AIAgentTodoList, agent::{ conversation::{AIConversation, AIConversationId}, AIAgentAttachment, AIAgentContext, ImageContext, }, document::ai_document_model::AIDocumentId, llms::{LLMPreferences, LLMPreferencesEvent}, },
-    terminal::{ event::{BlockCompletedEvent, BlockType}, model::{block::BlockId, session::Sessions}, model_events::{ModelEvent, ModelEventDispatcher}, TerminalModel, },
+    terminal::{ event::{BlockCompletedEvent, BlockType}, model::{ session::Sessions}, model_events::{ModelEvent, ModelEventDispatcher}, TerminalModel, },
 };
 
 use super::{

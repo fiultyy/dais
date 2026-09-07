@@ -1,6 +1,5 @@
 //! R24: Block 本体迁移 terminal_grid_model::block;本文件为 app 侧 mod 级 shim
 //! + FromPersisted 留守件(依赖 app persistence 模型, 对 crate 类型合法)。
-pub use terminal_grid_model::block::*;
 
 use chrono::{Local, TimeZone as _};
 use crate::persistence;

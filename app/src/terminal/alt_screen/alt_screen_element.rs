@@ -8,8 +8,8 @@ use crate::terminal::meta_shortcuts::handle_keystroke_despite_composing;
 use warp_terminal::model::escape_sequences::{
     maybe_kitty_keyboard_escape_sequence, KeystrokeWithDetails, ToEscapeSequence,
 };
-use crate::terminal::model::grid::grid_handler::{Link, TermMode};
-use crate::terminal::model::grid::RespectDisplayedOutput;
+use terminal_grid_model::grid::grid_handler::{Link, TermMode};
+use terminal_grid_model::grid::RespectDisplayedOutput;
 use warp_terminal::model::grid::Dimensions;
 use terminal_model::index::Point;
 use warp_terminal::model::mouse::{MouseAction, MouseButton, MouseState};

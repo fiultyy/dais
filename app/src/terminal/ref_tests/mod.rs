@@ -11,7 +11,7 @@ use warpui::r#async::executor::Background;
 use crate::terminal::color;
 use crate::terminal::color::Colors;
 use crate::terminal::event_listener::ChannelEventListener;
-use crate::terminal::model::grid::GridStorage;
+use terminal_grid_model::grid::GridStorage;
 use warp_terminal::model::grid::Dimensions;
 use crate::terminal::model::ObfuscateSecrets;
 use terminal_grid_model::ansi;

@@ -1,4 +1,5 @@
 #[cfg(not(target_family = "wasm"))]
+use terminal_grid_model::block::BlockMetadata;
 use crate::search::ai_context_menu::view::AIContextMenu;
 #[cfg(not(target_family = "wasm"))]
 use crate::settings::InputSettings;
@@ -55,7 +56,7 @@ use crate::{
     network::NetworkStatus,
     settings::AISettings,
     settings_view::SettingsSection,
-    terminal::{ input::MenuPositioningProvider, keys::TerminalKeybindings, model::{block::BlockMetadata, session::Sessions}, profile_model_selector::{ProfileModelSelector, ProfileModelSelectorEvent}, session_settings::{SessionSettings, SessionSettingsChangedEvent}, },
+    terminal::{ input::MenuPositioningProvider, keys::TerminalKeybindings, model::{ session::Sessions}, profile_model_selector::{ProfileModelSelector, ProfileModelSelectorEvent}, session_settings::{SessionSettings, SessionSettingsChangedEvent}, },
     ui_components::icons::Icon,
     view_components::action_button::{ ActionButton, ActionButtonTheme, ButtonSize, NakedTheme, TooltipAlignment, },
     workspaces::user_workspaces::UserWorkspaces,

@@ -1,3 +1,4 @@
+use terminal_grid_model::block::blocks::RichContentItem;
 use terminal_grid_model::block_index::BlockIndex;
 use std::collections::HashSet;
 use std::path::Path;
@@ -42,7 +43,7 @@ use crate::ai::document::ai_document_model::AIDocumentModel;
 use crate::{
     ai::{ agent::{ conversation::{AIConversation, AIConversationId}, AIAgentExchange, AIAgentExchangeId, AIAgentOutput, }, blocklist::{ history_model::BlocklistAIHistoryModel, model::AIBlockModelImpl, AIBlock, BlocklistAIActionModel, BlocklistAIController, ClientIdentifiers, }, restored_conversations::RestoredAgentConversations, },
     persistence::model::AgentConversationData,
-    terminal::{ find::TerminalFindModel, model::{ blocks::RichContentItem, session::active_session::ActiveSession, }, view::{ AIBlockMetadata, Event, RichContent, RichContentInsertionPosition, RichContentMetadata, TerminalView, }, },
+    terminal::{ find::TerminalFindModel, model::{session::active_session::ActiveSession}, view::{ AIBlockMetadata, Event, RichContent, RichContentInsertionPosition, RichContentMetadata, TerminalView, }, },
 };
 use warp_core::channel::ChannelState;
 use warp_multi_agent_api as api;

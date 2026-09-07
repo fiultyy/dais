@@ -16,8 +16,6 @@ pub use terminal_grid_model::grid::alt_screen;
 pub mod block;
 pub mod blocks;
 
-// R25: EarlyOutput 迁移 terminal_grid_model::block::early_output;mod 级 shim。
-pub use terminal_grid_model::block::early_output::*;
 
 #[cfg(test)]
 #[path = "early_output_tests.rs"]
@@ -26,7 +24,6 @@ pub use terminal_grid_model::find;
 pub mod grid;
 pub use ::terminal_model::iterm_image;
 pub mod secrets {
-    pub use terminal_grid_model::secrets::*;
 
     /// R10: secrets 下沉后 app 侧留存的 UI tooltip 类型(原 secrets.rs 内,
     /// 依赖 app ai::blocklist::TextLocation 与 warpui EntityId)。
@@ -223,7 +220,7 @@ pub mod test_utils;
 #[path = "secrets_test.rs"]
 mod secrets_test_mod;
 
-pub use secrets::{
+pub use terminal_grid_model::secrets::{
     set_user_and_enterprise_secret_regexes, ObfuscateSecrets, RespectObfuscatedSecrets, Secret,
     SecretHandle,
 };

@@ -1,7 +1,8 @@
+use terminal_grid_model::block::{AgentInteractionMetadata, SerializedAIMetadata, SerializedBlock};
 use terminal_grid_model::bootstrap::BootstrapStage;
 use crate::{
     ai::agent::conversation::AIConversationId,
-    terminal::{ model::{ block::{AgentInteractionMetadata, SerializedAIMetadata, SerializedBlock}, session::command_executor::testing::TestCommandExecutor, session::{BootstrapSessionType, Session, SessionId, SessionInfo}, test_utils::TestBlockBuilder, }, shell::ShellType, History, },
+    terminal::{ model::{session::command_executor::testing::TestCommandExecutor,session::{BootstrapSessionType, Session, SessionId, SessionInfo},test_utils::TestBlockBuilder}, shell::ShellType, History, },
     test_util::{Stub, VirtualFS},
 };
 use chrono::Local;
