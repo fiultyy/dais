@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use super::*;
+use crate::terminal::model::terminal_model::TerminalModel;
 use crate::ai::agent::DriveObjectPayload;
 use crate::ai::agent_conversations_model::AgentConversationsModel;
 use crate::ai::blocklist::{AIQueryHistory, BlocklistAIPermissions};

@@ -1,4 +1,5 @@
 use super::*;
+use terminal_grid_model::prompt_snapshot::ContextChipKind;
 use warp_completer::completer::{CommandExitStatus, CommandOutput};
 
 #[test]

@@ -135,6 +135,7 @@ mod testing {
     };
 
     use super::*;
+    use crate::terminal::model::terminal_model::TerminalModel;
 
     struct TerminalRootView {
         terminal_view: ViewHandle<TerminalView>,

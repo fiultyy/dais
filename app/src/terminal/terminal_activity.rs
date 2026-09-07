@@ -104,6 +104,7 @@ impl TerminalActivityModel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::terminal::model::terminal_model::TerminalModel;
     use warpui::App;
 
     /// 开关短路:关态 publish 前置检查由调用方做;开态事件必达订阅者。

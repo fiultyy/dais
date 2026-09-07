@@ -939,6 +939,7 @@ impl Input {
 #[cfg(all(test, feature = "local_fs", windows))]
 mod tests {
     use super::*;
+    use terminal_grid_model::agent_view::SlashCommandTrigger;
     use std::sync::Arc;
 
     use crate::terminal::model::session::command_executor::testing::TestCommandExecutor;

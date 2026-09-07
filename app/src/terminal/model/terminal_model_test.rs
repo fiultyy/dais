@@ -1,4 +1,5 @@
 use super::*;
+use crate::terminal::model::terminal_model::TerminalModel;
 use crate::terminal::ShellHost;
 use terminal_grid_model::ansi::{Handler, Processor};
 use terminal_grid_model::block::BlockId;
