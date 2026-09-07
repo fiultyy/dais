@@ -15,7 +15,6 @@ pub mod view_impl;
 
 pub use pending_user_query_block::{PendingUserQueryBlock, PendingUserQueryBlockEvent};
 
-#[cfg(feature = "agent_mode_debug")]
 use terminal_grid_model::secrets::RichContentSecretTooltipInfo;
 use self::code_diff_view::FileDiff;
 use crate::ai::agent::redaction::redact_secrets;
