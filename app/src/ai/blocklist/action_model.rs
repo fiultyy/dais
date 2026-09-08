@@ -587,7 +587,7 @@ impl BlocklistAIActionModel {
         app: &AppContext,
     ) -> bool {
         // 在 action model 里 `AIAgentActionId` 即 tool_call_id,这里只是把入参显式重命名,
-        // 让调用点(controller 的 byop preflight)读起来更直观。
+        // 让调用点(controller 的动作预检)读起来更直观。
         let action_id = crate::ai::agent::AIAgentActionId::from(tool_call_id.to_owned());
         let has_pending = self
             .pending_actions
@@ -822,7 +822,7 @@ impl BlocklistAIActionModel {
         let action_id = action.id.clone();
         let phase = self.action_phase_for_action(&action, ctx);
         log::info!(
-            "[byop-diag] try_to_execute_action: enter action_id={action_id:?} \
+            "action-diag: try_to_execute_action: enter action_id={action_id:?} \
              is_user_initiated={is_user_initiated} phase={phase:?}"
         );
         let execute_result = self.executor.update(ctx, |executor, ctx| {
@@ -832,7 +832,7 @@ impl BlocklistAIActionModel {
         match execute_result {
             TryExecuteResult::ExecutedAsync => {
                 log::info!(
-                    "[byop-diag] try_to_execute_action: ExecutedAsync action_id={action_id:?}"
+                    "action-diag: try_to_execute_action: ExecutedAsync action_id={action_id:?}"
                 );
                 self.update_conversation_in_progress_status(conversation_id, ctx);
                 self.add_running_action(conversation_id, action_id, phase);
@@ -840,14 +840,14 @@ impl BlocklistAIActionModel {
             }
             TryExecuteResult::ExecutedSync => {
                 log::info!(
-                    "[byop-diag] try_to_execute_action: ExecutedSync action_id={action_id:?}"
+                    "action-diag: try_to_execute_action: ExecutedSync action_id={action_id:?}"
                 );
                 self.update_conversation_in_progress_status(conversation_id, ctx);
                 Some(StartedAction::Sync)
             }
             TryExecuteResult::NotExecuted { reason, action } => {
                 log::info!(
-                    "[byop-diag] try_to_execute_action: NotExecuted action_id={:?} reason={:?} \
+                    "action-diag: try_to_execute_action: NotExecuted action_id={:?} reason={:?} \
                      → 入 pending_actions[{:?}]",
                     action.id,
                     reason,
@@ -892,7 +892,7 @@ impl BlocklistAIActionModel {
     /// (内部走 `is_user_initiated=true` 路径,绕过 `NeedsConfirmation` 检查),
     /// 而不是默认的 `try_to_execute_available_actions`(`is_user_initiated=false`)。
     ///
-    /// 用途:Dais BYOP 路径下 LRC tag-in 场景 — 用户主动 SetInputModeAgent 把
+    /// 用途:LRC tag-in 场景 — 用户主动 SetInputModeAgent 把
     /// 控制权交给 agent,但 alt-screen 全屏下看不到 RequestedCommand 的 Accept 按钮,
     /// controller 检测到 LRC 状态后用本方法绕开手动确认死锁。
     pub(super) fn queue_actions_with_options(
@@ -992,7 +992,7 @@ impl BlocklistAIActionModel {
             // try_to_execute_available_actions(is_user_initiated=false),
             // 直接对每个刚 push 的 action 调用 execute_action(等价用户 Accept)。
             log::info!(
-                "[byop-diag] queue_actions_with_options(auto_accept=true): \
+                "action-diag: queue_actions_with_options(auto_accept=true): \
                  invoking execute_action for {} action(s)",
                 auto_accept_ids.len()
             );
@@ -1228,7 +1228,7 @@ impl BlocklistAIActionModel {
 
         let Some(conversation_id) = found_conversation_id else {
             log::error!(
-                "[byop-diag] handle_requested_command_accepted: action_id={action_id:?} NOT FOUND \
+                "action-diag: handle_requested_command_accepted: action_id={action_id:?} NOT FOUND \
                  in pending_actions. pending_conversations=[{}] (action 没正确入 pending_actions,\
                  chain 在 controller.queue_actions → action_model.try_to_execute_action 这一段断了)",
                 self.pending_actions
@@ -1242,7 +1242,7 @@ impl BlocklistAIActionModel {
         };
 
         log::info!(
-            "[byop-diag] handle_requested_command_accepted: action_id={action_id:?} found in \
+            "action-diag: handle_requested_command_accepted: action_id={action_id:?} found in \
              conversation_id={conversation_id:?}, calling execute_action"
         );
         self.execute_action(action_id, conversation_id, ctx);

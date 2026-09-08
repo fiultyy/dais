@@ -127,7 +127,6 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(AgentConversationsModel::new);
     // Dais:以下单例在生产 app 启动(lib.rs)注册,workspace/AI 构造链订阅;
     // 缺注册会在 App::test 里 panic "never registered"。
-    app.add_singleton_model(crate::ai::agent_providers::AgentProviderSecrets::new);
     app.add_singleton_model(crate::settings::network_secrets::ProxyCredentials::new);
     app.add_singleton_model(crate::settings::CloudSyncTokenStore::new);
     app.add_singleton_model(crate::terminal::cli_agent::CLIAgentInstallModel::new);

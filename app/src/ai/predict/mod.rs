@@ -6,6 +6,6 @@ pub(crate) mod generate_ai_input_suggestions;
 pub(crate) mod generate_am_query_suggestions;
 pub mod next_command_model;
 // Dais(Wave 3-2):`predict_am_queries` API 模块已物理删 — 原 `ServerApi::predict_am_queries`
-// 0 外部消费已同步删除；FeatureFlag::PredictAMQueries / terminal/input.rs 中
-// `predict_am_queries_future_handle` 仅作为控制开关/句柄代号保留，不再需要该模块。
+// 0 外部消费已同步删除；FeatureFlag::PredictAMQueries 仅作为设置项/绑定层的控制开关保留,
+// 不再需要该模块。
 pub mod prompt_suggestions;

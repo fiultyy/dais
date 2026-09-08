@@ -905,11 +905,11 @@ impl ObservatoryModel {
         };
     }
 
-    /// 选中 session 的上下文占用派生（T10）：只读 DB + 分层窗口映射
-    /// （harness 模型配置 → models.dev catalog，未知 → None 只显 tokens）。
+    /// 选中 session 的上下文占用派生（T10）：只读 DB + harness 模型配置窗口映射
+    /// （模型无配置窗口 → 未知，UI 只显 tokens）。
     fn load_session_context(&self, session_id: &str) -> Option<context_usage::SessionContextInfo> {
         let conn = Self::open_blocks_db()?;
-        context_usage::derive_session_context(&conn, session_id, models_dev_catalog().as_ref())
+        context_usage::derive_session_context(&conn, session_id)
     }
 
     /// 加载单个 block 的完整详情（content 截断至 64 KiB）。
@@ -1444,21 +1444,6 @@ fn like_pattern(filter: &str) -> String {
         })
         .collect();
     format!("%{escaped}%")
-}
-
-/// models.dev catalog 只读快照（T10 窗口映射二级来源）。
-/// 进程内缓存命中直接返回；未加载时尝试同步读磁盘缓存（观测台 5s
-/// 轮询路径不能阻塞），均失败 → None（窗口未知，UI 降级只显 tokens）。
-/// 不在此触发网络拉取 — Providers 设置页打开时自然会拉。
-fn models_dev_catalog() -> Option<crate::ai::agent_providers::models_dev::Catalog> {
-    if let Some(c) = crate::ai::agent_providers::models_dev::cached() {
-        return Some(c);
-    }
-    if crate::ai::agent_providers::models_dev::load_from_disk() {
-        crate::ai::agent_providers::models_dev::cached()
-    } else {
-        None
-    }
 }
 
 // ---------------------------------------------------------------------------

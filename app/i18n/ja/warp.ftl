@@ -530,7 +530,6 @@ settings-section-ai = AI
 settings-section-warp-agent = Dais エージェント
 settings-section-agent-profiles = プロファイル
 settings-section-agent-mcp-servers = MCP サーバー
-settings-section-agent-providers = プロバイダー
 settings-section-knowledge = ナレッジ
 settings-section-third-party-cli-agents = サードパーティ CLI エージェント
 settings-section-code = コード

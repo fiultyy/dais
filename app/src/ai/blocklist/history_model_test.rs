@@ -14,7 +14,6 @@ use crate::{
         },
         ambient_agents::AmbientAgentTaskId,
         blocklist::{controller::RequestInput, ResponseStreamId},
-        byop_readiness::{RepairRecord, RepairSource, RepairState, RepairStateStatus, ToolCallKey},
         llms::LLMId,
     },
     input_suggestions::HistoryInputSuggestion,
@@ -100,7 +99,7 @@ fn create_exchange_with_query(
     }
 }
 
-fn byop_test_task(task_id: &str, messages: Vec<api::Message>) -> api::Task {
+fn test_task(task_id: &str, messages: Vec<api::Message>) -> api::Task {
     api::Task {
         id: task_id.to_owned(),
         messages,
@@ -124,8 +123,6 @@ fn empty_agent_conversation_data_for_test() -> AgentConversationData {
         run_id: None,
         autoexecute_override: None,
         last_event_sequence: None,
-        compaction_state_json: None,
-        byop_repair_state_json: None,
         cli_subagent_block_snapshots_json: None,
     }
 }
@@ -150,11 +147,11 @@ fn persisted_agent_conversation_for_test(
                 .expect("test conversation data should serialize"),
             last_modified_at,
         },
-        tasks: vec![byop_test_task("root-task", messages)],
+        tasks: vec![test_task("root-task", messages)],
     }
 }
 
-fn byop_user_query_message(
+fn user_query_message(
     message_id: &str,
     request_id: &str,
     query: &str,
@@ -180,39 +177,6 @@ fn byop_user_query_message(
     }
 }
 
-fn byop_tool_call_message(task_id: &str, message_id: &str, call_id: &str) -> api::Message {
-    api::Message {
-        id: message_id.to_owned(),
-        task_id: task_id.to_owned(),
-        server_message_data: String::new(),
-        citations: vec![],
-        message: Some(api::message::Message::ToolCall(api::message::ToolCall {
-            tool_call_id: call_id.to_owned(),
-            tool: None,
-        })),
-        request_id: "request-1".to_owned(),
-        timestamp: None,
-    }
-}
-
-fn byop_tool_result_message(task_id: &str, message_id: &str, call_id: &str) -> api::Message {
-    api::Message {
-        id: message_id.to_owned(),
-        task_id: task_id.to_owned(),
-        server_message_data: "{}".to_owned(),
-        citations: vec![],
-        message: Some(api::message::Message::ToolCallResult(
-            api::message::ToolCallResult {
-                tool_call_id: call_id.to_owned(),
-                context: None,
-                result: None,
-            },
-        )),
-        request_id: "request-1".to_owned(),
-        timestamp: None,
-    }
-}
-
 #[test]
 fn persisted_conversation_uses_record_timestamp_when_restored_messages_have_no_time() {
     let conversation_id = AIConversationId::new();
@@ -223,7 +187,7 @@ fn persisted_conversation_uses_record_timestamp_when_restored_messages_have_no_t
     let persisted_conversation = persisted_agent_conversation_for_test(
         conversation_id,
         fallback_time,
-        vec![byop_user_query_message(
+        vec![user_query_message(
             "user-query-1",
             "request-1",
             "restore me",
@@ -253,7 +217,7 @@ fn persisted_conversation_keeps_restored_message_time_when_present() {
     let persisted_conversation = persisted_agent_conversation_for_test(
         conversation_id,
         fallback_time,
-        vec![byop_user_query_message(
+        vec![user_query_message(
             "user-query-1",
             "request-1",
             "restore me",
@@ -266,164 +230,6 @@ fn persisted_conversation_keeps_restored_message_time_when_present() {
             .expect("persisted conversation should restore");
 
     assert_eq!(restored.last_modified_at(), Some(message_time));
-}
-
-#[test]
-fn byop_fork_repair_records_cover_tool_results_omitted_by_fork() {
-    let source_tasks = vec![byop_test_task(
-        "source-task",
-        vec![
-            byop_tool_call_message("source-task", "assistant-1", "call-a"),
-            byop_tool_call_message("source-task", "assistant-2", "call-b"),
-            byop_tool_result_message("source-task", "result-a", "call-a"),
-            byop_tool_result_message("source-task", "result-b", "call-b"),
-        ],
-    )];
-    let forked_tasks = vec![byop_test_task(
-        "fork-task",
-        vec![
-            byop_tool_call_message("fork-task", "assistant-1", "call-a"),
-            byop_tool_call_message("fork-task", "assistant-2", "call-b"),
-            byop_tool_result_message("fork-task", "result-a", "call-a"),
-        ],
-    )];
-
-    let records = super::collect_byop_fork_repair_records(
-        &source_tasks,
-        &forked_tasks,
-        &RepairStateStatus::default(),
-        Some("exchange-1".to_owned()),
-    );
-
-    assert_eq!(records.len(), 1);
-    assert_eq!(records[0].source, RepairSource::ForkedHistory);
-    assert_eq!(
-        records[0].key,
-        ToolCallKey::new("fork-task", "assistant-1", "call-b")
-    );
-    assert_eq!(records[0].exchange_id.as_deref(), Some("exchange-1"));
-}
-
-#[test]
-fn byop_fork_repair_records_match_duplicate_call_ids_by_assistant_message() {
-    let source_tasks = vec![byop_test_task(
-        "source-task",
-        vec![
-            byop_tool_call_message("source-task", "assistant-1", "call-a"),
-            byop_tool_result_message("source-task", "result-a-1", "call-a"),
-            byop_tool_call_message("source-task", "assistant-2", "call-a"),
-            byop_tool_result_message("source-task", "result-a-2", "call-a"),
-        ],
-    )];
-    let forked_tasks = vec![byop_test_task(
-        "fork-task",
-        vec![
-            byop_tool_call_message("fork-task", "assistant-1", "call-a"),
-            byop_tool_result_message("fork-task", "result-a-1", "call-a"),
-            byop_tool_call_message("fork-task", "assistant-2", "call-a"),
-        ],
-    )];
-
-    let records = super::collect_byop_fork_repair_records(
-        &source_tasks,
-        &forked_tasks,
-        &RepairStateStatus::default(),
-        None,
-    );
-
-    assert_eq!(records.len(), 1);
-    assert_eq!(
-        records[0].key,
-        ToolCallKey::new("fork-task", "assistant-2", "call-a")
-    );
-}
-
-#[test]
-fn byop_fork_repair_records_do_not_convert_orphan_results() {
-    let source_tasks = vec![byop_test_task(
-        "source-task",
-        vec![byop_tool_result_message(
-            "source-task",
-            "orphan-result",
-            "call-a",
-        )],
-    )];
-    let forked_tasks = vec![byop_test_task(
-        "fork-task",
-        vec![byop_tool_result_message(
-            "fork-task",
-            "orphan-result",
-            "call-a",
-        )],
-    )];
-
-    let records = super::collect_byop_fork_repair_records(
-        &source_tasks,
-        &forked_tasks,
-        &RepairStateStatus::default(),
-        None,
-    );
-
-    assert!(records.is_empty());
-}
-
-#[test]
-fn byop_fork_repair_records_do_not_infer_unexplained_missing_results() {
-    let source_tasks = vec![byop_test_task(
-        "source-task",
-        vec![byop_tool_call_message(
-            "source-task",
-            "assistant-1",
-            "call-a",
-        )],
-    )];
-    let forked_tasks = vec![byop_test_task(
-        "fork-task",
-        vec![byop_tool_call_message("fork-task", "assistant-1", "call-a")],
-    )];
-
-    let records = super::collect_byop_fork_repair_records(
-        &source_tasks,
-        &forked_tasks,
-        &RepairStateStatus::default(),
-        None,
-    );
-
-    assert!(records.is_empty());
-}
-
-#[test]
-fn byop_fork_repair_records_translate_existing_repair_keys() {
-    let source_tasks = vec![byop_test_task(
-        "source-task",
-        vec![byop_tool_call_message(
-            "source-task",
-            "assistant-1",
-            "call-a",
-        )],
-    )];
-    let forked_tasks = vec![byop_test_task(
-        "fork-task",
-        vec![byop_tool_call_message("fork-task", "assistant-1", "call-a")],
-    )];
-    let source_record = RepairRecord::new(
-        RepairSource::RestoredLegacyHistory,
-        ToolCallKey::new("source-task", "assistant-1", "call-a"),
-    );
-
-    let records = super::collect_byop_fork_repair_records(
-        &source_tasks,
-        &forked_tasks,
-        &RepairStateStatus::Valid(RepairState::new(vec![source_record])),
-        None,
-    );
-
-    assert_eq!(records.len(), 1);
-    assert_eq!(records[0].source, RepairSource::RestoredLegacyHistory);
-    assert_eq!(
-        records[0].key,
-        ToolCallKey::new("fork-task", "assistant-1", "call-a")
-    );
 }
 
 #[test]
@@ -1277,8 +1083,6 @@ fn test_find_by_token_after_insert_forked_conversation_from_tasks() {
             run_id: None,
             autoexecute_override: None,
             last_event_sequence: None,
-            compaction_state_json: None,
-            byop_repair_state_json: None,
             cli_subagent_block_snapshots_json: None,
         };
         let tasks = vec![warp_multi_agent_api::Task {

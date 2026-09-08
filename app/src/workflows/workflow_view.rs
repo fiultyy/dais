@@ -2612,82 +2612,18 @@ impl WorkflowView {
     }
 
     fn issue_request(&mut self, ctx: &mut ViewContext<Self>) {
-        use crate::ai::agent_providers::active_ai::workflow_metadata;
+        let err = GeneratedCommandMetadataError::BadCommand;
+        self.display_error_toast(err.user_facing_message(), ctx);
 
-        let command = self.content_editor.as_ref(ctx).buffer_text(ctx);
-        let raw_request = command.trim().to_string();
-
-        let Some(rendered) = workflow_metadata::dispatch(
-            ctx,
-            None,
-            workflow_metadata::Input {
-                command: raw_request,
+        send_telemetry_from_ctx!(
+            TelemetryEvent::AutoGenerateMetadataError {
+                error_payload: serde_json::json!(err)
             },
-        ) else {
-            self.display_error_toast(
-                "Autofill 需要 BYOP 模型。请到 Settings → AI 中配置一个 provider 与模型。"
-                    .to_string(),
-                ctx,
-            );
-            return;
-        };
-
-        ctx.spawn(
-            async move { workflow_metadata::run(rendered).await },
-            move |pane, response, ctx| match response {
-                Some(metadata) => {
-                    pane.ai_metadata_assist_state = AiAssistState::Generated;
-                    pane.enable_editors(ctx);
-
-                    let arguments = metadata
-                        .arguments
-                        .into_iter()
-                        .map(|parameter| Argument {
-                            name: parameter.name,
-                            description: Some(parameter.description),
-                            default_value: Some(parameter.default_value),
-                            arg_type: Default::default(),
-                        })
-                        .collect_vec();
-
-                    let workflow = Workflow::Command {
-                        name: metadata.title,
-                        description: Some(metadata.description),
-                        command: metadata.command,
-                        arguments,
-                        tags: vec![],
-                        source_url: None,
-                        author: None,
-                        author_url: None,
-                        shells: vec![],
-                        environment_variables: None,
-                    };
-
-                    send_telemetry_from_ctx!(TelemetryEvent::AutoGenerateMetadataSuccess, ctx);
-
-                    pane.populate_missing_field_with_suggestion(workflow, ctx);
-                    ctx.notify();
-                }
-                None => {
-                    let err = GeneratedCommandMetadataError::BadCommand;
-                    pane.display_error_toast(err.user_facing_message(), ctx);
-
-                    send_telemetry_from_ctx!(
-                        TelemetryEvent::AutoGenerateMetadataError {
-                            error_payload: serde_json::json!(err)
-                        },
-                        ctx
-                    );
-
-                    pane.ai_metadata_assist_state = AiAssistState::PreRequest;
-                    pane.enable_editors(ctx);
-                    ctx.notify();
-                }
-            },
+            ctx
         );
 
-        self.ai_metadata_assist_state = AiAssistState::RequestInFlight;
-        self.disable_editors(ctx);
+        self.ai_metadata_assist_state = AiAssistState::PreRequest;
+        self.enable_editors(ctx);
         ctx.notify();
     }
 

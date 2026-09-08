@@ -794,10 +794,10 @@ impl Input {
                 // Dais:`/compact` 与 `/compact-and` 共用本地会话压缩链路 —
                 // dispatch `WorkspaceAction::SummarizeAIConversation`,initial_prompt: None
                 // 表示"压缩完不发后续 prompt",仅做摘要静默落到 conversation。
-                // 自定义指令(`/compact <指令>`)进 prompt 字段,在 BYOP build_chat_request
-                // 路径下会拼到 SUMMARY_TEMPLATE 后面作为 plugin_context。
+                // 自定义指令(`/compact <指令>`)进 prompt 字段,由会话摘要链路拼到
+                // SUMMARY_TEMPLATE 后面作为附加上下文。
                 //
-                // 非 BYOP 路径下,`SummarizeConversation { prompt }` 仍走 server protobuf
+                // `SummarizeConversation { prompt }` 走 server protobuf
                 // (`api::request::input::SummarizeConversation`),server 端处理摘要 —
                 // 之前 prefix 注入的语义被 SummarizeConversation 完整替代。
                 if self
@@ -810,7 +810,7 @@ impl Input {
                     return true;
                 };
                 // menu 路径无参数时 argument 是 Some(""),规范化为 None,
-                // 避免 chat_stream 拼摘要 prompt 时多走一次空 filter 分支。
+                // 避免摘要请求拼接 prompt 时多走一次空 filter 分支。
                 let prompt = argument.cloned().filter(|p: &String| !p.is_empty());
                 ctx.dispatch_typed_action(&WorkspaceAction::SummarizeAIConversation {
                     prompt,
