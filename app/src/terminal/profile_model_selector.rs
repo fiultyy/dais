@@ -46,7 +46,6 @@ use crate::{
     },
     menu::{Event as MenuEvent, Menu, MenuItem, MenuItemFields},
     settings_view::SettingsSection,
-    terminal::view::ambient_agent::AmbientAgentViewModel,
     terminal::{
         input::{MenuPositioning, MenuPositioningProvider},
         TerminalModel,
@@ -171,7 +170,6 @@ pub struct ProfileModelSelector {
     is_blurred: bool,
     new_model_popup: ViewHandle<FeaturePopup>,
     input_model: ModelHandle<BlocklistAIInputModel>,
-    ambient_agent_view_model: ModelHandle<AmbientAgentViewModel>,
     render_compact: bool,
     hovered_llm_info: Option<LLMInfo>,
     manage_api_key_button: ViewHandle<ActionButton>,
@@ -230,7 +228,6 @@ impl ProfileModelSelector {
         menu_positioning_provider: Arc<dyn crate::terminal::input::MenuPositioningProvider>,
         terminal_view_id: EntityId,
         input_model: ModelHandle<BlocklistAIInputModel>,
-        ambient_agent_view_model: ModelHandle<AmbientAgentViewModel>,
         terminal_model: Arc<FairMutex<TerminalModel>>,
         controller: Option<ModelHandle<BlocklistAIController>>,
         ctx: &mut ViewContext<Self>,
@@ -538,7 +535,6 @@ impl ProfileModelSelector {
             is_blurred: false,
             new_model_popup,
             input_model,
-            ambient_agent_view_model,
             render_compact: false,
             hovered_llm_info: None,
             manage_api_key_button,
@@ -1365,15 +1361,10 @@ impl ProfileModelSelector {
         let theme = appearance.theme();
         let llm_preferences = LLMPreferences::as_ref(app);
 
-        // Allow editing if composing an ambient agent query, or if the user has edit access
-        // in a shared session (i.e., not a viewer, or is an executor).
-        let is_composing_ambient_agent = self
-            .ambient_agent_view_model
-            .as_ref(app)
-            .is_configuring_ambient_agent();
+        // Allow editing if the user has edit access in a shared session
+        // (i.e., not a viewer, or is an executor).
         let terminal_model = self.terminal_model.lock();
-        let has_edit_access = is_composing_ambient_agent
-            || !terminal_model.shared_session_status().is_viewer()
+        let has_edit_access = !terminal_model.shared_session_status().is_viewer()
             || terminal_model.shared_session_status().is_executor();
         let is_lrc = FeatureFlag::InlineMenuHeaders.is_enabled()
             && terminal_model

@@ -21,7 +21,6 @@ use crate::terminal::color::{self, Colors};
 use crate::terminal::event_listener::ChannelEventListener;
 use crate::terminal::model::test_utils::block_size;
 use crate::terminal::model::{BlockId, TerminalModel};
-use crate::terminal::view::ambient_agent::AmbientAgentViewModel;
 
 impl BlocklistAIContextModel {
     pub(crate) fn append_pending_attachments_for_test(
@@ -59,14 +58,11 @@ fn build_test_context_model(app: &mut App) -> ModelHandle<BlocklistAIContextMode
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(UpdateManager::mock);
 
-    let ambient_agent_view_model =
-        app.add_model(|ctx| AmbientAgentViewModel::new(terminal_view_id, false, ctx));
     let ephemeral_message_model = app.add_model(|_| EphemeralMessageModel::new());
     let agent_view_controller = app.add_model(|ctx| {
         AgentViewController::new(
             terminal_model.clone(),
             terminal_view_id,
-            ambient_agent_view_model,
             ephemeral_message_model,
             ctx,
         )

@@ -16,8 +16,6 @@ use std::sync::Arc;
 use pathfinder_geometry::vector::Vector2F;
 use warpui::{ModelHandle, SingletonEntity, ViewContext};
 
-use crate::ai::agent_conversations_model::{AgentConversationsModel, ConversationOrTask};
-use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::blocklist::SerializedBlockListItem;
 use crate::ai::execution_profiles::profiles::AIExecutionProfilesModel;
 use crate::ai::llms::LLMId;
@@ -36,7 +34,6 @@ use crate::features::FeatureFlag;
 use crate::persistence::ModelEvent;
 use crate::terminal::available_shells::AvailableShells;
 use crate::terminal::view::ConversationRestorationInNewPaneType;
-use crate::workspace::WorkspaceAction;
 
 use super::{
     AIFactPane, AnyPaneContent, CodePane, EnvVarCollectionPane, FilePane, GetStartedPane,
@@ -44,7 +41,7 @@ use super::{
     SettingsPane, TerminalPane, TerminalViewResources, WelcomePane, WorkflowPane,
 };
 
-/// restore 链的按值输入包。`Terminal` / `AmbientAgent` 臂会消费
+/// restore 链的按值输入包。`Terminal` 臂会消费
 /// `resources` / banner 句柄 / 事件 sender,故整体按值传递。
 pub(crate) struct PaneRestoreInputs {
     pub(crate) block_lists: Arc<HashMap<PaneUuid, Vec<SerializedBlockListItem>>>,
@@ -66,19 +63,7 @@ pub(crate) trait PaneContentFactory {
         ctx: &mut ViewContext<PaneGroup>,
         pane_contents: &mut HashMap<PaneId, Box<dyn AnyPaneContent>>,
         deferred_panes: &mut Vec<(PaneId, LeafSnapshot)>,
-        pending_ambient_restorations: &mut Vec<(AmbientAgentTaskId, PaneId)>,
     ) -> anyhow::Result<(PaneData, InitialFocus)>;
-}
-
-/// The restoration path for an ambient agent pane.
-enum AmbientRestoreKind {
-    /// Conversation data isn't loaded yet — show a loading pane and
-    /// defer the real restoration to the pending-restoration subscription
-    /// (which waits for the data to be loaded async).
-    PendingRestoration { task_id: AmbientAgentTaskId },
-    /// If there's no task ID to restore, we open a fresh ambient-agent pane
-    /// (this is a valid state from when a user quits with an empty ambient-agent pane).
-    NewCloudConversation,
 }
 
 /// 生产实现:零大小结构,按需构造无成本。
@@ -92,7 +77,6 @@ impl PaneContentFactory for AppPaneContentFactory {
         ctx: &mut ViewContext<PaneGroup>,
         pane_contents: &mut HashMap<PaneId, Box<dyn AnyPaneContent>>,
         deferred_panes: &mut Vec<(PaneId, LeafSnapshot)>,
-        pending_ambient_restorations: &mut Vec<(AmbientAgentTaskId, PaneId)>,
     ) -> anyhow::Result<(PaneData, InitialFocus)> {
         let PaneRestoreInputs {
             block_lists,
@@ -375,76 +359,6 @@ impl PaneContentFactory for AppPaneContentFactory {
                 };
                 let pane_id = pane.as_pane().id();
                 pane_contents.insert(pane_id, pane);
-                let focus = InitialFocus {
-                    focused_pane: leaf.is_focused.then_some(pane_id),
-                    active_session: None,
-                };
-                Ok((PaneData::new(pane_id), focus))
-            }
-            LeafContents::AmbientAgent(snapshot) => {
-                let task_data = snapshot.task_id.map(|task_id| {
-                    let task = AgentConversationsModel::handle(ctx)
-                        .update(ctx, |model, _| model.get_or_async_fetch_task_data(&task_id));
-                    (task_id, task)
-                });
-
-                let restore_kind = match &task_data {
-                    Some((_, Some(task))) => {
-                        let item = ConversationOrTask::Task(task);
-                        match item.get_open_action(None) {
-                            Some(WorkspaceAction::OpenAmbientAgentSession { task_id }) => {
-                                AmbientRestoreKind::PendingRestoration { task_id }
-                            }
-                            // Transcript viewer and other non-session actions depend on conversation metadata from
-                            // BlocklistAIHistoryModel, which is loaded asynchronously.
-                            // Defer to the pending-restoration handler so it can retry once that metadata arrives.
-                            _ => task_data
-                                .as_ref()
-                                .map(|(tid, _)| AmbientRestoreKind::PendingRestoration {
-                                    task_id: *tid,
-                                })
-                                .unwrap_or(AmbientRestoreKind::NewCloudConversation),
-                        }
-                    }
-                    Some((task_id, None)) => {
-                        AmbientRestoreKind::PendingRestoration { task_id: *task_id }
-                    }
-                    None => AmbientRestoreKind::NewCloudConversation,
-                };
-
-                let mut pending_task: Option<AmbientAgentTaskId> = None;
-                let (terminal_view, terminal_manager) = match restore_kind {
-                    AmbientRestoreKind::PendingRestoration { task_id } => {
-                        let (view, manager) = PaneGroup::create_loading_terminal_manager_and_view(
-                            resources,
-                            view_size,
-                            ctx.window_id(),
-                            ctx,
-                        );
-                        pending_task = Some(task_id);
-                        (view, manager)
-                    }
-                    AmbientRestoreKind::NewCloudConversation => {
-                        PaneGroup::create_ambient_agent_terminal(resources, view_size, ctx)
-                    }
-                };
-
-                let pane_data = TerminalPane::new(
-                    snapshot.uuid,
-                    terminal_manager,
-                    terminal_view,
-                    model_event_sender,
-                    ctx,
-                );
-                let terminal_pane_id = pane_data.terminal_pane_id();
-                let pane_id = terminal_pane_id.into();
-                pane_contents.insert(pane_id, Box::new(pane_data));
-
-                if let Some(task_id) = pending_task {
-                    // Defer restoration to after the task data is loaded.
-                    pending_ambient_restorations.push((task_id, pane_id));
-                }
-
                 let focus = InitialFocus {
                     focused_pane: leaf.is_focused.then_some(pane_id),
                     active_session: None,

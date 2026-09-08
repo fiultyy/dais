@@ -30,7 +30,6 @@ use crate::ai::agent::{
     PassiveSuggestionTriggerType, RunningCommand,
 };
 use crate::ai::agent::{DocumentContentAttachmentSource, FileContext};
-use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::api_error::AIApiError;
 use crate::ai::byop_readiness::{
     BlockedByopReadinessError, PendingByopToolResultsError, ReadinessCategory,
@@ -358,11 +357,6 @@ pub struct BlocklistAIController {
 
     shared_session_state: shared_session::SharedSessionState,
 
-    /// Ambient agent task ID attached to this controller. This is a property of the controller, and not an individual
-    /// conversation, because the ambient agent task driver owns the entire Dais window working on a task, and any
-    /// sessions within it. In the future, one task may span several sessions with background processes.
-    ambient_agent_task_id: Option<AmbientAgentTaskId>,
-
     /// Per-session directory for downloading file attachments.
     /// Set by the agent driver based on the workspace directory (e.g. `{working_dir}/.warp/attachments`).
     attachments_download_dir: Option<std::path::PathBuf>,
@@ -616,7 +610,6 @@ impl BlocklistAIController {
             terminal_view_id,
             should_refresh_available_llms_on_stream_finish: false,
             shared_session_state: shared_session::SharedSessionState::default(),
-            ambient_agent_task_id: None,
             attachments_download_dir: None,
             pending_auto_resume_handles: HashMap::new(),
             pending_passive_follow_ups: HashSet::new(),
@@ -1739,7 +1732,6 @@ impl BlocklistAIController {
                 forked_from_conversation_token: conversation
                     .forked_from_server_conversation_token()
                     .cloned(),
-                ambient_agent_task_id: self.ambient_agent_task_id,
                 existing_suggestions: None,
             };
             (conversation_id, task_id, conversation_data)
@@ -1755,7 +1747,6 @@ impl BlocklistAIController {
                 tasks: vec![],
                 server_conversation_token: None,
                 forked_from_conversation_token: None,
-                ambient_agent_task_id: self.ambient_agent_task_id,
                 existing_suggestions: None,
             };
             (conversation_id, task_id, conversation_data)
@@ -1854,19 +1845,6 @@ impl BlocklistAIController {
             ctx,
         )
     }
-
-    /// Set the ID of the ambient agent task which owns this controller and its backing session.
-    pub fn set_ambient_agent_task_id(
-        &mut self,
-        id: Option<AmbientAgentTaskId>,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        self.ambient_agent_task_id = id;
-        self.action_model.update(ctx, |action_model, ctx| {
-            action_model.set_ambient_agent_task_id(id, ctx);
-        });
-    }
-
     /// Set the per-session directory for downloading file attachments.
     pub fn set_attachments_download_dir(&mut self, dir: std::path::PathBuf) {
         self.attachments_download_dir = Some(dir);
@@ -1922,7 +1900,6 @@ impl BlocklistAIController {
             forked_from_conversation_token: conversation
                 .forked_from_server_conversation_token()
                 .cloned(),
-            ambient_agent_task_id: self.ambient_agent_task_id,
             existing_suggestions: history_model
                 .as_ref(ctx)
                 .existing_suggestions_for_conversation(conversation_id)

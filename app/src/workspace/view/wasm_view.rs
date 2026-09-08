@@ -7,7 +7,6 @@ use crate::uri::browser_url_handler::parse_current_url;
 
 use super::PanelPosition;
 
-use crate::ai::agent_conversations_model::AgentConversationsModel;
 use crate::ai::conversation_details_panel::{
     ConversationDetailsData, ConversationDetailsPanel, ConversationDetailsPanelEvent,
 };
@@ -96,7 +95,7 @@ impl Workspace {
     /// Check if we should show the conversation details panel, given the focused terminal view.
     /// Returns true for:
     /// - Conversation transcript viewers (always)
-    /// - Shared sessions with an ambient agent task ID, OR an active conversation
+    /// - Shared sessions with an active conversation
     pub(super) fn should_show_conversation_details_panel(
         focused_terminal_view: &ViewHandle<TerminalView>,
         ctx: &AppContext,
@@ -109,11 +108,8 @@ impl Workspace {
             return true;
         }
 
-        // For shared sessions, show if there's an ambient agent task_id or an active conversation
+        // For shared sessions, show if there's an active conversation
         if model.shared_session_status().is_sharer_or_viewer() {
-            if model.ambient_agent_task_id().is_some() {
-                return true;
-            }
             drop(model); // Release lock before accessing BlocklistAIHistoryModel
             return BlocklistAIHistoryModel::as_ref(ctx)
                 .active_conversation(focused_terminal_view.id())
@@ -159,26 +155,9 @@ impl Workspace {
         }
 
         let terminal_view_id = terminal_view.id();
-        let task_id = terminal_view
-            .as_ref(ctx)
-            .ambient_agent_task_id_for_details_panel(ctx);
 
         self.transcript_details_panel.update(ctx, |panel, ctx| {
-            // If we have an ambient agent task ID, try to populate from task data
-            if let Some(task_id) = task_id {
-                let conversations_model_handle = AgentConversationsModel::handle(ctx);
-                let task = conversations_model_handle.update(ctx, |conversations_model, _| {
-                    conversations_model.get_or_async_fetch_task_data(&task_id)
-                });
-                if let Some(task) = task {
-                    let details = ConversationDetailsData::from_task(&task, None, None, ctx);
-                    panel.set_conversation_details(details, ctx);
-                    ctx.notify();
-                    return;
-                }
-            }
-
-            // Otherwise, populate from conversation
+            // Populate from conversation
             let history_model = BlocklistAIHistoryModel::handle(ctx).as_ref(ctx);
             if let Some(conversation) = history_model.active_conversation(terminal_view_id) {
                 let details = ConversationDetailsData::from_conversation(conversation, ctx);

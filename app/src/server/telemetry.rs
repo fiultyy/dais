@@ -22,7 +22,6 @@ use crate::ai::agent::EntrypointType;
 use crate::ai::agent::PassiveSuggestionTrigger;
 use crate::ai::agent::ServerOutputId;
 use crate::ai::agent::SuggestedLoggingId;
-use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::blocklist::agent_view::AgentViewEntryOrigin;
 use crate::ai::blocklist::CommandExecutionPermissionAllowedReason;
 use crate::ai::blocklist::InputType;
@@ -1024,7 +1023,6 @@ pub enum TelemetryAgentViewEntryOrigin {
     AcceptedUnitTestSuggestion,
     AcceptedPassiveCodeDiff,
     InlineCodeReview,
-    AmbientAgent,
     Cli,
     ImageAdded,
     SlashCommand,
@@ -1047,7 +1045,6 @@ pub enum TelemetryAgentViewEntryOrigin {
     DefaultSessionMode,
     ChildAgent,
     LinearDeepLink,
-    ThirdPartyAmbientAgent,
 }
 
 impl From<AgentViewEntryOrigin> for TelemetryAgentViewEntryOrigin {
@@ -1072,8 +1069,6 @@ impl From<AgentViewEntryOrigin> for TelemetryAgentViewEntryOrigin {
             AgentViewEntryOrigin::AcceptedUnitTestSuggestion => Self::AcceptedUnitTestSuggestion,
             AgentViewEntryOrigin::AcceptedPassiveCodeDiff => Self::AcceptedPassiveCodeDiff,
             AgentViewEntryOrigin::InlineCodeReview => Self::InlineCodeReview,
-            AgentViewEntryOrigin::AmbientAgent => Self::AmbientAgent,
-            AgentViewEntryOrigin::ExternalAmbientAgent => Self::ThirdPartyAmbientAgent,
             AgentViewEntryOrigin::Cli => Self::Cli,
             AgentViewEntryOrigin::ImageAdded => Self::ImageAdded,
             AgentViewEntryOrigin::SlashCommand { .. } => Self::SlashCommand,
@@ -2505,12 +2500,10 @@ pub enum TelemetryEvent {
     ComputerUseApproved {
         conversation_id: AIConversationId,
         is_autoexecuted: bool,
-        ambient_agent_task_id: Option<AmbientAgentTaskId>,
     },
     /// Emitted when a RequestComputerUse action is cancelled/rejected.
     ComputerUseCancelled {
         conversation_id: AIConversationId,
-        ambient_agent_task_id: Option<AmbientAgentTaskId>,
     },
     /// Emitted when a warp://linear deeplink is opened.
     LinearIssueLinkOpened,
@@ -4063,18 +4056,14 @@ impl TelemetryEvent {
             TelemetryEvent::ComputerUseApproved {
                 conversation_id,
                 is_autoexecuted,
-                ambient_agent_task_id,
             } => Some(json!({
                 "conversation_id": conversation_id,
                 "is_autoexecuted": is_autoexecuted,
-                "ambient_agent_task_id": ambient_agent_task_id.map(|id| id.to_string()),
             })),
             TelemetryEvent::ComputerUseCancelled {
                 conversation_id,
-                ambient_agent_task_id,
             } => Some(json!({
                 "conversation_id": conversation_id,
-                "ambient_agent_task_id": ambient_agent_task_id.map(|id| id.to_string()),
             })),
             TelemetryEvent::LoginButtonClicked { source }
             | TelemetryEvent::LoginLaterButtonClicked { source }

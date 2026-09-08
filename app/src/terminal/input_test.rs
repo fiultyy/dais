@@ -136,7 +136,6 @@ pub fn initialize_app(app: &mut App) {
     app.add_singleton_model(AIRequestUsageModel::new_for_test);
     app.add_singleton_model(|_| BlocklistAIHistoryModel::new_for_test());
     app.add_singleton_model(|_| CLIAgentSessionsModel::new());
-    // issue #13: Input 构造 InterceptConfigBar 需要该单例。
     app.add_singleton_model(crate::terminal::intercept_sessions::InterceptSessionsModel::new);
     app.add_singleton_model(BlocklistAIPermissions::new);
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
@@ -191,9 +190,6 @@ pub fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| ToastStack);
     app.add_singleton_model(|_| PricingInfoModel::new());
     app.add_singleton_model(ByoLlmAuthBannerSessionState::new);
-    app.add_singleton_model(|_| {
-        crate::ai::ambient_agents::github_auth_notifier::GitHubAuthNotifier::new()
-    });
     app.add_singleton_model(AgentConversationsModel::new);
     // `LocalShellState` captures the user's interactive login-shell PATH (used
     // for MCP/sbx executable resolution). Tests don't exercise that capture, so

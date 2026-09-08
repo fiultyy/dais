@@ -4,7 +4,7 @@ use std::io::Write as _;
 
 use serde_json::json;
 
-use crate::ai::ambient_agents::AgentConfigSnapshot;
+use crate::ai::agent_sdk::AgentConfigSnapshot;
 use warp_cli::mcp::MCPSpec;
 
 fn write_temp(suffix: &str, contents: &str) -> tempfile::NamedTempFile {

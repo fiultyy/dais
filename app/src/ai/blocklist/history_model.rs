@@ -26,7 +26,6 @@ use crate::ai::agent::task::helper::{MessageExt, ToolCallExt};
 use crate::ai::agent::task::TaskId;
 use crate::ai::agent::AIAgentExchangeId;
 use crate::ai::agent::CancellationReason;
-use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::artifacts::Artifact;
 use crate::ai::byop_readiness::{
     RepairRecord, RepairSource, RepairState, RepairStateStatus, ToolCallKey,
@@ -86,8 +85,6 @@ pub struct AIConversationMetadata {
     /// Artifacts (plans, PRs) created during this conversation.
     pub artifacts: Vec<Artifact>,
 
-    /// Local marker for conversations owned by an ambient agent run.
-    pub ambient_agent_task_id: Option<AmbientAgentTaskId>,
 }
 
 impl From<&AIConversation> for AIConversationMetadata {
@@ -110,16 +107,7 @@ impl From<&AIConversation> for AIConversationMetadata {
             server_conversation_token: conversation.server_conversation_token().cloned(),
             is_restorable_locally: true,
             artifacts: conversation.artifacts().to_vec(),
-            ambient_agent_task_id: conversation.task_id(),
         }
-    }
-}
-
-impl AIConversationMetadata {
-    /// Whether this conversation is owned by an ambient agent run rather than
-    /// being a direct user conversation.
-    pub fn is_ambient_agent_conversation(&self) -> bool {
-        self.ambient_agent_task_id.is_some()
     }
 }
 
@@ -164,8 +152,6 @@ pub struct BlocklistAIHistoryModel {
     /// any [`AIConversation`]s take place in the terminal view.
     terminal_view_created_at: HashMap<EntityId, DateTime<Local>>,
 
-    /// A set of terminal views that are shared ambient agent sessions.
-    ambient_agent_terminal_view_ids: HashSet<EntityId>,
 
     /// A set of terminal views that are read-only conversation transcript viewers.
     /// This is view/UI state (not conversation state) and is used to filter transcript viewer
@@ -177,7 +163,7 @@ pub struct BlocklistAIHistoryModel {
     /// history.
     persisted_queries: Vec<PersistedAIInput>,
 
-    /// Metadata for both local and ambient agent conversations.
+    /// Metadata for all known conversations.
     /// Does not include the actual content of the conversations.
     all_conversations_metadata: HashMap<AIConversationId, AIConversationMetadata>,
 
@@ -191,8 +177,8 @@ pub struct BlocklistAIHistoryModel {
     ///
     /// Maintained alongside every mutation of `conversations_by_id` and
     /// `all_conversations_metadata` that involves a token. Used to make
-    /// `find_conversation_id_by_server_token` O(1); it is called once per
-    /// ambient-agent task on every conversation-list refresh.
+    /// `find_conversation_id_by_server_token` O(1); the lookup runs on every
+    /// conversation-list refresh.
     server_token_to_conversation_id: HashMap<ServerConversationToken, AIConversationId>,
 
     /// Index from parent conversation ID to child conversation IDs.
@@ -875,7 +861,6 @@ impl BlocklistAIHistoryModel {
         &mut self,
         conversation_id: AIConversationId,
         run_id: String,
-        task_id: Option<crate::ai::ambient_agents::AmbientAgentTaskId>,
         terminal_view_id: EntityId,
         ctx: &mut ModelContext<Self>,
     ) {
@@ -886,9 +871,6 @@ impl BlocklistAIHistoryModel {
             return;
         };
         conversation.set_run_id(run_id);
-        if let Some(task_id) = task_id {
-            conversation.set_task_id(task_id);
-        }
 
         if let Some(key) = agent_id_key(conversation) {
             self.agent_id_to_conversation_id
@@ -1573,11 +1555,6 @@ impl BlocklistAIHistoryModel {
             .any(|conversation_ids| conversation_ids.contains(&conversation_id))
     }
 
-    pub fn mark_terminal_view_as_ambient_agent_session_view(&mut self, terminal_view_id: EntityId) {
-        self.ambient_agent_terminal_view_ids
-            .insert(terminal_view_id);
-    }
-
     pub fn mark_terminal_view_as_conversation_transcript_viewer(
         &mut self,
         terminal_view_id: EntityId,
@@ -1600,8 +1577,6 @@ impl BlocklistAIHistoryModel {
     /// When `terminal_view_id` is provided, queries from that terminal view are categorized as
     /// `CurrentSession` and all others as `DifferentSession`. When `None`, all queries are
     /// categorized as `DifferentSession`.
-    ///
-    /// Ambient agent sessions are always excluded.
     pub(crate) fn all_ai_queries(
         &self,
         terminal_view_id: Option<EntityId>,
@@ -1613,11 +1588,6 @@ impl BlocklistAIHistoryModel {
         let mut live_queries_vec = Vec::new();
         for (tv_id, conversation_ids) in self.live_conversation_ids_for_terminal_view.iter() {
             loaded_conversation_ids.extend(conversation_ids);
-
-            // Skip shared ambient agent sessions
-            if self.ambient_agent_terminal_view_ids.contains(tv_id) {
-                continue;
-            }
 
             let history_order = if terminal_view_id.is_some_and(|id| id == *tv_id) {
                 HistoryOrder::CurrentSession
@@ -1814,14 +1784,11 @@ impl BlocklistAIHistoryModel {
             .copied()
     }
 
-    /// Returns local conversation metadata,
-    /// (excluding conversations from ambient agent runs).
+    /// Returns metadata for all known conversations.
     pub fn get_local_conversations_metadata(
         &self,
     ) -> impl Iterator<Item = &AIConversationMetadata> {
-        self.all_conversations_metadata
-            .values()
-            .filter(|m| !m.is_ambient_agent_conversation())
+        self.all_conversations_metadata.values()
     }
 
     /// Returns conversation metadata for a specific conversation ID.
@@ -1837,8 +1804,8 @@ impl BlocklistAIHistoryModel {
     /// O(1) lookup via `server_token_to_conversation_id`, which is maintained
     /// alongside every mutation of `conversations_by_id` /
     /// `all_conversations_metadata` that involves a token. Used to look up
-    /// conversations for ambient agent tasks, which store the server token
-    /// but not the AIConversationId.
+    /// conversations known only by their server token (e.g. shared sessions),
+    /// which store the token but not the AIConversationId.
     pub fn find_conversation_id_by_server_token(
         &self,
         server_token: &ServerConversationToken,
@@ -1938,7 +1905,6 @@ impl BlocklistAIHistoryModel {
         self.cleared_conversation_ids_for_terminal_view.clear();
         self.conversations_by_id.clear();
         self.active_conversation_for_terminal_view.clear();
-        self.ambient_agent_terminal_view_ids.clear();
         self.conversation_transcript_viewer_terminal_view_ids
             .clear();
         self.persisted_queries.clear();

@@ -29,7 +29,6 @@ use itertools::Itertools;
 use libsqlite3_sys as sqlite3;
 use num_traits::FromPrimitive;
 use pathfinder_geometry::{rect::RectF, vector::Vector2F};
-use persistence::model::AMBIENT_AGENT_PANE_KIND;
 use uuid::Uuid;
 use warpui::platform::FullscreenState;
 use warpui::{AppContext, SingletonEntity};
@@ -53,7 +52,6 @@ use super::{
     WriterHandles,
 };
 use crate::ai::agent::conversation::AIConversationId;
-use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::document::ai_document_model::AIDocumentId;
 use crate::ai::execution_profiles::{AIExecutionProfileObject, AIExecutionProfileObjectModel};
 use crate::ai::facts::{AIFactObject, AIFactObjectModel};
@@ -63,9 +61,8 @@ use crate::ai::mcp::{
     MCPServerObject, MCPServerObjectModel, TemplatableMCPServer, TemplatableMCPServerInstallation,
 };
 use crate::app_state::{
-    AIFactPaneSnapshot, AmbientAgentPaneSnapshot, CodeReviewPaneSnapshot,
-    EnvVarCollectionPaneSnapshot, LeftPanelSnapshot, RightPanelSnapshot, SettingsPaneSnapshot,
-    WorkflowPaneSnapshot,
+    AIFactPaneSnapshot, CodeReviewPaneSnapshot, EnvVarCollectionPaneSnapshot, LeftPanelSnapshot,
+    RightPanelSnapshot, SettingsPaneSnapshot, WorkflowPaneSnapshot,
 };
 use crate::auth::AuthStateProvider;
 use crate::auth::PersistedCurrentUserInformation;
@@ -1034,7 +1031,6 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
         diesel::delete(schema::ai_document_panes::dsl::ai_document_panes).execute(conn)?;
         diesel::delete(schema::mcp_server_panes::dsl::mcp_server_panes).execute(conn)?;
         diesel::delete(schema::code_review_panes::dsl::code_review_panes).execute(conn)?;
-        diesel::delete(schema::ambient_agent_panes::dsl::ambient_agent_panes).execute(conn)?;
         diesel::delete(schema::welcome_panes::dsl::welcome_panes).execute(conn)?;
         diesel::delete(schema::pane_leaves::dsl::pane_leaves).execute(conn)?;
         diesel::delete(schema::pane_branches::dsl::pane_branches).execute(conn)?;
@@ -1276,7 +1272,6 @@ fn save_pane_state(
         LeafContents::Settings(_) => SETTINGS_PANE_KIND,
         LeafContents::AIFact(_) => AI_FACT_PANE_KIND,
         LeafContents::CodeReview(_) => CODE_REVIEW_PANE_KIND,
-        LeafContents::AmbientAgent(_) => AMBIENT_AGENT_PANE_KIND,
         LeafContents::ExecutionProfileEditor => EXECUTION_PROFILE_EDITOR_PANE_KIND,
         LeafContents::GetStarted => GET_STARTED_PANE_KIND,
         LeafContents::Welcome { .. } => WELCOME_PANE_KIND,
@@ -1540,17 +1535,6 @@ fn save_pane_state(
                     .execute(conn)?;
             }
         },
-        LeafContents::AmbientAgent(snapshot) => {
-            let ambient_agent_pane = model::NewAmbientAgentPane {
-                id,
-                uuid: snapshot.uuid.clone(),
-                task_id: snapshot.task_id.map(|t| t.to_string()),
-            };
-
-            diesel::insert_into(schema::ambient_agent_panes::dsl::ambient_agent_panes)
-                .values(ambient_agent_pane)
-                .execute(conn)?;
-        }
         LeafContents::Observatory => {
             // Unreachable: filtered by `is_persisted` in `save_app_state`.
         }
@@ -2670,21 +2654,6 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
                         version: ai_document_pane.version,
                         content: ai_document_pane.content,
                         title: ai_document_pane.title,
-                    })
-                }
-                AMBIENT_AGENT_PANE_KIND => {
-                    let pane = schema::ambient_agent_panes::dsl::ambient_agent_panes
-                        .find(node.id)
-                        .select(model::AmbientAgentPane::as_select())
-                        .first(conn)?;
-
-                    let task_id = pane
-                        .task_id
-                        .and_then(|id_str| id_str.parse::<AmbientAgentTaskId>().ok());
-
-                    LeafContents::AmbientAgent(AmbientAgentPaneSnapshot {
-                        uuid: pane.uuid,
-                        task_id,
                     })
                 }
                 other => bail!("Unrecognized pane kind: {other}"),

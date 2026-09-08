@@ -235,7 +235,6 @@ impl PromptDisplay {
                         model_events: self.model_events.clone(),
                         is_shared_session_viewer,
                         agent_view_controller: self.agent_view_controller.clone(),
-                        ambient_agent_view_model: None,
                     },
                 );
                 chip.maybe_set_git_line_changes_info(git_line_changes_info.clone());

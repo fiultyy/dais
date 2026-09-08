@@ -644,10 +644,6 @@ impl From<RoleUpdateReason> for RoleUpdatedReason {
 pub enum SessionSourceType {
     #[default]
     User,
-    AmbientAgent {
-        #[serde(default)]
-        task_id: Option<String>,
-    },
 }
 
 #[derive(Deserialize)]
@@ -670,12 +666,11 @@ impl From<SessionSourceTypeWire> for SessionSourceType {
     fn from(value: SessionSourceTypeWire) -> Self {
         match value {
             SessionSourceTypeWire::Legacy(LegacySessionSourceType::User) => SessionSourceType::User,
+            // Legacy ambient-agent wire values surface as plain user sessions now.
             SessionSourceTypeWire::Legacy(LegacySessionSourceType::AmbientAgent) => {
-                SessionSourceType::AmbientAgent { task_id: None }
+                SessionSourceType::User
             }
-            SessionSourceTypeWire::New {
-                ambient_agent: AmbientAgentFields { task_id },
-            } => SessionSourceType::AmbientAgent { task_id },
+            SessionSourceTypeWire::New { .. } => SessionSourceType::User,
         }
     }
 }

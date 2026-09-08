@@ -12,7 +12,6 @@ use crate::{
             AIAgentExchangeId, AIAgentInput, AIAgentOutputStatus, FinishedAIAgentOutput, Shared,
             UserQueryMode,
         },
-        ambient_agents::AmbientAgentTaskId,
         blocklist::{controller::RequestInput, ResponseStreamId},
         byop_readiness::{RepairRecord, RepairSource, RepairState, RepairStateStatus, ToolCallKey},
         llms::LLMId,
@@ -683,72 +682,6 @@ fn test_transcript_viewer_terminal_view_is_not_marked_historical() {
 }
 
 #[test]
-fn test_ambient_agent_conversations_excluded_from_list_but_accessible_by_id() {
-    App::test((), |mut app| async move {
-        let history_model = app.add_singleton_model(|_| BlocklistAIHistoryModel::new(vec![], &[]));
-
-        let regular_id = AIConversationId::new();
-        let ambient_id = AIConversationId::new();
-
-        let ambient_task_id: AmbientAgentTaskId = uuid::Uuid::new_v4().to_string().parse().unwrap();
-
-        history_model.update(&mut app, |model, _| {
-            let regular_metadata = AIConversationMetadata {
-                id: regular_id,
-                title: "Regular Conversation".to_string(),
-                initial_query: String::new(),
-                last_modified_at: Utc::now().naive_utc(),
-                initial_working_directory: None,
-                credits_spent: Some(5.0),
-                server_conversation_token: Some(ServerConversationToken::new(
-                    "token-regular".to_string(),
-                )),
-                is_restorable_locally: false,
-                artifacts: Vec::new(),
-                ambient_agent_task_id: None,
-            };
-            model
-                .all_conversations_metadata
-                .insert(regular_id, regular_metadata);
-
-            let ambient_metadata = AIConversationMetadata {
-                id: ambient_id,
-                title: "Ambient Conversation".to_string(),
-                initial_query: String::new(),
-                last_modified_at: Utc::now().naive_utc(),
-                initial_working_directory: None,
-                credits_spent: Some(3.0),
-                server_conversation_token: Some(ServerConversationToken::new(
-                    "token-ambient".to_string(),
-                )),
-                is_restorable_locally: false,
-                artifacts: Vec::new(),
-                ambient_agent_task_id: Some(ambient_task_id),
-            };
-            model
-                .all_conversations_metadata
-                .insert(ambient_id, ambient_metadata);
-        });
-
-        history_model.read(&app, |model, _| {
-            // get_local_conversations_metadata should exclude the ambient conversation
-            let listed: Vec<&AIConversationMetadata> =
-                model.get_local_conversations_metadata().collect();
-            assert_eq!(listed.len(), 1);
-            assert_eq!(listed[0].id, regular_id);
-
-            // get_conversation_metadata should return both by ID
-            assert!(model.get_conversation_metadata(&regular_id).is_some());
-            assert!(model.get_conversation_metadata(&ambient_id).is_some());
-            assert_eq!(
-                model.get_conversation_metadata(&ambient_id).unwrap().title,
-                "Ambient Conversation"
-            );
-        });
-    });
-}
-
-#[test]
 fn test_initialize_historical_conversations_indexes_child_conversations() {
     use crate::persistence::model::{AgentConversation, AgentConversationRecord};
     use chrono::NaiveDateTime;
@@ -1241,7 +1174,6 @@ fn test_find_by_token_after_assign_run_id_for_conversation() {
             history_model.assign_run_id_for_conversation(
                 conversation_id,
                 "run-1".to_string(),
-                None,
                 terminal_view_id,
                 ctx,
             );

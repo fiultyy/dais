@@ -14,7 +14,7 @@ use warpui::{ModelHandle, ModelSpawner};
 
 use crate::ai::agent::conversation::AIConversationId;
 use crate::ai::agent_events::AgentEventStreamClient;
-use crate::ai::ambient_agents::AmbientAgentTaskId;
+use crate::ai::agent_sdk::LocalChildTaskId;
 use crate::terminal::model::block::BlockId;
 use crate::terminal::CLIAgent;
 
@@ -63,7 +63,7 @@ impl ThirdPartyHarness for GeminiHarness {
         system_prompt: Option<&str>,
         _resumption_prompt: Option<&str>,
         working_dir: &Path,
-        _task_id: Option<AmbientAgentTaskId>,
+        _task_id: Option<LocalChildTaskId>,
         _agent_event_stream_client: Arc<dyn AgentEventStreamClient>,
         terminal_driver: ModelHandle<TerminalDriver>,
         _intercept_settings: Option<serde_json::Value>,

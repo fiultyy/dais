@@ -13,7 +13,7 @@ use warp_managed_secrets::ManagedSecretValue;
 use warpui::{ModelHandle, ModelSpawner, SingletonEntity};
 
 use crate::ai::agent_events::AgentEventStreamClient;
-use crate::ai::ambient_agents::AmbientAgentTaskId;
+use crate::ai::agent_sdk::LocalChildTaskId;
 use crate::terminal::cli_agent_sessions::{CLIAgentSessionStatus, CLIAgentSessionsModel};
 use crate::terminal::CLIAgent;
 use crate::util::path::resolve_executable;
@@ -80,7 +80,7 @@ pub(crate) trait ThirdPartyHarness: Send + Sync {
         system_prompt: Option<&str>,
         resumption_prompt: Option<&str>,
         working_dir: &Path,
-        task_id: Option<AmbientAgentTaskId>,
+        task_id: Option<LocalChildTaskId>,
         agent_event_stream_client: Arc<dyn AgentEventStreamClient>,
         terminal_driver: ModelHandle<TerminalDriver>,
         intercept_settings: Option<serde_json::Value>,
@@ -180,7 +180,7 @@ fn message_listener_state_root() -> Option<String> {
 }
 
 fn task_env_vars_for_harness_name(
-    task_id: Option<&AmbientAgentTaskId>,
+    task_id: Option<&LocalChildTaskId>,
     parent_run_id: Option<&str>,
     selected_harness: Harness,
 ) -> HashMap<OsString, OsString> {
@@ -239,7 +239,7 @@ fn task_env_vars_for_harness_name(
 }
 
 pub(crate) fn task_env_vars(
-    task_id: Option<&AmbientAgentTaskId>,
+    task_id: Option<&LocalChildTaskId>,
     parent_run_id: Option<&str>,
     selected_harness: Harness,
 ) -> HashMap<OsString, OsString> {

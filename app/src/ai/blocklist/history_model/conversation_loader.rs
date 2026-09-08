@@ -338,7 +338,6 @@ impl BlocklistAIHistoryModel {
                     server_conversation_token,
                     is_restorable_locally: true,
                     artifacts,
-                    ambient_agent_task_id: None,
                 }))
             })
             .collect();

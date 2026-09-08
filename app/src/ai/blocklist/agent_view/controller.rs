@@ -15,7 +15,7 @@ use crate::terminal::input::slash_commands::SlashCommandTrigger;
 use crate::util::bindings::keybinding_name_to_keystroke;
 use crate::{
     ai::agent::conversation::AIConversationId,
-    terminal::{view::ambient_agent::AmbientAgentViewModel, TerminalModel},
+    terminal::TerminalModel,
     BlocklistAIHistoryModel,
 };
 
@@ -37,8 +37,6 @@ pub enum ExitAgentViewError {
     LongRunningCommand,
     #[error("Cannot exit conversation as a viewer.")]
     ConversationViewer,
-    #[error("Cannot exit agent.")]
-    AmbientAgent,
 }
 
 /// The display mode for an active agent view.
@@ -131,11 +129,6 @@ pub enum AgentViewEntryOrigin {
     AcceptedPassiveCodeDiff,
     /// Entered agent view by starting conversation with an inline code review submission.
     InlineCodeReview,
-    /// Entered agent view through an ambient agent prompt.
-    AmbientAgent,
-    /// Entered agent view by opening an existing non-Oz ambient agent run (live shared-session
-    /// viewer or transcript viewer).
-    ExternalAmbientAgent,
     /// Entered agent view via the CLI (e.g. `warp agent run`).
     Cli,
     /// Entered agent view by adding an image (drag-and-drop or paste).
@@ -201,10 +194,6 @@ pub enum AutoTriggerBehavior {
 }
 
 impl AgentViewEntryOrigin {
-    pub fn is_ambient_agent(&self) -> bool {
-        matches!(self, Self::AmbientAgent)
-    }
-
     pub fn should_autotrigger_request(&self) -> AutoTriggerBehavior {
         match self {
             AgentViewEntryOrigin::Input {
@@ -342,7 +331,6 @@ pub struct AgentViewController {
     /// Set during terminal pane attach; used for pane-group-scoped visibility checks.
     pane_group_id: Option<EntityId>,
     agent_view_state: AgentViewState,
-    ambient_agent_view_model: ModelHandle<AmbientAgentViewModel>,
     ephemeral_message_model: ModelHandle<EphemeralMessageModel>,
     pending_confirmation: Option<PendingConfirmation>,
     pending_confirmation_abort_handle: Option<SpawnedFutureHandle>,
@@ -367,7 +355,6 @@ impl AgentViewController {
     pub fn new(
         terminal_model: Arc<FairMutex<TerminalModel>>,
         terminal_view_id: EntityId,
-        ambient_agent_view_model: ModelHandle<AmbientAgentViewModel>,
         ephemeral_message_model: ModelHandle<EphemeralMessageModel>,
         _ctx: &mut ModelContext<Self>,
     ) -> Self {
@@ -376,7 +363,6 @@ impl AgentViewController {
             terminal_view_id,
             pane_group_id: None,
             agent_view_state: AgentViewState::Inactive,
-            ambient_agent_view_model,
             ephemeral_message_model,
             pending_confirmation: None,
             pending_confirmation_abort_handle: None,
@@ -412,29 +398,18 @@ impl AgentViewController {
     /// and whether the escape keybinding should be displayed.
     pub fn can_exit_agent_view(
         &self,
-        ctx: &impl warpui::ModelAsRef,
+        _ctx: &impl warpui::ModelAsRef,
     ) -> Result<(), ExitAgentViewError> {
         let model = self.terminal_model.lock();
 
-        let ambient_agent_model = self.ambient_agent_view_model.as_ref(ctx);
         let is_fullscreen_with_long_running = self.agent_view_state.is_fullscreen()
             && model
                 .block_list()
                 .active_block()
                 .is_active_and_long_running();
 
-        // Ambient agent sessions should not allow exiting agent view if it's not backed by a terminal session because there's nothing to escape to.
-        if ambient_agent_model.is_ambient_agent() {
-            if !ambient_agent_model.has_parent_terminal() {
-                return Err(ExitAgentViewError::AmbientAgent);
-            }
-            // But if there is a terminal backing and we're in a LRC, we should be able to escape
-            else if is_fullscreen_with_long_running {
-                return Ok(());
-            }
-        }
 
-        // In a non-ambient agent case, users cannot exit the fullscreen agent view with an active long running command.
+        // Users cannot exit the fullscreen agent view with an active long running command.
         if is_fullscreen_with_long_running {
             return Err(ExitAgentViewError::LongRunningCommand);
         }
@@ -709,8 +684,6 @@ impl AgentViewController {
                 .block_list()
                 .active_block()
                 .is_active_and_long_running()
-                && !terminal_model.is_conversation_transcript_viewer()
-                && !matches!(origin, AgentViewEntryOrigin::ExternalAmbientAgent)
         };
 
         if is_long_running {
@@ -780,7 +753,7 @@ impl AgentViewController {
                 history_model.start_new_conversation(
                     self.terminal_view_id,
                     false,
-                    matches!(origin, AgentViewEntryOrigin::AmbientAgent),
+                    false,
                     ctx,
                 )
             });
@@ -801,11 +774,6 @@ impl AgentViewController {
             .block_list_mut()
             .set_agent_view_state(self.agent_view_state.clone());
 
-        if origin == AgentViewEntryOrigin::AmbientAgent {
-            self.ambient_agent_view_model.update(ctx, |model, ctx| {
-                model.enter_composing_from_setup(ctx);
-            });
-        }
 
         ctx.emit(AgentViewControllerEvent::EnteredAgentView {
             conversation_id,
@@ -932,16 +900,6 @@ impl AgentViewController {
             .block_list_mut()
             .set_agent_view_state(self.agent_view_state.clone());
 
-        // Capture ambient agent status before resetting it
-        let was_ambient_agent = self.ambient_agent_view_model.as_ref(ctx).is_ambient_agent();
-
-        // Reset ambient agent status when exiting agent view
-        if was_ambient_agent {
-            self.ambient_agent_view_model.update(ctx, |model, ctx| {
-                model.reset_status(ctx);
-            });
-        }
-
         let history_model = BlocklistAIHistoryModel::handle(ctx);
         let final_exchange_count = history_model
             .as_ref(ctx)
@@ -955,7 +913,6 @@ impl AgentViewController {
             display_mode,
             original_exchange_count: original_conversation_length,
             final_exchange_count,
-            was_ambient_agent,
             is_exit_before_new_entrance,
         });
     }
@@ -980,8 +937,6 @@ pub enum AgentViewControllerEvent {
         original_exchange_count: usize,
         /// The number of exchanges in the conversation when agent view is being exited.
         final_exchange_count: usize,
-        /// Whether this was an ambient (cloud) agent session.
-        was_ambient_agent: bool,
         /// Whether this exit is immediately followed by entering a new agent view.
         /// (e.g. Cmd+K while already in agent view to start a new conversation).
         is_exit_before_new_entrance: bool,

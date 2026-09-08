@@ -20,7 +20,6 @@ use crate::workspace::{Workspace, WorkspaceAction, WorkspaceRegistry};
 use crate::{cloud_object::ObjectType, workspace::ToastStack};
 use crate::{drive::DaisDriveObjectArgs, view_components::DismissibleToast};
 
-use crate::ai::ambient_agents::github_auth_notifier::GitHubAuthNotifier;
 use crate::settings_view::SettingsSection;
 use crate::user_config::load_launch_configs;
 use crate::{
@@ -47,11 +46,6 @@ const DESKTOP_REDIRECT_URI_PATH: &str = "/desktop_redirect";
 pub struct OpenMCPSettingsArgs {
     pub autoinstall: Option<String>,
 }
-
-/// Source query parameter value indicating auth was initiated from agent setup.
-/// Dais Wave 7-3:URI handler / Settings UI 已删,仅供 `update_environment_form` 在 agent UI
-/// 大手术 commit 完成前充当起起过渡 (后者不拼发出的 URL 用到)。
-pub const CLOUD_SETUP_SOURCE: &str = "cloud_setup";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum UriHost {
@@ -240,7 +234,6 @@ impl UriHost {
             }
             UriHost::Settings => {
                 // We support opening different settings pages through URI:
-                // - warp://settings/environments - opens environments settings page
                 // - warp://settings/mcp - opens MCP servers settings page
                 // - warp://settings/platform - opens platform settings page
                 // - warp://settings/appearance - opens appearance settings page (themes, fonts, etc.)
@@ -254,15 +247,6 @@ impl UriHost {
 
                 if let Some(settings_sub_page) = settings_sub_page {
                     match settings_sub_page.as_str() {
-                        "environments" => {
-                            // Dais Wave 7-3:warp://settings/environments URI handler 随
-                            // ambient-agent UI 子系统物理删。还保留 GitHub auth completion
-                            // 通知 —— 其他独立的组件可能需要听。
-                            GitHubAuthNotifier::handle(ctx).update(ctx, |notifier, ctx| {
-                                notifier.notify_auth_completed(ctx);
-                            });
-                            let _ = query_string;
-                        }
                         "mcp" => {
                             // warp://settings/mcp?autoinstall=<name> auto-installs a gallery MCP server.
                             // The value is matched case-insensitively against gallery titles.
@@ -952,74 +936,6 @@ fn active_terminal_view_id_in_window(window_id: WindowId, ctx: &AppContext) -> O
     })
 }
 
-fn find_ambient_agent_terminal_view_id(
-    primary_window_id: Option<WindowId>,
-    ctx: &AppContext,
-) -> Option<EntityId> {
-    let mut window_ids = Vec::new();
-    if let Some(primary_window_id) = primary_window_id {
-        window_ids.push(primary_window_id);
-    }
-    window_ids.extend(
-        ctx.window_ids()
-            .filter(|window_id| Some(*window_id) != primary_window_id),
-    );
-
-    for window_id in window_ids {
-        let Some(workspaces) = ctx.views_of_type::<Workspace>(window_id) else {
-            continue;
-        };
-        for workspace in workspaces {
-            if let Some(terminal_view_id) = workspace.read(ctx, |workspace, w_ctx| {
-                find_ambient_agent_terminal_in_workspace(workspace, w_ctx)
-            }) {
-                return Some(terminal_view_id);
-            }
-        }
-    }
-
-    None
-}
-
-fn find_ambient_agent_terminal_in_workspace(
-    workspace: &Workspace,
-    ctx: &AppContext,
-) -> Option<EntityId> {
-    let mut fallback_ambient_terminal_id = None;
-
-    for pane_group_handle in workspace.tab_views() {
-        let pane_group = pane_group_handle.as_ref(ctx);
-        let ambient_terminal_id =
-            pane_group
-                .terminal_views(ctx)
-                .into_iter()
-                .find_map(|terminal_view| {
-                    terminal_view
-                        .as_ref(ctx)
-                        .ambient_agent_view_model()
-                        .as_ref(ctx)
-                        .is_ambient_agent()
-                        .then_some(terminal_view.id())
-                });
-
-        let Some(ambient_terminal_id) = ambient_terminal_id else {
-            continue;
-        };
-
-        let has_environment_management_pane = pane_group
-            .pane_ids()
-            .any(|pane_id| pane_id.is_environment_management_pane());
-        if has_environment_management_pane {
-            return Some(ambient_terminal_id);
-        }
-
-        if fallback_ambient_terminal_id.is_none() {
-            fallback_ambient_terminal_id = Some(ambient_terminal_id);
-        }
-    }
-
-    fallback_ambient_terminal_id
-}
 /// Helper function to dispatch an action to an existing window
 /// or create new window if none exist.
 fn dispatch_action_in_new_or_existing_window<T: 'static>(

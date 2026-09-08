@@ -73,7 +73,6 @@ use crate::{
             AIAgentActionResultType, AIAgentActionType, CancellationReason, FileContext,
             FileLocations, ServerOutputId,
         },
-        ambient_agents::AmbientAgentTaskId,
     },
     terminal::{
         model::session::{active_session::ActiveSession, ExecuteCommandOptions, Session},
@@ -355,14 +354,6 @@ impl BlocklistAIActionExecutor {
 
     pub fn ask_user_question_executor(&self) -> &ModelHandle<AskUserQuestionExecutor> {
         &self.ask_user_question_executor
-    }
-
-    pub fn set_ambient_agent_task_id(
-        &self,
-        _id: Option<AmbientAgentTaskId>,
-        _ctx: &mut ModelContext<Self>,
-    ) {
-        // Computer Use 已被移除,这里保留空实现以兼容调用点。
     }
 
     pub fn preprocess_action(

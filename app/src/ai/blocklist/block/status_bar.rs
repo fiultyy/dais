@@ -50,7 +50,6 @@ use crate::{
         input::SET_INPUT_MODE_TERMINAL_ACTION_NAME,
         model::block::LONG_RUNNING_COMMAND_DURATION_MS,
         model_events::{ModelEvent, ModelEventDispatcher},
-        view::ambient_agent::{AmbientAgentViewModel, AmbientAgentViewModelEvent},
         warpify::render::LEFT_STRIPE_WIDTH,
         TerminalModel, CANCEL_COMMAND_KEYBINDING, TOGGLE_AUTOEXECUTE_MODE_KEYBINDING,
         TOGGLE_HIDE_CLI_RESPONSES_KEYBINDING, TOGGLE_QUEUE_NEXT_PROMPT_KEYBINDING,
@@ -104,7 +103,6 @@ pub struct BlocklistAIStatusBar {
     terminal_model: Arc<FairMutex<TerminalModel>>,
     shimmering_text_handle: ShimmeringTextStateHandle,
     state_handles: StateHandles,
-    ambient_agent_view_model: ModelHandle<AmbientAgentViewModel>,
 
     autoexecute_keystroke: Option<Keystroke>,
     queue_next_prompt_keystroke: Option<Keystroke>,
@@ -146,7 +144,6 @@ impl BlocklistAIStatusBar {
         model_event_dispatcher: &ModelHandle<ModelEventDispatcher>,
         terminal_model: Arc<FairMutex<TerminalModel>>,
         shortcut_view_model: ModelHandle<AgentShortcutViewModel>,
-        ambient_agent_view_model: ModelHandle<AmbientAgentViewModel>,
         input_suggestions_model: ModelHandle<InputSuggestionsModeModel>,
         slash_command_model: ModelHandle<SlashCommandModel>,
         ephemeral_message_model: ModelHandle<EphemeralMessageModel>,
@@ -347,21 +344,6 @@ impl BlocklistAIStatusBar {
         let child_agent_status_card = ctx.add_typed_action_view(|ctx| {
             ChildAgentStatusCard::new(agent_view_controller.clone(), ctx)
         });
-        ctx.subscribe_to_model(&ambient_agent_view_model, |me, _, event, ctx| match event {
-            AmbientAgentViewModelEvent::DispatchedAgent
-            | AmbientAgentViewModelEvent::ProgressUpdated => {
-                me.update_agent_tip(ctx);
-                ctx.notify();
-            }
-            AmbientAgentViewModelEvent::SessionReady
-            | AmbientAgentViewModelEvent::Failed { .. }
-            | AmbientAgentViewModelEvent::NeedsGithubAuth
-            | AmbientAgentViewModelEvent::Cancelled => {
-                ctx.notify();
-            }
-            _ => (),
-        });
-
         Self {
             active_exchange_model: None,
             shimmering_text_handle: ShimmeringTextStateHandle::new(),
@@ -384,7 +366,6 @@ impl BlocklistAIStatusBar {
             summarization_timer_handle: None,
             summarization_start_time: None,
             last_read_refresh_handle: None,
-            ambient_agent_view_model,
             current_tip: None,
             ephemeral_message_model,
             agent_message_bar,
@@ -1082,13 +1063,6 @@ impl View for BlocklistAIStatusBar {
                 .is_none(),
         ) {
             warping_indicator
-        } else if self
-            .ambient_agent_view_model
-            .as_ref(app)
-            .is_waiting_for_session()
-        {
-            // Don't render warping indicator - the loading screen is shown in the main view
-            return Empty::new().finish();
         } else if agent_view_controller.is_active() {
             return Flex::column()
                 .with_child(ChildView::new(&self.child_agent_status_card).finish())

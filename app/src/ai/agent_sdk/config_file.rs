@@ -4,7 +4,7 @@ use anyhow::Context as _;
 use serde_json::{Map, Value};
 use warp_cli::mcp::MCPSpec;
 
-use crate::ai::ambient_agents::AgentConfigSnapshot;
+use crate::ai::agent_sdk::AgentConfigSnapshot;
 
 /// A strict, file-based representation of `AgentConfigSnapshot`.
 ///

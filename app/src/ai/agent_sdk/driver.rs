@@ -28,13 +28,12 @@ use crate::terminal::cli_agent_sessions::{
 use crate::{
     ai::{
         agent::{
-            AIAgentExchange, AIAgentInput, AIAgentOutput, CancellationReason, RenderableAIError,
+            conversation::{AIConversation, ConversationStatus},
+            AIAgentExchange, AIAgentInput, AIAgentOutput, AIAgentOutputStatus,
+            CancellationReason, FinishedAIAgentOutput, RenderableAIError,
         },
         agent_events::DisabledAgentEventStreamClient,
-        ambient_agents::{
-            conversation_output_status_from_conversation, AmbientAgentTaskId,
-            AmbientConversationStatus,
-        },
+        agent_sdk::LocalChildTaskId,
         blocklist::{
             agent_view::AgentViewEntryOrigin, BlocklistAIHistoryEvent, BlocklistAIHistoryModel,
             BlocklistAIPermissions,
@@ -176,7 +175,7 @@ pub struct AgentDriverOptions {
     /// Secrets to inject into the agent's terminal session.
     pub secrets: HashMap<String, ManagedSecretValue>,
     /// ID of the task being executed.
-    pub task_id: Option<AmbientAgentTaskId>,
+    pub task_id: Option<LocalChildTaskId>,
     /// Parent run ID for child-agent flows, if this task was spawned by another run.
     pub parent_run_id: Option<String>,
     /// Whether the agent run should share its session.
@@ -202,7 +201,7 @@ pub struct AgentDriver {
     output_format: OutputFormat,
 
     // The associated task ID for this agent run, if any.
-    task_id: Option<AmbientAgentTaskId>,
+    task_id: Option<LocalChildTaskId>,
 
     /// Harness adapter for the running agent. This is only set if:
     /// - The harness has started successfully.
@@ -245,6 +244,37 @@ impl SDKConversationOutputStatus {
     }
 }
 
+
+/// Derives the terminal [`SDKConversationOutputStatus`] of an Oz conversation, if it
+/// has reached a state we care about.
+///
+/// R41-T5: inlined from the deleted ambient-agent conversation status mapping;
+/// the Oz arm this serves is scheduled for full removal in B1.
+fn output_status_from_conversation(
+    conversation: &AIConversation,
+) -> Option<SDKConversationOutputStatus> {
+    if let ConversationStatus::Blocked { blocked_action } = conversation.status() {
+        return Some(SDKConversationOutputStatus::Blocked {
+            blocked_action: blocked_action.clone(),
+        });
+    }
+
+    let last_exchange = conversation.root_task_exchanges().last()?;
+    if let AIAgentOutputStatus::Finished { finished_output } = &last_exchange.output_status {
+        let status = match finished_output {
+            FinishedAIAgentOutput::Cancelled { output: _, reason } => {
+                SDKConversationOutputStatus::Cancelled { reason: *reason }
+            }
+            FinishedAIAgentOutput::Error { output: _, error } => {
+                SDKConversationOutputStatus::Error { error: error.clone() }
+            }
+            FinishedAIAgentOutput::Success { output: _ } => SDKConversationOutputStatus::Success,
+        };
+        return Some(status);
+    }
+
+    None
+}
 /// Task configuration for running an agent.
 #[derive(Debug)]
 pub struct Task {
@@ -1345,26 +1375,8 @@ impl AgentDriver {
                         run_exit.cancel_idle_timeout();
                         return;
                     }
-
                     // Conversation is no longer in progress. Handle completion based on the result.
-                    if let Some(conversation_status) =
-                         conversation_output_status_from_conversation(conversation)
-                    {
-                        let output_status = match conversation_status {
-                            AmbientConversationStatus::Success => {
-                                SDKConversationOutputStatus::Success
-                            }
-                            AmbientConversationStatus::Cancelled { reason } => {
-                                SDKConversationOutputStatus::Cancelled { reason }
-                            }
-                            AmbientConversationStatus::Error { error } => {
-                                SDKConversationOutputStatus::Error { error }
-                            }
-                            AmbientConversationStatus::Blocked { blocked_action } => {
-                                SDKConversationOutputStatus::Blocked { blocked_action }
-                            }
-                        };
-
+                    if let Some(output_status) = output_status_from_conversation(conversation) {
                         match output_status {
                             SDKConversationOutputStatus::Success
                             | SDKConversationOutputStatus::Blocked { .. }

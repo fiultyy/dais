@@ -1,4 +1,3 @@
-use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::blocklist::SerializedBlockListItem;
 use crate::terminal::available_shells::AvailableShell;
 use crate::terminal::block_list_element::GridType;
@@ -100,10 +99,8 @@ const TITLE_STACK_MAX_DEPTH: usize = 4096;
 pub enum ConversationTranscriptViewerStatus {
     /// Loading conversation data from the server.
     Loading,
-    /// Viewing a local conversation (not from ambient agent).
+    /// Viewing a local conversation.
     ViewingLocalConversation,
-    /// Viewing an ambient agent conversation with the associated task ID.
-    ViewingAmbientConversation(AmbientAgentTaskId),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -568,10 +565,6 @@ pub struct TerminalModel {
     /// The source type of the shared session (if this is a shared session).
     /// If it is not a shared session, this will be `None`.
     shared_session_source_type: Option<SessionSourceType>,
-
-    /// Whether this terminal model was created as a ambient-agent dummy session
-    /// (no local shell process, deferred shared-session viewer backing).
-    is_dummy_ambient_agent_session: bool,
 
     /// If Some, this terminal is displaying a read-only conversation transcript.
     /// Tracks both the loading state and the type of conversation being viewed.
@@ -1103,7 +1096,6 @@ impl TerminalModel {
         session_startup_path: Option<PathBuf>,
         shell_state: ShellLaunchState,
         shared_session_status: SharedSessionStatus,
-        is_dummy_ambient_agent_session: bool,
     ) -> Self {
         let alt_screen = AltScreen::new(
             sizes.size,
@@ -1156,7 +1148,6 @@ impl TerminalModel {
             obfuscate_secrets,
             shared_session_status,
             shared_session_source_type: None,
-            is_dummy_ambient_agent_session,
             conversation_transcript_viewer_status: None,
             ordered_terminal_events_for_shared_session_tx: None,
             write_to_pty_events_for_shared_session_tx: None,
@@ -1206,38 +1197,7 @@ impl TerminalModel {
             session_startup_path,
             shell_state,
             SharedSessionStatus::NotShared,
-            false,
         )
-    }
-
-    /// Creates a terminal model for a ambient-agent pane before it has connected to a shared session.
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_for_ambient_agent_shared_session_viewer(
-        sizes: BlockSize,
-        colors: color::List,
-        event_proxy: ChannelEventListener,
-        background_executor: Arc<Background>,
-        show_memory_stats: bool,
-        honor_ps1: bool,
-        is_inverted: bool,
-        obfuscate_secrets: ObfuscateSecrets,
-    ) -> Self {
-        let mut me = Self::new_for_shared_session_viewer_internal(
-            sizes,
-            colors,
-            event_proxy,
-            background_executor,
-            show_memory_stats,
-            honor_ps1,
-            is_inverted,
-            obfuscate_secrets,
-            true,
-        );
-        if false {
-            me.block_list_mut()
-                .set_is_executing_oz_environment_startup_commands(true);
-        }
-        me
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1250,7 +1210,6 @@ impl TerminalModel {
         honor_ps1: bool,
         is_inverted: bool,
         obfuscate_secrets: ObfuscateSecrets,
-        is_dummy_ambient_agent_session: bool,
     ) -> Self {
         Self::new_internal(
             None,
@@ -1273,7 +1232,6 @@ impl TerminalModel {
                 shell_type: ShellType::Zsh,
             },
             SharedSessionStatus::ViewPending,
-            is_dummy_ambient_agent_session,
         )
     }
 
@@ -1298,7 +1256,6 @@ impl TerminalModel {
             honor_ps1,
             is_inverted,
             obfuscate_secrets,
-            false,
         )
     }
 
@@ -1425,34 +1382,6 @@ impl TerminalModel {
 
     pub fn shared_session_source_type(&self) -> Option<SessionSourceType> {
         self.shared_session_source_type.clone()
-    }
-
-    pub fn is_dummy_ambient_agent_session(&self) -> bool {
-        self.is_dummy_ambient_agent_session
-    }
-
-    pub fn is_shared_ambient_agent_session(&self) -> bool {
-        matches!(
-            self.shared_session_source_type,
-            Some(SessionSourceType::AmbientAgent { .. })
-        )
-    }
-
-    pub fn ambient_agent_task_id(&self) -> Option<AmbientAgentTaskId> {
-        // Check if we're viewing an ambient agent conversation transcript
-        if let Some(ConversationTranscriptViewerStatus::ViewingAmbientConversation(task_id)) =
-            &self.conversation_transcript_viewer_status
-        {
-            return Some(*task_id);
-        }
-
-        // Otherwise, check if we're in a shared ambient agent session
-        if let Some(SessionSourceType::AmbientAgent { task_id }) = &self.shared_session_source_type
-        {
-            task_id.as_deref().and_then(|s| s.parse().ok())
-        } else {
-            None
-        }
     }
 
     /// Loads the provided scrollback into the model.

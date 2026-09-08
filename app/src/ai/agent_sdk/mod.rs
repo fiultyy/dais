@@ -29,10 +29,7 @@ use warp_logging::log_file_path;
 use warpui::ModelSpawner;
 use warpui::{platform::TerminationMode, AppContext, SingletonEntity};
 
-use crate::{
-    ai::ambient_agents::task::HarnessConfig, ai::ambient_agents::AgentConfigSnapshot,
-    auth::AuthStateProvider,
-};
+use crate::auth::AuthStateProvider;
 use driver::AgentDriverError;
 
 use crate::ai::skills::{
@@ -49,6 +46,8 @@ mod admin;
 mod common;
 mod config_file;
 pub(crate) mod driver;
+mod local_child;
+pub use local_child::{AgentConfigSnapshot, HarnessConfig, LocalChildTaskId};
 mod mcp;
 mod mcp_config;
 mod model;

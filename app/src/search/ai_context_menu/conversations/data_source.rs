@@ -1,13 +1,12 @@
 use super::search_item::ConversationSearchItem;
 use super::ConversationContextItem;
-use crate::ai::agent_conversations_model::AgentConversationsModel;
 use crate::ai::conversation_navigation::ConversationNavigationData;
 use crate::search::ai_context_menu::mixer::AIContextMenuSearchableAction;
 use crate::search::data_source::{Query, QueryResult};
 use crate::search::mixer::{DataSourceRunErrorWrapper, SyncDataSource};
 use fuzzy_match::FuzzyMatchResult;
 use std::collections::HashSet;
-use warpui::{AppContext, Entity, SingletonEntity};
+use warpui::{AppContext, Entity};
 
 const MAX_RESULTS: usize = 50;
 /// Minimum fuzzy match score to include a conversation in filtered results.
@@ -18,13 +17,12 @@ const ZERO_STATE_SCORE: i64 = 1000;
 pub struct ConversationDataSource;
 
 impl ConversationDataSource {
-    /// Merges local conversations and ambient-agent tasks, deduplicated by
+    /// Merges local and historical conversations, deduplicated by
     /// `server_conversation_token`.
     fn collect_conversations(app: &AppContext) -> Vec<ConversationContextItem> {
         let mut seen_tokens: HashSet<String> = HashSet::new();
         let mut items: Vec<ConversationContextItem> = Vec::new();
 
-        // Source 1: local + historical conversations (excludes ambient agent conversations).
         for nav in ConversationNavigationData::all_conversations(app) {
             if let Some(token) = &nav.server_conversation_token {
                 if !seen_tokens.contains(token.as_str()) {
@@ -34,21 +32,6 @@ impl ConversationDataSource {
                         title: nav.title,
                         server_conversation_token: token_str,
                         last_updated: nav.last_updated.to_utc(),
-                    });
-                }
-            }
-        }
-
-        // Source 2: ambient-agent tasks. Every ambient-agent conversation has a
-        // corresponding task, so this covers conversations without local state.
-        let agent_model = AgentConversationsModel::as_ref(app);
-        for task in agent_model.tasks_iter() {
-            if let Some(conv_id) = &task.conversation_id {
-                if seen_tokens.insert(conv_id.clone()) {
-                    items.push(ConversationContextItem {
-                        title: task.title.clone(),
-                        server_conversation_token: conv_id.clone(),
-                        last_updated: task.updated_at,
                     });
                 }
             }

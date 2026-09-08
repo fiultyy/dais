@@ -34,7 +34,6 @@ pub(crate) use onboarding::OnboardingTutorial;
 
 use crate::ai::agent_conversations_model::AgentConversationsModel;
 use crate::ai::agent_conversations_model::ConversationOrTask;
-use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::blocklist::agent_view::agent_input_footer::editor::AgentToolbarEditorMode;
 use crate::ai::blocklist::agent_view::AgentViewEntryOrigin;
 use crate::ai::blocklist::suggested_agent_mode_workflow_modal::SuggestedAgentModeWorkflowAndId;
@@ -734,10 +733,10 @@ pub(crate) enum SpecialView {
 enum SimplifiedWasmTabBarContent {
     /// Viewing a Dais Drive object (notebook, workflow, env vars, AI facts, MCP servers)
     WarpDriveObject,
-    /// Participating in a shared session (viewer or writer). Contains the optional ambient agent task ID.
-    SharedSession { task_id: Option<AmbientAgentTaskId> },
-    /// Viewing a conversation transcript. Contains the optional ambient agent task ID.
-    ConversationTranscript { task_id: Option<AmbientAgentTaskId> },
+    /// Participating in a shared session (viewer or writer).
+    SharedSession,
+    /// Viewing a conversation transcript.
+    ConversationTranscript,
 }
 
 type RemoteUploadId = (TerminalPaneId, FileUploadId);
@@ -2956,14 +2955,13 @@ impl Workspace {
         #[cfg(target_family = "wasm")]
         let transcript_details_panel = Self::build_transcript_details_panel(ctx);
 
-        // Subscribe to task updates so the transcript details panel can refresh when task data arrives
+        // Subscribe to conversation updates so the transcript details panel can refresh when data changes
         #[cfg(target_family = "wasm")]
         ctx.subscribe_to_model(
             &AgentConversationsModel::handle(ctx),
             |me, _, event, ctx| match event {
-                // Update transcript details if task or conversation data is updated
-                AgentConversationsModelEvent::TasksUpdated
-                | AgentConversationsModelEvent::ConversationUpdated
+                // Update transcript details when conversation data is updated
+                AgentConversationsModelEvent::ConversationUpdated
                 | AgentConversationsModelEvent::ConversationArtifactsUpdated { .. } => {
                     me.update_transcript_details_panel_data(ctx);
                 }
@@ -3984,7 +3982,6 @@ impl Workspace {
             .get_conversation(&conversation_id)
             .and_then(|entry| match entry {
                 ConversationOrTask::Conversation(metadata) => Some(&metadata.nav_data),
-                ConversationOrTask::Task(_) => None,
             });
 
         if let Some(nav_data) = nav_data {
@@ -4065,16 +4062,12 @@ impl Workspace {
 
             // Conversation transcript viewer takes priority
             if model.is_conversation_transcript_viewer() {
-                return Some(SimplifiedWasmTabBarContent::ConversationTranscript {
-                    task_id: model.ambient_agent_task_id(),
-                });
+                return Some(SimplifiedWasmTabBarContent::ConversationTranscript);
             }
 
             // Check for shared session (viewer or writer)
             if model.shared_session_status().is_sharer_or_viewer() {
-                return Some(SimplifiedWasmTabBarContent::SharedSession {
-                    task_id: model.ambient_agent_task_id(),
-                });
+                return Some(SimplifiedWasmTabBarContent::SharedSession);
             }
         }
 
@@ -4870,25 +4863,6 @@ impl Workspace {
         self.tabs.get(index).and_then(|tab| tab.color())
     }
 
-    /// Finds the tab index containing a terminal viewing the given ambient agent conversation,
-    /// returning None if the ambient conversation is not open in any tab.
-    fn find_tab_with_ambient_agent_conversation(
-        &self,
-        task_id: AmbientAgentTaskId,
-        ctx: &AppContext,
-    ) -> Option<usize> {
-        self.tabs.iter().enumerate().find_map(|(index, tab)| {
-            let pane_group = tab.pane_group.as_ref(ctx);
-            let has_task = pane_group.terminal_pane_ids().into_iter().any(|pane_id| {
-                pane_group
-                    .terminal_view_from_pane_id(pane_id, ctx)
-                    .is_some_and(|tv| {
-                        tv.as_ref(ctx).model.lock().ambient_agent_task_id() == Some(task_id)
-                    })
-            });
-            has_task.then_some(index)
-        })
-    }
     /// Gets all sessions in the current workspace.
     pub fn workspace_sessions<'a>(
         &'a self,
@@ -4975,10 +4949,9 @@ impl Workspace {
     fn notify_terminal_focus_change(
         &self,
         focused_terminal_view_id: Option<EntityId>,
-        ambient_agent_task_id: Option<AmbientAgentTaskId>,
         ctx: &mut ViewContext<Self>,
     ) {
-        let _ = (focused_terminal_view_id, ambient_agent_task_id, ctx);
+        let _ = (focused_terminal_view_id, ctx);
     }
 
     /// Change the active tab index. This must be used instead of setting `self.active_tab_index`
@@ -5033,10 +5006,7 @@ impl Workspace {
             .as_ref(ctx)
             .terminal_view_from_pane_id(pane_group.as_ref(ctx).focused_pane_id(ctx), ctx)
             .map(|tv| tv.id());
-        let ambient_agent_task_id = self
-            .get_active_session_terminal_model(ctx)
-            .and_then(|model| model.lock().ambient_agent_task_id());
-        self.notify_terminal_focus_change(focused_terminal_view_id, ambient_agent_task_id, ctx);
+        self.notify_terminal_focus_change(focused_terminal_view_id, ctx);
 
         self.update_active_session(ctx);
     }
@@ -14099,14 +14069,7 @@ impl Workspace {
                         .terminal_view_from_pane_id(pane_group.focused_pane_id(ctx), ctx)
                         .map(|tv| tv.id())
                 };
-                let ambient_agent_task_id = self
-                    .get_active_session_terminal_model(ctx)
-                    .and_then(|model| model.lock().ambient_agent_task_id());
-                self.notify_terminal_focus_change(
-                    focused_terminal_view_id,
-                    ambient_agent_task_id,
-                    ctx,
-                );
+                self.notify_terminal_focus_change(focused_terminal_view_id, ctx);
             }
             pane_group::Event::RepoChanged => {
                 self.refresh_working_directories_for_pane_group(&pane_group, ctx);
@@ -19636,7 +19599,7 @@ impl Workspace {
         &self,
         item: &HeaderToolbarItemKind,
         pane_group: &PaneGroup,
-        config: &HeaderToolbarChipSelection,
+        _config: &HeaderToolbarChipSelection,
         app: &AppContext,
     ) -> Option<Box<dyn Element>> {
         if !item.is_available(app) || !item.is_panel() {
@@ -19688,7 +19651,7 @@ impl Workspace {
     fn render_observatory_button(
         &self,
         appearance: &Appearance,
-        app: &AppContext,
+        _app: &AppContext,
     ) -> Box<dyn Element> {
         let is_active = self.special_view == Some(SpecialView::Observatory);
         let theme = appearance.theme();
@@ -19713,7 +19676,7 @@ impl Workspace {
     fn render_cockpit_button(
         &self,
         appearance: &Appearance,
-        app: &AppContext,
+        _app: &AppContext,
     ) -> Box<dyn Element> {
         let is_active = self.special_view == Some(SpecialView::Cockpit);
         let theme = appearance.theme();
@@ -21574,43 +21537,6 @@ impl TypedActionView for Workspace {
                     *restore_layout,
                     ctx,
                 );
-            }
-            OpenAmbientAgentSession { task_id } => {
-                // Mark task as manually opened so it appears in the conversation list
-                // even if its source is not user-initiated.
-                AgentConversationsModel::handle(ctx).update(ctx, |model, ctx| {
-                    model.mark_task_as_manually_opened(*task_id, ctx);
-                });
-
-                // Check if there's already a terminal viewing this task.
-                if let Some(tab_index) =
-                    self.find_tab_with_ambient_agent_conversation(*task_id, ctx)
-                {
-                    self.activate_tab(tab_index, ctx);
-                }
-            }
-            OpenConversationTranscriptViewer {
-                conversation_id,
-                ambient_agent_task_id,
-            } => {
-                // Mark task as manually opened so it appears in the conversation list
-                // even if its source is not user-initiated.
-                if let Some(task_id) = ambient_agent_task_id {
-                    AgentConversationsModel::handle(ctx).update(ctx, |model, ctx| {
-                        model.mark_task_as_manually_opened(*task_id, ctx);
-                    });
-                }
-
-                // Check if there's already a terminal viewing this conversation's task.
-                if let Some(task_id) = ambient_agent_task_id {
-                    if let Some(tab_index) =
-                        self.find_tab_with_ambient_agent_conversation(*task_id, ctx)
-                    {
-                        self.activate_tab(tab_index, ctx);
-                        return;
-                    }
-                }
-                self.open_cloud_conversation_from_server_token(conversation_id.clone(), ctx);
             }
             ForkAIConversation {
                 conversation_id,

@@ -36,7 +36,7 @@ pub(super) mod welcome_pane;
 pub(crate) mod welcome_view;
 pub mod workflow_pane;
 
-use std::{any::Any, fmt::Display};
+use std::any::Any;
 
 use crate::pane_group::focus_state::PaneFocusHandle;
 use crate::pane_group::pane::get_started_view::GetStartedView;
@@ -58,7 +58,6 @@ use crate::{
     terminal::{available_shells::AvailableShell, TerminalView},
     workflows::workflow_view::WorkflowView,
 };
-use serde::{Deserialize, Serialize};
 use url::Url;
 use warp_core::HostId;
 use warpui::{

@@ -9,7 +9,6 @@ use warpui::AppContext;
 
 use crate::ai::agent::conversation::AIConversationId;
 use crate::ai::agent_conversations_model::AgentManagementFilters;
-use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::blocklist::InputConfig;
 use crate::ai::blocklist::SerializedBlockListItem;
 use crate::code::editor_management::CodeSource;
@@ -113,7 +112,6 @@ pub enum LeafContents {
     AIFact(AIFactPaneSnapshot),
     ExecutionProfileEditor,
     CodeReview(CodeReviewPaneSnapshot),
-    AmbientAgent(AmbientAgentPaneSnapshot),
     /// An entrypoint pane type to launch other pane types from a search palette. The default view
     /// when creating a tab.
     Welcome {
@@ -181,20 +179,10 @@ impl LeafContents {
             | LeafContents::AIFact(_)
             | LeafContents::ExecutionProfileEditor
             | LeafContents::CodeReview(_)
-            | LeafContents::AmbientAgent(_)
             | LeafContents::Welcome { .. }
             | LeafContents::GetStarted => true,
         }
     }
-}
-
-/// Snapshot of an ambient agent pane.
-#[derive(Clone, Debug, PartialEq)]
-pub struct AmbientAgentPaneSnapshot {
-    pub uuid: Vec<u8>,
-    // `task_id` is purposefully optional,
-    // as you can have a valid state (i.e. an empty ambient-agent pane) where it is None.
-    pub task_id: Option<AmbientAgentTaskId>,
 }
 
 /// Snapshot of the contents of a terminal pane.

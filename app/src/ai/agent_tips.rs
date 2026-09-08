@@ -247,13 +247,6 @@ static DEFAULT_TIPS: LazyLock<Vec<AgentTip>> = LazyLock::new(|| {
             kind: AgentTipKind::General,
         },
         AgentTip {
-            description: crate::t!("agent-tip-oz-headless"),
-            link: Some("".to_string()),
-            binding_name: None,
-            action: None,
-            kind: AgentTipKind::General,
-        },
-        AgentTip {
             description: crate::t!("agent-tip-selected-text-context"),
             link: Some("".to_string()),
             binding_name: None,
@@ -509,53 +502,3 @@ impl AITipModel<AgentTip> {
 }
 
 impl SingletonEntity for AITipModel<AgentTip> {}
-
-// Specific implementation for AmbientAgentTip
-impl AITipModel<crate::terminal::view::ambient_agent::AmbientAgentTip> {
-    /// Refreshes the current tip with a new random selection.
-    /// Only updates if not in cooldown period (60 seconds).
-    pub fn maybe_refresh_tip(&mut self, ctx: &mut ModelContext<Self>) {
-        // Don't update if cooldown is active
-        if self.cooldown_handle.is_some() {
-            return;
-        }
-
-        use rand::seq::SliceRandom;
-
-        // Select a random tip
-        let mut rng = rand::thread_rng();
-        self.current_tip = self.tips.choose(&mut rng).cloned();
-
-        // Start 60-second cooldown
-        let handle = ctx.spawn(
-            async {
-                warpui::r#async::Timer::after(Duration::from_secs(60)).await;
-            },
-            |me, _, _| {
-                me.cooldown_handle = None;
-            },
-        );
-        self.cooldown_handle = Some(handle);
-        ctx.notify();
-    }
-
-    /// Resets the cooldown timer without changing the current tip.
-    /// This ensures the current tip will be shown for the full cooldown period.
-    pub fn reset_cooldown(&mut self, ctx: &mut ModelContext<Self>) {
-        // Cancel any existing cooldown
-        if let Some(handle) = self.cooldown_handle.take() {
-            handle.abort();
-        }
-
-        // Start a new 60-second cooldown
-        let handle = ctx.spawn(
-            async {
-                warpui::r#async::Timer::after(Duration::from_secs(60)).await;
-            },
-            |me, _, _| {
-                me.cooldown_handle = None;
-            },
-        );
-        self.cooldown_handle = Some(handle);
-    }
-}

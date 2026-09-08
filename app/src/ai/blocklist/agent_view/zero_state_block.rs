@@ -41,10 +41,7 @@ use crate::{
         },
         model_events::{AnsiHandlerEvent, ModelEvent, ModelEventDispatcher},
         prompt,
-        view::{
-            ambient_agent::{AmbientAgentViewModel, AmbientAgentViewModelEvent},
-            TerminalAction,
-        },
+        view::TerminalAction,
         TerminalModel,
     },
     util::time_format::format_approx_duration_from_now_utc,
@@ -66,7 +63,6 @@ struct StateHandles {
 /// Zero state view shown when agent view is active but the conversation has no exchanges yet.
 pub struct AgentViewZeroStateBlock {
     conversation_id: AIConversationId,
-    origin: AgentViewEntryOrigin,
     agent_view_controller: ModelHandle<AgentViewController>,
     sessions: ModelHandle<Sessions>,
     terminal_model: Arc<FairMutex<TerminalModel>>,
@@ -85,13 +81,11 @@ impl AgentViewZeroStateBlock {
         origin: AgentViewEntryOrigin,
         agent_view_controller: ModelHandle<AgentViewController>,
         sessions: &ModelHandle<Sessions>,
-        ambient_agent_view_model: &ModelHandle<AmbientAgentViewModel>,
         terminal_model: Arc<FairMutex<TerminalModel>>,
         model_events_dispatcher: &ModelHandle<ModelEventDispatcher>,
         should_show_init_callout: bool,
         ctx: &mut ViewContext<Self>,
     ) -> Self {
-        let ambient_agent_view_model_clone = ambient_agent_view_model.clone();
         let model_events_clone = model_events_dispatcher.clone();
         ctx.subscribe_to_model(
             &BlocklistAIHistoryModel::handle(ctx),
@@ -104,7 +98,6 @@ impl AgentViewZeroStateBlock {
                         me.should_hide = true;
                         ctx.unsubscribe_to_model(&model_events_clone);
                         ctx.unsubscribe_to_model(&history_model);
-                        ctx.unsubscribe_to_model(&ambient_agent_view_model_clone);
                         ctx.notify();
                         return;
                     }
@@ -123,7 +116,6 @@ impl AgentViewZeroStateBlock {
             },
         );
 
-        let ambient_agent_view_model_clone = ambient_agent_view_model.clone();
         ctx.subscribe_to_model(
             model_events_dispatcher,
             move |me, model_events_dispatcher, event, ctx| {
@@ -135,7 +127,6 @@ impl AgentViewZeroStateBlock {
                             me.should_hide = true;
                             ctx.unsubscribe_to_model(&model_events_dispatcher);
                             ctx.unsubscribe_to_model(&BlocklistAIHistoryModel::handle(ctx));
-                            ctx.unsubscribe_to_model(&ambient_agent_view_model_clone);
                             ctx.notify();
                         }
                     }
@@ -159,34 +150,7 @@ impl AgentViewZeroStateBlock {
             }
         });
 
-        let model_events_clone = model_events_dispatcher.clone();
-        ctx.subscribe_to_model(ambient_agent_view_model, move |me, model, event, ctx| {
-            if false {
-                match event {
-                    AmbientAgentViewModelEvent::DispatchedAgent
-                    | AmbientAgentViewModelEvent::Cancelled
-                        if !me.should_hide =>
-                    {
-                        me.should_hide = true;
-                        ctx.unsubscribe_to_model(&model);
-                        ctx.unsubscribe_to_model(&model_events_clone);
-                        ctx.unsubscribe_to_model(&BlocklistAIHistoryModel::handle(ctx));
-                        ctx.notify();
-                    }
-                    _ => (),
-                }
-            } else if model.as_ref(ctx).should_show_status_footer() {
-                me.should_hide = true;
-                ctx.unsubscribe_to_model(&model);
-                ctx.unsubscribe_to_model(&model_events_clone);
-                ctx.unsubscribe_to_model(&BlocklistAIHistoryModel::handle(ctx));
-                ctx.notify();
-            }
-        });
-
-        let ambient_agent_view = ambient_agent_view_model.as_ref(ctx);
-        let has_parent_terminal =
-            !ambient_agent_view.is_ambient_agent() || ambient_agent_view.has_parent_terminal();
+        let has_parent_terminal = true;
         let state_handles = StateHandles::default();
         let current_working_directory = {
             let terminal_model = terminal_model.lock();
@@ -201,7 +165,6 @@ impl AgentViewZeroStateBlock {
 
         Self {
             conversation_id,
-            origin,
             agent_view_controller,
             sessions: sessions.clone(),
             terminal_model,
@@ -350,14 +313,8 @@ impl View for AgentViewZeroStateBlock {
         let header_props = HeaderProps {
             title: crate::t!("agent-zero-state-title").into(),
             description: AgentViewDescription::PlainText(vec![local_description.into()]),
-            icon: if self.origin.is_ambient_agent() {
-                Icon::OzCloud
-            } else {
-                Icon::Oz
-            },
-            // ambient agent 不提供 × 按钮，其余场景都在标题右侧展示。
-            hide_hints_state: (!self.origin.is_ambient_agent())
-                .then(|| self.state_handles.hide_hints.clone()),
+            icon: Icon::Oz,
+            hide_hints_state: Some(self.state_handles.hide_hints.clone()),
         };
 
         let mut content = Flex::column()
@@ -366,7 +323,6 @@ impl View for AgentViewZeroStateBlock {
 
         let body = render_body(
             ZeroStateBodyProps {
-                origin: self.origin,
                 has_parent_terminal: self.has_parent_terminal,
                 should_show_init_callout: self.should_show_init_callout,
                 recent_conversations: &self.cached_recent_conversations,
@@ -386,13 +342,12 @@ impl View for AgentViewZeroStateBlock {
         }));
         let content = content.finish();
 
-        let show_bottom_border = !self.origin.is_ambient_agent();
         let content = Container::new(content)
             .with_horizontal_padding(*terminal::view::PADDING_LEFT)
             .with_vertical_padding(styles::CONTAINER_VERTICAL_PADDING)
             .with_border(
                 Border::new(1.)
-                    .with_sides(true, false, show_bottom_border, false)
+                    .with_sides(true, false, true, false)
                     .with_border_fill(theme.outline()),
             )
             .finish();
@@ -599,7 +554,6 @@ fn render_title_and_description(props: HeaderProps, app: &AppContext) -> Vec<Box
 }
 
 struct ZeroStateBodyProps<'a> {
-    origin: AgentViewEntryOrigin,
     has_parent_terminal: bool,
     should_show_init_callout: bool,
     recent_conversations: &'a [ConversationNavigationData],
@@ -610,7 +564,6 @@ struct ZeroStateBodyProps<'a> {
 
 fn render_body(props: ZeroStateBodyProps<'_>, app: &AppContext) -> Vec<Box<dyn Element>> {
     let ZeroStateBodyProps {
-        origin,
         has_parent_terminal,
         should_show_init_callout,
         recent_conversations,
@@ -619,10 +572,6 @@ fn render_body(props: ZeroStateBodyProps<'_>, app: &AppContext) -> Vec<Box<dyn E
         state_handles,
     } = props;
 
-    // Ambient-agent mode doesn't show keyboard shortcuts.
-    if origin.is_ambient_agent() {
-        return vec![];
-    }
     let mut body_items = if let Some(recent_conversations_section) =
         render_recent_conversations_section(
             RecentConversationProps {
