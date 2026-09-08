@@ -1,4 +1,9 @@
-pub(super) mod chips;
+//! Agent input footer — base UI (基座) module.
+//!
+//! R41-T7 底座解耦: moved out of `ai::blocklist::agent_view` so third-party render
+//! paths (cockpit / observatory / settings / terminal / workspace) import it
+//! directly from `crate::agent_input_footer` — no Oz (`agent_view`) intermediary.
+pub(crate) mod chips;
 pub mod editor;
 // Dais Wave 7-3:`environment_selector` was removed with the hosted-mode footer.
 mod reasoning_depth_selector;

@@ -3,6 +3,7 @@
 // 上游 Dais 裁剪后遗留的孤儿代码暂时保留,统一抑制 dead_code 告警。
 #![allow(dead_code)]
 
+pub(crate) mod agent_input_footer;
 mod ai;
 mod alloc;
 mod antivirus;
@@ -1631,7 +1632,7 @@ fn initialize_app(
     auth::init(ctx);
     crate::view_components::find::init(ctx);
     prompt::editor_modal::init(ctx);
-    ai::blocklist::agent_view::editor::init(ctx);
+    agent_input_footer::editor::init(ctx);
     undo_close::init(ctx);
     tab_configs::new_worktree_modal::init(ctx);
     tab_configs::params_modal::init(ctx);

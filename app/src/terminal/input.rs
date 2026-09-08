@@ -332,9 +332,8 @@ use super::{
     warpify::SubshellSource,
     History, HistoryEntry, SizeInfo, TerminalModel, UpArrowHistoryConfig,
 };
-use crate::ai::blocklist::agent_view::{
-    AgentInputFooter, AgentInputFooterEvent, AgentViewController,
-};
+use crate::agent_input_footer::{AgentInputFooter, AgentInputFooterEvent};
+use crate::ai::blocklist::agent_view::AgentViewController;
 use crate::terminal::view::ambient_agent::{HarnessSelector, HostSelector, NakedHeaderButtonTheme};
 use async_channel::Sender;
 use futures::stream::AbortHandle;

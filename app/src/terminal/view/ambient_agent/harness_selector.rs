@@ -19,7 +19,7 @@ use warp_core::ui::appearance::Appearance;
 use warp_core::ui::theme::color::internal_colors;
 use warp_core::ui::theme::Fill;
 
-use crate::ai::blocklist::agent_view::agent_input_footer::AgentInputButtonTheme;
+use crate::agent_input_footer::AgentInputButtonTheme;
 use crate::ai::harness_display::{display_name, icon_for};
 use crate::menu::{Event as MenuEvent, Menu, MenuItem, MenuItemFields};
 use crate::terminal::input::{MenuPositioning, MenuPositioningProvider};

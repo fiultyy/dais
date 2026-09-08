@@ -1,6 +1,6 @@
 #[cfg(not(target_family = "wasm"))]
 use crate::ai::aws_credentials::refresh_aws_credentials;
-use crate::ai::blocklist::agent_view::agent_input_footer::editor::{
+use crate::agent_input_footer::editor::{
     AgentToolbarEditorMode, AgentToolbarInlineEditor,
 };
 use crate::ai::blocklist::BlocklistAIPermissions;

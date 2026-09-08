@@ -181,7 +181,7 @@ use crate::ai::agent::{
     AIAgentActionType, AIAgentOutputStatus, AIAgentTextSection, EntrypointType,
     FinishedAIAgentOutput, RenderableAIError, StaticQueryType,
 };
-use crate::ai::blocklist::agent_view::agent_input_footer::toolbar_item::AgentToolbarItemKind;
+use crate::agent_input_footer::toolbar_item::AgentToolbarItemKind;
 use crate::ai::blocklist::suggested_agent_mode_workflow_modal::SuggestedAgentModeWorkflowAndId;
 use crate::ai::blocklist::suggested_rule_modal::SuggestedRuleAndId;
 use crate::ai::blocklist::{model::AIBlockModelImpl, ClientIdentifiers};

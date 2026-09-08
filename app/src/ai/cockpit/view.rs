@@ -34,7 +34,7 @@ use super::model::{
     CockpitCard, CockpitCardStatus, CockpitGroupBy, CockpitModel, CockpitSort,
     CockpitStatusFilter,
 };
-use crate::ai::blocklist::agent_view::agent_input_footer::AgentInputButtonTheme;
+use crate::agent_input_footer::AgentInputButtonTheme;
 use crate::ai::observatory::row::status_dot_element;
 use crate::terminal::cli_agent_sessions::{CLIAgentSessionsModel, CLIAgentSessionsModelEvent};
 use crate::ui_components::dialog::{dialog_styles, Dialog};

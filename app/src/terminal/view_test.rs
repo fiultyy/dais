@@ -33,7 +33,7 @@ use crate::editor::{AutosuggestionLocation, AutosuggestionType};
 
 use crate::settings::{AISettings, AppEditorSettings, WarpPromptSeparator};
 
-use crate::ai::blocklist::agent_view::toolbar_item::AgentToolbarItemKind;
+use crate::agent_input_footer::toolbar_item::AgentToolbarItemKind;
 use crate::ai::blocklist::{
     agent_view::AgentViewEntryOrigin, BlocklistAIHistoryModel, InputConfig, InputType,
 };

@@ -5,9 +5,7 @@
 //! Gemini CLI, Codex), it displays a specialized footer with additional functionality.
 
 use crate::ai::agent::ImageContext;
-use crate::ai::blocklist::agent_view::agent_input_footer::{
-    AgentInputFooter, AgentInputFooterEvent,
-};
+use crate::agent_input_footer::{AgentInputFooter, AgentInputFooterEvent};
 use crate::terminal::cli_agent_sessions::{
     event::{CLIAgentEvent, CLIAgentEventPayload, CLIAgentEventType},
     CLIAgentInputEntrypoint, CLIAgentSessionsModel,

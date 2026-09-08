@@ -14,7 +14,7 @@ use warp_core::ui::appearance::Appearance;
 use warp_core::ui::theme::color::internal_colors;
 use warp_core::ui::theme::Fill;
 
-use crate::ai::blocklist::agent_view::agent_input_footer::AgentInputButtonTheme;
+use crate::agent_input_footer::AgentInputButtonTheme;
 use crate::ai::llms::{LLMPreferences, LLMPreferencesEvent};
 use crate::editor::{
     EditorView, Event as EditorEvent, PropagateAndNoOpEscapeKey, PropagateAndNoOpNavigationKeys,

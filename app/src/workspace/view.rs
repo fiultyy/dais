@@ -35,7 +35,7 @@ pub(crate) use onboarding::OnboardingTutorial;
 use crate::ai::agent_conversations_model::AgentConversationsModel;
 use crate::ai::agent_conversations_model::ConversationOrTask;
 use crate::ai::ambient_agents::AmbientAgentTaskId;
-use crate::ai::blocklist::agent_view::agent_input_footer::editor::AgentToolbarEditorMode;
+use crate::agent_input_footer::editor::AgentToolbarEditorMode;
 use crate::ai::blocklist::agent_view::AgentViewEntryOrigin;
 use crate::ai::blocklist::suggested_agent_mode_workflow_modal::SuggestedAgentModeWorkflowAndId;
 use crate::ai::blocklist::suggested_rule_modal::{
@@ -228,7 +228,7 @@ use crate::remote_server::manager::RemoteServerManager;
 use crate::remote_server::manager::RemoteServerManagerEvent;
 use crate::terminal::keys_settings::KeysSettings;
 
-use crate::ai::blocklist::agent_view::editor::{AgentToolbarEditorEvent, AgentToolbarEditorModal};
+use crate::agent_input_footer::editor::{AgentToolbarEditorEvent, AgentToolbarEditorModal};
 use crate::cloud_object::update_manager::{
     ObjectOperation, OperationSuccessType, UpdateManager, UpdateManagerEvent,
 };

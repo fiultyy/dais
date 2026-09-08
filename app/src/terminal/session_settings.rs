@@ -13,7 +13,7 @@ use warp_core::settings::{
     macros::define_settings_group, RespectUserSyncSetting, SupportedPlatforms, SyncToCloud,
 };
 
-use crate::ai::blocklist::agent_view::toolbar_item::AgentToolbarItemKind;
+use crate::agent_input_footer::toolbar_item::AgentToolbarItemKind;
 use crate::context_chips::prompt::PromptSelection;
 use crate::context_chips::ContextChipKind;
 
