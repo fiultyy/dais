@@ -1,9 +1,6 @@
 use crate::{
     drive::{cloud_object_styling::warp_drive_icon_color, DriveObjectType},
     notebooks::post_process_notebook,
-    workflows::{
-        export_workflow::export_deserialize, workflow::Workflow, workflow_enum::WorkflowEnum,
-    },
 };
 use anyhow::Result;
 use async_recursion::async_recursion;
@@ -11,7 +8,6 @@ use futures_lite::StreamExt;
 use pathfinder_color::ColorU;
 use std::{
     collections::HashMap,
-    ffi::OsStr,
     ops::{Add, AddAssign, SubAssign},
     path::{Path, PathBuf},
 };
@@ -393,16 +389,11 @@ impl FolderNode {
 }
 
 pub(super) enum FileContent {
-    Workflow {
-        workflows: Vec<Workflow>,
-        workflow_enums: HashMap<ClientId, WorkflowEnum>,
-    },
     Notebook(String),
 }
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum FileType {
-    Workflow,
     Notebook,
 }
 
@@ -413,12 +404,7 @@ impl TryFrom<&Path> for FileType {
         if is_markdown_file(path) {
             Ok(FileType::Notebook)
         } else {
-            let extension = path.extension();
-            if extension == Some(OsStr::new("yaml")) || extension == Some(OsStr::new("yml")) {
-                Ok(FileType::Workflow)
-            } else {
-                Err(())
-            }
+            Err(())
         }
     }
 }
@@ -552,11 +538,6 @@ impl FileNode {
         let override_color = self.status.override_text_color(appearance);
 
         let icon_element = match &self.file_type {
-            FileType::Workflow => Icon::Workflow
-                .to_warpui_icon(Fill::Solid(override_color.unwrap_or(
-                    warp_drive_icon_color(appearance, DriveObjectType::Workflow),
-                )))
-                .finish(),
             FileType::Notebook => Icon::Notebook
                 .to_warpui_icon(Fill::Solid(override_color.unwrap_or(
                     warp_drive_icon_color(
@@ -900,23 +881,6 @@ pub(super) async fn parse_file(path: PathBuf, file_type: FileType) -> Result<Fil
         FileType::Notebook => Ok(FileContent::Notebook(post_process_notebook(
             &async_fs::read_to_string(path).await?,
         ))),
-        FileType::Workflow => {
-            let file = async_fs::read(path).await?;
-            let mut workflow_enums: HashMap<ClientId, WorkflowEnum> = HashMap::new();
-            let mut workflows = vec![];
-
-            for document in serde_yaml::Deserializer::from_slice(&file) {
-                let (workflow, new_enums) = export_deserialize(document)?;
-
-                workflows.push(workflow);
-                workflow_enums.extend(new_enums);
-            }
-
-            Ok(FileContent::Workflow {
-                workflows,
-                workflow_enums,
-            })
-        }
     }
 }
 

@@ -1166,12 +1166,6 @@ impl AIConversation {
         if let Some(suggestions) = &self.existing_suggestions {
             self.dismissed_suggestion_ids
                 .extend(suggestions.rules.iter().map(|r| r.logging_id.clone()));
-            self.dismissed_suggestion_ids.extend(
-                suggestions
-                    .agent_mode_workflows
-                    .iter()
-                    .map(|w| w.logging_id.clone()),
-            );
         }
     }
 
@@ -1826,9 +1820,6 @@ impl AIConversation {
                 if let Some(new_suggestions) = output.suggestions.clone() {
                     if let Some(existing_suggestions) = self.existing_suggestions.as_mut() {
                         existing_suggestions.rules.extend(new_suggestions.rules);
-                        existing_suggestions
-                            .agent_mode_workflows
-                            .extend(new_suggestions.agent_mode_workflows);
                     } else {
                         self.existing_suggestions = Some(new_suggestions);
                     }
@@ -1877,9 +1868,6 @@ impl AIConversation {
                     if let Some(new_suggestions) = output.suggestions.clone() {
                         if let Some(existing_suggestions) = self.existing_suggestions.as_mut() {
                             existing_suggestions.rules.extend(new_suggestions.rules);
-                            existing_suggestions
-                                .agent_mode_workflows
-                                .extend(new_suggestions.agent_mode_workflows);
                         } else {
                             self.existing_suggestions = Some(new_suggestions);
                         }

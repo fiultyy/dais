@@ -33,9 +33,6 @@ use crate::editor::{
     Event as EditorEvent, SingleLineEditorOptions, TextOptions,
     ACCEPT_AUTOSUGGESTION_KEYBINDING_NAME,
 };
-use crate::search::command_search::settings::{
-    CommandSearchSettings, ShowGlobalWorkflowsInUniversalSearch,
-};
 use crate::server::telemetry::TelemetryEvent;
 use crate::settings::ai::AISettings;
 use crate::settings::{
@@ -679,7 +676,6 @@ pub enum FeaturesPageAction {
     ToggleLeftMetaKey,
     ToggleRightMetaKey,
     ToggleMouseReporting,
-    ToggleGlobalWorkflowsInUniversalSearch,
     ToggleScrollReporting,
     ToggleFocusReporting,
     ToggleLongRunningNotifications,
@@ -783,7 +779,6 @@ fn to_string(b: bool) -> String {
 
 impl FeaturesPageAction {
     fn telemetry_event(&self, ctx: &AppContext) -> TelemetryEvent {
-        let workflow_settings = CommandSearchSettings::as_ref(ctx);
         let reporting_settings = AltScreenReporting::as_ref(ctx);
         let selection_settings = SelectionSettings::as_ref(ctx);
         let input_settings = InputSettings::as_ref(ctx);
@@ -810,10 +805,6 @@ impl FeaturesPageAction {
                     value: to_string(*settings.snackbar_enabled),
                 }
             }
-            Self::ToggleGlobalWorkflowsInUniversalSearch => TelemetryEvent::FeaturesPageAction {
-                action: "ToggleGlobalWorkflowsInUniversalSearch".to_string(),
-                value: to_string(*workflow_settings.show_global_workflows_in_universal_search),
-            },
             Self::ToggleNotifications => TelemetryEvent::FeaturesPageAction {
                 action: "ToggleNotifications".to_string(),
                 value: to_string(matches!(
@@ -1334,13 +1325,6 @@ impl TypedActionView for FeaturesPageView {
                 BlockListSettings::handle(ctx).update(ctx, |blocklist_settings, ctx| {
                     report_if_error!(blocklist_settings
                         .snackbar_enabled
-                        .toggle_and_save_value(ctx));
-                });
-            }
-            ToggleGlobalWorkflowsInUniversalSearch => {
-                CommandSearchSettings::handle(ctx).update(ctx, |workflow_settings, ctx| {
-                    report_if_error!(workflow_settings
-                        .show_global_workflows_in_universal_search
                         .toggle_and_save_value(ctx));
                 });
             }
@@ -2003,9 +1987,6 @@ impl FeaturesPageView {
         });
         ctx.subscribe_to_model(&BlockListSettings::handle(ctx), |_, _, _, ctx| ctx.notify());
         ctx.subscribe_to_model(&AliasExpansionSettings::handle(ctx), |_, _, _, ctx| {
-            ctx.notify()
-        });
-        ctx.subscribe_to_model(&CommandSearchSettings::handle(ctx), |_, _, _, ctx| {
             ctx.notify()
         });
         ctx.subscribe_to_model(&GPUSettings::handle(ctx), |me, _, _, ctx| {
@@ -2812,10 +2793,6 @@ impl FeaturesPageView {
             Category::new(
                 Box::leak(crate::t!("settings-features-category-notifications").into_boxed_str()),
                 notifications_widgets,
-            ),
-            Category::new(
-                Box::leak(crate::t!("settings-features-category-workflows").into_boxed_str()),
-                vec![Box::new(WorkflowsInCommandSearch::default())],
             ),
             Category::new(
                 Box::leak(crate::t!("settings-features-category-system").into_boxed_str()),
@@ -6907,62 +6884,6 @@ impl SettingsWidget for DefaultSessionModeWidget {
     }
 }
 
-#[derive(Default)]
-struct WorkflowsInCommandSearch {
-    additional_info_link: MouseStateHandle,
-    switch_state: SwitchStateHandle,
-}
-
-impl SettingsWidget for WorkflowsInCommandSearch {
-    type View = FeaturesPageView;
-
-    fn search_terms(&self) -> &str {
-        "global workflows command search"
-    }
-
-    fn render(
-        &self,
-        view: &Self::View,
-        appearance: &Appearance,
-        app: &AppContext,
-    ) -> Box<dyn Element> {
-        let ui_builder = appearance.ui_builder();
-        let workflow_settings = CommandSearchSettings::as_ref(app);
-        render_body_item::<FeaturesPageAction>(
-            crate::t!("settings-features-show-global-workflows-in-command-search"),
-            Some(AdditionalInfo {
-                mouse_state: self.additional_info_link.clone(),
-                on_click_action: Some(FeaturesPageAction::OpenUrl(
-                    "".into(),
-                )),
-                secondary_text: None,
-                tooltip_override_text: None,
-            }),
-            LocalOnlyIconState::for_setting(
-                ShowGlobalWorkflowsInUniversalSearch::storage_key(),
-                ShowGlobalWorkflowsInUniversalSearch::sync_to_cloud(),
-                &mut view
-                    .button_mouse_states
-                    .local_only_icon_tooltip_states
-                    .borrow_mut(),
-                app,
-            ),
-            ToggleState::Enabled,
-            appearance,
-            ui_builder
-                .switch(self.switch_state.clone())
-                .check(*workflow_settings.show_global_workflows_in_universal_search)
-                .build()
-                .on_click(move |ctx, _, _| {
-                    ctx.dispatch_typed_action(
-                        FeaturesPageAction::ToggleGlobalWorkflowsInUniversalSearch,
-                    )
-                })
-                .finish(),
-            None,
-        )
-    }
-}
 
 #[derive(Default)]
 struct LinuxSelectionClipboardWidget {

@@ -1,7 +1,7 @@
 use super::{
     common::{
-        add_command_xray_overlay, add_input_suggestions_overlays, add_voltron_overlay,
-        add_workflow_info_overlay, wrap_input_with_terminal_padding_and_focus_handler,
+        add_command_xray_overlay, add_input_suggestions_overlays,
+        wrap_input_with_terminal_padding_and_focus_handler,
     },
     Input, InputAction, InputDropTargetData,
 };
@@ -107,22 +107,6 @@ impl Input {
             false,
         ));
 
-        if let Some(selected_workflow_state) = self.workflows_state.selected_workflow_state.as_ref()
-        {
-            if selected_workflow_state.should_show_more_info_view {
-                add_workflow_info_overlay(
-                    &mut stack,
-                    selected_workflow_state,
-                    self.size_info(app).pane_height_px().as_f32(),
-                    menu_positioning,
-                );
-            }
-        }
-
-        if self.is_voltron_open && self.is_pane_focused(app) {
-            add_voltron_overlay(&mut stack, &self.voltron_view, menu_positioning);
-        }
-
         if self.is_pane_focused(app) {
             add_input_suggestions_overlays(self, &mut stack, appearance, menu_positioning, app);
         }
@@ -194,8 +178,6 @@ impl Input {
             column.add_child(ChildView::new(&self.inline_profile_selector_view).finish());
         } else if self.suggestions_mode_model.as_ref(app).is_slash_commands() {
             column.add_child(ChildView::new(&self.inline_slash_commands_view).finish());
-        } else if self.suggestions_mode_model.as_ref(app).is_prompts_menu() {
-            column.add_child(ChildView::new(&self.inline_prompts_menu_view).finish());
         } else if self
             .suggestions_mode_model
             .as_ref(app)

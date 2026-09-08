@@ -49,7 +49,6 @@ use crate::{
         alt_screen_reporting::AltScreenReporting, keys::TerminalKeybindings,
         resizable_data::ResizableData, History, TerminalView,
     },
-    workflows::local_workflows::LocalWorkflows,
     workspace::{sync_inputs::SyncedInputState, ActiveSession},
     workspaces::user_workspaces::UserWorkspaces,
 };
@@ -75,7 +74,6 @@ pub fn initialize_app_for_terminal_view(app: &mut App) {
     app.add_singleton_model(PrivacySettings::mock);
     app.add_singleton_model(|_ctx| SyncedInputState::mock());
     app.add_singleton_model(|_| ResizableData::default());
-    app.add_singleton_model(LocalWorkflows::new);
     app.add_singleton_model(|_| History::default());
     app.add_singleton_model(|_| BlocklistAIHistoryModel::new_for_test());
     app.add_singleton_model(|_| CLIAgentSessionsModel::new());

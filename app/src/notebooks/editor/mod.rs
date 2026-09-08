@@ -1,35 +1,29 @@
 //! Rich-text notebooks editor.
 
-use std::sync::Arc;
+use pathfinder_color::ColorU;
 
 use markdown_parser::markdown_parser::CODE_BLOCK_DEFAULT_MARKDOWN_LANG;
-use pathfinder_color::ColorU;
 use warp_core::ui::{builder::CHECK_SVG_PATH, theme::color::internal_colors};
 use warp_editor::{
     content::text::{
         BlockHeaderSize, BlockType as ContentBlockType, BufferBlockStyle, CodeBlockType,
     },
     render::model::{
-        BrokenLinkStyle, CheckBoxStyle, EmbeddedItem, HorizontalRuleStyle, InlineCodeStyle,
+        BrokenLinkStyle, CheckBoxStyle, HorizontalRuleStyle, InlineCodeStyle,
         ParagraphStyles, RichTextStyles, TableStyle, PARAGRAPH_MIN_HEIGHT,
     },
 };
-use warp_util::user_input::UserInput;
 use warpui::{elements::Border, fonts::FamilyId, ui_components::checkbox::HOVER_BACKGROUND_COLOR};
 
 use crate::{
     appearance::Appearance,
-    notebooks::editor::embedded_item::EmbeddedWorkflow,
     settings::{derived_notebook_font_size, FontSettings},
     themes::theme::Fill,
     ui_components::icons::Icon,
     util::color::{ContrastingColor, MinimumAllowedContrast},
-    workflows::{WorkflowObject, WorkflowSource, WorkflowType},
 };
 
 mod block_insertion_menu;
-mod embedded_item;
-mod embedding_model;
 mod find_bar;
 mod interaction_state_model;
 pub mod keys;
@@ -144,17 +138,6 @@ impl BlockType {
             BlockType::Code => "Code",
             BlockType::TaskList => "To-do list",
         }
-    }
-}
-
-/// The embedded item transformation for notebooks.
-pub(super) fn notebook_embedded_item_conversion(
-    mut mapping: serde_yaml::Mapping,
-) -> Option<Arc<dyn EmbeddedItem>> {
-    use serde_yaml::Value;
-    match mapping.remove(&Value::String("id".to_string())) {
-        Some(Value::String(hashed_id)) => Some(Arc::new(EmbeddedWorkflow::new(hashed_id))),
-        _ => None,
     }
 }
 
@@ -327,39 +310,3 @@ impl<'a> From<&'a BufferBlockStyle> for BlockType {
     }
 }
 
-/// Wrapper around the shared [`Workflow`] type with additional context for workflows contained
-/// within a notebook.
-///
-/// This may be a command block that's part of the notebook text, or an embedded Dais Drive workflow.
-#[derive(Debug, Clone, PartialEq)]
-pub struct NotebookWorkflow {
-    /// Definition of the workflow itself.
-    pub workflow: UserInput<Arc<WorkflowType>>,
-    /// The source of the workflow, for attribution. If `None`, the workflow should be attributed
-    /// to the parent notebook.
-    pub source: Option<WorkflowSource>,
-}
-
-impl NotebookWorkflow {
-    pub fn from_cloud_workflow(cloud_workflow: Box<WorkflowObject>) -> Self {
-        Self {
-            source: Some(cloud_workflow.permissions.owner.into()),
-            workflow: UserInput::new(Arc::new(WorkflowType::Cloud(cloud_workflow))),
-        }
-    }
-
-    /// Extract the [`WorkflowType`], assigning a name using the given callback if needed.
-    pub fn named_workflow<F: FnOnce() -> Option<String>>(&self, name: F) -> Arc<WorkflowType> {
-        match &**self.workflow {
-            WorkflowType::Notebook(workflow) if workflow.name().is_empty() => match name() {
-                Some(name) => {
-                    let mut workflow = workflow.clone();
-                    workflow.set_name(name.as_str());
-                    Arc::new(WorkflowType::Notebook(workflow))
-                }
-                None => (*self.workflow).clone(),
-            },
-            _ => (*self.workflow).clone(),
-        }
-    }
-}

@@ -80,11 +80,6 @@ pub fn wire_up_pty_controller_with_view<T: EventLoopSender>(
                     return;
                 };
 
-                model_clone
-                    .lock()
-                    .block_list_mut()
-                    .active_block_mut()
-                    .set_cloud_workflow_state(event.workflow_id);
                 // 外部捕获 (T5): 别名是唯一入口(cc-dais/omp-dais/pi-dais 经
                 // bootstrap 静默武装), 裸命令零改写 — 此处不做任何注入。
                 let command = event.command.clone();

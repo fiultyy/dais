@@ -193,7 +193,6 @@ use self::model::AIBlockModel;
 use self::model::AIBlockModelHelper;
 use super::inline_action::requested_action::CTRL_C_KEYSTROKE;
 use super::inline_action::requested_action::ENTER_KEYSTROKE;
-use super::suggested_agent_mode_workflow_modal::SuggestedAgentModeWorkflowAndId;
 use super::suggested_rule_modal::SuggestedRuleAndId;
 use crate::code_review::comments::{
     attach_pending_imported_comments, convert_insert_review_comments, AttachedReviewComment,
@@ -833,8 +832,6 @@ pub struct AIBlock {
     /// The suggested rules to render in the block.
     suggested_rules: Vec<ViewHandle<SuggestionChipView>>,
 
-    /// The suggested agent mode workflows to render in the block.
-    suggested_agent_mode_workflow: Option<ViewHandle<SuggestionChipView>>,
 
     manage_rules_button: ViewHandle<ActionButton>,
 
@@ -1240,7 +1237,6 @@ impl AIBlock {
             ambient_agent_view_model,
             autonomy_setting_speedbump: Default::default(),
             suggested_rules: Default::default(),
-            suggested_agent_mode_workflow: Default::default(),
             manage_rules_button,
             keyboard_navigable_buttons: None,
             terminal_view_id,
@@ -2086,33 +2082,8 @@ impl AIBlock {
                             rule_and_id: rule_and_id.clone(),
                         });
                     }
-                    _ => {}
                 });
                 self.suggested_rules.push(rule_view);
-            }
-        }
-
-        // Only show the agent mode workflow if there are no rules.
-        if FeatureFlag::SuggestedAgentModeWorkflows.is_enabled() && self.suggested_rules.is_empty()
-        {
-            if let Some(workflow) = suggestions.agent_mode_workflows.first() {
-                let workflow_view = ctx.add_typed_action_view(|ctx| {
-                    SuggestionChipView::new_agent_mode_workflow_chip(workflow.clone(), ctx)
-                });
-                ctx.subscribe_to_view(&workflow_view, |_me, _view, event, ctx| match event {
-                    SuggestedChipViewEvent::OpenWorkflow { sync_id } => {
-                        ctx.emit(AIBlockEvent::OpenWorkflow { sync_id: *sync_id });
-                    }
-                    SuggestedChipViewEvent::ShowSuggestedAgentModeWorkflowModal {
-                        workflow_and_id,
-                    } => {
-                        ctx.emit(AIBlockEvent::OpenSuggestedAgentModeWorkflowModal {
-                            workflow_and_id: workflow_and_id.clone(),
-                        });
-                    }
-                    _ => {}
-                });
-                self.suggested_agent_mode_workflow = Some(workflow_view);
             }
         }
 
@@ -5133,9 +5104,6 @@ pub enum AIBlockEvent {
         /// If set, open the fact collection to the specific rule.
         sync_id: Option<SyncId>,
     },
-    OpenWorkflow {
-        sync_id: SyncId,
-    },
     /// Emitted when the continue conversation button is clicked
     ContinueConversation {
         conversation_id: AIConversationId,
@@ -5147,9 +5115,6 @@ pub enum AIBlockEvent {
         /// this is the ID of that block.
         trigger_block_id: Option<BlockId>,
         auto_resume: bool,
-    },
-    OpenSuggestedAgentModeWorkflowModal {
-        workflow_and_id: SuggestedAgentModeWorkflowAndId,
     },
     OpenSuggestedRuleDialog {
         rule_and_id: SuggestedRuleAndId,

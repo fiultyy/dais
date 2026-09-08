@@ -240,11 +240,6 @@ pub struct SharedNotebooksPolicy {
     pub is_unlimited: bool,
     pub limit: i64,
 }
-#[derive(Clone, Debug, Copy, Serialize, Deserialize)]
-pub struct SharedWorkflowsPolicy {
-    pub is_unlimited: bool,
-    pub limit: i64,
-}
 
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub struct SessionSharingPolicy {
@@ -328,7 +323,6 @@ pub struct Tier {
     pub warp_ai_policy: Option<WarpAiPolicy>,
     pub workspace_size_policy: Option<WorkspaceSizePolicy>,
     pub shared_notebooks_policy: Option<SharedNotebooksPolicy>,
-    pub shared_workflows_policy: Option<SharedWorkflowsPolicy>,
     pub session_sharing_policy: Option<SessionSharingPolicy>,
     pub ai_autonomy_policy: Option<AIAutonomyPolicy>,
     pub telemetry_data_collection_policy: Option<TelemetryDataCollectionPolicy>,

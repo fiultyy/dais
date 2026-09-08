@@ -1,6 +1,5 @@
 use super::env_var_collection_search_item::EnvVarCollectionSearchItem;
 use super::notebook_search_item::NotebookSearchItem;
-use super::workflow_search_item::WorkflowSearchItem;
 use crate::cloud_object::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
 use crate::cloud_object::{
     GenericStringObjectFormat, JsonObjectType, ObjectType, StoredObject, StoredObjectLocation,
@@ -13,11 +12,8 @@ use crate::search::data_source::{DataSourceSearchError, Query, QueryResult};
 use crate::search::env_var_collections::fuzzy_match::FuzzyMatchEnvVarCollectionResult;
 use crate::search::mixer::DataSourceRunErrorWrapper;
 use crate::search::notebooks::fuzzy_match::FuzzyMatchNotebookResult;
-use crate::search::workflows::fuzzy_match::FuzzyMatchWorkflowResult;
 use crate::search::QueryFilter;
 use crate::server::ids::{ObjectUid, SyncId};
-use crate::settings::AISettings;
-use crate::workflows::WorkflowObject;
 use std::collections::HashMap;
 use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
 
@@ -116,21 +112,6 @@ impl DataSource {
             _ => {}
         }
     }
-
-    pub fn search_workflows(
-        &self,
-        query: &Query,
-        should_include_agent_mode_prompts: bool,
-        should_include_command_workflows: bool,
-        app: &AppContext,
-    ) -> anyhow::Result<Vec<WorkflowSearchItem>> {
-        self.searcher.search_workflow(
-            &query.text.to_lowercase(),
-            app,
-            should_include_agent_mode_prompts,
-            should_include_command_workflows,
-        )
-    }
 }
 
 impl crate::search::mixer::SyncDataSource for DataSource {
@@ -173,31 +154,6 @@ impl crate::search::mixer::SyncDataSource for DataSource {
             );
         }
 
-        let should_include_agent_mode_prompts =
-            (query.filters.contains(&QueryFilter::AgentModeWorkflows)
-                || should_include_all_drive_objects)
-                && AISettings::as_ref(app).is_any_ai_enabled(app);
-        let should_include_command_workflows =
-            query.filters.contains(&QueryFilter::Workflows) || should_include_all_drive_objects;
-
-        if should_include_agent_mode_prompts || should_include_command_workflows {
-            filtered_cloud_objects.extend(
-                self.search_workflows(
-                    query,
-                    should_include_agent_mode_prompts,
-                    should_include_command_workflows,
-                    app,
-                )
-                .map_err(|err| {
-                    Box::new(DataSourceSearchError {
-                        message: err.to_string(),
-                    }) as DataSourceRunErrorWrapper
-                })?
-                .into_iter()
-                .map(QueryResult::from),
-            );
-        }
-
         if query.filters.contains(&QueryFilter::EnvironmentVariables)
             || should_include_all_drive_objects
         {
@@ -232,14 +188,6 @@ impl DataSource {
         app: &AppContext,
     ) -> Option<QueryResult<CommandPaletteItemAction>> {
         let object = ObjectStoreModel::as_ref(app).get_by_uid(&sync_id.uid())?;
-        let workflow: Option<&WorkflowObject> = object.into();
-        if let Some(workflow) = workflow {
-            return Some(QueryResult::from(WorkflowSearchItem {
-                match_result: FuzzyMatchWorkflowResult::no_match(),
-                workflow: workflow.clone(),
-            }));
-        }
-
         let notebook: Option<&NotebookObject> = object.into();
         if let Some(notebook) = notebook {
             return Some(QueryResult::from(NotebookSearchItem {
@@ -288,14 +236,6 @@ trait WarpDriveSearcher {
         app: &AppContext,
     ) -> anyhow::Result<Vec<NotebookSearchItem>>;
 
-    fn search_workflow(
-        &self,
-        query: &str,
-        app: &AppContext,
-        should_include_am_prompts: bool,
-        should_include_command_workflow: bool,
-    ) -> anyhow::Result<Vec<WorkflowSearchItem>>;
-
     fn search_env_var(
         &self,
         query: &str,
@@ -312,7 +252,6 @@ trait WarpDriveSearcher {
 #[derive(Default)]
 struct FuzzyWarpDriveSearcher {
     notebooks: HashMap<ObjectUid, NotebookObject>,
-    workflows: HashMap<ObjectUid, WorkflowObject>,
     env_vars: HashMap<ObjectUid, EnvVarCollectionObject>,
 }
 
@@ -330,14 +269,6 @@ impl WarpDriveSearcher for FuzzyWarpDriveSearcher {
                     self.notebooks.insert(notebook.uid(), notebook.clone());
                 } else {
                     anyhow::bail!("Expected NotebookObject, got {:?}", object);
-                }
-            }
-            ObjectType::Workflow => {
-                let workflow: Option<&WorkflowObject> = object.into();
-                if let Some(workflow) = workflow {
-                    self.workflows.insert(workflow.uid(), workflow.clone());
-                } else {
-                    anyhow::bail!("Expected WorkflowObject, got {:?}", object);
                 }
             }
             ObjectType::GenericStringObject(GenericStringObjectFormat::Json(
@@ -379,9 +310,6 @@ impl WarpDriveSearcher for FuzzyWarpDriveSearcher {
             ObjectType::Notebook => {
                 self.notebooks.remove(&uid);
             }
-            ObjectType::Workflow => {
-                self.workflows.remove(&uid);
-            }
             ObjectType::GenericStringObject(GenericStringObjectFormat::Json(
                 JsonObjectType::EnvVarCollection,
             )) => {
@@ -411,7 +339,6 @@ impl WarpDriveSearcher for FuzzyWarpDriveSearcher {
     }
 
     fn refresh_search_index(&mut self, app: &AppContext) -> anyhow::Result<()> {
-        self.workflows.clear();
         self.notebooks.clear();
         self.env_vars.clear();
         let model = ObjectStoreModel::as_ref(app);
@@ -421,9 +348,7 @@ impl WarpDriveSearcher for FuzzyWarpDriveSearcher {
             if !active_uids.contains(&object.uid()) {
                 continue;
             }
-            if let Some(workflow) = <Option<&WorkflowObject>>::from(object.as_ref()) {
-                self.workflows.insert(workflow.uid(), workflow.clone());
-            } else if let Some(notebook) = <Option<&NotebookObject>>::from(object.as_ref()) {
+            if let Some(notebook) = <Option<&NotebookObject>>::from(object.as_ref()) {
                 self.notebooks.insert(notebook.uid(), notebook.clone());
             } else if let Some(env_var) = <Option<&EnvVarCollectionObject>>::from(object.as_ref()) {
                 self.env_vars.insert(env_var.uid(), env_var.clone());
@@ -465,36 +390,6 @@ impl WarpDriveSearcher for FuzzyWarpDriveSearcher {
                         match_result,
                         notebook: notebook.clone(),
                     }
-                })
-            })
-            .collect())
-    }
-
-    fn search_workflow(
-        &self,
-        query: &str,
-        app: &AppContext,
-        should_include_am_prompts: bool,
-        should_include_command_workflow: bool,
-    ) -> anyhow::Result<Vec<WorkflowSearchItem>> {
-        let cloud_workflows = ObjectStoreModel::as_ref(app).get_all_active_workflows();
-
-        Ok(cloud_workflows
-            .filter_map(move |workflow| {
-                if !should_include_am_prompts && workflow.model().data.is_agent_mode_workflow()
-                    || !should_include_command_workflow
-                        && workflow.model().data.is_command_workflow()
-                {
-                    return None;
-                };
-                FuzzyMatchWorkflowResult::try_match(
-                    query,
-                    &workflow.model().data,
-                    workflow.breadcrumbs(app).as_str(),
-                )
-                .map(|match_result| WorkflowSearchItem {
-                    match_result,
-                    workflow: workflow.clone(),
                 })
             })
             .collect())
@@ -543,13 +438,10 @@ mod full_text_searcher {
         EnvVarCollectionSearchItem, ENV_VAR_NAME_SEPARATOR,
     };
     use crate::search::command_palette::warp_drive::notebook_search_item::NotebookSearchItem;
-    use crate::search::command_palette::warp_drive::workflow_search_item::WorkflowSearchItem;
     use crate::search::env_var_collections::fuzzy_match::FuzzyMatchEnvVarCollectionResult;
     use crate::search::notebooks::fuzzy_match::FuzzyMatchNotebookResult;
     use crate::search::searcher::{AsyncSearcher, DEFAULT_MEMORY_BUDGET, SCORE_CONVERSION_FACTOR};
-    use crate::search::workflows::fuzzy_match::FuzzyMatchWorkflowResult;
     use crate::server::ids::ObjectUid;
-    use crate::workflows::WorkflowObject;
     use fuzzy_match::FuzzyMatchResult;
     use itertools::Itertools;
     use warpui::r#async::executor::Background;
@@ -577,22 +469,6 @@ mod full_text_searcher {
         boost_factor: 1.15 // Boosted by only 1.15 as the name field has a weighting of 0.6 instead of 0.5 like others.
     );
     define_search_schema!(
-        schema_name: WORKFLOW_SEARCH_SCHEMA,
-        config_name: WorkflowConfig,
-        search_doc: WorkflowSearchDocument,
-        identifying_doc: WorkflowIdDocument,
-        search_fields: [
-            name: 0.5,
-            content: 0.3,
-            description: 0.1,
-            folder: 0.1
-        ],
-        id_fields: [
-            uid: String
-        ],
-        boost_factor: 1.3
-    );
-    define_search_schema!(
         schema_name: ENVVAR_SEARCH_SCHEMA,
         config_name: EnvVarConfig,
         search_doc: EnvVarSearchDocument,
@@ -611,7 +487,6 @@ mod full_text_searcher {
 
     pub(crate) struct FullTextWarpDriveSearcher {
         notebook_searcher: AsyncSearcher<NotebookConfig>,
-        workflow_searcher: AsyncSearcher<WorkflowConfig>,
         env_var_searcher: AsyncSearcher<EnvVarConfig>,
     }
 
@@ -715,31 +590,6 @@ mod full_text_searcher {
                         anyhow::bail!("Expected NotebookObject, got {:?}", object);
                     }
                 }
-                ObjectType::Workflow => {
-                    let workflow_object: Option<&WorkflowObject> = object.into();
-                    if let Some(workflow_object) = workflow_object {
-                        let workflow = &workflow_object.model().data;
-
-                        let title = workflow.name().to_lowercase();
-                        let content = workflow.content().to_lowercase();
-                        let description = workflow
-                            .description()
-                            .unwrap_or(&"".to_owned())
-                            .to_lowercase();
-                        let folder = workflow_object.breadcrumbs(app).to_lowercase();
-
-                        let document = WorkflowSearchDocument {
-                            name: title,
-                            content,
-                            description,
-                            folder,
-                            uid: workflow_object.uid(),
-                        };
-                        self.workflow_searcher.insert_document_async(document)
-                    } else {
-                        anyhow::bail!("Expected WorkflowObject, got {:?}", object);
-                    }
-                }
                 ObjectType::GenericStringObject(GenericStringObjectFormat::Json(
                     JsonObjectType::EnvVarCollection,
                 )) => {
@@ -808,11 +658,6 @@ mod full_text_searcher {
                     self.notebook_searcher
                         .delete_document_async(identifying_entry)
                 }
-                ObjectType::Workflow => {
-                    let identifying_entry = WorkflowIdDocument { uid };
-                    self.workflow_searcher
-                        .delete_document_async(identifying_entry)
-                }
                 ObjectType::GenericStringObject(GenericStringObjectFormat::Json(
                     JsonObjectType::EnvVarCollection,
                 )) => {
@@ -872,32 +717,6 @@ mod full_text_searcher {
                 });
             self.notebook_searcher.build_index_async(notebook_docs)?;
 
-            self.workflow_searcher.clear_search_index_async()?;
-            let workflow_docs = model
-                .cloud_objects()
-                .filter(|obj| active_uids.contains(&obj.uid()))
-                .filter_map(|obj| {
-                    let workflow_object: Option<&WorkflowObject> = obj.as_ref().into();
-                    workflow_object.map(|workflow_object| {
-                        let workflow = &workflow_object.model().data;
-                        let title = workflow.name().to_lowercase();
-                        let content = workflow.content().to_lowercase();
-                        let description = workflow
-                            .description()
-                            .unwrap_or(&"".to_owned())
-                            .to_lowercase();
-                        let folder = workflow_object.breadcrumbs(app).to_lowercase();
-                        WorkflowSearchDocument {
-                            name: title,
-                            content,
-                            description,
-                            folder,
-                            uid: workflow_object.uid(),
-                        }
-                    })
-                });
-            self.workflow_searcher.build_index_async(workflow_docs)?;
-
             self.env_var_searcher.clear_search_index_async()?;
             let env_var_docs = model
                 .cloud_objects()
@@ -951,88 +770,6 @@ mod full_text_searcher {
             app: &AppContext,
         ) -> anyhow::Result<Vec<NotebookSearchItem>> {
             self.search_notebooks_with_filter(query, true, app)
-        }
-
-        fn search_workflow(
-            &self,
-            query: &str,
-            app: &AppContext,
-            should_include_am_prompts: bool,
-            should_include_command_workflow: bool,
-        ) -> anyhow::Result<Vec<WorkflowSearchItem>> {
-            if query.is_empty() {
-                return Ok(self
-                    .workflow_searcher
-                    .get_all_doc_ids()?
-                    .into_iter()
-                    .filter_map(|search_match| {
-                        let workflow_object: Option<&WorkflowObject> =
-                            ObjectStoreModel::as_ref(app)
-                                .get_by_uid(&search_match.uid)?
-                                .into();
-                        let workflow_object = workflow_object?;
-                        let workflow = &workflow_object.model().data;
-
-                        if !should_include_am_prompts && workflow.is_agent_mode_workflow()
-                            || !should_include_command_workflow && workflow.is_command_workflow()
-                        {
-                            return None;
-                        }
-
-                        Some(WorkflowSearchItem {
-                            match_result: FuzzyMatchWorkflowResult::no_match(),
-                            workflow: workflow_object.clone(),
-                        })
-                    })
-                    .collect());
-            }
-
-            Ok(self
-                .workflow_searcher
-                .search_id(query)?
-                .into_iter()
-                .filter_map(|search_match| {
-                    let workflow_object: Option<&WorkflowObject> = ObjectStoreModel::as_ref(app)
-                        .get_by_uid(&search_match.values.uid)?
-                        .into();
-                    let workflow_object = workflow_object?;
-                    let workflow = &workflow_object.model().data;
-
-                    if !should_include_am_prompts && workflow.is_agent_mode_workflow()
-                        || !should_include_command_workflow && workflow.is_command_workflow()
-                    {
-                        return None;
-                    }
-
-                    // Since Tantivy only produces a single score for the entire document, we put it as the score of all 3.
-                    let name_match_result = Some(FuzzyMatchResult {
-                        score: (search_match.score * SCORE_CONVERSION_FACTOR) as i64,
-                        matched_indices: search_match.highlights.name,
-                    });
-                    let content_match_result = Some(FuzzyMatchResult {
-                        score: (search_match.score * SCORE_CONVERSION_FACTOR) as i64,
-                        matched_indices: search_match.highlights.content,
-                    });
-                    let description_match_result = Some(FuzzyMatchResult {
-                        score: (search_match.score * SCORE_CONVERSION_FACTOR) as i64,
-                        matched_indices: search_match.highlights.description,
-                    });
-                    let folder_match_result = Some(FuzzyMatchResult {
-                        score: (search_match.score * SCORE_CONVERSION_FACTOR) as i64,
-                        matched_indices: search_match.highlights.folder,
-                    });
-
-                    Some(WorkflowSearchItem {
-                        match_result: FuzzyMatchWorkflowResult {
-                            name_match_result,
-                            content_match_result,
-                            description_match_result,
-                            folder_match_result,
-                        },
-                        workflow: workflow_object.clone(),
-                    })
-                })
-                .collect())
         }
 
         fn search_env_var(
@@ -1108,8 +845,6 @@ mod full_text_searcher {
             FullTextWarpDriveSearcher {
                 notebook_searcher: NOTEBOOK_SEARCH_SCHEMA
                     .create_async_searcher(MEMORY_BUDGET, background.clone()),
-                workflow_searcher: WORKFLOW_SEARCH_SCHEMA
-                    .create_async_searcher(DEFAULT_MEMORY_BUDGET, background.clone()),
                 env_var_searcher: ENVVAR_SEARCH_SCHEMA
                     .create_async_searcher(DEFAULT_MEMORY_BUDGET, background),
             }

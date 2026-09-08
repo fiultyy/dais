@@ -814,12 +814,6 @@ pub enum AgentOutputImageLayout {
     Inline,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct SuggestedAgentModeWorkflow {
-    pub name: String,
-    pub prompt: String,
-    pub logging_id: SuggestedLoggingId,
-}
 
 /// A ID for an AI action generated as part of an [`AIAgentOutput`].
 ///
@@ -2043,7 +2037,7 @@ pub enum AIAgentAttachment {
     DriveObject {
         /// The UID of the drive object.
         uid: String,
-        /// The payload of the drive object (e.g., workflow content).
+        /// Drive 对象的内容载荷。
         payload: Option<DriveObjectPayload>,
     },
     DiffHunk {
@@ -2183,11 +2177,6 @@ impl DiffSetHunk {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DriveObjectPayload {
-    Workflow {
-        name: String,
-        description: String,
-        command: String,
-    },
     Notebook {
         title: String,
         content: String,
@@ -2963,7 +2952,6 @@ pub struct SuggestedRule {
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct Suggestions {
     pub rules: Vec<SuggestedRule>,
-    pub agent_mode_workflows: Vec<SuggestedAgentModeWorkflow>,
 }
 
 impl Suggestions {
@@ -2980,19 +2968,6 @@ impl Suggestions {
             .filter(|rule| !existing_logging_ids.contains(&rule.logging_id))
             .cloned();
         self.rules.extend(new_rules);
-
-        // Add new agent mode workflows, ensuring no duplicates by logging_id
-        let existing_workflow_ids: Vec<_> = self
-            .agent_mode_workflows
-            .iter()
-            .map(|workflow| workflow.logging_id.clone())
-            .collect();
-        let new_workflows = other
-            .agent_mode_workflows
-            .iter()
-            .filter(|workflow| !existing_workflow_ids.contains(&workflow.logging_id))
-            .cloned();
-        self.agent_mode_workflows.extend(new_workflows);
     }
 }
 

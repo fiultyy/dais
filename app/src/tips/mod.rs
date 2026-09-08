@@ -10,7 +10,6 @@ use crate::util::bindings::trigger_to_keystroke;
 
 // TODO: Rename and move to resource center
 pub enum WelcomeTipFeature {
-    Workflows,
     CommandPalette,
     SplitPane,
     ThemePicker,
@@ -18,12 +17,11 @@ pub enum WelcomeTipFeature {
     AiCommandSearch,
 }
 
-pub const WELCOME_TIP_FEATURE_LENGTH: usize = 6;
+pub const WELCOME_TIP_FEATURE_LENGTH: usize = 5;
 
 impl WelcomeTipFeature {
     pub fn editable_binding_name(&self) -> &'static str {
         match self {
-            WelcomeTipFeature::Workflows => "input:toggle_workflows",
             WelcomeTipFeature::CommandPalette => "workspace:toggle_command_palette",
             WelcomeTipFeature::SplitPane => "pane_group:add_right",
             WelcomeTipFeature::HistorySearch => "input:search_command_history",

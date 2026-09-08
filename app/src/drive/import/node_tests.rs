@@ -21,7 +21,7 @@ fn mock_tree() -> FileUploadState {
 
     let second_level_file = FileNode::new(
         "second_level".to_string(),
-        FileType::Workflow,
+        FileType::Notebook,
         PathBuf::new(),
         FolderId(1),
     );

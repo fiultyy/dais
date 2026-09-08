@@ -48,7 +48,6 @@ impl SyncDataSource for ZeroStateDataSource {
         let prioritized_commands = vec![
             &*commands::EDIT,
             &*commands::CONVERSATIONS,
-            &*commands::PROMPTS,
             &*commands::PLAN,
             &*commands::AGENT,
         ];

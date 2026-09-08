@@ -36,9 +36,6 @@ pub enum Mode {
     View,
 }
 
-/// True if the object is currently being saved. We don't allow editing workflows
-/// yet so this is only used for notebooks, but we will want it to apply for
-/// workflows also.
 #[derive(Default)]
 pub enum SavingStatus {
     #[default]
@@ -46,7 +43,7 @@ pub enum SavingStatus {
     Saving,
 }
 
-/// Data displayed in the status bar that is also relevant for workflows and notebooks.
+/// Data displayed in the status bar that is also relevant for notebooks.
 /// We share this data between views by making it a model.
 #[derive(Default)]
 pub struct ActiveNotebookData {

@@ -29,11 +29,6 @@ use crate::{
     server::ids::{ClientId, HashableId, ObjectUid, ServerId, SyncId, ToServerId},
     server_time::ServerTimestamp,
     settings::cloud_preferences::Preference,
-    workflows::{
-        workflow::Workflow,
-        workflow_enum::{WorkflowEnum, WorkflowEnumObject, WorkflowEnumObjectModel},
-        WorkflowId, WorkflowObjectModel,
-    },
     workspaces::user_workspaces::UserWorkspaces,
 };
 use chrono::{DateTime, Utc};
@@ -323,36 +318,6 @@ impl UpdateManager {
         );
     }
 
-    pub fn update_workflow(
-        &mut self,
-        workflow: Workflow,
-        workflow_id: SyncId,
-        revision_ts: Option<Revision>,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        self.update_object(
-            WorkflowObjectModel::new(workflow),
-            workflow_id,
-            revision_ts,
-            ctx,
-        );
-    }
-
-    pub fn update_workflow_enum(
-        &mut self,
-        workflow_enum: WorkflowEnum,
-        workflow_enum_id: SyncId,
-        revision_ts: Option<Revision>,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        self.update_object(
-            WorkflowEnumObjectModel::new(workflow_enum),
-            workflow_enum_id,
-            revision_ts,
-            ctx,
-        );
-    }
-
     pub fn update_env_var_collection(
         &mut self,
         env_var_collection: EnvVarCollection,
@@ -447,28 +412,20 @@ impl UpdateManager {
         });
         ctx.notify();
     }
-
     /// Attempts to move the object identified by `object_id`
     /// to the root of the drive identified by `destination_owner`.
     /// Dais(Wave 6-7):原远端腿调用 `transfer_*_owner` 系列 stub,永 `Ok(true)`,
     /// 跑一圈后清 has_pending_permissions_change + emit Success toast。这里折叠为本地直写。
-    /// `move_object_to_drive_failed` / `revert_workflow_on_failed_move` 随之退役。
     #[allow(clippy::too_many_arguments)]
     fn move_object_to_drive(
         &mut self,
         server_id: ServerId,
-        object_type: ObjectType,
         destination_owner: Owner,
         _current_folder: Option<SyncId>,
         _current_owner: Owner,
         _current_permissions_last_updated_ts: Option<ServerTimestamp>,
         ctx: &mut ModelContext<Self>,
     ) {
-        // 本地复制 workflow enums 到目标 owner 仍需要进行 —— `update_object` /
-        // `create_object` 都是本地 stub,这个调用是纯本地 model 动作。
-        if object_type == ObjectType::Workflow {
-            let _ = self.copy_workflow_enums_to_drive(server_id, destination_owner, ctx);
-        }
 
         ObjectStoreModel::handle(ctx).update(ctx, |object_store_model, ctx| {
             if let Some(obj) = object_store_model.get_mut_by_uid(&server_id.uid()) {
@@ -489,66 +446,6 @@ impl UpdateManager {
             },
         });
         ctx.notify();
-    }
-
-    /// Given a workflow_id and a destination drive, make a copy of all referenced workflow enums in the destination drive.
-    /// Returns the original workflow object if it was modified (in case a future revert is needed), otherwise returns None.
-    fn copy_workflow_enums_to_drive(
-        &mut self,
-        server_id: ServerId,
-        owner: Owner,
-        ctx: &mut ModelContext<Self>,
-    ) -> Option<Workflow> {
-        let workflow_id = SyncId::ServerId(server_id);
-        let workflow = ObjectStoreModel::as_ref(ctx).get_workflow(&workflow_id);
-
-        if let Some(workflow) = workflow {
-            let original_workflow = workflow.model().data.clone();
-            let mut workflow_model = original_workflow.clone();
-
-            // Duplicate all enums associated with the workflow
-            let enums = workflow_model.get_enum_ids();
-            for enum_id in enums.iter() {
-                let object_store_model = ObjectStoreModel::as_ref(ctx);
-                let object: Option<&WorkflowEnumObject> =
-                    object_store_model.get_object_of_type(enum_id);
-                let Some(object) = object else {
-                    log::error!("Could not find referenced workflow enum to copy over to the new space, skipping");
-                    continue;
-                };
-
-                let client_id = ClientId::new();
-
-                // Create a duplicate enum in the new space with a new client ID
-                self.create_object(
-                    object.model().clone(),
-                    owner,
-                    client_id,
-                    StoredObjectEventEntrypoint::Unknown,
-                    true,
-                    None,
-                    // When adding the initiated_by parameter to this function call, InitiatedBy::User was set as a default value.
-                    // This can be changed to InitiatedBy::System if this action was automatically kicked off by the system and we do not want a user facing toast.
-                    InitiatedBy::User,
-                    ctx,
-                );
-
-                workflow_model.replace_object_id(*enum_id, SyncId::ClientId(client_id));
-            }
-
-            // Update the workflow with the new enum IDs, if there are any
-            if !enums.is_empty() {
-                self.update_workflow(workflow_model, workflow_id, None, ctx);
-                Some(original_workflow)
-            } else {
-                None
-            }
-        } else {
-            log::error!(
-                "Tried to move workflow enums to new space but could not find associated workflow",
-            );
-            None
-        }
     }
 
     // This method moves an object from its current location to a new location.
@@ -633,7 +530,6 @@ impl UpdateManager {
                             });
                             self.move_object_to_drive(
                                 server_id,
-                                object_type,
                                 destination_owner,
                                 object_current_folder,
                                 object_current_owner,
@@ -699,9 +595,6 @@ impl UpdateManager {
         match object_type_and_id {
             ObjectTypeAndId::Notebook(notebook_id) => {
                 self.duplicate_object_internal::<NotebookId, NotebookObjectModel>(notebook_id, ctx);
-            }
-            ObjectTypeAndId::Workflow(workflow_id) => {
-                self.duplicate_object_internal::<WorkflowId, WorkflowObjectModel>(workflow_id, ctx);
             }
             ObjectTypeAndId::GenericStringObject { object_type, id } => {
                 if let GenericStringObjectFormat::Json(JsonObjectType::EnvVarCollection) =
@@ -921,55 +814,6 @@ impl UpdateManager {
             duplicate_name = get_duplicate_object_name(&duplicate_name);
         }
         duplicate_name
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn create_workflow(
-        &mut self,
-        workflow: Workflow,
-        owner: Owner,
-        initial_folder_id: Option<SyncId>,
-        client_id: ClientId,
-        entrypoint: StoredObjectEventEntrypoint,
-        force_expand: bool,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        self.create_object(
-            WorkflowObjectModel::new(workflow),
-            owner,
-            client_id,
-            entrypoint,
-            force_expand,
-            initial_folder_id,
-            // When adding the initiated_by parameter to this function call, InitiatedBy::User was set as a default value.
-            // This can be changed to InitiatedBy::System if this action was automatically kicked off by the system and we do not want a user facing toast.
-            InitiatedBy::User,
-            ctx,
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn create_workflow_enum(
-        &mut self,
-        workflow_enum: WorkflowEnum,
-        owner: Owner,
-        client_id: ClientId,
-        entrypoint: StoredObjectEventEntrypoint,
-        force_expand: bool,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        self.create_object(
-            WorkflowEnumObjectModel::new(workflow_enum),
-            owner,
-            client_id,
-            entrypoint,
-            force_expand,
-            None,
-            // When adding the initiated_by parameter to this function call, InitiatedBy::User was set as a default value.
-            // This can be changed to InitiatedBy::System if this action was automatically kicked off by the system and we do not want a user facing toast.
-            InitiatedBy::User,
-            ctx,
-        );
     }
 
     #[allow(clippy::too_many_arguments)]

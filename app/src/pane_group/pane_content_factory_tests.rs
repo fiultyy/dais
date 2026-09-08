@@ -85,7 +85,6 @@ impl PaneContentFactory for RecordingFactory {
             LeafContents::AIDocument(_) => "DeferredPlaceholder",
             LeafContents::Code(_) => "Code",
             LeafContents::EnvVarCollection(_) => "EnvVarCollection",
-            LeafContents::Workflow(_) => "Workflow",
             LeafContents::Settings(_) => "Settings",
             LeafContents::AIFact(_) => "AIFact",
             LeafContents::ExecutionProfileEditor => "ExecutionProfileEditor(unrestorable)",
@@ -412,13 +411,6 @@ fn leaf_contents_is_persisted_truth_table_covers_all_variants() {
     assert!(
         LeafContents::EnvVarCollection(EnvVarCollectionPaneSnapshot::EnvVarCollectionObject {
             env_var_collection_id: None,
-        })
-        .is_persisted()
-    );
-    assert!(
-        LeafContents::Workflow(WorkflowPaneSnapshot::WorkflowObject {
-            workflow_id: None,
-            settings: DaisDriveObjectSettings::default(),
         })
         .is_persisted()
     );

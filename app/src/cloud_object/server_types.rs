@@ -25,7 +25,6 @@ use crate::{
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ObjectIdType {
     Notebook,
-    Workflow,
     Folder,
     GenericStringObject,
 }
@@ -34,7 +33,6 @@ impl ObjectIdType {
     pub fn sqlite_prefix(&self) -> &'static str {
         match self {
             ObjectIdType::Notebook => "Notebook",
-            ObjectIdType::Workflow => "Workflow",
             ObjectIdType::Folder => "Folder",
             ObjectIdType::GenericStringObject => "GenericStringObject",
         }
@@ -44,7 +42,6 @@ impl ObjectIdType {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize)]
 pub enum ObjectType {
     Notebook,
-    Workflow,
     Folder,
     GenericStringObject(GenericStringObjectFormat),
 }
@@ -53,7 +50,6 @@ impl ObjectType {
     pub fn sqlite_object_type_as_str(&self) -> Cow<'_, str> {
         match self {
             ObjectType::Notebook => "NOTEBOOK".into(),
-            ObjectType::Workflow => "WORKFLOW".into(),
             ObjectType::Folder => "FOLDER".into(),
             ObjectType::GenericStringObject(format) => format.to_string().into(),
         }
@@ -61,8 +57,6 @@ impl ObjectType {
 }
 
 const NOTEBOOK_OBJECT_STRING: &str = "notebook";
-const WORKFLOW_OBJECT_STRING: &str = "workflow";
-const PROMPT_OBJECT_STRING: &str = "prompt";
 const FOLDER_OBJECT_STRING: &str = "folder";
 const ENV_VAR_COLLECTION_STRING: &str = "env-vars";
 
@@ -72,7 +66,6 @@ impl FromStr for ObjectType {
     fn from_str(s: &str) -> Result<Self> {
         match s {
             NOTEBOOK_OBJECT_STRING => Ok(Self::Notebook),
-            WORKFLOW_OBJECT_STRING | PROMPT_OBJECT_STRING => Ok(Self::Workflow),
             FOLDER_OBJECT_STRING => Ok(Self::Folder),
             ENV_VAR_COLLECTION_STRING => Ok(Self::GenericStringObject(
                 GenericStringObjectFormat::Json(JsonObjectType::EnvVarCollection),
@@ -86,7 +79,6 @@ impl fmt::Display for ObjectType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ObjectType::Notebook => write!(f, "{NOTEBOOK_OBJECT_STRING}"),
-            ObjectType::Workflow => write!(f, "{WORKFLOW_OBJECT_STRING}"),
             ObjectType::Folder => write!(f, "{FOLDER_OBJECT_STRING}"),
             ObjectType::GenericStringObject(GenericStringObjectFormat::Json(
                 JsonObjectType::EnvVarCollection,
@@ -103,7 +95,6 @@ impl From<ObjectType> for ObjectIdType {
     fn from(value: ObjectType) -> Self {
         match value {
             ObjectType::Notebook => ObjectIdType::Notebook,
-            ObjectType::Workflow => ObjectIdType::Workflow,
             ObjectType::Folder => ObjectIdType::Folder,
             ObjectType::GenericStringObject(_) => ObjectIdType::GenericStringObject,
         }
@@ -136,7 +127,6 @@ impl ToString for GenericStringObjectFormat {
 pub enum JsonObjectType {
     Preference,
     EnvVarCollection,
-    WorkflowEnum,
     AIFact,
     MCPServer,
     AIExecutionProfile,
@@ -148,7 +138,6 @@ impl JsonObjectType {
         match self {
             JsonObjectType::Preference => "PREFERENCE",
             JsonObjectType::EnvVarCollection => "ENVVARCOLLECTION",
-            JsonObjectType::WorkflowEnum => "WORKFLOWENUM",
             JsonObjectType::AIFact => "AIFACT",
             JsonObjectType::MCPServer => "MCPSERVER",
             JsonObjectType::AIExecutionProfile => "AIEXECUTIONPROFILE",
@@ -164,7 +153,6 @@ impl TryFrom<&str> for JsonObjectType {
         match value {
             "PREFERENCE" => Ok(JsonObjectType::Preference),
             "ENVVARCOLLECTION" => Ok(JsonObjectType::EnvVarCollection),
-            "WORKFLOWENUM" => Ok(JsonObjectType::WorkflowEnum),
             "AIFACT" => Ok(JsonObjectType::AIFact),
             "MCPSERVER" => Ok(JsonObjectType::MCPServer),
             "AIEXECUTIONPROFILE" => Ok(JsonObjectType::AIExecutionProfile),

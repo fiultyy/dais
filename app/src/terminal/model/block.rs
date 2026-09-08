@@ -372,10 +372,6 @@ pub struct Block {
 
     filter_query: Option<BlockFilterQuery>,
 
-    /// If the command is a cloud workflow, this is set to its id. If the block was not a workflow,
-    /// this is None.
-    cloud_workflow_id: Option<SyncId>,
-
     /// If the command included an env var invocation. If not this will be None.
     cloud_env_var_collection_id: Option<SyncId>,
 
@@ -1001,7 +997,6 @@ impl Block {
             prompt_snapshot: None,
             home_dir: None,
             filter_query: None,
-            cloud_workflow_id: None,
             cloud_env_var_collection_id: None,
             last_painted_at: None.into(),
             has_received_user_input: false,
@@ -2605,14 +2600,6 @@ impl Block {
 
     pub fn cloud_env_var_collection_state(&self) -> Option<SyncId> {
         self.cloud_env_var_collection_id
-    }
-
-    pub fn set_cloud_workflow_state(&mut self, workflow_id: Option<SyncId>) {
-        self.cloud_workflow_id = workflow_id;
-    }
-
-    pub fn cloud_workflow_state(&self) -> Option<SyncId> {
-        self.cloud_workflow_id
     }
 
     pub fn server_pwd(&self) -> Option<Cow<'_, str>> {

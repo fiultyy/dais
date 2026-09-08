@@ -1,12 +1,6 @@
 use crate::{
-    cloud_object::{
-        model::persistence::ObjectStoreModel, update_manager::UpdateManager, Space,
-        StoredObjectEventEntrypoint, StoredObjectLocation,
-    },
     network::{NetworkStatus, NetworkStatusKind},
-    server::ids::ClientId,
     util::bindings::keybinding_name_to_display_string,
-    workflows::workflow::Workflow,
     workspaces::{team::Team, user_workspaces::UserWorkspaces, workspace::Workspace},
 };
 use warpui::{async_assert, async_assert_eq, integration::TestStep, SingletonEntity};
@@ -87,39 +81,6 @@ pub fn join_a_workspace() -> TestStep {
         .add_assertion(move |app, _| {
             UserWorkspaces::handle(app).read(app, |user_workspaces, _| {
                 async_assert!(user_workspaces.has_workspaces(), "user is on a workspace")
-            })
-        })
-}
-
-pub fn create_a_personal_workflow() -> TestStep {
-    TestStep::new("Create a personal workflow")
-        .with_action(move |app, _, _| {
-            UpdateManager::handle(app).update(app, |update_manager, ctx| {
-                update_manager.create_workflow(
-                    Workflow::new("My first workflow", "ls"),
-                    UserWorkspaces::as_ref(ctx)
-                        .personal_drive(ctx)
-                        .expect("User UID must be set in tests"),
-                    None,
-                    ClientId::default(),
-                    StoredObjectEventEntrypoint::ManagementUI,
-                    true,
-                    ctx,
-                )
-            })
-        })
-        .add_assertion(move |app, _| {
-            ObjectStoreModel::handle(app).read(app, |object_store_model, ctx| {
-                async_assert!(
-                    object_store_model
-                        .active_cloud_objects_in_location_without_descendents(
-                            StoredObjectLocation::Space(Space::Personal),
-                            ctx,
-                        )
-                        .count()
-                        > 0,
-                    "cloud objects exist"
-                )
             })
         })
 }

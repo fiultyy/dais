@@ -21,7 +21,6 @@ use crate::{
     terminal::{input::Input, TerminalView},
     themes::theme_chooser::ThemeChooser,
     view_components::find::Find,
-    workflows::{workflow_view::WorkflowView, CategoriesView},
     workspace::Workspace,
 };
 use warpui::Entity;
@@ -168,22 +167,6 @@ pub fn notebook_view(
     )
 }
 
-/// Panics if there isn't a workflow view at the given tab and pane index.
-pub fn workflow_view(
-    app: &App,
-    window_id: WindowId,
-    tab_index: usize,
-    pane_index: usize,
-) -> ViewHandle<WorkflowView> {
-    pane_group_view(app, window_id, tab_index).read(
-        app,
-        |pane_group, ctx| match pane_group.workflow_view_at_pane_index(pane_index, ctx) {
-            Some(pane) => pane.clone(),
-            None => panic!("workflow view should exist for window_id={window_id}, tab_index={tab_index}, pane_index={pane_index}")
-        },
-    )
-}
-
 /// Panics if there isn't a single pane group for the given tab.
 pub fn pane_group_view(app: &App, window_id: WindowId, tab_index: usize) -> ViewHandle<PaneGroup> {
     workspace_view(app, window_id).read(app, |workspace, _ctx| {
@@ -205,11 +188,6 @@ pub fn theme_chooser_view(app: &App, window_id: WindowId) -> ViewHandle<ThemeCho
 
 /// Panics if there isn't a single single keybindings view in the view hierarchy.
 pub fn keybindings_view(app: &App, window_id: WindowId) -> ViewHandle<KeybindingsView> {
-    singleton_view_of_type(app, window_id)
-}
-
-/// Panics if there isn't a single workflows view in the view hierarchy.
-pub fn workflow_categories_view(app: &App, window_id: WindowId) -> ViewHandle<CategoriesView> {
     singleton_view_of_type(app, window_id)
 }
 

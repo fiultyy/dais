@@ -13,13 +13,12 @@ use warpui::{AddSingletonModel, App, SingletonEntity, WindowId};
 
 use crate::{
     cloud_object::{
-        model::persistence::ObjectStoreModel, ObjectIdType, ObjectType, Space,
+        model::persistence::ObjectStoreModel, ObjectType, Space,
         StoredObjectMetadata, StoredObjectPermissions,
     },
     drive::ObjectTypeAndId,
     notebooks::{NotebookId, NotebookObject, NotebookObjectModel},
     server::ids::SyncId,
-    workflows::{workflow::Workflow, WorkflowId, WorkflowObject, WorkflowObjectModel},
     workspace::ToastStack,
     workspaces::user_workspaces::UserWorkspaces,
 };
@@ -108,21 +107,6 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| ToastStack);
 }
 
-/// Add a mocked workflow.
-fn add_workflow(id: SyncId, workflow: Workflow, app: &mut App) {
-    ObjectStoreModel::handle(app).update(app, |object_store_model, _ctx| {
-        object_store_model.add_object(
-            id,
-            WorkflowObject::new(
-                id,
-                WorkflowObjectModel::new(workflow),
-                StoredObjectMetadata::mock(),
-                StoredObjectPermissions::mock_personal(),
-            ),
-        );
-    });
-}
-
 /// Add a mocked notebook.
 fn add_notebook(id: SyncId, title: impl Into<String>, data: impl Into<String>, app: &mut App) {
     ObjectStoreModel::handle(app).update(app, |object_store_model, _ctx| {
@@ -139,210 +123,6 @@ fn add_notebook(id: SyncId, title: impl Into<String>, data: impl Into<String>, a
                 StoredObjectMetadata::mock(),
                 StoredObjectPermissions::mock_personal(),
             ),
-        );
-    });
-}
-
-#[test]
-fn test_export_workflow_success() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let workflow_id = SyncId::ServerId(WorkflowId::from(123).into());
-        let workflow = Workflow::new("Test workflow", "echo hello world");
-        add_workflow(workflow_id, workflow, &mut app);
-
-        let exporter = ExportTest::new(&mut app);
-        let (id, export) = exporter.start_export(
-            ObjectTypeAndId::from_id_and_type(workflow_id, ObjectType::Workflow),
-            &mut app,
-        );
-        let expected_path = exporter.path("Test workflow.yaml", None, &app);
-
-        // The export should succeed.
-        assert_eq!(
-            export.await,
-            Ok(ExportEvent::Completed {
-                id,
-                path: expected_path.clone()
-            })
-        );
-
-        let contents =
-            fs::read_to_string(&expected_path).expect("failed to read exported workflow");
-        assert_eq!(
-            &contents,
-            r#"---
-name: Test workflow
-command: echo hello world
-description: ~
-arguments: []
-tags: []
-source_url: ~
-author: ~
-author_url: ~
-shells: []
-"#
-        );
-    });
-}
-
-#[test]
-fn test_export_workflow_duplicate() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let workflow_id = SyncId::ServerId(WorkflowId::from(123).into());
-        let workflow = Workflow::new("Test workflow", "echo hello world");
-        add_workflow(workflow_id, workflow, &mut app);
-
-        let exporter = ExportTest::new(&mut app);
-
-        // Create a file at the default export path.
-        fs::write(
-            exporter.path("Test workflow.yaml", None, &app),
-            "Already exists",
-        )
-        .expect("failed to write existing workflow");
-
-        let (id, export) = exporter.start_export(
-            ObjectTypeAndId::from_id_and_type(workflow_id, ObjectType::Workflow),
-            &mut app,
-        );
-        let expected_path = exporter.path("Test workflow (1).yaml", None, &app);
-
-        // The export should succeed, and not overwrite the existing file.
-        assert_eq!(
-            export.await,
-            Ok(ExportEvent::Completed {
-                id,
-                path: expected_path.clone()
-            })
-        );
-
-        assert_eq!(
-            fs::read_to_string(exporter.path("Test workflow.yaml", None, &app))
-                .expect("failed to read original file"),
-            "Already exists"
-        );
-
-        let contents =
-            fs::read_to_string(&expected_path).expect("failed to read exported workflow");
-        assert_eq!(
-            &contents,
-            r#"---
-name: Test workflow
-command: echo hello world
-description: ~
-arguments: []
-tags: []
-source_url: ~
-author: ~
-author_url: ~
-shells: []
-"#
-        );
-    });
-}
-
-#[test]
-fn test_export_workflow_failure() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let workflow_id = SyncId::ServerId(WorkflowId::from(123).into());
-        let workflow = Workflow::new("Test workflow", "echo hello world");
-        add_workflow(workflow_id, workflow, &mut app);
-
-        let exporter = ExportTest::new(&mut app);
-        // Ensure that the export will fail.
-        fs::remove_dir_all(exporter.target_dir.path()).expect("Could not remove test directory");
-
-        let (id, export) = exporter.start_export(
-            ObjectTypeAndId::from_id_and_type(workflow_id, ObjectType::Workflow),
-            &mut app,
-        );
-
-        // The export should error.
-        assert_eq!(export.await, Ok(ExportEvent::Failed { id }));
-    });
-}
-
-#[test]
-fn test_export_notebook_with_embeds() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let workflow_id = SyncId::ServerId(WorkflowId::from(123).into());
-        let workflow = Workflow::new("Test workflow", "echo hello world");
-        add_workflow(workflow_id, workflow, &mut app);
-
-        let notebook_id = SyncId::ServerId(NotebookId::from(456).into());
-        add_notebook(
-            notebook_id,
-            "Test notebook",
-            format!(
-                r#"
-# This is a notebook
-It has *text*.
-```warp-embedded-object
-id: {}
-```
-
-This is code:
-```Python
-print("hello")
-```
-"#,
-                workflow_id.sqlite_uid_hash(ObjectIdType::Workflow)
-            ),
-            &mut app,
-        );
-
-        let exporter = ExportTest::new(&mut app);
-        let (id, export) = exporter.start_export(
-            ObjectTypeAndId::from_id_and_type(notebook_id, ObjectType::Notebook),
-            &mut app,
-        );
-        let expected_path = exporter.path("Test notebook.md", None, &app);
-
-        // The export should succeed.
-        assert_eq!(
-            export.await,
-            Ok(ExportEvent::Completed {
-                id,
-                path: expected_path.clone()
-            })
-        );
-
-        let contents =
-            fs::read_to_string(&expected_path).expect("failed to read exported notebook");
-        assert_eq!(
-            contents,
-            r#"
-# This is a notebook
-It has *text*\.
-```warp-embedded-object
----
-name: Test workflow
-command: echo hello world
-tags: []
-description: ~
-arguments: []
-source_url: ~
-author: ~
-author_url: ~
-shells: []
-environment_variables: ~
-id: Workflow-test_uid00000000000123
-
-```
-
-This is code:
-```python
-print("hello")
-```
-"#
         );
     });
 }
@@ -377,33 +157,6 @@ fn test_export_untitled_notebook() {
 }
 
 #[test]
-fn test_export_with_special_characters() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let workflow_id = SyncId::ServerId(WorkflowId::from(123).into());
-        let workflow = Workflow::new("Prefix: Some/workflow", "echo hello world");
-        add_workflow(workflow_id, workflow, &mut app);
-
-        let exporter = ExportTest::new(&mut app);
-        let (id, export) = exporter.start_export(
-            ObjectTypeAndId::from_id_and_type(workflow_id, ObjectType::Workflow),
-            &mut app,
-        );
-        let expected_path = exporter.path("Prefix_ Some_workflow.yaml", None, &app);
-
-        // The export should succeed, and transform the path.
-        assert_eq!(
-            export.await,
-            Ok(ExportEvent::Completed {
-                id,
-                path: expected_path.clone()
-            })
-        );
-    });
-}
-
-#[test]
 fn test_safe_filename() {
     for (expected_in, expected_out) in [
         (
@@ -424,30 +177,29 @@ fn test_export_multiple_objects() {
     App::test((), |mut app| async move {
         initialize_app(&mut app);
 
-        // Create two workflows and a notebook
-        let workflow_id1 = SyncId::ServerId(WorkflowId::from(123).into());
-        let workflow1 = Workflow::new("Test workflow 1", "echo hello world");
-        add_workflow(workflow_id1, workflow1, &mut app);
-
-        let workflow_id2 = SyncId::ServerId(WorkflowId::from(456).into());
-        let workflow2 = Workflow::new("Test workflow 2", "echo goodbye world");
-        add_workflow(workflow_id2, workflow2, &mut app);
-
-        let notebook_id = SyncId::ServerId(NotebookId::from(789).into());
+        // Create two notebooks
+        let notebook_id1 = SyncId::ServerId(NotebookId::from(123).into());
         add_notebook(
-            notebook_id,
-            "Test notebook",
-            "This is a test notebook",
+            notebook_id1,
+            "Test notebook 1",
+            "This is test notebook 1",
+            &mut app,
+        );
+
+        let notebook_id2 = SyncId::ServerId(NotebookId::from(456).into());
+        add_notebook(
+            notebook_id2,
+            "Test notebook 2",
+            "This is test notebook 2",
             &mut app,
         );
 
         let exporter = ExportTest::new(&mut app);
 
-        // Prepare export IDs for all three objects
+        // Prepare export IDs for all objects
         let export_ids = vec![
-            ObjectTypeAndId::from_id_and_type(workflow_id1, ObjectType::Workflow),
-            ObjectTypeAndId::from_id_and_type(workflow_id2, ObjectType::Workflow),
-            ObjectTypeAndId::from_id_and_type(notebook_id, ObjectType::Notebook),
+            ObjectTypeAndId::from_id_and_type(notebook_id1, ObjectType::Notebook),
+            ObjectTypeAndId::from_id_and_type(notebook_id2, ObjectType::Notebook),
         ];
 
         // Create channels for all exports
@@ -492,24 +244,20 @@ fn test_export_multiple_objects() {
         }
 
         // Verify the contents of each exported file
-        let workflow1_path = exporter.path("Test workflow 1.yaml", Some(Space::Personal), &app);
-        let workflow1_contents =
-            fs::read_to_string(&workflow1_path).expect("Failed to read workflow 1");
-        assert!(workflow1_contents.contains("echo hello world"));
+        let notebook1_path =
+            exporter.path("Test notebook 1.md", Some(Space::Personal), &app);
+        let notebook1_contents =
+            fs::read_to_string(&notebook1_path).expect("Failed to read notebook 1");
+        assert!(notebook1_contents.contains("This is test notebook 1"));
 
-        let workflow2_path = exporter.path("Test workflow 2.yaml", Some(Space::Personal), &app);
-        let workflow2_contents =
-            fs::read_to_string(&workflow2_path).expect("Failed to read workflow 2");
-        assert!(workflow2_contents.contains("echo goodbye world"));
-
-        let notebook_path = exporter.path("Test notebook.md", Some(Space::Personal), &app);
-        let notebook_contents =
-            fs::read_to_string(&notebook_path).expect("Failed to read notebook");
-        assert!(notebook_contents.contains("This is a test notebook"));
+        let notebook2_path =
+            exporter.path("Test notebook 2.md", Some(Space::Personal), &app);
+        let notebook2_contents =
+            fs::read_to_string(&notebook2_path).expect("Failed to read notebook 2");
+        assert!(notebook2_contents.contains("This is test notebook 2"));
 
         // Check that all files were created
-        assert!(workflow1_path.exists(), "Workflow 1 file does not exist");
-        assert!(workflow2_path.exists(), "Workflow 2 file does not exist");
-        assert!(notebook_path.exists(), "Notebook file does not exist");
+        assert!(notebook1_path.exists(), "Notebook 1 file does not exist");
+        assert!(notebook2_path.exists(), "Notebook 2 file does not exist");
     });
 }

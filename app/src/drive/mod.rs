@@ -10,7 +10,6 @@ pub mod items;
 pub mod panel;
 pub mod settings;
 pub mod sharing;
-pub mod workflows;
 
 use std::{cmp::Ordering, fmt};
 
@@ -27,15 +26,12 @@ use crate::{
     },
     server::ids::{HashedSqliteId, ObjectUid, ServerId, SyncId},
     ui_components::icons::Icon,
-    workflows::WorkflowObject,
 };
 
 type SortByComparator<'a> = dyn FnMut(&&dyn StoredObject, &&dyn StoredObject) -> Ordering + 'a;
 
 #[derive(Copy, Clone, Debug)]
 pub enum DriveObjectType {
-    Workflow,
-    AgentModeWorkflow,
     AIFact,
     AIFactCollection,
     Notebook {
@@ -51,8 +47,6 @@ pub enum DriveObjectType {
 impl From<DriveObjectType> for Icon {
     fn from(cloud_object_type: DriveObjectType) -> Icon {
         match cloud_object_type {
-            DriveObjectType::Workflow => Icon::Workflow,
-            DriveObjectType::AgentModeWorkflow => Icon::Prompt,
             DriveObjectType::AIFact => Icon::BookOpen,
             DriveObjectType::AIFactCollection => Icon::BookOpen,
             DriveObjectType::Notebook { is_ai_document } => {
@@ -74,10 +68,8 @@ impl fmt::Display for DriveObjectType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DriveObjectType::Notebook { .. } => write!(f, "notebook"),
-            DriveObjectType::Workflow => write!(f, "workflow"),
             DriveObjectType::Folder => write!(f, "folder"),
             DriveObjectType::EnvVarCollection => write!(f, "env var collection"),
-            DriveObjectType::AgentModeWorkflow => write!(f, "prompt"),
             DriveObjectType::AIFact => write!(f, "ai fact"),
             DriveObjectType::AIFactCollection => write!(f, "ai fact collection"),
             DriveObjectType::MCPServer => write!(f, "mcp server"),
@@ -106,7 +98,6 @@ pub struct DaisDriveObjectArgs {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum ObjectTypeAndId {
     Notebook(SyncId),
-    Workflow(SyncId),
     Folder(SyncId),
     GenericStringObject {
         object_type: GenericStringObjectFormat,
@@ -118,7 +109,6 @@ impl ObjectTypeAndId {
     pub fn from_id_and_type(id: SyncId, object_type: ObjectType) -> Self {
         match object_type {
             ObjectType::Notebook => Self::Notebook(id),
-            ObjectType::Workflow => Self::Workflow(id),
             ObjectType::Folder => Self::Folder(id),
             ObjectType::GenericStringObject(format) => Self::GenericStringObject {
                 object_type: format,
@@ -130,7 +120,6 @@ impl ObjectTypeAndId {
     pub fn uid(self) -> ObjectUid {
         match self {
             Self::Notebook(id) => id.uid(),
-            Self::Workflow(id) => id.uid(),
             Self::Folder(id) => id.uid(),
             Self::GenericStringObject { id, .. } => id.uid(),
         }
@@ -139,7 +128,6 @@ impl ObjectTypeAndId {
     pub fn sync_id(self) -> SyncId {
         match self {
             Self::Notebook(id)
-            | Self::Workflow(id)
             | Self::Folder(id)
             | Self::GenericStringObject { id, .. } => id,
         }
@@ -148,7 +136,6 @@ impl ObjectTypeAndId {
     pub fn sqlite_uid_hash(self) -> HashedSqliteId {
         match self {
             ObjectTypeAndId::Notebook(id) => id.sqlite_uid_hash(ObjectIdType::Notebook),
-            ObjectTypeAndId::Workflow(id) => id.sqlite_uid_hash(ObjectIdType::Workflow),
             ObjectTypeAndId::Folder(id) => id.sqlite_uid_hash(ObjectIdType::Folder),
             ObjectTypeAndId::GenericStringObject { object_type: _, id } => {
                 id.sqlite_uid_hash(ObjectIdType::GenericStringObject)
@@ -159,7 +146,6 @@ impl ObjectTypeAndId {
     pub fn object_id_type(&self) -> ObjectIdType {
         match self {
             ObjectTypeAndId::Notebook(_) => ObjectIdType::Notebook,
-            ObjectTypeAndId::Workflow(_) => ObjectIdType::Workflow,
             ObjectTypeAndId::GenericStringObject { .. } => ObjectIdType::GenericStringObject,
             ObjectTypeAndId::Folder(_) => ObjectIdType::Folder,
         }
@@ -168,7 +154,6 @@ impl ObjectTypeAndId {
     pub fn object_type(&self) -> ObjectType {
         match self {
             ObjectTypeAndId::Notebook(_) => ObjectType::Notebook,
-            ObjectTypeAndId::Workflow(_) => ObjectType::Workflow,
             ObjectTypeAndId::Folder(_) => ObjectType::Folder,
             ObjectTypeAndId::GenericStringObject { object_type, .. } => {
                 ObjectType::GenericStringObject(*object_type)
@@ -179,7 +164,6 @@ impl ObjectTypeAndId {
     pub fn as_folder_id(self) -> Option<SyncId> {
         match self {
             ObjectTypeAndId::Notebook(_) => None,
-            ObjectTypeAndId::Workflow(_) => None,
             ObjectTypeAndId::GenericStringObject { .. } => None,
             ObjectTypeAndId::Folder(f) => Some(f),
         }
@@ -203,7 +187,6 @@ impl ObjectTypeAndId {
         matches!(
             self,
             ObjectTypeAndId::Notebook(SyncId::ServerId(_))
-                | ObjectTypeAndId::Workflow(SyncId::ServerId(_))
                 | ObjectTypeAndId::Folder(SyncId::ServerId(_))
                 | ObjectTypeAndId::GenericStringObject {
                     id: SyncId::ServerId(_),
@@ -215,7 +198,6 @@ impl ObjectTypeAndId {
     pub fn server_id(self) -> Option<ServerId> {
         match self {
             ObjectTypeAndId::Notebook(SyncId::ServerId(notebook_id)) => Some(notebook_id),
-            ObjectTypeAndId::Workflow(SyncId::ServerId(workflow_id)) => Some(workflow_id),
             ObjectTypeAndId::Folder(SyncId::ServerId(folder_id)) => Some(folder_id),
             ObjectTypeAndId::GenericStringObject {
                 id: SyncId::ServerId(json_object_id),
@@ -325,18 +307,6 @@ impl DriveSortOrder {
                         ObjectType::Folder => 0,
                         ObjectType::GenericStringObject(_) => 1,
                         ObjectType::Notebook => 2,
-                        ObjectType::Workflow => {
-                            let Some(workflow) = obj.as_any().downcast_ref::<WorkflowObject>()
-                            else {
-                                return 3;
-                            };
-
-                            if workflow.model().data.is_agent_mode_workflow() {
-                                4
-                            } else {
-                                3
-                            }
-                        }
                     };
 
                     // First compare by object type ordering, then by display name alphabetically if equal

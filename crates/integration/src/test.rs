@@ -32,7 +32,6 @@ mod subshell;
 mod sync_inputs;
 mod typeahead;
 mod video_recording;
-mod workflows;
 mod workspace;
 
 pub use agent_mode::*;
@@ -66,7 +65,6 @@ pub use subshell::*;
 pub use sync_inputs::*;
 pub use typeahead::*;
 pub use video_recording::*;
-pub use workflows::*;
 pub use workspace::*;
 
 use std::{borrow::Cow, collections::HashMap, path::PathBuf, rc::Rc, time::Duration};
@@ -109,7 +107,6 @@ use warp::terminal::{
     model::{blocks::BlockHeightSummary, terminal_model::BlockIndex},
     view::TerminalViewState,
 };
-use warp::workflows::categories::CategoriesView;
 use warp::{
     appearance::Appearance,
     cmd_or_ctrl_shift,
@@ -265,62 +262,6 @@ use super::util::{self, write_all_rc_files_for_test, write_rc_files_for_test};
 
 fn new_builder() -> Builder {
     Builder::new()
-}
-
-/// Adds a workflow file, containing two workflows, to the mocked out warp
-/// config directory and verifies that the workflows appear in the workflow menu.
-pub fn test_add_workflows_to_warp_config() -> Builder {
-    new_builder()
-        .with_setup(move |utils| {
-            utils.set_env("WARP_CONFIG_WATCHER_DELAY_MS", Some((10).to_string()));
-
-            std::fs::create_dir_all(integration_testing::workflow::workflows_dir())
-                .expect("Should be able to create workflows dir");
-        })
-        .with_step(wait_until_bootstrapped_single_pane_for_tab(0))
-        .with_step(
-            TestStep::new("Should have no local workflows").add_named_assertion(
-                "Should have no local workflows",
-                |app, window_id| {
-                    let workflows: ViewHandle<CategoriesView> = view_of_type(app, window_id, 0);
-
-                    workflows.read(app, |workflows, _| {
-                        // Note that this can be a synchronous assertion because unlike the next test step,
-                        // we don't have concurrency with a WarpConfig watcher thread
-                        assert_eq!(
-                            workflows.local_workflows().count(),
-                            0,
-                            "There should not be any local workflows"
-                        );
-                    });
-                    AssertionOutcome::Success
-                },
-            ),
-        )
-        .with_step(
-            TestStep::new("Write a new file containing two workflows")
-                .with_setup(|_utils| {
-                    integration_testing::create_file_from_assets(
-                        TEST_ONLY_ASSETS,
-                        "test_workflow.yaml",
-                        &integration_testing::workflow::workflows_dir().join("test_workflow.yaml"),
-                    );
-                })
-                .add_named_assertion(
-                    "The two added workflows should be in the view",
-                    |app, window_id| {
-                        let workflows: ViewHandle<CategoriesView> = view_of_type(app, window_id, 0);
-
-                        let num_workflows =
-                            workflows.read(app, |workflows, _| workflows.local_workflows().count());
-                        async_assert!(
-                            num_workflows == 2,
-                            "Expected to find two workflows, instead found {}",
-                            num_workflows
-                        )
-                    },
-                ),
-        )
 }
 
 pub fn test_launch_warp_with_theme_in_warp_config() -> Builder {

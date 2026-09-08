@@ -26,7 +26,6 @@ pub fn test_preview_config_dir_migration() -> Builder {
             fs::write(old_dir.join("keybindings.yaml"), "bindings")
                 .expect("write keybindings.yaml");
             fs::write(old_dir.join("themes").join("dark.yaml"), "theme").expect("write dark.yaml");
-            fs::create_dir_all(old_dir.join("workflows")).expect("create workflows dir");
             fs::write(old_dir.join(".mcp.json"), "{}").expect("write .mcp.json");
             // Files that should be excluded from the migration.
             fs::write(old_dir.join(".DS_Store"), "metadata").expect("write .DS_Store");
@@ -74,7 +73,7 @@ pub fn test_preview_config_dir_migration() -> Builder {
                         let old_dir = home.join(".warp");
                         let new_dir = home.join(".warp-preview");
 
-                        for name in ["keybindings.yaml", "themes", "workflows", ".mcp.json"] {
+                        for name in ["keybindings.yaml", "themes", ".mcp.json"] {
                             let link = new_dir.join(name);
                             let expected_target = old_dir.join(name);
                             match fs::read_link(&link) {

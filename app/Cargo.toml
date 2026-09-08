@@ -202,7 +202,6 @@ vec1.workspace = true
 version-compare.workspace = true
 vte.workspace = true
 walkdir.workspace = true
-warp-workflows.workspace = true
 warp_completer.workspace = true
 warp_core.workspace = true
 cockpit_model.workspace = true
@@ -446,7 +445,6 @@ default = [
     "render_continuous_block_selections_with_single_border",
     "settings_import",
     "shared_with_me",
-    "block_toolbelt_save_as_workflow",
     "remove_alt_screen_padding",
     "less_horizontal_terminal_padding",
     "external_agent_mode_context",
@@ -454,16 +452,13 @@ default = [
     "minimalist_ui",
     "avatar_in_tab_bar",
     "full_screen_zen_mode",
-    "workflow_aliases",
     "ligatures",
-    "dynamic_workflow_enums",
     "rect_selection",
     "reload_stale_conversation_files",
     "warp_packs",
     "ai_rules",
     "suggested_rules",
     "default_waterfall_mode",
-    "am_workflows",
     "autoupdate_ui_revamp",
     "render_agent_mode_output_markdown",
     "agent_mode_primary_xml",
@@ -593,19 +588,17 @@ default = [
     "vertical_tabs_summary_mode",
 ]
 
-# Enable the local orchestration plane (multi-agent workflow coordination).
+# Enable the local orchestration plane (multi-agent run coordination).
 orchestration = ["ai/orchestration"]
 # Enable this feature to automatically perform heap profiling.  NOTE: This will
 # substantially slow down program execution.
 dhat_heap_profiling = ["dep:dhat"]
-dynamic_workflow_enums = []
 editable_markdown_mermaid = []
 default_adeberry_theme = []
 drag_tabs_to_windows = []
 embedded_code_review_comments = []
 interactive_conversation_management_view = []
 default_waterfall_mode = []
-suggested_agent_mode_workflows = []
 ssh_tmux_wrapper = []
 ssh_enable_host_denylist_in_settings = []
 extern_plist = []
@@ -724,15 +717,12 @@ integration_tests = [
     "warp_core/integration_tests",
 ]
 traces = []
-workflow_aliases = []
 rect_selection = []
 alacritty_settings_import = []
 shared_with_me = []
 ai_rules = []
-am_workflows = []
 less_horizontal_terminal_padding = []
 shell_selector = []
-block_toolbelt_save_as_workflow = []
 blocklist_markdown_table_rendering = []
 blocklist_markdown_images = []
 minimalist_ui = []

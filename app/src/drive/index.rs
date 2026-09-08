@@ -38,7 +38,6 @@ use crate::{
     },
     util::{color::coloru_with_opacity, sync::Condition},
     view_components::{Dropdown, DropdownItem},
-    workflows::{WorkflowObject, WorkflowViewMode},
     workspace::active_terminal_in_window,
     workspaces::{user_workspaces::UserWorkspaces, workspace::WorkspaceUid},
     ObjectActions,
@@ -49,7 +48,6 @@ use super::{
     drive_helpers::{
         has_feature_gated_anonymous_user_reached_env_var_limit,
         has_feature_gated_anonymous_user_reached_notebook_limit,
-        has_feature_gated_anonymous_user_reached_workflow_limit,
     },
     empty_trash_confirmation_dialog::{EmptyTrashConfirmationDialog, EmptyTrashConfirmationEvent},
     folders::FolderObject,
@@ -187,10 +185,6 @@ pub enum DriveIndexSection {
 #[derive(Debug, Clone)]
 pub enum DriveIndexAction {
     OpenObject(ObjectTypeAndId),
-    OpenWorkflowInPane {
-        object_type_and_id: ObjectTypeAndId,
-        open_mode: WorkflowViewMode,
-    },
     OpenImportModal {
         space: Space,
         initial_folder_id: Option<SyncId>,
@@ -202,15 +196,7 @@ pub enum DriveIndexAction {
         space: Space,
         initial_folder_id: Option<SyncId>,
     },
-    /// Create a workflow with pre-populated content (e.g. saved from a conversation prompt)
-    CreateWorkflowWithContent {
-        space: Space,
-        initial_folder_id: Option<SyncId>,
-        content: String,
-        is_for_agent_mode: bool,
-    },
     CopyObjectToClipboard(ObjectTypeAndId),
-    CopyWorkflowId(ObjectTypeAndId),
     DuplicateObject(ObjectTypeAndId),
     CopyObjectLinkToClipboard(String),
     OpenObjectLinkOnDesktop(Url),
@@ -310,8 +296,6 @@ impl DriveIndexAction {
                 _,
                 DriveObjectType::Notebook { .. }
                 | DriveObjectType::EnvVarCollection
-                | DriveObjectType::Workflow
-                | DriveObjectType::AgentModeWorkflow
                 | DriveObjectType::AIFactCollection
                 | DriveObjectType::AIFact
                 | DriveObjectType::MCPServer
@@ -352,14 +336,6 @@ pub enum DriveIndexEvent {
         title: Option<String>,
         initial_folder_id: Option<SyncId>,
     },
-    CreateWorkflow {
-        space: Space,
-        title: Option<String>,
-        initial_folder_id: Option<SyncId>,
-        is_for_agent_mode: bool,
-        /// Pre-populated content for the workflow (e.g. saved from a conversation prompt)
-        content: Option<String>,
-    },
     CreateAIFact {
         space: Space,
         fact: AIFact,
@@ -368,10 +344,6 @@ pub enum DriveIndexEvent {
     OpenAIFactCollection,
     OpenMCPServerCollection,
     OpenObject(ObjectTypeAndId),
-    OpenWorkflowInPane {
-        object_type_and_id: ObjectTypeAndId,
-        open_mode: WorkflowViewMode,
-    },
     DuplicateObject(ObjectTypeAndId),
     ExportObject(ObjectTypeAndId),
     OpenImportModal {
@@ -380,11 +352,6 @@ pub enum DriveIndexEvent {
     },
     RunObject(ObjectTypeAndId),
     InvokeEnvVarCollectionInSubshell(ObjectTypeAndId),
-    OpenWorkflowModalWithNew {
-        space: Space,
-        initial_folder_id: Option<SyncId>,
-    },
-    OpenWorkflowModalWithWorkflowObject(SyncId),
     FocusWarpDrive,
     OpenSharedObjectsCreationDeniedModal(DriveObjectType, ServerId),
     AttachPlanAsContext(AIDocumentId),
@@ -1121,9 +1088,6 @@ impl DriveIndex {
         if let WarpDriveItemId::Object(object_id) = item_id {
             match object_id {
                 ObjectTypeAndId::Notebook(sync_id) => {
-                    self.expand_section_for_object(&sync_id.uid().clone(), ctx);
-                }
-                ObjectTypeAndId::Workflow(sync_id) => {
                     self.expand_section_for_object(&sync_id.uid().clone(), ctx);
                 }
                 ObjectTypeAndId::Folder(sync_id) => {
@@ -1883,16 +1847,6 @@ impl DriveIndex {
 
         let zero_state_contents = Flex::column().with_children([
             zero_state_info,
-            self.render_team_zero_state_hint(
-                Icon::Workflow,
-                crate::t!("drive-workflow"),
-                appearance,
-            ),
-            self.render_team_zero_state_hint(
-                Icon::Workflow,
-                crate::t!("drive-workflow"),
-                appearance,
-            ),
             self.render_team_zero_state_hint(
                 Icon::Notebook,
                 crate::t!("drive-notebook"),
@@ -2822,18 +2776,7 @@ impl DriveIndex {
                         return;
                     }
                 }
-                ObjectTypeAndId::Workflow(_) => {
-                    if !UserWorkspaces::has_capacity_for_shared_workflows(team_uid, ctx, 1) {
-                        // If team has reached the limit for workflows, show the modal
-                        // and return early.
-                        ctx.emit(DriveIndexEvent::OpenSharedObjectsCreationDeniedModal(
-                            DriveObjectType::Workflow,
-                            team_uid,
-                        ));
-                        return;
-                    }
-                }
-                _ => (),
+                ObjectTypeAndId::Folder(_) | ObjectTypeAndId::GenericStringObject { .. } => (),
             }
         }
 
@@ -2950,32 +2893,6 @@ impl DriveIndex {
                     initial_folder_id,
                 })
             }
-            DriveObjectType::Workflow => {
-                if has_feature_gated_anonymous_user_reached_workflow_limit(ctx) {
-                    return;
-                }
-
-                ctx.emit(DriveIndexEvent::CreateWorkflow {
-                    space,
-                    title,
-                    initial_folder_id,
-                    is_for_agent_mode: false,
-                    content: None,
-                })
-            }
-            DriveObjectType::AgentModeWorkflow => {
-                if has_feature_gated_anonymous_user_reached_workflow_limit(ctx) {
-                    return;
-                }
-
-                ctx.emit(DriveIndexEvent::CreateWorkflow {
-                    space,
-                    title,
-                    initial_folder_id,
-                    is_for_agent_mode: true,
-                    content: None,
-                })
-            }
             DriveObjectType::AIFact => {
                 if let Some(fact) = title {
                     ctx.emit(DriveIndexEvent::CreateAIFact {
@@ -3050,22 +2967,10 @@ impl DriveIndex {
                                 return;
                             }
                         }
-                        ObjectTypeAndId::Workflow(_) => {
-                            if !UserWorkspaces::has_capacity_for_shared_workflows(team_uid, ctx, 1)
-                            {
-                                // If team has reached the limit for workflows, show the modal
-                                // and return early.
-                                ctx.emit(DriveIndexEvent::OpenSharedObjectsCreationDeniedModal(
-                                    DriveObjectType::Workflow,
-                                    team_uid,
-                                ));
-                                return;
-                            }
-                        }
                         ObjectTypeAndId::Folder(folder_id) => {
                             let object_store_model = ObjectStoreModel::handle(ctx);
 
-                            // When untrashing a folder, check to see if there are any notebooks or workflows
+                            // When untrashing a folder, check to see if there are any notebooks
                             // in the trashed folder and make sure they are within limits.
                             let trashed_object_types = object_store_model
                                 .as_ref(ctx)
@@ -3096,24 +3001,6 @@ impl DriveIndex {
                                 return;
                             }
 
-                            // Check # of workflows in the trashed folder and make sure they are within limits
-                            let workflows_in_trashed_folder = trashed_object_types
-                                .into_iter()
-                                .filter(|object_type| *object_type == ObjectType::Workflow)
-                                .count();
-                            if !UserWorkspaces::has_capacity_for_shared_workflows(
-                                team_uid,
-                                ctx,
-                                workflows_in_trashed_folder,
-                            ) {
-                                // If team has reached the limit for workflows, show the modal
-                                // and return early.
-                                ctx.emit(DriveIndexEvent::OpenSharedObjectsCreationDeniedModal(
-                                    DriveObjectType::Workflow,
-                                    team_uid,
-                                ));
-                                return;
-                            }
                         }
                         _ => (),
                     }
@@ -3121,11 +3008,6 @@ impl DriveIndex {
                 Space::Personal => match object_type_and_id {
                     ObjectTypeAndId::Notebook(_) => {
                         if has_feature_gated_anonymous_user_reached_notebook_limit(ctx) {
-                            return;
-                        }
-                    }
-                    ObjectTypeAndId::Workflow(_) => {
-                        if has_feature_gated_anonymous_user_reached_workflow_limit(ctx) {
                             return;
                         }
                     }
@@ -3199,30 +3081,6 @@ impl DriveIndex {
                             None,
                         ))
                         .with_icon(Icon::Folder)
-                        .into_item(),
-                );
-            }
-
-            menu_items.push(
-                MenuItemFields::new(crate::t!("drive-workflow"))
-                    .with_on_select_action(DriveIndexAction::create_object(
-                        DriveObjectType::Workflow,
-                        *space,
-                        None,
-                    ))
-                    .with_icon(Icon::Workflow)
-                    .into_item(),
-            );
-
-            if FeatureFlag::AgentModeWorkflows.is_enabled() {
-                menu_items.push(
-                    MenuItemFields::new(crate::t!("drive-prompt"))
-                        .with_on_select_action(DriveIndexAction::create_object(
-                            DriveObjectType::AgentModeWorkflow,
-                            *space,
-                            None,
-                        ))
-                        .with_icon(Icon::Prompt)
                         .into_item(),
                 );
             }
@@ -3396,9 +3254,6 @@ impl DriveIndex {
     ) -> Option<Box<dyn Element>> {
         let personal_object_limits = self.auth_state.personal_object_limits()?;
 
-        let num_workflows = ObjectStoreModel::as_ref(ctx)
-            .active_non_welcome_workflows_in_space(Space::Personal, ctx)
-            .count();
         let num_notebooks = ObjectStoreModel::as_ref(ctx)
             .active_non_welcome_notebooks_in_space(Space::Personal, ctx)
             .count();
@@ -3461,15 +3316,6 @@ impl DriveIndex {
             .build()
             .finish();
 
-        let workflow_usage = Container::new(self.render_personal_object_limit_row(
-            appearance,
-            DriveObjectType::Workflow,
-            num_workflows,
-            personal_object_limits.workflow_limit,
-        ))
-        .with_margin_bottom(8.)
-        .finish();
-
         let notebook_usage = Container::new(self.render_personal_object_limit_row(
             appearance,
             DriveObjectType::Notebook {
@@ -3490,7 +3336,7 @@ impl DriveIndex {
 
         let usage_section = Container::new(
             Flex::column()
-                .with_children([workflow_usage, notebook_usage, env_var_usage])
+                .with_children([notebook_usage, env_var_usage])
                 .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
                 .finish(),
         )
@@ -3551,14 +3397,10 @@ impl DriveIndex {
 
         let name = match object_type {
             DriveObjectType::Notebook { .. } => crate::t!("drive-object-type-notebooks"),
-            DriveObjectType::Workflow => crate::t!("drive-object-type-workflows"),
             DriveObjectType::EnvVarCollection => {
                 crate::t!("drive-object-type-environment-variables")
             }
             DriveObjectType::Folder => crate::t!("drive-object-type-folders"),
-            DriveObjectType::AgentModeWorkflow => {
-                crate::t!("drive-object-type-agent-workflows")
-            }
             DriveObjectType::AIFact => crate::t!("drive-object-type-ai-fact"),
             DriveObjectType::AIFactCollection => crate::t!("drive-object-type-rules"),
             DriveObjectType::MCPServer => crate::t!("drive-object-type-mcp-server"),
@@ -3614,7 +3456,6 @@ impl DriveIndex {
 
         let object_type_label = match object_type {
             ObjectType::Notebook => crate::t!("drive-object-type-notebook-plural"),
-            ObjectType::Workflow => crate::t!("drive-object-type-workflow-plural"),
             ObjectType::Folder => crate::t!("drive-object-type-folder-plural"),
             ObjectType::GenericStringObject(GenericStringObjectFormat::Json(
                 JsonObjectType::EnvVarCollection,
@@ -3769,30 +3610,6 @@ impl DriveIndex {
                                 .into_item(),
                         );
                         menu_items.push(
-                            MenuItemFields::new(crate::t!("drive-new-workflow"))
-                                .with_on_select_action(DriveIndexAction::create_object(
-                                    DriveObjectType::Workflow,
-                                    *space,
-                                    Some(*folder_id),
-                                ))
-                                .with_icon(Icon::Workflow)
-                                .into_item(),
-                        );
-
-                        if FeatureFlag::AgentModeWorkflows.is_enabled() {
-                            menu_items.push(
-                                MenuItemFields::new(crate::t!("drive-new-prompt"))
-                                    .with_on_select_action(DriveIndexAction::create_object(
-                                        DriveObjectType::AgentModeWorkflow,
-                                        *space,
-                                        Some(*folder_id),
-                                    ))
-                                    .with_icon(Icon::Prompt)
-                                    .into_item(),
-                            );
-                        }
-
-                        menu_items.push(
                             MenuItemFields::new(crate::t!("drive-new-notebook"))
                                 .with_on_select_action(DriveIndexAction::create_object(
                                     DriveObjectType::Notebook {
@@ -3899,7 +3716,6 @@ impl DriveIndex {
                     }
                 }
 
-                let workflow: Option<&WorkflowObject> = object.into();
                 let env_var_collection: Option<&EnvVarCollectionObject> = object.into();
 
                 if self.edit_object_enabled(object_type_and_id, app) {
@@ -3920,26 +3736,7 @@ impl DriveIndex {
                             );
                         }
                     }
-                    if let Some(_workflow) = workflow {
-                        menu_items.push(
-                            Self::pane_menu_item(
-                                editability,
-                                !ContextFlag::RunWorkflow.is_enabled(),
-                            )
-                            .with_on_select_action(DriveIndexAction::OpenWorkflowInPane {
-                                object_type_and_id: object.object_type_and_id(),
-                                open_mode: if (FeatureFlag::SharedWithMe.is_enabled()
-                                    && !editability.can_edit())
-                                    || !ContextFlag::RunWorkflow.is_enabled()
-                                {
-                                    WorkflowViewMode::View
-                                } else {
-                                    WorkflowViewMode::Edit
-                                },
-                            })
-                            .into_item(),
-                        );
-                    } else if env_var_collection.is_some() {
+                    if env_var_collection.is_some() {
                         menu_items.push(
                             Self::pane_menu_item(editability, false)
                                 .with_on_select_action(DriveIndexAction::OpenObject(
@@ -3951,37 +3748,9 @@ impl DriveIndex {
                 }
             }
 
-            // Copy workflow text, should appear both online/offline
-            // Also adds menu item for loading EnvVars in a subshell
+            // Adds menu item for loading EnvVars in a subshell
             if let Some(object) = object {
                 match object.object_type() {
-                    ObjectType::Workflow => {
-                        let workflow: Option<&WorkflowObject> = object.into();
-                        let workflow = workflow.expect("Object is workflow");
-                        let label = if workflow.model().data.is_agent_mode_workflow() {
-                            crate::t!("drive-copy-prompt")
-                        } else {
-                            crate::t!("drive-copy-workflow-text")
-                        };
-                        menu_items.push(
-                            MenuItemFields::new(label)
-                                .with_on_select_action(DriveIndexAction::CopyObjectToClipboard(
-                                    *object_type_and_id,
-                                ))
-                                .with_icon(Icon::CopyMenuItem)
-                                .into_item(),
-                        );
-                        if workflow.model().data.is_agent_mode_workflow() {
-                            menu_items.push(
-                                MenuItemFields::new(crate::t!("drive-copy-id"))
-                                    .with_on_select_action(DriveIndexAction::CopyWorkflowId(
-                                        *object_type_and_id,
-                                    ))
-                                    .with_icon(Icon::CopyMenuItem)
-                                    .into_item(),
-                            );
-                        }
-                    }
                     ObjectType::GenericStringObject(GenericStringObjectFormat::Json(
                         JsonObjectType::EnvVarCollection,
                     )) => {
@@ -4043,8 +3812,7 @@ impl DriveIndex {
 
             if let Some(object) = object {
                 match object.object_type() {
-                    ObjectType::Workflow
-                    | ObjectType::Notebook
+                    ObjectType::Notebook
                     | ObjectType::GenericStringObject(GenericStringObjectFormat::Json(
                         JsonObjectType::EnvVarCollection,
                     )) => {
@@ -4280,7 +4048,7 @@ impl DriveIndex {
     }
 
     /// Executes actions on index items based on key presses, such as
-    /// toggling folders, executing workflows, and opening notebooks.
+    /// toggling folders and opening notebooks.
     fn execute_index_item_keyboard_action(
         &mut self,
         key: DriveIndexAction,
@@ -4314,19 +4082,6 @@ impl DriveIndex {
                     ObjectTypeAndId::Notebook(_) => {
                         if let DriveIndexAction::EnterKey = key {
                             ctx.emit(DriveIndexEvent::OpenObject(*cloud_id))
-                        }
-                    }
-                    ObjectTypeAndId::Workflow(_) => {
-                        if let DriveIndexAction::EnterKey = key {
-                            if !ContextFlag::RunWorkflow.is_enabled() {
-                                // if on the web open in view mode by default
-                                ctx.emit(DriveIndexEvent::OpenWorkflowInPane {
-                                    object_type_and_id: *cloud_id,
-                                    open_mode: WorkflowViewMode::View,
-                                })
-                            } else {
-                                ctx.emit(DriveIndexEvent::RunObject(*cloud_id))
-                            }
                         }
                     }
                     ObjectTypeAndId::Folder(id) => {
@@ -4500,14 +4255,6 @@ impl View for DriveIndex {
                 ));
             } else if UserWorkspaces::is_at_tier_limit_for_object_type(
                 team.uid,
-                ObjectType::Workflow,
-                app,
-            ) {
-                drive.add_child(
-                    self.render_shared_object_limit_hit_banner(appearance, ObjectType::Workflow),
-                );
-            } else if UserWorkspaces::is_at_tier_limit_for_object_type(
-                team.uid,
                 ObjectType::Notebook,
                 app,
             ) {
@@ -4549,24 +4296,6 @@ impl TypedActionView for DriveIndex {
             } => {
                 self.create_object(*object_type, *space, *initial_folder_id, ctx);
             }
-            DriveIndexAction::CreateWorkflowWithContent {
-                space,
-                initial_folder_id,
-                content,
-                is_for_agent_mode,
-            } => {
-                if has_feature_gated_anonymous_user_reached_workflow_limit(ctx) {
-                    return;
-                }
-
-                ctx.emit(DriveIndexEvent::CreateWorkflow {
-                    space: *space,
-                    title: None,
-                    initial_folder_id: *initial_folder_id,
-                    is_for_agent_mode: *is_for_agent_mode,
-                    content: Some(content.clone()),
-                });
-            }
             DriveIndexAction::OpenImportModal {
                 space,
                 initial_folder_id,
@@ -4592,21 +4321,6 @@ impl TypedActionView for DriveIndex {
                     ctx.emit(DriveIndexEvent::OpenObject(*object_type_and_id))
                 }
             }
-            DriveIndexAction::OpenWorkflowInPane {
-                object_type_and_id,
-                open_mode,
-            } => {
-                if !matches!(self.index_variant, DriveIndexVariant::Trash) {
-                    self.set_selected_object(
-                        Some(WarpDriveItemId::Object(*object_type_and_id)),
-                        ctx,
-                    );
-                    ctx.emit(DriveIndexEvent::OpenWorkflowInPane {
-                        object_type_and_id: *object_type_and_id,
-                        open_mode: *open_mode,
-                    });
-                }
-            }
             DriveIndexAction::CopyObjectToClipboard(object_type_and_id) => {
                 send_telemetry_from_ctx!(
                     TelemetryEvent::CopyObjectToClipboard(object_type_and_id.into()),
@@ -4624,13 +4338,6 @@ impl TypedActionView for DriveIndex {
 
                 if let Some(object) = object {
                     match object.object_type() {
-                        ObjectType::Workflow => {
-                            let workflow: Option<&WorkflowObject> = object.into();
-                            if let Some(workflow) = workflow {
-                                let content = workflow.model().data.content().to_owned();
-                                ctx.clipboard().write(ClipboardContent::plain_text(content));
-                            }
-                        }
                         ObjectType::GenericStringObject(GenericStringObjectFormat::Json(
                             JsonObjectType::EnvVarCollection,
                         )) => {
@@ -4648,11 +4355,6 @@ impl TypedActionView for DriveIndex {
                         | ObjectType::GenericStringObject(_) => (),
                     }
                 }
-            }
-            DriveIndexAction::CopyWorkflowId(object_type_and_id) => {
-                let workflow_id = object_type_and_id.uid();
-                ctx.clipboard()
-                    .write(ClipboardContent::plain_text(workflow_id));
             }
             DriveIndexAction::DuplicateObject(object_type_and_id) => {
                 send_telemetry_from_ctx!(
@@ -4714,11 +4416,6 @@ impl TypedActionView for DriveIndex {
                             ctx,
                         );
                         ctx.focus(&self.cloud_object_naming_dialog.title_editor);
-                    }
-                    DriveObjectType::Workflow | DriveObjectType::AgentModeWorkflow => {
-                        log::error!(
-                            "Use DriveIndexAction::OpenWorkflowModal to open the modal instead"
-                        )
                     }
                     DriveObjectType::EnvVarCollection => {
                         log::error!("Creation of EnvVarCollections is not yet supported")

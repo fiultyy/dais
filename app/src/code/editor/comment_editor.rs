@@ -527,7 +527,7 @@ where
     let parent_view_name = ctx.view_name(window_id, parent_view_id).unwrap_or_default();
     let parent_position_id = format!("{}_{}", parent_view_name, parent_view_id);
 
-    // Embedded objects (notebooks, workflows) are disabled since comments don't support them.
+    // Embedded objects (notebooks) are disabled since comments don't support them.
     // Shell command execution is disabled so Cmd/Ctrl+Enter submits the comment instead.
     // Block insertion menu (slash menu) is disabled since the comment editor is small.
     let editor = ctx.add_typed_action_view(|ctx| {

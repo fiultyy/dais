@@ -7039,7 +7039,6 @@ dependencies = [
  "version-compare",
  "warp",
  "warp-command-signatures",
- "warp-workflows",
  "warp_cli",
  "warp_core",
  "warp_multi_agent_api",
@@ -8129,16 +8128,6 @@ name = "memchr"
 version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88904434abc2901f197fe8cc55f0445e7ded921dba5911dad2e2b39b48e663c4"
-
-[[package]]
-name = "memmap"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6585fd95e7bb50d6cc31e20d4cf9afb4e2ba16c5846fc76793f11218da9c475b"
-dependencies = [
- "libc",
- "winapi",
-]
 
 [[package]]
 name = "memmap2"
@@ -14311,15 +14300,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "uneval"
-version = "0.2.3"
-source = "git+https://github.com/warpdotdev/uneval?rev=df4d9fad372aedc447e6f93ca0f930fabaf9dd1a#df4d9fad372aedc447e6f93ca0f930fabaf9dd1a"
-dependencies = [
- "serde",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "unic-langid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15052,7 +15032,6 @@ dependencies = [
  "vte",
  "walkdir",
  "warp-command-signatures",
- "warp-workflows",
  "warp_cli",
  "warp_completer",
  "warp_core",
@@ -15114,28 +15093,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with 2.3.3",
-]
-
-[[package]]
-name = "warp-workflows"
-version = "0.1.0"
-source = "git+https://github.com/warpdotdev/workflows?rev=793a98ddda6ef19682aed66364faebd2829f0e01#793a98ddda6ef19682aed66364faebd2829f0e01"
-dependencies = [
- "anyhow",
- "convert_case 0.4.0",
- "memmap",
- "serde_yaml",
- "uneval",
- "walkdir",
- "warp-workflows-types",
-]
-
-[[package]]
-name = "warp-workflows-types"
-version = "0.1.0"
-source = "git+https://github.com/warpdotdev/workflows?rev=793a98ddda6ef19682aed66364faebd2829f0e01#793a98ddda6ef19682aed66364faebd2829f0e01"
-dependencies = [
- "serde",
 ]
 
 [[package]]

@@ -2,8 +2,6 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{server::ids::ServerId, workflows::WorkflowId};
-
 use super::editor::BlockInsertionSource;
 
 /// A user action within a notebook. Some actions, like running a command, are not included here
@@ -13,8 +11,6 @@ use super::editor::BlockInsertionSource;
 pub enum NotebookTelemetryAction {
     /// The user manually took edit control.
     GrabEditingBaton,
-    /// An object was embedded into the notebook.
-    InsertEmbeddedObject(EmbeddedObjectInfo),
     /// A block within the notebook was copied to the clipboard.
     /// Currently, this only applies to command-like blocks.
     CopyBlock {
@@ -32,7 +28,7 @@ pub enum NotebookTelemetryAction {
     OpenContextMenu,
     /// The selection mode changed.
     ChangeSelectionMode { mode: SelectionMode },
-    /// The user navigated between command/code blocks or embedded workflows with the keyboard.
+    /// The user navigated between command/code blocks with the keyboard.
     CommandKeyboardNavigation,
 }
 
@@ -47,24 +43,10 @@ pub enum ActionEntrypoint {
     Menu,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(tag = "object_type")]
-pub enum EmbeddedObjectInfo {
-    Workflow {
-        workflow_id: Option<WorkflowId>,
-        team_uid: Option<ServerId>,
-    },
-}
-
 /// Information about a block in the notebook.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "block_type")]
 pub enum BlockInfo {
-    /// A workflow embedded in the notebook.
-    EmbeddedWorkflow {
-        workflow_id: Option<WorkflowId>,
-        team_uid: Option<ServerId>,
-    },
     /// A code or command block within the notebook.
     CodeBlock,
 }
@@ -72,7 +54,7 @@ pub enum BlockInfo {
 /// A selection/navigation mode within the notebook.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SelectionMode {
-    /// Navigate between command/code blocks and embedded workflows.
+    /// Navigate between command/code blocks.
     Command,
     /// Navigate with a text cursor/selection.
     Text,

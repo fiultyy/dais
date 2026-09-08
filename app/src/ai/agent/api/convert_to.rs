@@ -493,15 +493,6 @@ impl From<AIAgentAttachment> for api::Attachment {
                 value: Some(api::attachment::Value::DriveObject(api::DriveObject {
                     uid,
                     object_payload: payload.map(|p| match p {
-                        DriveObjectPayload::Workflow {
-                            name,
-                            description,
-                            command,
-                        } => api::drive_object::ObjectPayload::Workflow(api::Workflow {
-                            name,
-                            description,
-                            command,
-                        }),
                         DriveObjectPayload::Notebook { title, content } => {
                             api::drive_object::ObjectPayload::Notebook(api::Notebook {
                                 title,
@@ -791,15 +782,7 @@ impl From<Suggestions> for api::Suggestions {
                     logging_id: rule.logging_id.to_string(),
                 })
                 .collect(),
-            workflows: value
-                .agent_mode_workflows
-                .into_iter()
-                .map(|workflow| api::SuggestedAgentModeWorkflow {
-                    name: workflow.name,
-                    prompt: workflow.prompt,
-                    logging_id: workflow.logging_id.to_string(),
-                })
-                .collect(),
+            workflows: vec![],
         }
     }
 }

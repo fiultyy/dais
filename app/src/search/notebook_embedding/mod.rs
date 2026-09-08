@@ -4,7 +4,6 @@ mod embedded_fuzzy_match;
 mod notebooks;
 pub mod searcher;
 pub mod view;
-mod workflows;
 
 /// Tests if an object owned by `object_owner` is accessible to all users with permissions to
 /// `embedding_space`.
@@ -20,10 +19,10 @@ fn is_embed_accessible(embedding_space: Space, object_owner: Owner) -> bool {
                 ..
             },
             Owner::Team {
-                team_uid: workflow_team_uid,
+                team_uid: object_team_uid,
                 ..
             },
-        ) => notebook_team_uid == workflow_team_uid,
+        ) => notebook_team_uid == object_team_uid,
         // Private objects will not be accessible to all members of a team.
         (Space::Team { .. }, Owner::User { .. }) => false,
     }

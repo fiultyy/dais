@@ -13,8 +13,6 @@ use crate::ai::agent_sdk::mcp_config::build_mcp_servers_from_specs;
 use crate::ai::aws_credentials::refresh_aws_credentials;
 use crate::ai::llms::LLMId;
 use crate::auth::OwnerType;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::workflows::workflow::Workflow;
 use ai::api_keys::{ApiKeyManager, AwsCredentialsRefreshStrategy};
 use anyhow::Context;
 use warp_cli::{
@@ -268,7 +266,7 @@ fn build_merged_config_and_task(
     };
 
     let task = Task {
-        prompt: AgentRunPrompt::Local(resolve_prompt(&local_prompt, ctx)?),
+        prompt: AgentRunPrompt::Local(resolve_prompt(&local_prompt)?),
         model: model_override,
         profile: args.profile.clone(),
         mcp_specs: runtime_mcp_specs,
@@ -279,20 +277,9 @@ fn build_merged_config_and_task(
 }
 
 /// Resolve a `Prompt` to a plain string.
-fn resolve_prompt(prompt: &Prompt, ctx: &AppContext) -> Result<String, AgentDriverError> {
+fn resolve_prompt(prompt: &Prompt) -> Result<String, AgentDriverError> {
     match prompt {
         Prompt::PlainText(prompt_str) => Ok(prompt_str.to_string()),
-        Prompt::SavedPrompt(workflow_id) => {
-            let Some(workflow) = ObjectStoreModel::as_ref(ctx).get_workflow_by_uid(workflow_id)
-            else {
-                return Err(AgentDriverError::AIWorkflowNotFound(workflow_id.to_owned()));
-            };
-
-            let Workflow::AgentMode { query, .. } = &workflow.model().data else {
-                return Err(AgentDriverError::AIWorkflowNotFound(workflow_id.to_owned()));
-            };
-            Ok(query.to_owned())
-        }
     }
 }
 
@@ -316,8 +303,6 @@ impl AgentDriverRunner {
         // Ensure we've synced team state before starting the driver.
         Self::refresh_team_metadata(&foreground).await?;
 
-        // Wait for Dais Drive to sync before building the task config, since
-        // prompt resolution (SavedPrompt -> workflow lookup) depends on it.
         if foreground
             .spawn(|_, ctx| common::refresh_warp_drive(ctx))
             .await?

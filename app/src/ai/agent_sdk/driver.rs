@@ -284,8 +284,6 @@ pub enum AgentDriverError {
     ProfileError(String),
     #[error("Local user state is unavailable. Restart Dais and try again.")]
     NotLoggedIn,
-    #[error("Saved prompt not found for id {0}")]
-    AIWorkflowNotFound(String),
     #[error("Terminal bootstrap failed")]
     BootstrapFailed,
     #[error("Error syncing Dais Drive")]

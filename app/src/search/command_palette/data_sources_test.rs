@@ -9,8 +9,6 @@ use crate::notebooks::manager::NotebookManager;
 use crate::notebooks::{NotebookObject, NotebookObjectModel};
 use crate::server::ids::SyncId::{self};
 use crate::settings::AISettings;
-use crate::workflows::workflow::Workflow;
-use crate::workflows::{WorkflowObject, WorkflowObjectModel};
 use crate::{
     cloud_object::update_manager::UpdateManager,
     cloud_object::{
@@ -21,7 +19,6 @@ use crate::{
     notebooks::NotebookId,
     search::data_source::Query,
     system::SystemStats,
-    workflows::WorkflowId,
     workspaces::{user_profiles::UserProfiles, user_workspaces::UserWorkspaces},
 };
 
@@ -38,16 +35,6 @@ fn mock_permissions(owner: Owner) -> StoredObjectPermissions {
         permissions_last_updated_ts: Some(Utc::now().into()),
         anyone_with_link: None,
     }
-}
-
-fn mock_workflow(id: WorkflowId, owner: Owner) -> WorkflowObject {
-    let sync_id = SyncId::ServerId(id.into());
-    WorkflowObject::new(
-        sync_id,
-        WorkflowObjectModel::new(Workflow::new(format!("foo{id}"), format!("bar{id}"))),
-        mock_metadata(),
-        mock_permissions(owner),
-    )
 }
 
 fn mock_notebook(id: NotebookId, owner: Owner) -> NotebookObject {
@@ -89,8 +76,6 @@ fn test_drive_data_source_correctly_filters_drive_filter() {
         ObjectStoreModel::handle(&app).update(&mut app, |model, _| {
             let notebook = mock_notebook(1.into(), Owner::mock_current_user());
             model.add_object(notebook.id, notebook);
-            let workflow = mock_workflow(2.into(), Owner::mock_current_user());
-            model.add_object(workflow.id, workflow);
         });
 
         let mixer = app.add_model(|_| CommandPaletteMixer::new());
@@ -102,7 +87,6 @@ fn test_drive_data_source_correctly_filters_drive_filter() {
                 [
                     QueryFilter::Drive,
                     QueryFilter::Notebooks,
-                    QueryFilter::Workflows,
                 ],
             );
 
@@ -119,8 +103,8 @@ fn test_drive_data_source_correctly_filters_drive_filter() {
         app.read(|app| {
             let results = mixer.as_ref(app).results();
 
-            // Expect both of the results to be included
-            assert_eq!(results.len(), 2);
+            // Expect only the notebook result to be included
+            assert_eq!(results.len(), 1);
         });
     })
 }
@@ -133,8 +117,6 @@ fn test_drive_data_source_correctly_filters_no_filter() {
         ObjectStoreModel::handle(&app).update(&mut app, |model, _| {
             let notebook = mock_notebook(1.into(), Owner::mock_current_user());
             model.add_object(notebook.id, notebook);
-            let workflow = mock_workflow(2.into(), Owner::mock_current_user());
-            model.add_object(workflow.id, workflow);
         });
         let mixer = app.add_model(|_| CommandPaletteMixer::new());
         let data_source_handle = app.add_model(warp_drive::DataSource::new);
@@ -145,7 +127,6 @@ fn test_drive_data_source_correctly_filters_no_filter() {
                 [
                     QueryFilter::Drive,
                     QueryFilter::Notebooks,
-                    QueryFilter::Workflows,
                 ],
             );
 
@@ -162,53 +143,8 @@ fn test_drive_data_source_correctly_filters_no_filter() {
         app.read(|app| {
             let results = mixer.as_ref(app).results();
 
-            // Expect both of the results to be included
-            assert_eq!(results.len(), 2);
-        });
-    })
-}
-
-#[test]
-fn test_drive_data_source_correctly_filters_workflow_filter() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-        // Initialize ObjectStoreModel
-        ObjectStoreModel::handle(&app).update(&mut app, |model, _| {
-            let notebook = mock_notebook(1.into(), Owner::mock_current_user());
-            model.add_object(notebook.id, notebook);
-            let workflow = mock_workflow(2.into(), Owner::mock_current_user());
-            model.add_object(workflow.id, workflow);
-        });
-        let mixer = app.add_model(|_| CommandPaletteMixer::new());
-        let data_source_handle = app.add_model(warp_drive::DataSource::new);
-        mixer.update(&mut app, |mixer, ctx| {
-            // Add the drive data source with the relevant filters
-            mixer.add_sync_source(
-                data_source_handle,
-                [
-                    QueryFilter::Drive,
-                    QueryFilter::Notebooks,
-                    QueryFilter::Workflows,
-                ],
-            );
-
-            // Run the query with no filter
-            mixer.run_query(
-                Query {
-                    filters: HashSet::from([QueryFilter::Workflows]),
-                    text: "foo".into(),
-                },
-                ctx,
-            );
-        });
-
-        app.read(|app| {
-            let results = mixer.as_ref(app).results();
-
-            // Expect only the workflow result to be included
+            // Expect only the notebook result to be included
             assert_eq!(results.len(), 1);
-
-            assert!(results[0].accessibility_label().starts_with("Workflow:"));
         });
     })
 }
@@ -221,8 +157,6 @@ fn test_drive_data_source_correctly_filters_notebook_filter() {
         ObjectStoreModel::handle(&app).update(&mut app, |model, _| {
             let notebook = mock_notebook(1.into(), Owner::mock_current_user());
             model.add_object(notebook.id, notebook);
-            let workflow = mock_workflow(2.into(), Owner::mock_current_user());
-            model.add_object(workflow.id, workflow);
         });
         let mixer = app.add_model(|_| CommandPaletteMixer::new());
         let data_source_handle = app.add_model(warp_drive::DataSource::new);
@@ -233,7 +167,6 @@ fn test_drive_data_source_correctly_filters_notebook_filter() {
                 [
                     QueryFilter::Drive,
                     QueryFilter::Notebooks,
-                    QueryFilter::Workflows,
                 ],
             );
 
@@ -250,7 +183,7 @@ fn test_drive_data_source_correctly_filters_notebook_filter() {
         app.read(|app| {
             let results = mixer.as_ref(app).results();
 
-            // Expect only the workflow result to be included
+            // Expect only the notebook result to be included
             assert_eq!(results.len(), 1);
 
             assert!(results[0].accessibility_label().starts_with("Notebook:"));

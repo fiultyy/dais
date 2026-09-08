@@ -161,7 +161,7 @@ pub enum ObjectActionSubtype {
         processed_at_timestamp: Option<DateTime<Utc>>,
 
         // A JSON representation of anything else we might want to track about the action.
-        // For example, the exit code of a workflow execution.
+        // For example, the exit code of a command execution.
         data: Option<String>,
 
         // Whether or not this action has been successfully synced to the server.

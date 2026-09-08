@@ -317,15 +317,6 @@ fn redact_attachment(attachment: &mut AIAgentAttachment) {
         AIAgentAttachment::DriveObject { payload, .. } => {
             if let Some(drive_payload) = payload {
                 match drive_payload {
-                    crate::ai::agent::DriveObjectPayload::Workflow {
-                        name,
-                        description,
-                        command,
-                    } => {
-                        redact_secrets(name);
-                        redact_secrets(description);
-                        redact_secrets(command);
-                    }
                     crate::ai::agent::DriveObjectPayload::Notebook { title, content } => {
                         redact_secrets(title);
                         redact_secrets(content);

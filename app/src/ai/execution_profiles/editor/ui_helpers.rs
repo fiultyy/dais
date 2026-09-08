@@ -373,7 +373,7 @@ pub fn render_permissions_section(
     let interact_label = crate::t!("settings-exec-profile-editor-interact-running-commands");
     column.add_child(render_permission_row(
         appearance,
-        Icon::Workflow,
+        Icon::Terminal,
         &interact_label,
         &view.write_to_pty_dropdown,
         profile_data.write_to_pty.description(),

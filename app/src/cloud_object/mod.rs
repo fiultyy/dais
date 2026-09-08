@@ -1,6 +1,6 @@
 //! # Dais 本地化说明(Phase 2d-4b,2026-05-11 修订)
 //!
-//! 本模块在上游 Dais 中承担 "云对象" 抽象,统一描述 Notebook / Workflow / EnvVar /
+//! 本模块在上游 Dais 中承担 "云对象" 抽象,统一描述 Notebook / EnvVar /
 //! Fact / MCP / ExecutionProfile / AIDocument 等需要在多设备间同步的对象类型。
 //!
 //! 在 Dais 中云端同步链路(RTC / UpdateManager / SyncQueue / ServerApiProvider)
@@ -34,7 +34,6 @@ use crate::{
     server::ids::{ClientId, HashableId, HashedSqliteId, ObjectUid, ServerId, SyncId, ToServerId},
     server_time::ServerTimestamp,
     util::time_format::format_approx_duration_from_now_utc,
-    workflows::{WorkflowObject, WorkflowSource},
     workspaces::{user_profiles::UserProfiles, user_workspaces::UserWorkspaces},
 };
 use chrono::{Duration, Utc};
@@ -94,7 +93,7 @@ impl From<&str> for SerializedModel {
 }
 
 /// A StoredObject represents
-/// therefore shareable and editable (i.e. Notebooks and Workflows). In order
+/// therefore shareable and editable (i.e. Notebooks). In order
 /// to support collaborative editing of these objects, they must each store local
 /// revision numbers to ensure a stable way of accepting and rejecting edits.
 ///
@@ -127,7 +126,7 @@ impl From<&str> for SerializedModel {
 /// For more info on revisions: https://docs.google.com/document/d/1SGtX_5AiSJmUxXCRk5NzGTzrC_XrxQRsio-KZOec_ng/edit
 /// And grab the baton: https://docs.google.com/document/d/1LgGaz8bB40AONTzC0ZFOw5Kg0SD8_RM10V_nyt3zOvY/edit#heading=h.tcup5oqi82p4
 pub trait StoredObject: Debug {
-    /// Returns the name of this model type (e.g. Workflow, Folder, Notebook)
+    /// Returns the name of this model type (e.g. Folder, Notebook)
     fn model_type_name(&self) -> &'static str;
 
     /// Returns the  uid for this object.
@@ -137,7 +136,7 @@ pub trait StoredObject: Debug {
     fn sync_id(&self) -> SyncId;
 
     /// Returns the id used to index into sqlite, this is the object's UID with its type
-    /// prefixed, such as "Workflow-{UID}"
+    /// prefixed, such as "Notebook-{UID}"
     fn hashed_sqlite_id(&self) -> HashedSqliteId;
 
     /// Returns the StoredObjectMetadata struct associated with this object.
@@ -152,7 +151,7 @@ pub trait StoredObject: Debug {
     /// Returnsa mutable reference to the StoredObjectPermissions struct associated with this object.
     fn permissions_mut(&mut self) -> &mut StoredObjectPermissions;
 
-    /// Returns the ObjectType i.e. 'Workflow' or 'Notebook'
+    /// Returns the ObjectType i.e. 'Notebook'
     fn object_type(&self) -> ObjectType;
 
     /// Returns the ObjectTypeAndId for this object.
@@ -440,7 +439,7 @@ pub trait StoredObject: Debug {
 }
 
 /// Defines a common trait for object store models to implement.
-/// "model" 是 stored object 的领域数据,例如 notebook/workflow/folder 的具体内容;
+/// "model" 是 stored object 的领域数据,例如 notebook/folder 的具体内容;
 /// metadata、permissions、sync status 逻辑不放在这里。
 ///
 /// See the comments for StoredObject to understand the relationship between
@@ -449,12 +448,12 @@ pub trait StoredObject: Debug {
 /// When building new model types (e.g. for settings or launch configs) we should just
 /// have to implement this trait, and not the entire StoredObject trait.
 pub trait StoredObjectModel: Debug + Clone + Send + Sync {
-    /// The associated StoredObject type for this model (e.g. NotebookObject, WorkflowObject, etc)
+    /// The associated StoredObject type for this model (e.g. NotebookObject, etc)
     type StoredObjectType: StoredObject + 'static;
     // TODO: @ianhodge - remove for sync ID refactor.
     type IdType: HashableId + ToServerId + Debug + Into<String> + Clone + 'static;
 
-    /// Returns the name of this model type (e.g. Workflow, Folder, Notebook)
+    /// Returns the name of this model type (e.g. Folder, Notebook)
     fn model_type_name(&self) -> &'static str;
 
     /// Returns the ObjectTypeAndId for this object.
@@ -678,15 +677,7 @@ where
             SyncId::ClientId(_) => None,
             SyncId::ServerId(id) => {
                 let object_type = self.object_type();
-                let object_type_for_link = if self
-                    .as_any()
-                    .downcast_ref::<WorkflowObject>()
-                    .is_some_and(|w| w.model().data.is_agent_mode_workflow())
-                {
-                    "prompt".to_string()
-                } else {
-                    object_type.to_string()
-                };
+                let object_type_for_link = object_type.to_string();
 
                 let mut link = format!(
                     "{}://drive/{}/{}-{}",
@@ -839,7 +830,6 @@ pub fn extract_server_id_and_object_type_from_warp_drive_link(
     // into an object type
     let object_type = match object_type {
         Some("notebook") => ObjectType::Notebook,
-        Some("workflow") => ObjectType::Workflow,
         _ => return None,
     };
     let query_string: HashMap<_, _> = url.query_pairs().collect();
@@ -1074,23 +1064,4 @@ pub enum StoredObjectLocation {
     Trash,
 }
 
-impl From<Space> for WorkflowSource {
-    fn from(space: Space) -> Self {
-        match space {
-            Space::Personal => WorkflowSource::PersonalCloud,
-            Space::Team { team_uid } => WorkflowSource::Team { team_uid },
-            // TODO(ben): Model sharing in workflow telemetry.
-            Space::Shared => WorkflowSource::PersonalCloud,
-        }
-    }
-}
 
-impl From<Owner> for WorkflowSource {
-    fn from(owner: Owner) -> WorkflowSource {
-        match owner {
-            // TODO(ben): Represent shared objects in telemetry.
-            Owner::User { .. } => Self::PersonalCloud,
-            Owner::Team { team_uid } => Self::Team { team_uid },
-        }
-    }
-}

@@ -104,7 +104,7 @@ impl SettingsWidget for WarpDriveToggleWidget {
     type View = WarpDriveSettingsPageView;
 
     fn search_terms(&self) -> &str {
-        "dais drive tools panel command palette search workflows prompts notebooks environment variables"
+        "dais drive tools panel command palette search prompts notebooks environment variables"
     }
 
     fn render(
@@ -137,7 +137,7 @@ impl SettingsWidget for WarpDriveToggleWidget {
                     ctx.dispatch_typed_action(WarpDriveSettingsPageAction::ToggleShowWarpDrive);
                 })
                 .finish(),
-            Some("Dais Drive is a local workspace in your terminal where you can save Workflows, Notebooks, Prompts, and Environment Variables on this device.".into()),
+            Some("Dais Drive is a local workspace in your terminal where you can save Notebooks, Prompts, and Environment Variables on this device.".into()),
         )
     }
 }

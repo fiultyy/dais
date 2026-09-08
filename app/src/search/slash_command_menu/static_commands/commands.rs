@@ -74,19 +74,6 @@ pub static INVOKE_SKILL: LazyLock<StaticCommand> = LazyLock::new(|| StaticComman
     argument: None,
 });
 
-pub static ADD_PROMPT: LazyLock<StaticCommand> = LazyLock::new(|| StaticCommand {
-    name: "/add-prompt",
-    description: t_static!("slash-cmd-add-prompt-desc"),
-    icon_path: if FeatureFlag::AgentView.is_enabled() {
-        "bundled/svg/prompt.svg"
-    } else {
-        "bundled/svg/agentmode.svg"
-    },
-    availability: Availability::AI_ENABLED,
-    auto_enter_ai_mode: false,
-    argument: None,
-});
-
 pub static ADD_RULE: LazyLock<StaticCommand> = LazyLock::new(|| StaticCommand {
     name: "/add-rule",
     description: t_static!("slash-cmd-add-rule-desc"),
@@ -317,15 +304,6 @@ pub static CONVERSATIONS: LazyLock<StaticCommand> = LazyLock::new(|| StaticComma
     argument: None,
 });
 
-pub static PROMPTS: LazyLock<StaticCommand> = LazyLock::new(|| StaticCommand {
-    name: "/prompts",
-    description: t_static!("slash-cmd-prompts-desc"),
-    icon_path: "bundled/svg/prompt.svg",
-    availability: Availability::AI_ENABLED,
-    auto_enter_ai_mode: false,
-    argument: None,
-});
-
 pub static REWIND: LazyLock<StaticCommand> = LazyLock::new(|| StaticCommand {
     name: "/rewind",
     description: t_static!("slash-cmd-rewind-desc"),
@@ -425,7 +403,6 @@ impl Registry {
 fn all_commands() -> Vec<StaticCommand> {
     let mut commands = vec![
         ADD_MCP.clone(),
-        ADD_PROMPT.clone(),
         ADD_RULE.clone(),
         INIT.clone(),
         OPEN_PROJECT_RULES.clone(),
@@ -446,10 +423,6 @@ fn all_commands() -> Vec<StaticCommand> {
 
     if FeatureFlag::Changelog.is_enabled() {
         commands.push(CHANGELOG.clone());
-    }
-
-    if FeatureFlag::AgentView.is_enabled() {
-        commands.push(PROMPTS.clone());
     }
 
     commands.push(OPEN_CODE_REVIEW.clone());

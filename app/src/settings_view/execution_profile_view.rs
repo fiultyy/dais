@@ -351,7 +351,7 @@ impl View for ExecutionProfileView {
 
                         permissions_column.add_child(with_standard_vertical_margin(
                             render_write_to_pty_permission_line_with_icon(
-                                Icon::Workflow,
+                                Icon::TerminalInput,
                                 crate::t!("settings-exec-profile-interact-running-commands"),
                                 &profile.write_to_pty,
                                 appearance,

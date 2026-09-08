@@ -94,11 +94,6 @@ pub enum TipAction {
     // renamed because we serialize it into the welcome tips.
     DaisDrive,
     Changelog,
-    // Note that this item has been deprecated from the UI and is not in any section.
-    // We are leaving it in this enum to ensure that we don't re-use `Workflows` as a
-    // value. Since old clients will have this value in their user defaults, we want
-    // to prevent future usage of this enum value.
-    Workflows,
 }
 
 impl TipAction {
@@ -116,7 +111,6 @@ impl TipAction {
             // Slash commands are also registered as editable bindings, so callers can look them up here
             // the same way they do regular app actions.
             TipAction::Changelog => "/changelog",
-            TipAction::Workflows => "input:toggle_workflows",
         }
     }
 

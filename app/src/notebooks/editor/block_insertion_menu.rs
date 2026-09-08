@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use serde::{Deserialize, Serialize};
 use warp_editor::content::text::BufferBlockItem;
 use warpui::{
@@ -18,10 +16,9 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    cloud_object::{model::persistence::ObjectStoreModel, ObjectIdType, Space},
+    cloud_object::{model::persistence::ObjectStoreModel, Space},
     drive::ObjectTypeAndId,
     menu::{self, Menu, MenuItemFields},
-    notebooks::telemetry::EmbeddedObjectInfo,
     search::notebook_embedding::{
         searcher::EmbeddingSearchItemAction,
         view::{EmbeddingSearchEvent, EmbeddingSearchMenu},
@@ -32,7 +29,6 @@ use crate::{
 };
 
 use super::{
-    embedded_item::EmbeddedWorkflow,
     view::{EditorViewAction, EditorViewEvent, RichTextEditorView},
     BlockType,
 };
@@ -209,35 +205,11 @@ impl RichTextEditorView {
         match event {
             EmbeddingSearchEvent::Close => self.close_block_insertion_menu(ctx),
             EmbeddingSearchEvent::ItemSelected { payload } => match payload.as_ref() {
-                EmbeddingSearchItemAction::AcceptWorkflow(id) => {
-                    self.insert_embedded_workflow(id, ctx)
-                }
                 EmbeddingSearchItemAction::AcceptNotebook(id) => {
                     self.insert_embedded_notebook(id, ctx)
                 }
             },
         }
-    }
-
-    /// Insert an embedded workflow block at the current insertion menu source.
-    fn insert_embedded_workflow(&mut self, id: &SyncId, ctx: &mut ViewContext<Self>) {
-        self.insert_block(
-            warp_editor::content::text::BlockType::Item(BufferBlockItem::Embedded {
-                item: Arc::new(EmbeddedWorkflow::new(
-                    id.sqlite_uid_hash(ObjectIdType::Workflow),
-                )),
-            }),
-            ctx,
-        );
-        let team_uid = ObjectStoreModel::as_ref(ctx)
-            .get_workflow(id)
-            .and_then(|workflow| workflow.permissions.owner.into());
-        ctx.emit(EditorViewEvent::InsertedEmbeddedObject(
-            EmbeddedObjectInfo::Workflow {
-                workflow_id: id.into_server().map(Into::into),
-                team_uid,
-            },
-        ))
     }
 
     /// Insert an embedded notebook inline view at the current insertion menu source.

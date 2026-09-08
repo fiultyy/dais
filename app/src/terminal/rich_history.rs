@@ -18,21 +18,12 @@ use crate::{
 /// Vertical spacing between line items in rich history details.
 pub(crate) const DETAILS_PARAGRAPH_SPACING: f32 = 8.;
 
-/// Renders the details panel for rich history items. One of the items, the linked workflow name,
-/// can be enabled/disabled since we only want it for some views and not others.
+/// Renders the details panel for rich history items.
 pub fn render_rich_history(entry: &HistoryEntry, ctx: &AppContext) -> Box<dyn Element> {
     let appearance = Appearance::as_ref(ctx);
     let ui_builder = appearance.ui_builder();
 
     let mut flex_column = Flex::column().with_cross_axis_alignment(CrossAxisAlignment::Stretch);
-
-    if let Some(workflow) = entry.linked_workflow(ctx) {
-        flex_column.add_child(render_row_with_icon_and_paragraph(
-            "bundled/svg/workflow.svg",
-            workflow.name().to_owned(),
-            appearance,
-        ))
-    }
 
     if let Some(exit_code) = entry.exit_code {
         let icon = if exit_code.was_successful() {

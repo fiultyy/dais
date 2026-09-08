@@ -108,7 +108,6 @@ pub enum LeafContents {
     EnvVarCollection(EnvVarCollectionPaneSnapshot),
     // Dais Wave 7-3:`EnvironmentManagement` LeafContents variant 随 Ambient Agent UI
     // 子系统物理删。
-    Workflow(WorkflowPaneSnapshot),
     Settings(SettingsPaneSnapshot),
     AIFact(AIFactPaneSnapshot),
     ExecutionProfileEditor,
@@ -176,7 +175,6 @@ impl LeafContents {
             | LeafContents::Notebook(_)
             | LeafContents::AIDocument(_)
             | LeafContents::EnvVarCollection(_)
-            | LeafContents::Workflow(_)
             | LeafContents::Settings(_)
             | LeafContents::AIFact(_)
             | LeafContents::ExecutionProfileEditor
@@ -257,15 +255,6 @@ pub enum CodePaneSnapShot {
         active_tab_index: usize,
         /// The full `CodeSource` for this pane, serialized as JSON in the DB.
         source: Option<CodeSource>,
-    },
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum WorkflowPaneSnapshot {
-    WorkflowObject {
-        workflow_id: Option<SyncId>,
-        // Settings for the workflow pane when it's opened (such as a folder to focus upon opening)
-        settings: DaisDriveObjectSettings,
     },
 }
 

@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::ops::Deref as _;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use chrono::Utc;
 use itertools::Itertools as _;
@@ -24,7 +23,6 @@ use warpui::{
 
 use super::super::palette_styles as styles;
 use crate::appearance::Appearance;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
 use crate::drive::ObjectTypeAndId;
 use crate::palette::PaletteMode;
 use crate::pane_group::pane::welcome_view::WelcomeViewAction;
@@ -50,7 +48,6 @@ use crate::settings::AISettings;
 use crate::terminal::History;
 use crate::themes::theme::WarpTheme;
 use crate::ui_components::icons::Icon;
-use crate::workflows::{WorkflowSelectionSource, WorkflowSource, WorkflowType};
 use crate::workspace::WorkspaceAction;
 
 /// Position ID for the command palette list.
@@ -76,10 +73,6 @@ pub enum Event {
     Close,
     ParentAction {
         action: WelcomeViewAction,
-    },
-    /// Execute the workflow identified by `id`.
-    ExecuteWorkflow {
-        id: SyncId,
     },
     /// Invoke the env vars identified by `id`.
     InvokeEnvironmentVariables {
@@ -803,23 +796,6 @@ impl WelcomePalette {
             }
             CommandPaletteItemAction::OpenNotebook { id } => {
                 self.dispatch_typed_action_on_view(&WorkspaceAction::OpenNotebook { id: *id }, ctx);
-                self.close(ctx, Some(result_action.result_type()));
-            }
-            CommandPaletteItemAction::ExecuteWorkflow { id } => {
-                let Some(workflow) = ObjectStoreModel::as_ref(ctx).get_workflow(id) else {
-                    log::warn!("Tried to execute workflow for id {id:?} but it does not exist");
-                    return;
-                };
-
-                self.dispatch_typed_action_on_view(
-                    &WorkspaceAction::RunWorkflow {
-                        workflow: Arc::new(WorkflowType::Cloud(Box::new(workflow.clone()))),
-                        workflow_source: WorkflowSource::Global,
-                        workflow_selection_source: WorkflowSelectionSource::CommandPalette,
-                        argument_override: None,
-                    },
-                    ctx,
-                );
                 self.close(ctx, Some(result_action.result_type()));
             }
             CommandPaletteItemAction::NewSession { source } => {

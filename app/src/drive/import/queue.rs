@@ -13,7 +13,6 @@ use crate::{
     drive::folders::FolderId,
     notebooks::NotebookObjectModel,
     server::ids::{ClientId, SyncId},
-    workflows::{workflow::Workflow, workflow_enum::WorkflowEnum},
 };
 
 use super::nodes::{self, FileId};
@@ -54,11 +53,6 @@ pub(super) enum RequestContent {
         title: String,
         data: String,
         client_id: ClientId,
-        file_id: FileId,
-    },
-    Workflow {
-        workflows: Vec<(Workflow, ClientId)>,
-        workflow_enums: HashMap<ClientId, WorkflowEnum>,
         file_id: FileId,
     },
 }
@@ -145,15 +139,7 @@ impl ImportQueue {
             RequestContent::Notebook {
                 client_id, file_id, ..
             } => self.file_completion.add_entry(*client_id, *file_id),
-            RequestContent::Workflow {
-                workflows, file_id, ..
-            } => {
-                for (_, client_id) in workflows {
-                    self.file_completion.add_entry(*client_id, *file_id);
-                }
-            }
         }
-
         self.queue.push(arg);
         self.dequeue(ctx);
     }
@@ -218,39 +204,6 @@ impl ImportQueue {
                             false,
                             ctx,
                         );
-                    });
-                    ctx.emit(ImportQueueEvent::FileSavedLocally(file_id));
-                }
-                RequestContent::Workflow {
-                    workflows,
-                    workflow_enums,
-                    file_id,
-                } => {
-                    UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                        // Create any new workflow enums
-                        for (client_id, workflow_enum) in workflow_enums {
-                            update_manager.create_workflow_enum(
-                                workflow_enum,
-                                dequeued_item.owner,
-                                client_id,
-                                StoredObjectEventEntrypoint::ImportModal,
-                                false,
-                                ctx,
-                            );
-                        }
-
-                        // Create the workflow
-                        for (workflow, client_id) in workflows {
-                            update_manager.create_workflow(
-                                workflow,
-                                dequeued_item.owner,
-                                parent_id,
-                                client_id,
-                                StoredObjectEventEntrypoint::ImportModal,
-                                false,
-                                ctx,
-                            );
-                        }
                     });
                     ctx.emit(ImportQueueEvent::FileSavedLocally(file_id));
                 }

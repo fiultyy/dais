@@ -1,4 +1,4 @@
-use std::{borrow::Cow, mem, ops::Range, sync::Arc};
+use std::{borrow::Cow, mem, ops::Range};
 
 use async_channel::Sender;
 use itertools::Itertools;
@@ -43,7 +43,6 @@ use crate::{
     appearance::Appearance,
     completer::SessionAgnosticContext,
     debounce::debounce,
-    drive::workflows::arguments::ArgumentsState,
     editor::InteractionState,
     notebooks::{
         styles::block_footer_action_button,
@@ -61,17 +60,15 @@ use crate::{
         color::{ContrastingColor, MinimumAllowedContrast},
     },
     view_components::{Dropdown, DropdownItem},
-    workflows::{workflow::Workflow, WorkflowType},
     Assets,
 };
 
 use super::{
     interaction_state_model::InteractionStateModel,
-    keys::{custom_action_to_display, NotebookKeybindings},
+    keys::custom_action_to_display,
     model::ChildModelHandle,
     rich_text_styles,
     view::EditorViewAction,
-    NotebookWorkflow,
 };
 
 lazy_static! {
@@ -560,19 +557,6 @@ impl NotebookCommand {
     pub fn set_selected(&mut self, selected: bool) -> bool {
         mem::replace(&mut self.is_selected, selected)
     }
-
-    /// Promotes this notebook command into a [`Workflow`]. If the workflow is anonymous, the
-    /// containing `NotebookView` fills in its title.
-    pub fn to_workflow(&self, ctx: &AppContext) -> Option<NotebookWorkflow> {
-        let command = self.command(ctx)?;
-        let args_state = ArgumentsState::for_command_workflow(&Default::default(), command.clone());
-        // TODO: Once notebook workflows have their own metadata, we can populate the title here.
-        let workflow = Workflow::new(String::new(), command).with_arguments(args_state.arguments);
-        Some(NotebookWorkflow {
-            workflow: UserInput::new(Arc::new(WorkflowType::Notebook(workflow))),
-            source: None,
-        })
-    }
 }
 
 impl Entity for NotebookCommand {
@@ -582,12 +566,7 @@ impl Entity for NotebookCommand {
 impl RunnableCommandModel for NotebookCommand {
     fn render_block_footer(&self, editor_is_focused: bool, ctx: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(ctx);
-        let mut model = self.handle.clone();
-
-        // Get the CodeBlockType at the end offset for the NotebookCommand
-        // We would expect the BlockStyle at the offset to be a CodeBlock
-        let block_style = self.code_block_type(ctx);
-
+        let model = self.handle.clone();
         let mut footer = Flex::row()
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
             .with_main_axis_alignment(MainAxisAlignment::End);
@@ -644,30 +623,6 @@ impl RunnableCommandModel for NotebookCommand {
             .right()
             .finish(),
         );
-        if matches!(block_style, CodeBlockType::Shell) {
-            model = self.handle.clone();
-            footer.add_child(
-                Align::new(
-                    block_footer_action_button(
-                        appearance,
-                        Icon::TerminalInput,
-                        self.mouse_state_handles.insert_button_state.clone(),
-                        "Run in terminal",
-                        NotebookKeybindings::as_ref(ctx).run_commands_keybinding(),
-                    )
-                    .on_click(move |ctx, app, _| {
-                        if let Some(command_model) = model.upgrade(app) {
-                            if let Some(workflow) = command_model.as_ref(app).to_workflow(app) {
-                                ctx.dispatch_typed_action(EditorViewAction::RunWorkflow(workflow));
-                            }
-                        }
-                    })
-                    .finish(),
-                )
-                .right()
-                .finish(),
-            );
-        }
         footer.finish()
     }
 
@@ -696,10 +651,6 @@ impl ChildModelHandle for ModelHandle<NotebookCommand> {
 
     fn selectable(&self, _: &AppContext) -> bool {
         true
-    }
-
-    fn executable_workflow(&self, app: &AppContext) -> Option<NotebookWorkflow> {
-        self.as_ref(app).to_workflow(app)
     }
 
     fn executable_command<'a>(&'a self, app: &'a AppContext) -> Option<Cow<'a, str>> {

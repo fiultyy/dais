@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use warp_core::context_flag::ContextFlag;
 use warpui::{
     elements::{Clipped, Container, Flex, MouseStateHandle, ParentElement},
     fonts::Weight,
@@ -53,13 +52,7 @@ impl WarpDriveItem for WarpDriveEnvVarCollection {
     }
 
     fn click_action(&self) -> Option<DriveIndexAction> {
-        // If running the workflow is disabled (true for some web views),
-        // we should just open the workflow instead.
-        if !ContextFlag::RunWorkflow.is_enabled() {
-            Some(DriveIndexAction::OpenObject(self.id))
-        } else {
-            Some(DriveIndexAction::RunObject(self.id))
-        }
+        Some(DriveIndexAction::OpenObject(self.id))
     }
 
     fn preview(&self, appearance: &Appearance) -> Option<Box<dyn Element>> {

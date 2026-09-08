@@ -15,7 +15,6 @@ pub fn initialize_settings_for_tests_with_mode(
 ) {
     use crate::{
         drive::settings::WarpDriveSettings,
-        search::command_search::settings::CommandSearchSettings,
         settings::{
             app_icon::AppIconSettings, init_and_register_user_preferences,
             manager::SettingsManager, AISettings, AccessibilitySettings, AliasExpansionSettings,
@@ -52,7 +51,6 @@ pub fn initialize_settings_for_tests_with_mode(
     BlockVisibilitySettings::register(app);
     BlockListSettings::register(app);
     PreferencesSettings::register(app);
-    CommandSearchSettings::register(app);
     DebugSettings::register(app);
     AppIconSettings::register(app);
     EmacsBindingsSettings::register(app);
@@ -94,7 +92,6 @@ pub fn initialize_settings_for_tests_with_mode(
     crate::settings::WarpDrivePrivacySettings::register(app);
     crate::settings::app_installation_detection::UserAppInstallDetectionSettings::register(app);
     crate::settings::CloudSyncSettings::register(app);
-    crate::workflows::aliases::WorkflowAliases::register(app);
     TabSettings::register(app);
     TerminalSettings::register(app);
     PaneSettings::register(app);

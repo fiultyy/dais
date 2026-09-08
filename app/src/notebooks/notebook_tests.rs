@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use chrono::{Duration, Utc};
 use futures_util::future::BoxFuture;
 use warp_core::ui::appearance::Appearance;
@@ -25,11 +23,9 @@ use crate::{
     network::NetworkStatus,
     notebooks::{
         active_notebook_data::Mode,
-        editor::{
-            keys::NotebookKeybindings, notebook_command::NotebookCommand, view::EditorViewAction,
-        },
+        editor::keys::NotebookKeybindings,
         notebook::FocusedComponent,
-        NotebookLocation, NotebookObject, NotebookObjectModel,
+        NotebookObject, NotebookObjectModel,
     },
     pane_group::PaneEvent,
     search::files::model::FileSearchModel,
@@ -37,7 +33,6 @@ use crate::{
     settings_view::keybindings::KeybindingChangedNotifier,
     terminal::keys::TerminalKeybindings,
     test_util::settings::initialize_settings_for_tests,
-    workflows::{workflow::Workflow, WorkflowSource, WorkflowType},
     workspace::ActiveSession,
     workspaces::{
         user_profiles::{UserProfileWithUID, UserProfiles},
@@ -184,76 +179,6 @@ async fn ensure_saved(app: &mut App, notebook_view: &ViewHandle<NotebookView>) {
 
     // Ensure that any updates from the debounced save were processed.
     app.update(|_| ());
-}
-
-/// Test that command-block execution events are correctly translated into workflows.
-#[test]
-fn test_command_block_dispatches_event() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-        initial_load(&mut app, []).await;
-
-        let (window, notebook, root) = create_notebook(&mut app);
-        open_notebook(
-            &mut app,
-            &notebook,
-            cloud_notebook(
-                "Test Notebook",
-                r#"A command:
-```
-echo hello
-```
-"#,
-            ),
-        )
-        .await;
-
-        // First, make sure the editor is focused.
-        notebook.update(&mut app, |notebook, ctx| {
-            notebook.focus_input(ctx);
-        });
-
-        app.update(|ctx| {
-            let input = &notebook.as_ref(ctx).input;
-            let command = input
-                .as_ref(ctx)
-                .runnable_command_at(11.into(), ctx)
-                .expect("Command should exist")
-                .as_any()
-                .downcast_ref::<NotebookCommand>()
-                .expect("Should convert");
-
-            // Use the command's own to_workflow implementation to use as much of the real code
-            // path as possible.
-            let workflow = command
-                .to_workflow(ctx)
-                .expect("Can't convert command to a workflow");
-
-            ctx.dispatch_typed_action_for_view(
-                window,
-                input.id(),
-                &EditorViewAction::RunWorkflow(workflow),
-            );
-        });
-
-        app.read(|ctx| {
-            let events = &root.as_ref(ctx).events;
-            assert!(
-                events.contains(&NotebookEvent::RunWorkflow {
-                    workflow: Arc::new(WorkflowType::Notebook(Workflow::new(
-                        "Command from Test Notebook",
-                        "echo hello"
-                    ))),
-                    source: WorkflowSource::Notebook {
-                        notebook_id: None,
-                        team_uid: None,
-                        location: NotebookLocation::PersonalCloud,
-                    },
-                }),
-                "No RunWorkflow event in {events:#?}"
-            );
-        })
-    });
 }
 
 #[test]

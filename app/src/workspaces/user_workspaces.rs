@@ -123,9 +123,6 @@ impl UserWorkspaces {
             ObjectType::Notebook => {
                 !UserWorkspaces::has_capacity_for_shared_notebooks(team_uid, ctx, 1)
             }
-            ObjectType::Workflow => {
-                !UserWorkspaces::has_capacity_for_shared_workflows(team_uid, ctx, 1)
-            }
             ObjectType::Folder => false,
             ObjectType::GenericStringObject(_) => false,
         }
@@ -136,11 +133,8 @@ impl UserWorkspaces {
         ctx: &AppContext,
     ) -> bool {
         UserWorkspaces::is_at_tier_limit_for_object_type(team_uid, ObjectType::Notebook, ctx)
-            || UserWorkspaces::is_at_tier_limit_for_object_type(team_uid, ObjectType::Workflow, ctx)
     }
 
-    // Checks if the team has capacity for another shared notebook for their current
-    // billing tier, given their current notebook count and delinquency status.
     pub fn has_capacity_for_shared_notebooks(
         team_uid: ServerId,
         ctx: &AppContext,
@@ -166,43 +160,6 @@ impl UserWorkspaces {
                             .limit
                             .try_into()
                             .expect("shared notebooks limit should be within max i64 range")
-            } else {
-                // If no policy is set, then allow it to go through by default (should still be enforced server-side)
-                true
-            }
-        } else {
-            // If the team is not found, then allow it to go through by default (should still be enforced server-side)
-            true
-        }
-    }
-
-    // Checks if the team has capacity for another shared workflow for their current
-    // billing tier, given their current workflow count and delinquency status.
-    pub fn has_capacity_for_shared_workflows(
-        team_uid: ServerId,
-        ctx: &AppContext,
-        new_shared_workflows: usize,
-    ) -> bool {
-        let current_shared_workflows = ObjectStoreModel::as_ref(ctx)
-            .active_workflows_in_space(Space::Team { team_uid }, ctx)
-            .count();
-
-        let team = UserWorkspaces::as_ref(ctx).team_from_uid(team_uid);
-        if let Some(team) = team {
-            // If the team is past due or unpaid, then don't allow new workflows.
-            if team.billing_metadata.is_delinquent_due_to_payment_issue() {
-                return false;
-            }
-
-            if let Some(policy) = team.billing_metadata.tier.shared_workflows_policy {
-                // Allow new workflows if policy is unlimited or if the number of workflows
-                // is less than the limit.
-                policy.is_unlimited
-                    || current_shared_workflows + new_shared_workflows
-                        <= policy
-                            .limit
-                            .try_into()
-                            .expect("shared workflows limit should be within max i64 range")
             } else {
                 // If no policy is set, then allow it to go through by default (should still be enforced server-side)
                 true
@@ -445,7 +402,7 @@ impl UserWorkspaces {
     }
 
     // Dais:Drive 只保留本地 Personal space。Team / Shared 都是云端协作面,
-    // 即使旧缓存里还有 workspace metadata,也不能重新进入 Drive 或 Workflow UI。
+    // 即使旧缓存里还有 workspace metadata,也不能重新进入 Drive UI。
     pub fn all_user_spaces(&self, ctx: &AppContext) -> Vec<Space> {
         let _ = ctx;
         vec![Space::Personal]
@@ -458,7 +415,7 @@ impl UserWorkspaces {
     }
 
     // Returns the [`Owner`] for the user's personal drive.
-    // Dais:Drive Personal 空间下的 Workflow / EnvVar / Folder / Notebook / Import
+    // Dais:Drive Personal 空间下的 EnvVar / Folder / Notebook / Import
     // 等 Create 动作统一归属本地占位用户(只本地 sqlite 持久化)。
     pub fn personal_drive(&self, ctx: &AppContext) -> Option<Owner> {
         let _ = ctx;

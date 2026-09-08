@@ -895,7 +895,7 @@ fn dmg_name(channel: Channel) -> String {
 
         // zap-purge: CI 打包契约,与 script/macos/bundle WARP_APP_NAME="Zap" 产物名对齐。
     // openWarp GitHub Release 资产名固定使用 `Dais-arm64.dmg` / `Dais-intel.dmg`
-    // (来自 .github/workflows 的命名约定),与 `app_name_prefix("dais")` 不一致。
+    // (CI 命名约定),与 `app_name_prefix("dais")` 不一致。
     // 这里只对 OSS 写死,不会影响官方 channel 的 universal 命名。
     if matches!(channel, Channel::Oss) {
         return if is_arm64 {

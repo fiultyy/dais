@@ -606,20 +606,6 @@ pub fn init(app: &mut AppContext) {
         .with_custom_action(CustomAction::NewPersonalNotebook)
         .with_context_predicate(id!("Workspace") & id!(flags::ENABLE_WARP_DRIVE)),
         EditableBinding::new(
-            "workspace:create_personal_workflow",
-            BindingDescription::new(crate::t!(
-                "keybinding-desc-workspace-create-personal-workflow"
-            ))
-            .with_custom_description(
-                bindings::MAC_MENUS_CONTEXT,
-                crate::t!("keybinding-desc-workspace-create-personal-workflow-menu"),
-            ),
-            WorkspaceAction::CreatePersonalWorkflow,
-        )
-        .with_group(bindings::BindingGroup::Workflow.as_str())
-        .with_custom_action(CustomAction::NewPersonalWorkflow)
-        .with_context_predicate(id!("Workspace") & id!(flags::ENABLE_WARP_DRIVE)),
-        EditableBinding::new(
             "workspace:create_personal_folder",
             BindingDescription::new(crate::t!(
                 "keybinding-desc-workspace-create-personal-folder"
@@ -1183,22 +1169,6 @@ pub fn init(app: &mut AppContext) {
         .with_group(bindings::BindingGroup::EnvVarCollection.as_str())
         .with_custom_action(CustomAction::NewPersonalEnvVars)
         .with_context_predicate(id!("Workspace") & id!(flags::ENABLE_WARP_DRIVE)),
-        EditableBinding::new(
-            "workspace:create_personal_ai_prompt",
-            BindingDescription::new(crate::t!(
-                "keybinding-desc-workspace-create-personal-ai-prompt"
-            ))
-            .with_custom_description(
-                bindings::MAC_MENUS_CONTEXT,
-                crate::t!("keybinding-desc-workspace-create-personal-ai-prompt-menu"),
-            ),
-            WorkspaceAction::CreatePersonalAIPrompt,
-        )
-        .with_group(bindings::BindingGroup::WarpAi.as_str())
-        .with_custom_action(CustomAction::NewPersonalAIPrompt)
-        .with_context_predicate(
-            id!("Workspace") & id!(flags::ENABLE_WARP_DRIVE) & id!(flags::IS_ANY_AI_ENABLED),
-        ),
     ]);
 
     app.register_editable_bindings([

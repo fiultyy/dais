@@ -5,7 +5,6 @@ use crate::{
     cloud_object::Space,
     search::{
         notebook_embedding::notebooks::EmbeddedNotebooksDataSource,
-        notebook_embedding::workflows::EmbeddedWorkflowsDataSource,
         result_renderer::{QueryResultRenderer, QueryResultRendererStyles},
         search_bar::{SearchBar, SearchBarEvent, SearchBarState, SearchResultOrdering},
     },
@@ -127,16 +126,10 @@ impl EmbeddingSearchMenu {
     fn reset_embedding_search_mixer(&mut self, ctx: &mut ViewContext<Self>) {
         self.mixer.update(ctx, |mixer, ctx| {
             mixer.reset(ctx);
-
-            mixer.add_sync_source(
-                EmbeddedWorkflowsDataSource::new(self.embedding_space, ctx),
-                HashSet::new(),
-            );
             mixer.add_sync_source(
                 EmbeddedNotebooksDataSource::new(self.embedding_space, ctx),
                 HashSet::new(),
             );
-            ctx.notify();
         })
     }
 

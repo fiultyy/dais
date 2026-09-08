@@ -4,7 +4,6 @@ use crate::code::editor_management::CodeEditorStatus;
 use crate::code::global_buffer_model::GlobalBufferModel;
 use crate::code::{ImmediateSaveError, SaveOutcome, SaveStatus};
 use crate::editor::InteractionState;
-use crate::input::Vector2F;
 use crate::pane_group::focus_state::PaneFocusHandle;
 use crate::pane_group::pane::view::header::components::{
     render_pane_header_buttons, render_pane_header_title_text, render_three_column_header,
@@ -23,6 +22,7 @@ use crate::workspace::TabBarDropTargetData;
 use crate::{code::EditorTabBarDropTargetData, pane_group::pane::ActionOrigin};
 use pathfinder_color::ColorU;
 use pathfinder_geometry::rect::RectF;
+use warpui::geometry::vector::Vector2F;
 use pathfinder_geometry::vector::vec2f;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -1253,7 +1253,6 @@ impl CodeView {
         ctx.dispatch_typed_action(&WorkspaceAction::InsertInInput {
             content: format!("{file_path}:{start_line}-{end_line} "),
             replace_buffer: false,
-            ensure_agent_mode: true,
         });
     }
 

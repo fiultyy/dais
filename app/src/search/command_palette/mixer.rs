@@ -20,9 +20,6 @@ pub enum CommandPaletteItemAction {
     AcceptBinding {
         binding: Arc<CommandBinding>,
     },
-    ExecuteWorkflow {
-        id: SyncId,
-    },
     OpenNotebook {
         id: SyncId,
     },
@@ -91,7 +88,6 @@ impl CommandPaletteItemAction {
                 binding_id: binding.id,
             },
             CommandPaletteItemAction::OpenNotebook { id } => ItemSummary::Notebook { id: *id },
-            CommandPaletteItemAction::ExecuteWorkflow { id } => ItemSummary::Workflow { id: *id },
             CommandPaletteItemAction::InvokeEnvironmentVariables { id } => {
                 ItemSummary::EnvVarCollection { id: *id }
             }
@@ -112,12 +108,7 @@ impl CommandPaletteItemAction {
             CommandPaletteItemAction::OpenLaunchConfiguration { .. } => {
                 ItemSummary::LaunchConfiguration
             }
-            CommandPaletteItemAction::ViewInWarpDrive { id } => match id {
-                ObjectTypeAndId::Notebook(_)
-                | ObjectTypeAndId::Folder(_)
-                | ObjectTypeAndId::GenericStringObject { .. } => ItemSummary::StoredObject,
-                ObjectTypeAndId::Workflow(id) => ItemSummary::Workflow { id: *id },
-            },
+            CommandPaletteItemAction::ViewInWarpDrive { .. } => ItemSummary::StoredObject,
             CommandPaletteItemAction::OpenFile {
                 path,
                 project_directory,
@@ -158,16 +149,13 @@ impl CommandPaletteItemAction {
 /// unique way to identify a selected item  so  we can show it in the "recent" section of the
 /// palette. We choose to not use the entire [`CommandPaletteItemAction`] since we only need a
 /// unique identifier to store. Additionally, parts of the `CommandPaletteItemAction` could change
-/// in between invocations of the command palette (such as the content or title of a workflow or the
-/// trigger for a keybinding) that should not be factored in when determining whether to show it in
-/// the recent section of the palette.
+/// in between invocations of the command palette (such as the trigger for a keybinding) that
+/// should not be factored in when determining whether to show it in the recent section of the
+/// palette.
 #[derive(Clone, Debug, PartialEq, IntoStaticStr)]
 pub enum ItemSummary {
     Action {
         binding_id: BindingId,
-    },
-    Workflow {
-        id: SyncId,
     },
     EnvVarCollection {
         id: SyncId,

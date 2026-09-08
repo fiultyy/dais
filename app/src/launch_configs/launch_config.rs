@@ -149,7 +149,6 @@ impl TryFrom<PaneNodeSnapshot> for PaneTemplateType {
                 | LeafContents::Image { .. }
                 | LeafContents::EnvVarCollection(_)
                 | LeafContents::Code(_)
-                | LeafContents::Workflow(_)
                 | LeafContents::Settings(_)
                 | LeafContents::AIFact(_)
                 | LeafContents::CodeReview(_)

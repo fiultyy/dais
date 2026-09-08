@@ -2743,8 +2743,6 @@ pub fn render_code_output_section<A: Action>(
         .finish()
     });
 
-    let allow_execution = props.language.is_none_or(|lang| lang.is_shell());
-
     match props.editor_view {
         Some(view) => render_code_block_with_warp_text(
             CodeBlockOptions {
@@ -2762,15 +2760,7 @@ pub fn render_code_output_section<A: Action>(
                     }
                     _ => None,
                 },
-                on_execute: if allow_execution {
-                    Some(Box::new(|code_snippet, ctx| {
-                        ctx.dispatch_typed_action(WorkspaceAction::RunAISuggestedCommand(
-                            code_snippet,
-                        ));
-                    }))
-                } else {
-                    None
-                },
+                on_execute: None,
                 on_copy: if let Some(action_factory) = props.copy_code_action_factory {
                     Some(Box::new(|code_snippet, ctx| {
                         ctx.dispatch_typed_action(action_factory(code_snippet));
@@ -2784,7 +2774,6 @@ pub fn render_code_output_section<A: Action>(
                             crate::workspace::WorkspaceAction::InsertInInput {
                                 content: insert_text,
                                 replace_buffer: false,
-                                ensure_agent_mode: false,
                             },
                         );
                     }))
@@ -2831,15 +2820,7 @@ pub fn render_code_output_section<A: Action>(
                         }
                         _ => None,
                     },
-                    on_execute: if allow_execution {
-                        Some(Box::new(|code_snippet, ctx| {
-                            ctx.dispatch_typed_action(WorkspaceAction::RunAISuggestedCommand(
-                                code_snippet,
-                            ));
-                        }))
-                    } else {
-                        None
-                    },
+                    on_execute: None,
                     on_copy: if let Some(action_factory) = props.copy_code_action_factory {
                         Some(Box::new(|code_snippet, ctx| {
                             ctx.dispatch_typed_action(action_factory(code_snippet));
@@ -2853,7 +2834,6 @@ pub fn render_code_output_section<A: Action>(
                                 crate::workspace::WorkspaceAction::InsertInInput {
                                     content: insert_text,
                                     replace_buffer: false,
-                                    ensure_agent_mode: false,
                                 },
                             );
                         }))
@@ -3515,15 +3495,6 @@ pub(super) fn query_context_references(
 
 fn context_reference_icon(attachment: &AIAgentAttachment) -> Icon {
     match attachment {
-        AIAgentAttachment::DriveObject {
-            payload:
-                Some(DriveObjectPayload::Workflow {
-                    name: _,
-                    description: _,
-                    command: _,
-                }),
-            ..
-        } => Icon::Workflow,
         AIAgentAttachment::DriveObject {
             payload:
                 Some(DriveObjectPayload::Notebook {

@@ -2,7 +2,7 @@
 //!
 //! 见 Issue #72。提供一个用户可配置的全局代理项,值会注入到 `http_client::Client`
 //! 与 `websocket` 两个出口,从而覆盖所有 BYOP 调用、autoupdate、对话加载、
-//! MCP OAuth、cloud workflow fetch 等出站 HTTP/WS 请求。
+//! MCP OAuth 等出站 HTTP/WS 请求。
 //!
 //! 三个字段:
 //! - `proxy_mode`: `system` / `custom` / `off`(默认 `system`,等价 reqwest 的

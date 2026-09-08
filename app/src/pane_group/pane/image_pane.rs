@@ -16,7 +16,7 @@ use super::{
 };
 
 /// A read-only pane that displays a local image. Mirrors [`super::file_pane::FilePane`], but
-/// backs onto [`ImageViewerView`] and drops the workflow/link plumbing — images emit nothing.
+/// backs onto [`ImageViewerView`] and drops the editor/link plumbing — images emit nothing.
 pub struct ImagePane {
     view: ViewHandle<PaneView<ImageViewerView>>,
     pane_configuration: ModelHandle<PaneConfiguration>,

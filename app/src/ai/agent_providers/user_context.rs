@@ -399,22 +399,6 @@ fn render_drive_object(
 ) {
     use std::fmt::Write;
     match payload {
-        Some(DriveObjectPayload::Workflow {
-            name,
-            description,
-            command,
-        }) => {
-            let _ = writeln!(
-                out,
-                "  <drive_object reference=\"{}\" uid=\"{}\" type=\"workflow\">",
-                xml_attr(reference),
-                xml_attr(uid),
-            );
-            render_named_text(out, "name", name);
-            render_named_text(out, "description", description);
-            render_named_text(out, "command", command);
-            out.push_str("  </drive_object>\n");
-        }
         Some(DriveObjectPayload::Notebook { title, content }) => {
             let _ = writeln!(
                 out,
@@ -454,18 +438,6 @@ fn render_drive_object(
 fn render_api_drive_object(out: &mut String, reference: &str, object: &api::DriveObject) {
     use std::fmt::Write;
     match object.object_payload.as_ref() {
-        Some(api::drive_object::ObjectPayload::Workflow(workflow)) => {
-            let _ = writeln!(
-                out,
-                "  <drive_object reference=\"{}\" uid=\"{}\" type=\"workflow\">",
-                xml_attr(reference),
-                xml_attr(&object.uid),
-            );
-            render_named_text(out, "name", &workflow.name);
-            render_named_text(out, "description", &workflow.description);
-            render_named_text(out, "command", &workflow.command);
-            out.push_str("  </drive_object>\n");
-        }
         Some(api::drive_object::ObjectPayload::Notebook(notebook)) => {
             let _ = writeln!(
                 out,
@@ -488,6 +460,8 @@ fn render_api_drive_object(out: &mut String, reference: &str, object: &api::Driv
             render_named_text(out, "payload", &generic.payload);
             out.push_str("  </drive_object>\n");
         }
+        // The workflow payload still exists in the external API; locally the workflow object is already stripped, skip rendering.
+        Some(api::drive_object::ObjectPayload::Workflow(_)) => {}
         None => {
             let _ = writeln!(
                 out,

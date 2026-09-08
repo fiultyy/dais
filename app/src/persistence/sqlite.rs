@@ -45,7 +45,7 @@ use super::model::{
     NewWorkspace, NewWorkspaceTeam, ObjectMetadata, ObjectPermissions, Project, Tab, Window,
     AI_DOCUMENT_PANE_KIND, AI_FACT_PANE_KIND, CODE_PANE_KIND, ENV_VAR_COLLECTION_PANE_KIND,
     EXECUTION_PROFILE_EDITOR_PANE_KIND, MCP_SERVER_PANE_KIND, NOTEBOOK_PANE_KIND,
-    SETTINGS_PANE_KIND, TERMINAL_PANE_KIND, WELCOME_PANE_KIND, WORKFLOW_PANE_KIND,
+    SETTINGS_PANE_KIND, TERMINAL_PANE_KIND, WELCOME_PANE_KIND,
 };
 use super::schema;
 use super::{
@@ -65,7 +65,6 @@ use crate::ai::mcp::{
 use crate::app_state::{
     AIFactPaneSnapshot, AmbientAgentPaneSnapshot, CodeReviewPaneSnapshot,
     EnvVarCollectionPaneSnapshot, LeftPanelSnapshot, RightPanelSnapshot, SettingsPaneSnapshot,
-    WorkflowPaneSnapshot,
 };
 use crate::auth::AuthStateProvider;
 use crate::auth::PersistedCurrentUserInformation;
@@ -99,8 +98,6 @@ use crate::tab::SelectedTabColor;
 use crate::terminal::history::PersistedCommand;
 use crate::terminal::ShellLaunchData;
 use crate::themes::theme::AnsiColorIdentifier;
-use crate::workflows::workflow_enum::{WorkflowEnumObject, WorkflowEnumObjectModel};
-use crate::workflows::{WorkflowId, WorkflowObject};
 use crate::workspaces::team::Team as TeamMetadata;
 use crate::workspaces::workspace::Workspace as WorkspaceMetadata;
 use crate::workspaces::workspace::WorkspaceUid;
@@ -116,10 +113,7 @@ use crate::{
     cloud_object::{NumInFlightRequests, Revision, StoredObjectMetadata},
     notebooks::NotebookObjectModel,
 };
-use crate::{
-    cloud_object::{StoredObjectPermissions, StoredObjectStatuses, StoredObjectSyncStatus},
-    workflows::WorkflowObjectModel,
-};
+use crate::cloud_object::{StoredObjectPermissions, StoredObjectStatuses, StoredObjectSyncStatus};
 use crate::{report_error, report_if_error, safe_info, send_telemetry_from_app_ctx};
 
 diesel::define_sql_function! {
@@ -787,9 +781,6 @@ fn handle_model_event(event: ModelEvent, connection: &mut SqliteConnection) -> a
         ModelEvent::Snapshot(app_state) => {
             save_app_state(connection, &app_state).context("error saving app state")
         }
-        ModelEvent::UpsertWorkflows(workflows) => {
-            upsert_workflows(connection, workflows).context("error saving workflows")
-        }
         ModelEvent::UpsertNotebooks(notebooks) => {
             upsert_notebooks(connection, notebooks).context("error saving notebooks")
         }
@@ -806,9 +797,6 @@ fn handle_model_event(event: ModelEvent, connection: &mut SqliteConnection) -> a
         }
         ModelEvent::UpsertNotebook { notebook } => {
             upsert_notebooks(connection, vec![notebook]).context("error upserting notebook")
-        }
-        ModelEvent::UpsertWorkflow { workflow } => {
-            upsert_workflows(connection, vec![workflow]).context("error upserting workflow")
         }
         ModelEvent::UpsertFolder { folder } => {
             upsert_folders(connection, vec![folder]).context("error upserting folder")
@@ -1028,7 +1016,6 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
         diesel::delete(schema::code_panes::dsl::code_panes).execute(conn)?;
         diesel::delete(schema::env_var_collection_panes::dsl::env_var_collection_panes)
             .execute(conn)?;
-        diesel::delete(schema::workflow_panes::dsl::workflow_panes).execute(conn)?;
         diesel::delete(schema::settings_panes::dsl::settings_panes).execute(conn)?;
         diesel::delete(schema::ai_memory_panes::dsl::ai_memory_panes).execute(conn)?;
         diesel::delete(schema::ai_document_panes::dsl::ai_document_panes).execute(conn)?;
@@ -1272,7 +1259,6 @@ fn save_pane_state(
         LeafContents::Notebook(_) => NOTEBOOK_PANE_KIND,
         LeafContents::EnvVarCollection(_) => ENV_VAR_COLLECTION_PANE_KIND,
         LeafContents::Code(_) => CODE_PANE_KIND,
-        LeafContents::Workflow(_) => WORKFLOW_PANE_KIND,
         LeafContents::Settings(_) => SETTINGS_PANE_KIND,
         LeafContents::AIFact(_) => AI_FACT_PANE_KIND,
         LeafContents::CodeReview(_) => CODE_REVIEW_PANE_KIND,
@@ -1452,21 +1438,6 @@ fn save_pane_state(
                 .values(env_var_collection)
                 .execute(conn)?;
         }
-        LeafContents::Workflow(workflow_pane_snapshot) => {
-            let workflow_id = match workflow_pane_snapshot {
-                WorkflowPaneSnapshot::WorkflowObject {
-                    workflow_id,
-                    settings: _,
-                } => workflow_id.map(|id| id.sqlite_uid_hash(ObjectIdType::Workflow)),
-            };
-
-            let workflow = model::NewWorkflowPane { id, workflow_id };
-
-            diesel::insert_into(schema::workflow_panes::dsl::workflow_panes)
-                .values(workflow)
-                .execute(conn)?;
-        }
-        // Dais Wave 7-3:`EnvironmentManagement` LeafContents arm 随 variant 一同物理删。
         LeafContents::Settings(settings_pane_snapshot) => {
             let current_page = match settings_pane_snapshot {
                 SettingsPaneSnapshot::Local { current_page, .. } => current_page,
@@ -2283,51 +2254,6 @@ fn upsert_generic_string_objects(
     })
 }
 
-fn upsert_workflows(
-    conn: &mut SqliteConnection,
-    cloud_workflows: Vec<WorkflowObject>,
-) -> Result<(), Error> {
-    use schema::workflows::dsl::*;
-    conn.transaction::<(), Error, _>(|conn| {
-        // todo: wrap in an arc to avoid unnecessary cloning.
-        for workflow in cloud_workflows {
-            let workflow_id = workflow.id;
-            if let Ok(serialized_workflow) = serde_json::to_string(&workflow.model().data) {
-                let serialized_workflow_clone = serialized_workflow.clone();
-                upsert_stored_object(
-                    conn,
-                    ObjectType::Workflow,
-                    workflow_id,
-                    workflow.metadata,
-                    workflow.permissions,
-                    Box::new(move |conn| {
-                        let workflow = model::NewWorkflow {
-                            data: serialized_workflow.clone(),
-                        };
-                        diesel::insert_into(schema::workflows::dsl::workflows)
-                            .values(workflow)
-                            .execute(conn)?;
-                        let workflow_id: i32 = schema::workflows::dsl::workflows
-                            .select(schema::workflows::columns::id)
-                            .order(schema::workflows::columns::id.desc())
-                            .first(conn)?;
-                        Ok(workflow_id)
-                    }),
-                    Box::new(move |conn, workflow_id| {
-                        diesel::update(
-                            workflows.filter(schema::workflows::dsl::id.eq(workflow_id)),
-                        )
-                        .set((data.eq(serialized_workflow_clone),))
-                        .execute(conn)?;
-                        Ok(())
-                    }),
-                )?
-            }
-        }
-        Ok(())
-    })
-}
-
 fn upsert_notebooks(
     conn: &mut SqliteConnection,
     cloud_notebooks: Vec<NotebookObject>,
@@ -2535,23 +2461,6 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
                             notebook_id,
                             settings: DaisDriveObjectSettings::default(),
                         },
-                    })
-                }
-                WORKFLOW_PANE_KIND => {
-                    let workflow_pane = schema::workflow_panes::dsl::workflow_panes
-                        .find(node.id)
-                        .select(model::WorkflowPane::as_select())
-                        .first(conn)?;
-
-                    let workflow_id = workflow_pane.workflow_id.and_then(|id| {
-                        ClientId::from_hash(&id).map(SyncId::ClientId).or_else(|| {
-                            WorkflowId::from_hash(&id).map(|id| SyncId::ServerId(id.into()))
-                        })
-                    });
-
-                    LeafContents::Workflow(WorkflowPaneSnapshot::WorkflowObject {
-                        workflow_id,
-                        settings: DaisDriveObjectSettings::default(),
                     })
                 }
                 CODE_PANE_KIND => {
@@ -2934,38 +2843,6 @@ fn read_sqlite_data(
 
     let mut cloud_objects: Vec<Box<dyn StoredObject>> = Vec::new();
     cloud_objects.extend(
-        schema::workflows::dsl::workflows
-            .load::<model::Workflow>(conn)?
-            .iter()
-            .filter_map(|workflow| {
-                metadata_by_id
-                    .get(&(
-                        workflow.id,
-                        ObjectType::Workflow.sqlite_object_type_as_str().to_string(),
-                    ))
-                    .and_then(|metadata| {
-                        let workflow_content = serde_json::from_str(workflow.data.as_str()).ok();
-                        let workflow_id = id_from_metadata::<WorkflowId>(metadata);
-                        let permissions = permissions_by_id.get(&metadata.id)?;
-                        let cloud_object_permissions =
-                            to_cloud_object_permissions(permissions, current_user_id)?;
-                        workflow_content
-                            .zip(workflow_id)
-                            .map(|(content, workflow_id)| {
-                                let boxed: Box<dyn StoredObject> = Box::new(WorkflowObject::new(
-                                    workflow_id,
-                                    WorkflowObjectModel::new(content),
-                                    to_cloud_object_metadata(metadata),
-                                    cloud_object_permissions,
-                                ));
-                                boxed
-                            })
-                    })
-            })
-            .collect::<Vec<_>>(),
-    );
-
-    cloud_objects.extend(
         schema::notebooks::dsl::notebooks
             .load::<model::Notebook>(conn)?
             .iter()
@@ -3075,20 +2952,6 @@ fn read_sqlite_data(
                                 model.ok().map(|model| {
                                     let boxed: Box<dyn StoredObject> =
                                         Box::new(EnvVarCollectionObject::new(
-                                            server_id,
-                                            model,
-                                            to_cloud_object_metadata(metadata),
-                                            cloud_object_permissions,
-                                        ));
-                                    boxed
-                                })
-                            }
-                            JsonObjectType::WorkflowEnum => {
-                                let model =
-                                    WorkflowEnumObjectModel::deserialize_owned(&object.data);
-                                model.ok().map(|model| {
-                                    let boxed: Box<dyn StoredObject> =
-                                        Box::new(WorkflowEnumObject::new(
                                             server_id,
                                             model,
                                             to_cloud_object_metadata(metadata),
@@ -3462,11 +3325,10 @@ impl From<StartedCommandMetadata> for model::NewCommand {
                 id.try_into().ok()
             }),
             git_branch: metadata.git_branch,
-            cloud_workflow_id: metadata
-                .cloud_workflow_id
-                .map(|id| id.sqlite_uid_hash(ObjectIdType::Workflow)),
-            workflow_command: metadata.workflow_command,
             is_agent_executed: Some(metadata.is_agent_executed),
+            // crates/persistence 的 workflow 两列归 B3 迁移处置,这里显式置空。
+            cloud_workflow_id: None,
+            workflow_command: None,
         }
     }
 }
@@ -3732,16 +3594,6 @@ fn delete_objects(
                     Box::new(|conn, notebook_id| {
                         use schema::notebooks::dsl::*;
                         diesel::delete(notebooks.filter(id.eq(notebook_id))).execute(conn)?;
-                        Ok(())
-                    }),
-                )?,
-                ObjectIdType::Workflow => delete_cloud_object(
-                    conn,
-                    sync_id,
-                    object_id_type,
-                    Box::new(|conn, workflow_id| {
-                        use schema::workflows::dsl::*;
-                        diesel::delete(workflows.filter(id.eq(workflow_id))).execute(conn)?;
                         Ok(())
                     }),
                 )?,

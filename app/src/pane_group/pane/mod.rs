@@ -34,9 +34,8 @@ pub(super) mod terminal_pane;
 pub mod view;
 pub(super) mod welcome_pane;
 pub(crate) mod welcome_view;
-pub mod workflow_pane;
 
-use std::{any::Any, fmt::Display};
+use std::any::Any;
 
 use crate::pane_group::focus_state::PaneFocusHandle;
 use crate::pane_group::pane::get_started_view::GetStartedView;
@@ -56,9 +55,7 @@ use crate::{
     settings::PaneSettings,
     settings_view::SettingsView,
     terminal::{available_shells::AvailableShell, TerminalView},
-    workflows::workflow_view::WorkflowView,
 };
-use serde::{Deserialize, Serialize};
 use url::Url;
 use warp_core::HostId;
 use warpui::{
@@ -140,11 +137,6 @@ pub trait PaneIdConstruct: Sized {
 
     // Dais Wave 7-3:`from_environment_management_pane_ctx` 随 ambient-agent UI 子系统
     // 物理删。
-
-    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<WorkflowView>>`]
-    fn from_workflow_pane_ctx(ctx: &ViewContext<PaneView<WorkflowView>>) -> PaneId {
-        PaneId::new_from_ctx(IPaneType::Workflow, ctx)
-    }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<TextView>>`]
     fn from_code_pane_ctx(ctx: &ViewContext<PaneView<CodeView>>) -> PaneId {
@@ -273,13 +265,6 @@ pub trait PaneIdConstruct: Sized {
     // Dais Wave 7-3:`from_environment_management_pane_view` 随 ambient-agent UI 子系统
     // 物理删。
 
-    /// Creates a [`PaneId`] from a [`PaneView<WorkflowView>`] entity ID.
-    fn from_workflow_pane_view(
-        workflow_pane_view: &ViewHandle<PaneView<WorkflowView>>,
-    ) -> PaneId {
-        Self::new(IPaneType::Workflow, workflow_pane_view)
-    }
-
     /// Creates a [`PaneId`] from a [`PaneView<SettingsView>`] entity ID.
     fn from_settings_pane_view(
         settings_pane_view: &ViewHandle<PaneView<SettingsView>>,
@@ -343,12 +328,11 @@ pub trait PaneIdConstruct: Sized {
         PaneId::new(IPaneType::Dummy, warpui::EntityId::new())
     }
 
-    /// Returns true if this pane contains a Dais Drive object (notebook, workflow, etc.).
+    /// Returns true if this pane contains a Dais Drive object (notebook, etc.).
     fn is_warp_drive_object_pane(&self) -> bool {
         matches!(
             self.pane_type(),
             IPaneType::Notebook
-                | IPaneType::Workflow
                 | IPaneType::EnvVarCollection
                 | IPaneType::AIFact
         )
@@ -392,10 +376,6 @@ pub(crate) fn render_pane_id(pane: &PaneId, app: &AppContext) -> Box<dyn Element
         }
         IPaneType::EnvVarCollection => {
             ChildView::<PaneView<EnvVarCollectionView>>::with_id(pane.pane_view_id()).finish()
-        }
-        // Dais Wave 7-3:`EnvironmentManagement` render arm 随 variant 物理删。
-        IPaneType::Workflow => {
-            ChildView::<PaneView<WorkflowView>>::with_id(pane.pane_view_id()).finish()
         }
         IPaneType::Settings => {
             ChildView::<PaneView<SettingsView>>::with_id(pane.pane_view_id()).finish()

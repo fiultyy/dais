@@ -328,7 +328,6 @@ fn make_new_view_menu(ctx: &AppContext) -> Menu {
         MenuItem::Separator,
         updateable_custom_item_without_checkmark(CustomAction::History, ctx),
         updateable_custom_item_without_checkmark(CustomAction::CommandSearch, ctx),
-        updateable_custom_item_without_checkmark(CustomAction::Workflows, ctx),
         MenuItem::Separator,
         MenuItem::Custom(CustomMenuItem::new(
             &crate::t!("app-menu-toggle-mouse-reporting"),
@@ -524,9 +523,7 @@ fn make_new_blocks_menu(ctx: &AppContext) -> Menu {
 
 fn make_new_drive_menu(ctx: &AppContext) -> Menu {
     let mut items = vec![
-        updateable_custom_item_without_checkmark(CustomAction::NewPersonalWorkflow, ctx),
         updateable_custom_item_without_checkmark(CustomAction::NewPersonalNotebook, ctx),
-        updateable_custom_item_without_checkmark(CustomAction::NewPersonalAIPrompt, ctx),
     ];
     items.push(updateable_custom_item_without_checkmark(
         CustomAction::NewPersonalEnvVars,

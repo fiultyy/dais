@@ -22,7 +22,6 @@ pub mod mcp_server;
 pub mod mcp_server_collection;
 pub mod notebook;
 pub mod space;
-pub mod workflow;
 
 pub trait WarpDriveItem {
     /// The display name of the item. If the item is unnamed, this may return `None` - implementations

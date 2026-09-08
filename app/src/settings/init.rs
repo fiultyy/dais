@@ -9,7 +9,6 @@ use crate::{
     drive::settings::WarpDriveSettings,
     report_if_error,
     resource_center::TipsCompleted,
-    search::command_search::settings::CommandSearchSettings,
     terminal::{
         alt_screen_reporting::AltScreenReporting,
         general_settings::GeneralSettings,
@@ -24,7 +23,6 @@ use crate::{
     },
     undo_close::UndoCloseSettings,
     window_settings::WindowSettings,
-    workflows::aliases::WorkflowAliases,
     workspace::tab_settings::TabSettings,
 };
 
@@ -66,7 +64,6 @@ pub fn register_all_settings(ctx: &mut AppContext) {
     SafeModeSettings::register(ctx);
     TerminalSettings::register(ctx);
     PaneSettings::register(ctx);
-    CommandSearchSettings::register(ctx);
     AliasExpansionSettings::register(ctx);
     CodeSettings::register(ctx);
     LigatureSettings::register(ctx);
@@ -97,7 +94,6 @@ pub fn register_all_settings(ctx: &mut AppContext) {
     SharedSessionSettings::register(ctx);
     WarpDriveSettings::register(ctx);
     CloudSyncSettings::register(ctx);
-    WorkflowAliases::register(ctx);
     EmacsBindingsSettings::register(ctx);
     SameLinePromptBlockSettings::register(ctx);
     SemanticSelection::register(ctx);

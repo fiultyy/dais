@@ -137,10 +137,8 @@ impl ObjectNamingDialog {
             DriveObjectType::Notebook { .. } => crate::t!("drive-naming-notebook-name"),
             DriveObjectType::Folder => crate::t!("drive-naming-folder-name"),
             DriveObjectType::EnvVarCollection => crate::t!("drive-naming-collection-name"),
-            // workflows and ai facts aren't a part of this dialog
-            DriveObjectType::Workflow
-            | DriveObjectType::AgentModeWorkflow
-            | DriveObjectType::AIFact
+            // ai facts aren't a part of this dialog
+            DriveObjectType::AIFact
             | DriveObjectType::AIFactCollection
             | DriveObjectType::MCPServer
             | DriveObjectType::MCPServerCollection => String::new(),

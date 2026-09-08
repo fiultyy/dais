@@ -34,38 +34,30 @@ impl fmt::Display for OutputFormat {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Prompt {
     PlainText(String),
-    SavedPrompt(String),
 }
 
 impl fmt::Display for Prompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Prompt::PlainText(text) => write!(f, "Prompt: {text}"),
-            Prompt::SavedPrompt(id) => write!(f, "Saved Prompt ID: {id}"),
         }
     }
 }
 
-/// Prompt arguments - mutually exclusive prompt or saved-prompt.
-/// The required constraint is enforced at the command level via ArgGroup.
+/// Prompt argument.
 #[derive(Debug, Clone, Args)]
 #[group(multiple = false)]
 pub struct PromptArg {
     /// Prompt for the agent to carry out.
     #[arg(long = "prompt", short = 'p')]
     pub prompt: Option<String>,
-    /// The saved AI prompt to run, identified by id.
-    #[arg(long = "saved-prompt")]
-    pub saved_prompt: Option<String>,
 }
 
 impl PromptArg {
     pub fn to_prompt(&self) -> Option<Prompt> {
-        match (self.prompt.as_ref(), self.saved_prompt.as_ref()) {
-            (Some(prompt), None) => Some(Prompt::PlainText(prompt.clone())),
-            (None, Some(saved_prompt)) => Some(Prompt::SavedPrompt(saved_prompt.clone())),
-            _ => None,
-        }
+        self.prompt
+            .as_ref()
+            .map(|prompt| Prompt::PlainText(prompt.clone()))
     }
 }
 
@@ -204,7 +196,7 @@ pub enum AgentCommand {
         clap::ArgGroup::new("prompt_group")
             .required(true)
             .multiple(true)
-            .args(["prompt", "saved_prompt", "skill"])
+            .args(["prompt", "skill"])
     )
 )]
 pub struct RunAgentArgs {

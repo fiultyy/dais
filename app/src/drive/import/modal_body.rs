@@ -304,24 +304,6 @@ impl ImportModalBody {
                             ctx,
                         )
                     }
-                    Ok(FileContent::Workflow {
-                        workflows,
-                        workflow_enums,
-                    }) => view.push_new_update(
-                        ImportQueueArgs {
-                            owner,
-                            parent_id: view.parent_id_for_upload(parent_cloud_id),
-                            content: RequestContent::Workflow {
-                                workflows: workflows
-                                    .into_iter()
-                                    .map(|workflow| (workflow, ClientId::new()))
-                                    .collect(),
-                                workflow_enums,
-                                file_id,
-                            },
-                        },
-                        ctx,
-                    ),
                     _ => (),
                 }
 
