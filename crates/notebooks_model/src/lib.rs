@@ -1,4 +1,4 @@
-//! notebooks_model — notebooks 域纯模型 crate(依 workflows_ui/objects 迁移模式)。
+//! notebooks_model — notebooks 域纯模型 crate(依 objects 迁移模式)。
 //!
 //! 自 `app/src/notebooks` 物理迁出的纯模型层:
 //! - [`telemetry`]:NotebookTelemetryAction 等 serde telemetry 枚举;

@@ -4,8 +4,6 @@ use warp_core::ui::icons::Icon;
 
 #[derive(Copy, Clone, Debug)]
 pub enum DriveObjectType {
-    Workflow,
-    AgentModeWorkflow,
     AIFact,
     AIFactCollection,
     Notebook {
@@ -21,8 +19,6 @@ pub enum DriveObjectType {
 impl From<DriveObjectType> for Icon {
     fn from(objects_type: DriveObjectType) -> Icon {
         match objects_type {
-            DriveObjectType::Workflow => Icon::Workflow,
-            DriveObjectType::AgentModeWorkflow => Icon::Prompt,
             DriveObjectType::AIFact => Icon::BookOpen,
             DriveObjectType::AIFactCollection => Icon::BookOpen,
             DriveObjectType::Notebook { is_ai_document } => {
@@ -44,10 +40,8 @@ impl fmt::Display for DriveObjectType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DriveObjectType::Notebook { .. } => write!(f, "notebook"),
-            DriveObjectType::Workflow => write!(f, "workflow"),
             DriveObjectType::Folder => write!(f, "folder"),
             DriveObjectType::EnvVarCollection => write!(f, "env var collection"),
-            DriveObjectType::AgentModeWorkflow => write!(f, "prompt"),
             DriveObjectType::AIFact => write!(f, "ai fact"),
             DriveObjectType::AIFactCollection => write!(f, "ai fact collection"),
             DriveObjectType::MCPServer => write!(f, "mcp server"),

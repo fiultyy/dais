@@ -26,7 +26,7 @@ use crate::ai::restored_conversations::RestoredAgentConversations;
 use crate::app_state::CodePaneSnapShot;
 use crate::app_state::{
     EnvVarCollectionPaneSnapshot, LeafContents, LeafSnapshot, NotebookPaneSnapshot, PaneUuid,
-    SettingsPaneSnapshot, WorkflowPaneSnapshot,
+    SettingsPaneSnapshot,
 };
 #[cfg(feature = "local_fs")]
 use crate::code::editor_management::CodeSource;
@@ -42,7 +42,6 @@ use crate::banner::BannerState;
 use super::{
     AnyPaneContent, CodePane, EnvVarCollectionPane, FilePane, InitialFocus, NotebookPane,
     PaneContent, PaneData, PaneGroup, PaneId, SettingsPane, TerminalPane, TerminalViewResources,
-    WorkflowPane,
 };
 
 /// restore 链的按值输入包。`Terminal` / `AmbientAgent` 臂会消费
@@ -341,23 +340,6 @@ impl PaneContentFactory for AppPaneContentFactory {
                     focused_pane: leaf.is_focused.then_some(pane_id),
                     active_session: None,
                 };
-                Ok((PaneData::new(pane_id), focus))
-            }
-            LeafContents::Workflow(snapshot) => {
-                let pane: Box<dyn AnyPaneContent + 'static> = match snapshot {
-                    WorkflowPaneSnapshot::WorkflowObject {
-                        workflow_id,
-                        settings,
-                    } => Box::new(WorkflowPane::restore(workflow_id, settings, ctx)?),
-                };
-
-                let pane_id = pane.as_pane().id();
-                pane_contents.insert(pane_id, pane);
-                let focus = InitialFocus {
-                    focused_pane: leaf.is_focused.then_some(pane_id),
-                    active_session: None,
-                };
-
                 Ok((PaneData::new(pane_id), focus))
             }
             LeafContents::ExecutionProfileEditor => {

@@ -4,7 +4,7 @@
 //! Historically, Stable and Preview shared `~/.warp` on macOS. To give
 //! Preview its own directory without breaking existing users, this migration
 //! symlinks each top-level entry from `~/.warp` into `~/.warp-preview` on
-//! first launch, so existing configuration (keybindings, themes, workflows,
+//! first launch, so existing configuration (keybindings, themes,
 //! etc.) remains available to Preview.
 //!
 //! See `specs/QUALITY-408/` for full context.

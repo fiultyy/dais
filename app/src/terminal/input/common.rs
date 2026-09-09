@@ -18,9 +18,8 @@ use warpui::{
         PositioningAxis, Radius, Shrinkable, Stack, Text, XAxisAnchor,
     },
     fonts::Weight,
-    presenter::ChildView,
     ui_components::components::{UiComponent, UiComponentStyles},
-    AppContext, SingletonEntity, ViewHandle,
+    AppContext, SingletonEntity,
 };
 
 /// Whether the terminal input message bar should be shown.
@@ -151,55 +150,6 @@ pub(super) fn wrap_input_with_terminal_padding_and_focus_handler(
     }
 }
 
-/// Renders the selected workflow info overlay over the input.
-pub(super) fn add_workflow_info_overlay(
-    stack: &mut Stack,
-    selected_workflow_state: &super::SelectedWorkflowState,
-    pane_height_px: f32,
-    menu_positioning: MenuPositioning,
-) {
-    let workflows_info_view =
-        Container::new(ChildView::new(&selected_workflow_state.more_info_view).finish())
-            .with_margin_left(16.)
-            .with_margin_right(16.)
-            .finish();
-
-    stack.add_positioned_overlay_child(
-        ConstrainedBox::new(workflows_info_view)
-            .with_max_height(pane_height_px * 0.35)
-            .finish(),
-        OffsetPositioning::from_axes(
-            PositioningAxis::relative_to_parent(
-                ParentOffsetBounds::ParentByPosition,
-                OffsetType::Pixel(0.),
-                AnchorPair::new(XAxisAnchor::Left, XAxisAnchor::Left),
-            ),
-            PositioningAxis::relative_to_parent(
-                ParentOffsetBounds::Unbounded,
-                OffsetType::Pixel(0.),
-                menu_positioning.workflows_info_y_anchor(),
-            ),
-        ),
-    );
-}
-
-/// Renders the voltron overlay over the input.
-pub(super) fn add_voltron_overlay(
-    stack: &mut Stack,
-    voltron_view: &ViewHandle<crate::voltron::Voltron>,
-    menu_positioning: MenuPositioning,
-) {
-    stack.add_positioned_overlay_child(
-        ChildView::new(voltron_view).finish(),
-        OffsetPositioning::offset_from_parent(
-            menu_positioning.voltron_offset(),
-            ParentOffsetBounds::Unbounded,
-            menu_positioning.voltron_parent_anchor(),
-            menu_positioning.voltron_child_anchor(),
-        ),
-    );
-}
-
 /// Renders the appropriate input suggestions overlay over the input, based on the current input
 /// suggestions mode (if any).
 pub(super) fn add_input_suggestions_overlays(
@@ -247,58 +197,6 @@ pub(super) fn add_input_suggestions_overlays(
                 ),
             );
         }
-        InputSuggestionsMode::StaticWorkflowEnumSuggestions { menu_position, .. } => {
-            let relative_position_id = menu_position.to_position_id(input.editor.id());
-            stack.add_positioned_overlay_child(
-                input.render_workflow_enum_suggestions_menu(appearance, menu_positioning),
-                OffsetPositioning::from_axes(
-                    PositioningAxis::relative_to_stack_child(
-                        &relative_position_id,
-                        PositionedElementOffsetBounds::WindowByPosition,
-                        OffsetType::Pixel(0.),
-                        AnchorPair::new(XAxisAnchor::Left, XAxisAnchor::Left),
-                    ),
-                    PositioningAxis::relative_to_stack_child(
-                        &relative_position_id,
-                        PositionedElementOffsetBounds::Unbounded,
-                        OffsetType::Pixel(0.),
-                        menu_positioning.completion_suggestions_y_anchor(),
-                    ),
-                ),
-            );
-        }
-        InputSuggestionsMode::DynamicWorkflowEnumSuggestions {
-            menu_position,
-            dynamic_enum_status,
-            command,
-            suggestions,
-            ..
-        } => {
-            let relative_position_id = menu_position.to_position_id(input.editor.id());
-            stack.add_positioned_overlay_child(
-                input.render_dynamic_workflow_enum_menu(
-                    appearance,
-                    menu_positioning,
-                    command.clone(),
-                    dynamic_enum_status.clone(),
-                    suggestions,
-                ),
-                OffsetPositioning::from_axes(
-                    PositioningAxis::relative_to_stack_child(
-                        &relative_position_id,
-                        PositionedElementOffsetBounds::WindowByPosition,
-                        OffsetType::Pixel(0.),
-                        AnchorPair::new(XAxisAnchor::Left, XAxisAnchor::Left),
-                    ),
-                    PositioningAxis::relative_to_stack_child(
-                        &relative_position_id,
-                        PositionedElementOffsetBounds::Unbounded,
-                        OffsetType::Pixel(0.),
-                        menu_positioning.completion_suggestions_y_anchor(),
-                    ),
-                ),
-            );
-        }
         InputSuggestionsMode::AIContextMenu { .. } => {
             input.render_ai_context_menu(stack, &menu_positioning, app);
         }
@@ -310,8 +208,6 @@ pub(super) fn add_input_suggestions_overlays(
         InputSuggestionsMode::ModelSelector => {}
         // Profile selector is rendered separately via inline_profile_selector_view
         InputSuggestionsMode::ProfileSelector => {}
-        // Prompts menu is rendered separately via inline_prompts_menu_view
-        InputSuggestionsMode::PromptsMenu => {}
         // Skill menu is rendered separately via inline_skill_selector_view
         InputSuggestionsMode::SkillMenu => {}
         // User query menu is rendered separately via user_query_menu_view

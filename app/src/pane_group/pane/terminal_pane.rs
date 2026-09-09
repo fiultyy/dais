@@ -636,19 +636,6 @@ fn handle_terminal_view_event(
             Event::OnboardingTutorialCompleted => {
                 ctx.emit(pane_group::Event::OnboardingTutorialCompleted);
             }
-            Event::OpenWorkflowModalWithCommand(command) => {
-                ctx.emit(pane_group::Event::OpenWorkflowModalWithCommand(
-                    command.clone(),
-                ));
-            }
-            Event::OpenWorkflowModalWithWorkflowObject(workflow_id) => {
-                ctx.emit(pane_group::Event::OpenCloudWorkflowForEdit(*workflow_id));
-            }
-            Event::OpenWorkflowModalWithTemporary(workflow) => {
-                ctx.emit(pane_group::Event::OpenWorkflowModalWithTemporary(
-                    workflow.clone(),
-                ));
-            }
             Event::OpenPromptEditor => {
                 ctx.emit(pane_group::Event::OpenPromptEditor);
             }
@@ -720,6 +707,7 @@ fn handle_terminal_view_event(
             Event::DaisDriveObjectInPane(uid) => {
                 ctx.emit(pane_group::Event::DaisDriveObjectInPane(uid.clone()));
             }
+
             Event::SummarizationCancelDialogToggled { is_open } => {
                 group.terminal_with_open_summarization_dialog = is_open.then_some(terminal_pane_id);
                 ctx.notify();
@@ -825,11 +813,7 @@ fn handle_terminal_view_event(
             Event::OpenAddRulePane => {
                 ctx.emit(crate::pane_group::Event::OpenAddRulePane);
             }
-            Event::OpenAddPromptPane { initial_content } => {
-                ctx.emit(crate::pane_group::Event::OpenAddPromptPane {
-                    initial_content: initial_content.clone(),
-                });
-            }
+
             // Dais Wave 7-3:`OpenEnvironmentManagementPane` event forwarding 随 ambient-agent UI
             // 子系统物理删。
             #[cfg(feature = "local_fs")]

@@ -1,36 +1,12 @@
 use crate::env_vars::EnvVarCollectionObject;
 use crate::search::mixer::SearchMixer;
 use objects::ids::SyncId;
-use crate::terminal::history::LinkedWorkflowData;
-use crate::workflows::{WorkflowSource, WorkflowType};
 
 pub type CommandSearchMixer = SearchMixer<CommandSearchItemAction>;
 
 #[derive(Clone, Debug)]
 pub struct AcceptedHistoryItem {
     pub command: String,
-
-    /// The workflow used to construct the command, if any.
-    pub linked_workflow_data: Option<LinkedWorkflowData>,
-}
-
-/// Payload for `AcceptWorkflow`: identifies which workflow was selected.
-///
-/// Cloud workflows carry only a `SyncId` so the handler can resolve the full
-/// object from `ObjectStoreModel` at accept time (produced by the async
-/// `stored_workflows_data_source`). Local/AI-generated workflows are produced
-/// by separate sync data sources and carry owned data since they don't live
-/// in `ObjectStoreModel`.
-#[derive(Clone, Debug)]
-pub enum AcceptedWorkflow {
-    Cloud {
-        id: SyncId,
-        source: WorkflowSource,
-    },
-    Local {
-        workflow: Box<WorkflowType>,
-        source: WorkflowSource,
-    },
 }
 
 /// The set of events that may be produced by accepting or executing a search
@@ -44,9 +20,6 @@ pub enum CommandSearchItemAction {
     /// The user requested the re-execution of a history search item. The
     /// contained string is the command they accepted.
     ExecuteHistory(String),
-
-    /// The user accepted a workflow search item.
-    AcceptWorkflow(AcceptedWorkflow),
 
     /// The user accepted the notebook search item.
     AcceptNotebook(SyncId),

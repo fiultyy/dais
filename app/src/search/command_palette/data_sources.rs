@@ -79,6 +79,7 @@ impl DataSourceStore {
                 HashSet::from([QueryFilter::Sessions]),
             );
 
+
             mixer.add_sync_source(
                 self.actions_data_source.clone(),
                 HashSet::from([QueryFilter::Actions]),
@@ -147,6 +148,7 @@ impl DataSourceStore {
                 .actions_data_source
                 .as_ref(app)
                 .query_result(*binding_id),
+
             ItemSummary::Session { pane_view_locator } => self
                 .sessions_data_source
                 .as_ref(app)
@@ -217,11 +219,6 @@ impl DataSourceStore {
             }
             ItemSummary::NoOp => {
                 // No-op action (used for non-interactable separator items that don't do anything on click).
-                None
-            }
-            ItemSummary::Workflow { id: _ } => {
-                // No command-palette data source to reconstruct a workflow recents item;
-                // filtered out of the recents section.
                 None
             }
             ItemSummary::Notebook { id: _ } => {

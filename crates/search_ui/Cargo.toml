@@ -30,7 +30,6 @@ sha2.workspace = true
 string-offset.workspace = true
 strum_macros.workspace = true
 warpui.workspace = true
-workflows_ui.workspace = true
 
 # 与 app/Cargo.toml 同款声明:tantivy 不支持 wasm 目标,searcher 模块
 # 在 wasm 下整体 cfg 摘除(与原 app/src/search/searcher.rs 语义一致)。

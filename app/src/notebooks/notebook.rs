@@ -55,7 +55,6 @@ use crate::{
     ui_components::icons::{self, Icon},
     util::bindings::{self, CustomAction},
     view_components::{DismissibleToast, ToastType},
-    workflows::{WorkflowSource, WorkflowType},
     workspace::ToastStack,
     workspaces::user_workspaces::UserWorkspaces,
 };
@@ -72,10 +71,7 @@ use super::{
         show_rich_editor_context_menu, show_text_editor_context_menu, ContextMenuAction,
         ContextMenuState,
     },
-    editor::{
-        view::{EditorViewEvent, RichTextEditorConfig, RichTextEditorView},
-        NotebookWorkflow,
-    },
+    editor::view::{EditorViewEvent, RichTextEditorConfig, RichTextEditorView},
     link::{NotebookLinks, SessionSource},
     manager::NotebookManager,
     styles,
@@ -227,11 +223,6 @@ pub struct NotebookView {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NotebookEvent {
-    RunWorkflow {
-        workflow: Arc<WorkflowType>,
-        source: WorkflowSource,
-    },
-    EditWorkflow(SyncId),
     ViewInWarpDrive(WarpDriveItemId),
     Pane(PaneEvent),
     MoveToSpace {
@@ -864,10 +855,6 @@ impl NotebookView {
                 ctx.focus(&self.title);
             }
             EditorViewEvent::Navigate(_) => (),
-            EditorViewEvent::RunWorkflow(workflow) => self.run_notebook_workflow(workflow, ctx),
-            EditorViewEvent::EditWorkflow(workflow_id) => {
-                ctx.emit(NotebookEvent::EditWorkflow(*workflow_id))
-            }
             EditorViewEvent::OpenedBlockInsertionMenu(source) => self.send_telemetry_action(
                 NotebookTelemetryAction::OpenBlockInsertionMenu { source: *source },
                 ctx,
@@ -878,8 +865,6 @@ impl NotebookView {
             EditorViewEvent::OpenedFindBar => {
                 self.send_telemetry_action(NotebookTelemetryAction::OpenFindBar, ctx)
             }
-            EditorViewEvent::InsertedEmbeddedObject(info) => self
-                .send_telemetry_action(NotebookTelemetryAction::InsertEmbeddedObject(*info), ctx),
             EditorViewEvent::CopiedBlock { block, entrypoint } => self.send_telemetry_action(
                 NotebookTelemetryAction::CopyBlock {
                     block: *block,
@@ -1536,34 +1521,6 @@ impl NotebookView {
             }
             Mode::View => self.grab_edit_access_or_display_access_dialog(ctx),
         }
-    }
-
-    fn run_notebook_workflow(&self, workflow: &NotebookWorkflow, ctx: &mut ViewContext<Self>) {
-        // If the notebook workflow was anonymous, synthesize metadata for it.
-        let workflow_type =
-            workflow.named_workflow(|| Some(format!("Command from {}", self.title(ctx))));
-
-        let notebook_id = self.server_id(ctx);
-        let source = workflow.source.unwrap_or_else(|| {
-            let owner = self.active_notebook_data.as_ref(ctx).owner(ctx);
-            let team_uid = match owner {
-                Some(Owner::Team { team_uid }) => Some(team_uid),
-                _ => None,
-            };
-            WorkflowSource::Notebook {
-                notebook_id,
-                team_uid,
-                location: owner
-                    .map(Into::into)
-                    .unwrap_or(NotebookLocation::PersonalCloud),
-            }
-        });
-
-        ctx.emit(NotebookEvent::RunWorkflow {
-            workflow: workflow_type,
-            source,
-        });
-        ctx.notify();
     }
 
     fn conflict_dialog_refresh_button_clicked(&mut self, ctx: &mut ViewContext<Self>) {

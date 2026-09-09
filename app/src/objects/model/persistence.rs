@@ -12,9 +12,6 @@ use crate::persistence::ModelEvent;
 use crate::server::ids::{HashableId, ObjectUid, SyncId, ToServerId};
 use crate::server_time::ServerTimestamp;
 use crate::settings::cloud_preferences::{PreferenceObject, PreferenceObjectModel};
-use crate::workflows::workflow::Workflow;
-use crate::workflows::workflow_enum::{WorkflowEnum, WorkflowEnumObject, WorkflowEnumObjectModel};
-use crate::workflows::{WorkflowObject, WorkflowObjectModel};
 use crate::workspaces::user_workspaces::UserWorkspaces;
 
 use itertools::Itertools;
@@ -447,23 +444,6 @@ impl ObjectStoreModel {
         }
     }
 
-    /// Overwrite a workflow's definition from a non-local replacement path.
-    pub fn overwrite_workflow(
-        &mut self,
-        workflow: Workflow,
-        workflow_id: SyncId,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        if let Some(workflow_object) = self.get_workflow_mut(&workflow_id) {
-            workflow_object.set_model(WorkflowObjectModel::new(workflow));
-            ctx.emit(ObjectStoreEvent::ObjectUpdated {
-                type_and_id: workflow_object.object_type_and_id(),
-                source: UpdateSource::External,
-            });
-            ctx.notify();
-        }
-    }
-
     pub fn overwrite_env_var_collection(
         &mut self,
         env_var_collection: EnvVarCollection,
@@ -479,26 +459,6 @@ impl ObjectStoreModel {
                 .set_model(EnvVarCollectionObjectModel::new(env_var_collection));
             ctx.emit(ObjectStoreEvent::ObjectUpdated {
                 type_and_id: cloud_env_var_collection.object_type_and_id(),
-                source: UpdateSource::External,
-            });
-            ctx.notify();
-        }
-    }
-
-    pub fn overwrite_workflow_enum(
-        &mut self,
-        workflow_enum: WorkflowEnum,
-        workflow_enum_id: SyncId,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        if let Some(cloud_workflow_enum) = self
-            .get_object_of_type_mut::<GenericStringObjectId, WorkflowEnumObjectModel>(
-                &workflow_enum_id,
-            )
-        {
-            cloud_workflow_enum.set_model(WorkflowEnumObjectModel::new(workflow_enum));
-            ctx.emit(ObjectStoreEvent::ObjectUpdated {
-                type_and_id: cloud_workflow_enum.object_type_and_id(),
                 source: UpdateSource::External,
             });
             ctx.notify();
@@ -636,9 +596,6 @@ impl ObjectStoreModel {
             ObjectTypeAndId::Notebook(sync_id) => {
                 self.force_expand_object_and_ancestors(sync_id, ctx)
             }
-            ObjectTypeAndId::Workflow(sync_id) => {
-                self.force_expand_object_and_ancestors(sync_id, ctx)
-            }
             ObjectTypeAndId::Folder(sync_id) => {
                 self.force_expand_object_and_ancestors(sync_id, ctx)
             }
@@ -744,22 +701,6 @@ impl ObjectStoreModel {
             .filter_map(|object| object.into())
     }
 
-    pub fn get_workflow(&self, workflow_id: &SyncId) -> Option<&WorkflowObject> {
-        self.objects_by_id
-            .get(&workflow_id.uid())
-            .and_then(|object| object.into())
-    }
-
-    pub fn get_workflow_by_uid(&self, uid: &str) -> Option<&WorkflowObject> {
-        self.objects_by_id.get(uid).and_then(|object| object.into())
-    }
-
-    pub fn get_workflow_enum(&self, enum_id: &SyncId) -> Option<&WorkflowEnumObject> {
-        self.objects_by_id
-            .get(&enum_id.uid())
-            .and_then(|object| object.into())
-    }
-
     pub fn get_ai_execution_profile(
         &self,
         profile_id: &SyncId,
@@ -769,61 +710,6 @@ impl ObjectStoreModel {
             .and_then(|object| object.into())
     }
 
-    pub fn get_workflow_enum_mut(&mut self, enum_id: &SyncId) -> Option<&mut WorkflowEnumObject> {
-        self.objects_by_id
-            .get_mut(&enum_id.uid())
-            .and_then(|object| object.into())
-    }
-
-    pub fn get_workflow_mut(&mut self, workflow_id: &SyncId) -> Option<&mut WorkflowObject> {
-        self.objects_by_id
-            .get_mut(&workflow_id.uid())
-            .and_then(|object| object.into())
-    }
-
-    /// Returns only active (not trashed) workflows in object store.
-    pub fn get_all_active_workflows(&self) -> impl Iterator<Item = &WorkflowObject> {
-        self.objects_by_id
-            .values()
-            .filter(|object| !object.is_trashed(self))
-            .filter_map(|object| object.into())
-    }
-
-    /// Returns all workflows (trashed or not) in object store.
-    pub fn get_all_active_and_inactive_workflows(&self) -> impl Iterator<Item = &WorkflowObject> {
-        self.objects_by_id
-            .values()
-            .filter_map(|object| object.into())
-    }
-
-    /// Returns all workflows (trashed or not) in object store.
-    pub fn get_all_active_and_inactive_workflows_mut(
-        &mut self,
-    ) -> impl Iterator<Item = &mut WorkflowObject> {
-        self.objects_by_id
-            .values_mut()
-            .filter_map(|object| object.into())
-    }
-
-    /// Returns all active (not trashed) workflows in the space.
-    pub fn active_workflows_in_space<'a>(
-        &'a self,
-        space: Space,
-        app: &'a AppContext,
-    ) -> impl Iterator<Item = &'a WorkflowObject> + 'a {
-        self.active_objectss_in_space(space, app)
-            .filter_map(|object| object.into())
-    }
-
-    /// Returns all active (not trashed) and non-welcome workflows (ie. non starter workflows) in the space.
-    pub fn active_non_welcome_workflows_in_space<'a>(
-        &'a self,
-        space: Space,
-        app: &'a AppContext,
-    ) -> impl Iterator<Item = &'a WorkflowObject> + 'a {
-        self.active_non_welcome_objectss_in_space(space, app)
-            .filter_map(|object| object.into())
-    }
 
     /// Returns all active (not trashed) notebooks in the space.
     pub fn active_notebooks_in_space<'a>(
@@ -852,18 +738,6 @@ impl ObjectStoreModel {
         app: &'a AppContext,
     ) -> impl Iterator<Item = &'a EnvVarCollectionObject> + 'a {
         self.active_non_welcome_objectss_in_space(space, app)
-            .filter_map(|object| object.into())
-    }
-
-    /// Returns all workflow enums with a given owner.
-    pub fn workflow_enums_with_owner<'a>(
-        &'a self,
-        owner: Owner,
-        _: &'a AppContext,
-    ) -> impl Iterator<Item = &'a WorkflowEnumObject> + 'a {
-        self.objects_by_id
-            .values()
-            .filter(move |object| !object.is_trashed(self) && object.permissions().owner == owner)
             .filter_map(|object| object.into())
     }
 

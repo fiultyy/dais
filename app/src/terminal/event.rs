@@ -206,6 +206,7 @@ pub struct BootstrappedEvent {
 
 
 
+
 pub use ::terminal_model::{ExecutedExecutorCommandEvent, ParseGeneratorOutputError};
 
 impl Debug for Event {

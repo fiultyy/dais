@@ -148,7 +148,6 @@ pub enum PrincipalType {
 pub struct PersonalObjectLimits {
     pub env_var_limit: usize,
     pub notebook_limit: usize,
-    pub workflow_limit: usize,
 }
 
 /// 用户元数据 facade,只保留少数字段供 telemetry / display 使用。

@@ -11,8 +11,7 @@ use crate::ai::agent::todos::AIAgentTodoList;
 use crate::ai::agent::{
     util::parse_markdown_into_text_and_code_sections, AIAgentAction, AIAgentActionType,
     AIAgentCitation, AIAgentInput, AIAgentOutputMessage, AIAgentText, AIAgentTodo,
-    ArtifactCreatedData, MessageId, SuggestedAgentModeWorkflow, SuggestedRule, Suggestions,
-    TodoOperation,
+    ArtifactCreatedData, MessageId, SuggestedRule, Suggestions, TodoOperation,
 };
 use crate::ai::agent::{
     CloneRepositoryURL, SubagentCall, SubagentType, SummarizationType, WebFetchStatus,
@@ -689,15 +688,6 @@ impl From<api::Suggestions> for Suggestions {
                     name: rule.name,
                     content: rule.content,
                     logging_id: rule.logging_id.into(),
-                })
-                .collect(),
-            agent_mode_workflows: api_suggestions
-                .workflows
-                .into_iter()
-                .map(|workflow| SuggestedAgentModeWorkflow {
-                    name: workflow.name,
-                    prompt: workflow.prompt,
-                    logging_id: workflow.logging_id.into(),
                 })
                 .collect(),
         }

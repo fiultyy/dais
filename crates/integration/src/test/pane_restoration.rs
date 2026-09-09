@@ -17,7 +17,7 @@ use dais::{
     },
 };
 
-/// Tests the basic pane restoration workflow:
+/// Tests the basic pane restoration flow:
 /// 1. Split off a pane
 /// 2. Run a simple command in it  
 /// 3. Close the pane
@@ -66,7 +66,7 @@ pub fn test_restore_single_closed_pane() -> Builder {
         )
 }
 
-/// Tests complex pane restoration workflow with multiple panes:
+/// Tests complex pane restoration flow with multiple panes:
 /// 1. Start with one pane, split twice to create 3 panes total
 /// 2. Run unique commands in each pane
 /// 3. Close two of the panes

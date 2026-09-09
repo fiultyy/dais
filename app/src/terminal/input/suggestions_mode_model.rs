@@ -4,7 +4,7 @@ use crate::ai::agent::conversation::AIConversationId;
 use crate::terminal::input::buffer_model::InputBufferModel;
 use crate::terminal::input::inline_menu::InlineMenuType;
 
-use super::{BufferState, DynamicEnumSuggestionStatus, InputConfig, InputSuggestionsMode};
+use super::{BufferState, InputConfig, InputSuggestionsMode};
 
 /// Model responsible for managing the input suggestions mode state.
 pub struct InputSuggestionsModeModel {
@@ -82,24 +82,6 @@ impl InputSuggestionsModeModel {
         });
     }
 
-    pub fn set_dynamic_enum_status(
-        &mut self,
-        status: DynamicEnumSuggestionStatus,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        if let InputSuggestionsMode::DynamicWorkflowEnumSuggestions {
-            dynamic_enum_status,
-            ..
-        } = &mut self.mode
-        {
-            *dynamic_enum_status = status;
-            ctx.emit(InputSuggestionsModeEvent::ModeChanged {
-                buffer_to_restore: None,
-                input_config_to_restore: None,
-            });
-        }
-    }
-
     pub fn is_visible(&self) -> bool {
         self.mode.is_visible()
     }
@@ -116,20 +98,6 @@ impl InputSuggestionsModeModel {
         matches!(
             self.mode,
             InputSuggestionsMode::CompletionSuggestions { .. }
-        )
-    }
-
-    pub fn is_static_workflow_enum_suggestions(&self) -> bool {
-        matches!(
-            self.mode,
-            InputSuggestionsMode::StaticWorkflowEnumSuggestions { .. }
-        )
-    }
-
-    pub fn is_dynamic_workflow_enum_suggestions(&self) -> bool {
-        matches!(
-            self.mode,
-            InputSuggestionsMode::DynamicWorkflowEnumSuggestions { .. }
         )
     }
 
@@ -151,10 +119,6 @@ impl InputSuggestionsModeModel {
 
     pub fn is_profile_selector(&self) -> bool {
         matches!(self.mode, InputSuggestionsMode::ProfileSelector)
-    }
-
-    pub fn is_prompts_menu(&self) -> bool {
-        matches!(self.mode, InputSuggestionsMode::PromptsMenu)
     }
 
     pub fn is_skill_menu(&self) -> bool {

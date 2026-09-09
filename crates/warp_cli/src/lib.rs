@@ -340,7 +340,7 @@ pub enum CliCommand {
     #[command(subcommand)]
     Provider(crate::provider::ProviderCommand),
 
-    /// Orchestrate multi-agent workflows.
+    /// Orchestrate multi-agent runs.
     #[command(subcommand)]
     Orchestration(crate::orchestration::OrchestrationCommand),
 }

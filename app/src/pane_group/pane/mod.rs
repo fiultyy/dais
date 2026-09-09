@@ -27,11 +27,10 @@ pub(crate) mod sftp_pane;
 pub(crate) mod ssh_server_pane;
 pub(super) mod terminal_pane;
 pub mod view;
-pub(super) mod workflow_pane;
 pub(super) mod notebook_pane;
 pub(crate) mod execution_profile_editor_pane;
 
-use std::{any::Any, fmt::Display};
+use std::any::Any;
 
 use crate::pane_group::focus_state::PaneFocusHandle;
 use crate::ssh_manager::server_view::SshServerView;
@@ -44,13 +43,11 @@ use crate::{
     env_vars::view::env_var_collection::EnvVarCollectionView,
     menu::MenuItem,
     notebooks::{file::FileNotebookView, image::ImageViewerView, notebook::NotebookView},
-    workflows::workflow_view::WorkflowView,
     ai::ai_document_view::AIDocumentView,
     settings::PaneSettings,
     settings_view::SettingsView,
     terminal::{available_shells::AvailableShell, TerminalView},
 };
-use serde::{Deserialize, Serialize};
 use url::Url;
 use warp_core::HostId;
 use warpui::{
@@ -133,11 +130,6 @@ pub trait PaneIdConstruct: Sized {
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<SettingsView>>`]
     fn from_settings_pane_ctx(ctx: &ViewContext<PaneView<SettingsView>>) -> PaneId {
         PaneId::new_from_ctx(IPaneType::Settings, ctx)
-    }
-
-    /// Creates a [`PaneId`] from a [`ViewContext<PaneView<WorkflowView>>`]
-    fn from_workflow_pane_ctx(ctx: &ViewContext<PaneView<WorkflowView>>) -> PaneId {
-        PaneId::new_from_ctx(IPaneType::Workflow, ctx)
     }
 
     /// Creates a [`PaneId`] from a [`ViewContext<PaneView<NotebookView>>`]
@@ -251,13 +243,6 @@ pub trait PaneIdConstruct: Sized {
         Self::new(IPaneType::Settings, settings_pane_view)
     }
 
-    /// Creates a [`PaneId`] from a [`PaneView<WorkflowView>`] entity ID.
-    fn from_workflow_pane_view(
-        workflow_pane_view: &ViewHandle<PaneView<WorkflowView>>,
-    ) -> PaneId {
-        Self::new(IPaneType::Workflow, workflow_pane_view)
-    }
-
     /// Creates a [`PaneId`] from a [`PaneView<NotebookView>`] entity ID.
     fn from_notebook_pane_view(
         notebook_pane_view: &ViewHandle<PaneView<NotebookView>>,
@@ -345,9 +330,6 @@ pub(crate) fn render_pane_id(pane: &PaneId, app: &AppContext) -> Box<dyn Element
         }
         IPaneType::EnvVarCollection => {
             ChildView::<PaneView<EnvVarCollectionView>>::with_id(pane.pane_view_id()).finish()
-        }
-        IPaneType::Workflow => {
-            ChildView::<PaneView<WorkflowView>>::with_id(pane.pane_view_id()).finish()
         }
         IPaneType::Notebook => {
             ChildView::<PaneView<NotebookView>>::with_id(pane.pane_view_id()).finish()

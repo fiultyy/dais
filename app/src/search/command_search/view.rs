@@ -25,22 +25,19 @@ use warpui::{
 use crate::{
     ai_assistant::execution_context::WarpAiExecutionContext,
     appearance::Appearance,
-    completer::SessionContext,
     search::{ command_search::searcher::{CommandSearchItemAction, CommandSearchMixer}, result_renderer::{QueryResultRenderer, QueryResultRendererStyles}, search_bar::{SearchBar, SearchBarEvent, SearchBarState, SearchResultOrdering}, QueryFilter, },
     send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
-    settings::AISettings,
     terminal::{ input::MenuPositioning, model::session::SessionId, resizable_data::{ModalType, ResizableData, DEFAULT_UNIVERSAL_SEARCH_WIDTH}, History, HistoryEvent, },
 };
 
 use super::{
     env_var_collections::EnvVarCollectionDataSource,
     history::history_data_source_for_session,
-    workflows::{stored_workflows_data_source, WorkflowsDataSource},
     zero_state::{CommandSearchZeroStateEvent, CommandSearchZeroStateView},
 };
 
-const DEFAULT_PLACEHOLDER_TEXT: &str = "Search your history, workflows, and more";
+const DEFAULT_PLACEHOLDER_TEXT: &str = "Search your history and more";
 const PANEL_POSITION_ID: &str = "CommandSearchViewPanel";
 const DETAILS_PANEL_MARGIN: f32 = 4.;
 const MIN_WIDTH_RATIO: f32 = 0.25;
@@ -192,35 +189,12 @@ impl CommandSearchView {
     fn reset_command_search_mixer(
         &mut self,
         session_id: SessionId,
-        session_context: Option<SessionContext>,
         _ai_execution_context: Option<WarpAiExecutionContext>,
         ctx: &mut ViewContext<Self>,
     ) {
         self.mixer.update(ctx, |mixer, ctx| {
             mixer.reset(ctx);
 
-            // 本地化:workflows/EVC 数据源不再受 Dais Drive(云端)开关限制,
-            // ObjectStoreModel 是本地 SQLite 对象库,始终可用。
-            mixer.add_sync_source(
-                WorkflowsDataSource::new(session_context.as_ref(), ctx),
-                HashSet::from([QueryFilter::Workflows]),
-            );
-
-            let mut workflows_filters = HashSet::from([QueryFilter::Workflows]);
-            if AISettings::as_ref(ctx).is_any_ai_enabled(ctx) {
-                workflows_filters.insert(QueryFilter::AgentModeWorkflows);
-            }
-
-            mixer.add_async_source(
-                stored_workflows_data_source(),
-                workflows_filters,
-                AddAsyncSourceOptions {
-                    debounce_interval: Some(Duration::from_millis(50)),
-                    run_in_zero_state: true,
-                    run_when_unfiltered: true,
-                },
-                ctx,
-            );
             // EnvVarCollectionDataSource stays synchronous because each match target is
             // structurally short (title, variable name, description). The per-item fuzzy
             // match cost is negligible, so offloading to an async task would add complexity
@@ -278,14 +252,13 @@ impl CommandSearchView {
     pub fn reset_state(
         &mut self,
         session_id: SessionId,
-        session_context: Option<SessionContext>,
         initial_query: String,
         query_filter: Option<QueryFilter>,
         menu_positioning: MenuPositioning,
         ai_execution_context: Option<WarpAiExecutionContext>,
         ctx: &mut ViewContext<Self>,
     ) {
-        self.reset_command_search_mixer(session_id, session_context, ai_execution_context, ctx);
+        self.reset_command_search_mixer(session_id, ai_execution_context, ctx);
         let ordering = match menu_positioning {
             MenuPositioning::AboveInputBox => SearchResultOrdering::BottomUp,
             MenuPositioning::BelowInputBox => SearchResultOrdering::TopDown,
@@ -434,7 +407,6 @@ impl CommandSearchView {
                 ExecuteHistory(_) | RunAIQuery(_) => true,
 
                 AcceptHistory(_)
-                | AcceptWorkflow(_)
                 | AcceptNotebook(_)
                 | DaisAI
                 | AcceptEnvVarCollection(_)
@@ -804,7 +776,7 @@ impl View for CommandSearchView {
     fn accessibility_contents(&self, _ctx: &AppContext) -> Option<AccessibilityContent> {
         Some(AccessibilityContent::new(
             "Command Search".to_owned(),
-            "Search your history, workflows, and more.  Use the Up and Down arrows to browse search results after typing.  Press Enter to accept a selected result, inserting it into the terminal input.  Press Escape to close.".to_owned(),
+            "Search your history and more.  Use the Up and Down arrows to browse search results after typing.  Press Enter to accept a selected result, inserting it into the terminal input.  Press Escape to close.".to_owned(),
             WarpA11yRole::MenuRole,
         ))
     }

@@ -35,7 +35,7 @@ pub trait StoredStringObject: StoredObject + Send + Sync {
 pub trait StringModel: Clone + Debug + PartialEq + Send + Sync + 'static {
     type StoredObjectType: StoredObject + 'static;
 
-    /// Returns the name of this model type (e.g. Workflow, Folder, Notebook)
+    /// Returns the name of this model type (e.g. Folder, Notebook)
     fn model_type_name(&self) -> &'static str;
 
     /// Whether we should enforce revisions for this model type.

@@ -15,7 +15,7 @@ Welcome to Dais.
 Use this local workspace to:
 * Create, view, and edit Dais Drive objects
 * Manage local settings
-* Work with local agent sessions, notebooks, and workflows"#;
+* Work with local agent sessions and notebooks"#;
 
 /// Create a static "home page" pane.
 pub fn create_home_pane(ctx: &mut ViewContext<Workspace>) -> Box<dyn AnyPaneContent> {

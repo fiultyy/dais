@@ -71,8 +71,7 @@ pub fn title_text_fill(appearance: &Appearance) -> Fill {
     theme.sub_text_color(theme.background())
 }
 
-/// Builds an action button for a block's footer (such as the button to run a command or embedded
-/// workflow).
+/// Builds an action button for a block's footer (such as the button to copy a command).
 pub(super) fn block_footer_action_button(
     appearance: &Appearance,
     icon: Icon,

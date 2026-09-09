@@ -52,7 +52,6 @@ terminal_model = { path = "crates/terminal_model" }
 code_model = { path = "crates/code_model" }
 context_chips_ui = { path = "crates/context_chips_ui" }
 search_ui = { path = "crates/search_ui" }
-workflows_ui = { path = "crates/workflows_ui" }
 env_vars_ui = { path = "crates/env_vars_ui" }
 objects = { path = "crates/objects" }
 pane_tree = { path = "crates/pane_tree" }
@@ -364,7 +363,6 @@ vec1 = { version = "1.8.0", features = ["serde"] }
 version-compare = "0.1"
 vte = { git = "https://github.com/warpdotdev/vte.git", rev = "4b399c87b63ba88f45709edaa6383fc519f6c900", default-features = false }
 walkdir = "2"
-warp-workflows = { git = "https://github.com/warpdotdev/workflows", rev = "793a98ddda6ef19682aed66364faebd2829f0e01" }
 warp_multi_agent_api = { git = "https://github.com/fiultyy/warp-proto-apis.git", rev = "14ab9a71ea3e9521b2ffab2f97a64e7c21050669" }
 wasm-bindgen = "0.2.89"
 wasm-bindgen-futures = "0.4.42"

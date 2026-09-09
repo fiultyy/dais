@@ -27,7 +27,7 @@ use crate::workspaces::user_workspaces::UserWorkspaces;
 use crate::{
     appearance::Appearance,
     send_telemetry_from_ctx,
-    server::telemetry::{SaveAsWorkflowModalSource, TelemetryEvent, WarpAIActionType},
+    server::telemetry::{TelemetryEvent, WarpAIActionType},
     ui_components::blended_colors,
 };
 
@@ -37,8 +37,8 @@ use super::{
     requests::{RequestStatus, Requests},
     utils::{
         code_block_position_id, markdown_segments_from_text, render_prepared_response_button,
-        render_request_limit_info, save_as_workflow_position_id, AssistantTranscriptPart,
-        CodeBlockIndex, FormattedTranscriptMessage, MarkdownSegment, TranscriptPartSubType,
+        render_request_limit_info, AssistantTranscriptPart, CodeBlockIndex,
+        FormattedTranscriptMessage, MarkdownSegment, TranscriptPartSubType,
     },
     AI_ASSISTANT_SVG_PATH,
 };
@@ -47,7 +47,6 @@ const TRANSCRIPT_POSITION_ID: &str = "ai_assistant::transcript";
 
 const TERMINAL_INPUT_SVG_PATH: &str = "bundled/svg/terminal-input.svg";
 const USER_ICON_SVG_PATH: &str = "bundled/svg/user.svg";
-const SAVE_WORKFLOW_ICON_PATH: &str = "bundled/svg/workflow.svg";
 
 
 const PANEL_LEFT_MARGIN: f32 = 15.;
@@ -55,7 +54,6 @@ const DETAILS_BOTTOM_MARGIN: f32 = 12.;
 
 const COPY_BUTTON_SIZE: f32 = 14.;
 const TERMINAL_INPUT_BUTTON_SIZE: f32 = 20.;
-const SAVE_AS_WORKFLOW_BUTTON_SIZE: f32 = 20.;
 
 const HOW_DO_I_FIX_PROMPT: &str = "How do I fix this?";
 const SHOW_EXAMPLES_PROMPT: &str = "Show examples.";
@@ -75,8 +73,6 @@ pub struct CodeBlockMouseStateHandles {
     pub play_button_tooltip: MouseStateHandle,
     pub copy_button: MouseStateHandle,
     pub copy_button_tooltip: MouseStateHandle,
-    pub save_as_workflow_button: MouseStateHandle,
-    pub save_as_workflow_button_tooltip: MouseStateHandle,
 }
 
 #[derive(Default)]
@@ -108,7 +104,6 @@ pub enum TranscriptAction {
     PasteInTerminalInput {
         code_block_index: CodeBlockIndex,
     },
-    OpenWorkflowModal(CodeBlockIndex),
     ClickedCodeBlock {
         code_block_index: CodeBlockIndex,
     },
@@ -123,7 +118,6 @@ pub enum TranscriptEvent {
     FocusEditor,
     FocusTranscript,
     ClickedCodeBlock,
-    OpenWorkflowModalWithCommand(String),
 }
 
 impl Entity for Transcript {
@@ -163,7 +157,6 @@ impl TypedActionView for Transcript {
             PasteInTerminalInput { code_block_index } => {
                 self.paste_in_terminal_input(*code_block_index, ctx);
             }
-            OpenWorkflowModal(code_block_index) => self.open_workflow_modal(*code_block_index, ctx),
             ClickedUrl(url) => {
                 ctx.open_url(&url.url);
             }
@@ -229,23 +222,6 @@ impl Transcript {
         );
     }
 
-    fn open_workflow_modal(
-        &mut self,
-        code_block_index: CodeBlockIndex,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        if let Some(code) = self.code_for_index(code_block_index, ctx) {
-            ctx.emit(TranscriptEvent::OpenWorkflowModalWithCommand(code));
-        }
-
-        send_telemetry_from_ctx!(
-            TelemetryEvent::SaveAsWorkflowModal {
-                source: SaveAsWorkflowModalSource::WarpAIPanel
-            },
-            ctx
-        );
-    }
-
     fn handle_keydown(&mut self, keystroke: &Keystroke, ctx: &mut ViewContext<Self>) {
         let Some(selected_block_index) = self.selected_code_block else {
             return;
@@ -271,8 +247,6 @@ impl Transcript {
             self.copy_code_to_clipboard(selected_block_index, ctx);
         } else if keystroke.cmd && keystroke.key == "enter" {
             self.paste_in_terminal_input(selected_block_index, ctx);
-        } else if keystroke.cmd && keystroke.key == "s" {
-            self.open_workflow_modal(selected_block_index, ctx);
         } else if keystroke.key == "escape" {
             self.selected_code_block = None;
             ctx.emit(TranscriptEvent::FocusEditor);
@@ -481,43 +455,6 @@ impl Transcript {
                 .finish(),
             );
 
-            let save_as_workflow_button = appearance
-                .ui_builder()
-                .animated_button(
-                    mouse_state_handles.save_as_workflow_button.clone(),
-                    SAVE_WORKFLOW_ICON_PATH,
-                    AnimatedButtonOptions {
-                        size: SAVE_AS_WORKFLOW_BUTTON_SIZE,
-                        padding: Some(4.),
-                        color: None,
-                        with_accent_animations: true,
-                        circular: true,
-                    },
-                )
-                .build()
-                .on_click(move |ctx, _, _| {
-                    ctx.dispatch_typed_action(TranscriptAction::OpenWorkflowModal(code_block_index))
-                })
-                .with_cursor(Cursor::PointingHand)
-                .finish();
-
-            buttons.add_child(
-                SavePosition::new(
-                    Container::new(appearance.ui_builder().tool_tip_on_element(
-                        "Save as workflow [Cmd + S]".to_string(),
-                        mouse_state_handles.save_as_workflow_button_tooltip.clone(),
-                        save_as_workflow_button,
-                        ParentAnchor::TopRight,
-                        ChildAnchor::BottomRight,
-                        vec2f(0., -5.),
-                    ))
-                    .with_margin_left(2.)
-                    .with_margin_bottom(-4.)
-                    .finish(),
-                    &save_as_workflow_position_id(code_block_index),
-                )
-                .finish(),
-            );
         }
         buttons.finish()
     }

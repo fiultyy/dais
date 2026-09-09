@@ -43,7 +43,6 @@ use crate::uri::browser_url_handler::update_browser_url;
 #[cfg(feature = "local_fs")]
 use crate::util::openable_file_type::FileTarget;
 use crate::view_components::ToastFlavor;
-use crate::workflows::workflow::Workflow;
 use warp_terminal::shell::{ShellName, ShellType};
 
 use std::any::Any;
@@ -104,7 +103,7 @@ use crate::report_if_error;
 use crate::resource_center::{
     mark_feature_used_and_write_to_user_defaults, Tip, TipAction, TipsCompleted,
 };
-use objects::ids::{ObjectUid, SyncId};
+use objects::ids::ObjectUid;
 use crate::server::telemetry::{PaletteSource, TelemetryEvent};
 use crate::session_management::SessionNavigationData;
 use crate::settings_view::mcp_servers_page::MCPServersSettingsPage;
@@ -130,7 +129,6 @@ use settings::Setting as _;
 
 use crate::code::active_file::ActiveFileModel;
 use crate::util::bindings::{is_binding_pty_compliant, CustomAction};
-use crate::workflows::{WorkflowSelectionSource, WorkflowSource, WorkflowType};
 
 use crate::palette::PaletteMode;
 use crate::terminal::model::terminal_model::ConversationTranscriptViewerStatus;
@@ -159,7 +157,6 @@ pub use pane::settings_pane::SettingsPane;
 pub use pane::terminal_pane::TerminalPane;
 pub use pane::notebook_pane::NotebookPane;
 pub use pane::ai_document_pane::AIDocumentPane;
-pub use pane::workflow_pane::WorkflowPane;
 pub use pane::PaneHeaderAction;
 pub use pane::PaneHeaderCustomAction;
 pub use pane::{
@@ -465,12 +462,6 @@ pub enum Event {
     TerminalViewStateChanged,
     /// Event used to propagate guided onboarding tutorial completion to the workspace.
     OnboardingTutorialCompleted,
-    // Tell the workspace to open the workflow modal.
-    OpenWorkflowModalWithCommand(String),
-    // Tell the workspace to open the workflow for edit.
-    OpenCloudWorkflowForEdit(SyncId),
-    // Tell the workspace to open the workflow modal with an unsaved workflow.
-    OpenWorkflowModalWithTemporary(Box<Workflow>),
     OpenPromptEditor,
     OpenAgentToolbarEditor,
     OpenCLIAgentToolbarEditor,
@@ -499,13 +490,6 @@ pub enum Event {
     },
     OpenCodeReviewPane(CodeReviewPanelArg),
     ToggleCodeReviewPane(CodeReviewPanelArg),
-    /// Tell the workspace to run a workflow in the active tab's active session.
-    RunWorkflow {
-        workflow: Arc<WorkflowType>,
-        workflow_source: WorkflowSource,
-        workflow_selection_source: WorkflowSelectionSource,
-        argument_override: Option<HashMap<String, String>>,
-    },
     /// Invoke env var from pane
     InvokeEnvVarCollection {
         env_var_collection: Arc<EnvVarCollectionType>,
@@ -558,6 +542,7 @@ pub enum Event {
     /// Clears the hovered tab index so it no longer appears as highlighted drop target
     ClearHoveredTabIndex,
     DaisDriveObjectInPane(ObjectUid),
+
     /// Request that the workspace open the command palette.
     OpenPalette {
         mode: PaletteMode,
@@ -599,10 +584,6 @@ pub enum Event {
     OpenConversationHistory,
     OpenMCPSettingsPage {
         page: Option<MCPServersSettingsPage>,
-    },
-    OpenAddPromptPane {
-        /// The initial prompt body content.
-        initial_content: Option<String>,
     },
     OpenAddRulePane,
     // Dais Wave 7-3:`OpenEnvironmentManagementPane` event 随 ambient-agent UI
@@ -3108,18 +3089,6 @@ impl PaneGroup {
             .map(|pane| pane.notebook_view(ctx))
     }
 
-    /// Get the notebook view within the pane at `pane_index`.
-    #[cfg(any(test, feature = "integration_tests"))]
-    pub fn workflow_view_at_pane_index(
-        &self,
-        pane_index: usize,
-        ctx: &AppContext,
-    ) -> Option<ViewHandle<crate::workflows::workflow_view::WorkflowView>> {
-        self.content_by_pane_index(pane_index)
-            .and_then(|pane| pane.as_any().downcast_ref::<WorkflowPane>())
-            .map(|pane| pane.get_view(ctx))
-    }
-
     /// Find the ID of the pane at an index (going left to right, top to bottom).
     /// Only considers visible panes (excludes panes hidden for close, move, job, etc.).
     pub fn pane_id_by_index(&self, pane_index: usize) -> Option<PaneId> {
@@ -3253,9 +3222,6 @@ impl PaneGroup {
         self.downcast_pane_by_id(pane_id?)
     }
 
-    pub fn workflow_pane_by_pane_id(&self, pane_id: Option<PaneId>) -> Option<&WorkflowPane> {
-        self.downcast_pane_by_id(pane_id?)
-    }
 
 
     pub fn code_pane_by_id(&self, pane_id: PaneId) -> Option<&CodePane> {

@@ -4,7 +4,21 @@ use crate::{
     context_chips::spacing,
     features::FeatureFlag,
     settings::{AppEditorSettings, InputModeSettings},
-    terminal::{ block_list_settings::BlockListSettings, block_list_viewport::InputMode, input::{ common::{ add_command_xray_overlay, add_input_suggestions_overlays, add_vim_status_to_stack, add_voltron_overlay, add_workflow_info_overlay, should_show_terminal_input_message_bar, wrap_input_with_terminal_padding_and_focus_handler, }, get_input_box_top_border_width, InputDropTargetData, }, settings::{SpacingMode, TerminalSettings}, view::TerminalAction, warpify::render::{render_subshell_flag, render_subshell_flag_pole}, },
+    terminal::{
+        block_list_settings::BlockListSettings,
+        block_list_viewport::InputMode,
+        input::{
+            common::{
+                add_command_xray_overlay, add_input_suggestions_overlays, add_vim_status_to_stack,
+                should_show_terminal_input_message_bar,
+                wrap_input_with_terminal_padding_and_focus_handler,
+            },
+            get_input_box_top_border_width, InputDropTargetData,
+        },
+        settings::{SpacingMode, TerminalSettings},
+        view::TerminalAction,
+        warpify::render::{render_subshell_flag, render_subshell_flag_pole},
+    },
 };
 use pathfinder_geometry::vector::vec2f;
 use settings::Setting;
@@ -200,22 +214,6 @@ impl Input {
             false, // legacy uses full padding
         ));
 
-        if let Some(selected_workflow_state) = self.workflows_state.selected_workflow_state.as_ref()
-        {
-            if selected_workflow_state.should_show_more_info_view {
-                add_workflow_info_overlay(
-                    &mut stack,
-                    selected_workflow_state,
-                    self.size_info(app).pane_height_px().as_f32(),
-                    menu_positioning,
-                );
-            }
-        }
-
-        if self.is_voltron_open && self.is_pane_focused(app) {
-            add_voltron_overlay(&mut stack, &self.voltron_view, menu_positioning);
-        }
-
         if self.is_pane_focused(app) {
             add_input_suggestions_overlays(self, &mut stack, appearance, menu_positioning, app);
         }
@@ -282,7 +280,6 @@ impl Input {
             .suggestions_mode_model
             .as_ref(app)
             .is_inline_model_selector();
-        let is_prompts_menu = self.suggestions_mode_model.as_ref(app).is_prompts_menu();
         let is_skill_menu = self.suggestions_mode_model.as_ref(app).is_skill_menu();
         let is_inline_history_menu = FeatureFlag::InlineHistoryMenu.is_enabled()
             && self
@@ -300,8 +297,6 @@ impl Input {
                             Some(ChildView::new(&self.inline_model_selector_view).finish())
                         } else if is_slash_commands {
                             Some(ChildView::new(&self.inline_slash_commands_view).finish())
-                        } else if is_prompts_menu {
-                            Some(ChildView::new(&self.inline_prompts_menu_view).finish())
                         } else if is_conversation_menu {
                             Some(ChildView::new(&self.inline_conversation_menu_view).finish())
                         } else if FeatureFlag::ListSkills.is_enabled() && is_skill_menu {
@@ -329,8 +324,6 @@ impl Input {
                             Some(ChildView::new(&self.inline_model_selector_view).finish())
                         } else if is_slash_commands {
                             Some(ChildView::new(&self.inline_slash_commands_view).finish())
-                        } else if is_prompts_menu {
-                            Some(ChildView::new(&self.inline_prompts_menu_view).finish())
                         } else if is_conversation_menu {
                             Some(ChildView::new(&self.inline_conversation_menu_view).finish())
                         } else if FeatureFlag::ListSkills.is_enabled() && is_skill_menu {
@@ -355,8 +348,6 @@ impl Input {
 
                 if is_slash_commands && !should_render_below {
                     column.add_child(ChildView::new(&self.inline_slash_commands_view).finish());
-                } else if is_prompts_menu && !should_render_below {
-                    column.add_child(ChildView::new(&self.inline_prompts_menu_view).finish());
                 } else if is_conversation_menu && !should_render_below {
                     column.add_child(ChildView::new(&self.inline_conversation_menu_view).finish());
                 } else if FeatureFlag::ListSkills.is_enabled()
@@ -376,8 +367,6 @@ impl Input {
                     column.add_child(ChildView::new(&self.inline_model_selector_view).finish());
                 } else if is_slash_commands && should_render_below {
                     column.add_child(ChildView::new(&self.inline_slash_commands_view).finish());
-                } else if is_prompts_menu && should_render_below {
-                    column.add_child(ChildView::new(&self.inline_prompts_menu_view).finish());
                 } else if is_conversation_menu && should_render_below {
                     column.add_child(ChildView::new(&self.inline_conversation_menu_view).finish());
                 } else if FeatureFlag::ListSkills.is_enabled()

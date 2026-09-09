@@ -163,23 +163,6 @@ fn agent_run_accepts_prompt_only() {
     };
 
     assert_eq!(run_args.prompt_arg.prompt.as_deref(), Some("hello"));
-    assert!(run_args.prompt_arg.saved_prompt.is_none());
-    assert!(run_args.skill.is_none());
-}
-
-#[test]
-fn agent_run_accepts_saved_prompt_only() {
-    let args = Args::try_parse_from(["warp", "agent", "run", "--saved-prompt", "sp-123"]).unwrap();
-
-    let Some(Command::CommandLine(boxed_cmd)) = args.command else {
-        panic!("Expected `warp agent run` command");
-    };
-    let CliCommand::Agent(AgentCommand::Run(run_args)) = boxed_cmd.as_ref() else {
-        panic!("Expected `warp agent run` command");
-    };
-
-    assert!(run_args.prompt_arg.prompt.is_none());
-    assert_eq!(run_args.prompt_arg.saved_prompt.as_deref(), Some("sp-123"));
     assert!(run_args.skill.is_none());
 }
 
@@ -214,44 +197,6 @@ fn agent_run_accepts_prompt_and_skill() {
 
     assert_eq!(run_args.prompt_arg.prompt.as_deref(), Some("do stuff"));
     assert!(run_args.skill.is_some());
-}
-
-#[test]
-fn agent_run_accepts_saved_prompt_and_skill() {
-    let args = Args::try_parse_from([
-        "warp",
-        "agent",
-        "run",
-        "--saved-prompt",
-        "sp-1",
-        "--skill",
-        "my-skill",
-    ])
-    .unwrap();
-
-    let Some(Command::CommandLine(boxed_cmd)) = args.command else {
-        panic!("Expected `warp agent run` command");
-    };
-    let CliCommand::Agent(AgentCommand::Run(run_args)) = boxed_cmd.as_ref() else {
-        panic!("Expected `warp agent run` command");
-    };
-
-    assert_eq!(run_args.prompt_arg.saved_prompt.as_deref(), Some("sp-1"));
-    assert!(run_args.skill.is_some());
-}
-
-#[test]
-fn agent_run_rejects_prompt_and_saved_prompt() {
-    let result = Args::try_parse_from([
-        "warp",
-        "agent",
-        "run",
-        "--prompt",
-        "hello",
-        "--saved-prompt",
-        "sp-1",
-    ]);
-    assert!(result.is_err());
 }
 
 #[test]

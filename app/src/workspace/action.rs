@@ -1,6 +1,4 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use crate::ai::agent::api::ServerConversationToken;
 use crate::ai::agent::conversation::AIConversationId;
@@ -21,7 +19,6 @@ use crate::terminal::CLIAgent;
 use crate::terminal::view::inline_banner::ZeroStatePromptSuggestionType;
 use crate::themes::theme::AnsiColorIdentifier;
 use crate::themes::theme_chooser::ThemeChooserMode;
-use crate::workflows::{WorkflowSelectionSource, WorkflowSource, WorkflowType};
 use crate::workspace::PaneViewLocator;
 
 use ui_components::lightbox;
@@ -259,10 +256,8 @@ pub enum WorkspaceAction {
     ShowCommandSearch(CommandSearchOptions),
     CreatePersonalNotebook,
     ImportToPersonalDrive,
-    CreatePersonalWorkflow,
     CreatePersonalFolder,
     CreatePersonalEnvVarCollection,
-    CreatePersonalAIPrompt,
     ToggleMouseReporting,
     StartTabDrag,
     DragTab {
@@ -331,7 +326,6 @@ pub enum WorkspaceAction {
     ToggleSyncTerminalInputsInTab,
     /// An action to force terminal input syncing off
     DisableTerminalInputSync,
-    HandleConflictingWorkflow(SyncId),
     HandleConflictingEnvVarCollection(SyncId),
     OpenPromptEditor {
         open_source: PromptEditorOpenSource,
@@ -372,13 +366,10 @@ pub enum WorkspaceAction {
     ToggleInBandGenerators,
     ToggleDebugNetworkStatus,
     ToggleShowMemoryStats,
-    RunAISuggestedCommand(String),
     RunCommand(String),
     InsertInInput {
         content: String,
         replace_buffer: bool,
-        /// Whether to ensure agent mode is enabled when inserting content
-        ensure_agent_mode: bool,
     },
     /// Open a new pane with its input in AI mode.
     NewPaneInAgentMode {
@@ -414,12 +405,6 @@ pub enum WorkspaceAction {
     JumpToLatestToast,
     OpenNotebook {
         id: SyncId,
-    },
-    RunWorkflow {
-        workflow: Arc<WorkflowType>,
-        workflow_source: WorkflowSource,
-        workflow_selection_source: WorkflowSelectionSource,
-        argument_override: Option<HashMap<String, String>>,
     },
     ScrollToSettingsWidget {
         page: SettingsSection,
@@ -665,7 +650,6 @@ impl WorkspaceAction {
             | ToggleUngroupedCollapsed
             | NewPaneInAgentMode { .. }
             | OpenNotebook { .. }
-            | RunWorkflow { .. }
             | RestoreOrNavigateToConversation { .. }
             | NewCodeFile
             | ForkAIConversation { .. }
@@ -718,10 +702,8 @@ impl WorkspaceAction {
             | ToggleMouseReporting
             | ImportToPersonalDrive
             | CreatePersonalNotebook
-            | CreatePersonalWorkflow
             | CreatePersonalFolder
             | CreatePersonalEnvVarCollection
-            | CreatePersonalAIPrompt
             | OpenInExplorer { .. }
             | DragTab { .. }
             | StartTabDrag
@@ -756,7 +738,6 @@ impl WorkspaceAction {
             | ToggleSyncAllTerminalInputsInAllTabs
             | ToggleSyncTerminalInputsInTab
             | DisableTerminalInputSync
-            | HandleConflictingWorkflow(_)
             | HandleConflictingEnvVarCollection(_)
             | OpenPromptEditor { .. }
             | OpenHeaderToolbarEditor
@@ -771,7 +752,6 @@ impl WorkspaceAction {
             | ToggleInBandGenerators
             | ToggleDebugNetworkStatus
             | ToggleShowMemoryStats
-            | RunAISuggestedCommand { .. }
             | RunCommand { .. }
             | InsertInInput { .. }
             | QueuePromptForConversation { .. }

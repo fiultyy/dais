@@ -1,6 +1,6 @@
 //! Read-only image viewer pane contents. Renders a local image fit-to-pane via the warpui
 //! `Image` element. Mirrors the markdown `FileNotebookView`, but without the rich-text editor,
-//! workflow, or link machinery — an image emits nothing and only needs to be displayed.
+//! link machinery — an image emits nothing and only needs to be displayed.
 
 use std::{
     path::{Path, PathBuf},

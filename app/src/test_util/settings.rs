@@ -14,15 +14,28 @@ pub fn initialize_settings_for_tests_with_mode(
     is_sandboxed: bool,
 ) {
     use crate::{
-    drive::settings::WarpDriveSettings,
-    search::command_search::settings::CommandSearchSettings,
-    settings::{ app_icon::AppIconSettings, init_and_register_user_preferences, manager::SettingsManager, AISettings, AccessibilitySettings, AliasExpansionSettings, AppEditorSettings, BlockVisibilitySettings, CodeSettings, DebugSettings, EmacsBindingsSettings, FontSettings, GPUSettings, InputModeSettings, InputSettings, NativePreferenceSettings, PaneSettings, PreferencesSettings, SameLinePromptBlockSettings, ScrollSettings, SelectionSettings, SshSettings, ThemeSettings, VimBannerSettings, },
-    terminal::{ general_settings::GeneralSettings, keys_settings::KeysSettings, ligature_settings::LigatureSettings, safe_mode_settings::SafeModeSettings, session_settings::SessionSettings, settings::TerminalSettings, shared_session::settings::SharedSessionSettings, warpify::settings::WarpifySettings, BlockListSettings, },
-    undo_close::UndoCloseSettings,
-    user_config::WarpConfig,
-    window_settings::WindowSettings,
-    workspace::tab_settings::TabSettings,
-};
+        drive::settings::WarpDriveSettings,
+        settings::{
+            app_icon::AppIconSettings, init_and_register_user_preferences,
+            manager::SettingsManager, AISettings, AccessibilitySettings, AliasExpansionSettings,
+            AppEditorSettings, BlockVisibilitySettings, CodeSettings, DebugSettings,
+            EmacsBindingsSettings, FontSettings, GPUSettings, InputModeSettings, InputSettings,
+            NativePreferenceSettings, PaneSettings, PreferencesSettings,
+            SameLinePromptBlockSettings, ScrollSettings, SelectionSettings, SshSettings,
+            ThemeSettings, VimBannerSettings,
+        },
+        terminal::{
+            general_settings::GeneralSettings, keys_settings::KeysSettings,
+            ligature_settings::LigatureSettings, safe_mode_settings::SafeModeSettings,
+            session_settings::SessionSettings, settings::TerminalSettings,
+            shared_session::settings::SharedSessionSettings, warpify::settings::WarpifySettings,
+            BlockListSettings,
+        },
+        undo_close::UndoCloseSettings,
+        user_config::WarpConfig,
+        window_settings::WindowSettings,
+        workspace::tab_settings::TabSettings,
+    };
     use warp_core::{execution_mode::AppExecutionMode, semantic_selection::SemanticSelection};
     app.add_singleton_model(|ctx| AppExecutionMode::new(mode, is_sandboxed, ctx));
 
@@ -38,7 +51,6 @@ pub fn initialize_settings_for_tests_with_mode(
     BlockVisibilitySettings::register(app);
     BlockListSettings::register(app);
     PreferencesSettings::register(app);
-    CommandSearchSettings::register(app);
     DebugSettings::register(app);
     AppIconSettings::register(app);
     EmacsBindingsSettings::register(app);
@@ -79,7 +91,7 @@ pub fn initialize_settings_for_tests_with_mode(
     crate::settings::AutoupdateSettings::register(app);
     crate::settings::WarpDrivePrivacySettings::register(app);
     crate::settings::app_installation_detection::UserAppInstallDetectionSettings::register(app);
-    crate::workflows::aliases::WorkflowAliases::register(app);
+
     TabSettings::register(app);
     TerminalSettings::register(app);
     PaneSettings::register(app);

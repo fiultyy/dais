@@ -181,7 +181,6 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
     register_test!(test_session_restoration_with_multiple_shells);
     register_test!(test_restore_snapshot_with_background_output);
     register_test!(test_restore_snapshot_with_notebooks);
-    register_test!(test_restore_snapshot_with_workflows);
     register_test!(test_restore_snapshot_with_test_json_object);
     register_test!(test_restore_snapshot_with_common_shareable_metadata_ids);
     register_test!(test_restore_snapshot_with_markdown_file);
@@ -220,8 +219,7 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
     register_test!(test_palette_opens_when_theme_chooser_is_open);
     #[cfg(target_os = "macos")]
     register_test!(test_preview_config_dir_migration);
-    register_test!(test_add_workflows_to_warp_config);
-    register_test!(test_loading_project_workflows);
+
     register_test!(test_cmd_enter);
     register_test!(test_alias_expansion_has_limit);
     register_test!(test_command_corrections);
@@ -303,8 +301,6 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
 
     register_test!(test_command_search_loads_history);
     register_test!(test_histfile_left_joined_with_persisted_history);
-    register_test!(test_history_command_is_linked_to_local_workflow);
-    register_test!(test_up_arrow_history_enters_shift_tab_for_workflow);
 
     // Dais(本地化,Phase 5):websocket 集成测试随 Listener 物理删除。
 
@@ -340,9 +336,6 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
     register_test!(test_close_notebook_window);
     register_test!(test_backspace_inside_rendered_mermaid_block_is_atomic);
 
-    // Workflow tests
-    register_test!(test_open_workflow_in_pane);
-    register_test!(test_create_personal_workflow_pane_from_command_palette);
 
     register_test!(test_block_filtering_keybinding);
     register_test!(test_block_filtering_keybinding_with_long_running_command);

@@ -1,8 +1,6 @@
-mod saved_prompts;
 mod zero_state;
 
 use ai::skills::SkillProvider;
-pub(crate) use saved_prompts::*;
 use warp_core::features::FeatureFlag;
 pub use zero_state::*;
 

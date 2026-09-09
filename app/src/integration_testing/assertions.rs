@@ -1,12 +1,10 @@
 use crate::{
     network::{NetworkStatus, NetworkStatusKind},
     util::bindings::keybinding_name_to_display_string,
-    workflows::workflow::Workflow,
     workspaces::{team::Team, user_workspaces::UserWorkspaces, workspace::Workspace},
 };
-use objects::{GenericStoredObject, Revision, Space, StoredObjectEventEntrypoint, StoredObjectLocation, StoredObjectModel, ids::{ClientId, HashableId, ServerId, SyncId, ToServerId}};
+use objects::{GenericStoredObject, Revision, StoredObjectModel, ids::{HashableId, ServerId, SyncId, ToServerId}};
 use crate::objects::model::persistence::ObjectStoreModel;
-use crate::objects::object_store::ObjectStore;
 use warpui::{
     async_assert, async_assert_eq,
     integration::{AssertionCallback, TestStep},
@@ -93,39 +91,6 @@ pub fn join_a_workspace() -> TestStep {
         })
 }
 
-pub fn create_a_personal_workflow() -> TestStep {
-    TestStep::new("Create a personal workflow")
-        .with_action(move |app, _, _| {
-            ObjectStore::handle(app).update(app, |object_store, ctx| {
-                object_store.create_workflow(
-                    Workflow::new("My first workflow", "ls"),
-                    UserWorkspaces::as_ref(ctx)
-                        .personal_drive(ctx)
-                        .expect("User UID must be set in tests"),
-                    None,
-                    ClientId::default(),
-                    StoredObjectEventEntrypoint::ManagementUI,
-                    true,
-                    ctx,
-                )
-            })
-        })
-        .add_assertion(move |app, _| {
-            ObjectStoreModel::handle(app).read(app, |object_store_model, ctx| {
-                async_assert!(
-                    object_store_model
-                        .active_objectss_in_location_without_descendents(
-                            StoredObjectLocation::Space(Space::Personal),
-                            ctx,
-                        )
-                        .count()
-                        > 0,
-                    "cloud objects exist"
-                )
-            })
-        })
-}
-
 pub fn assert_binding_display_string(
     binding: &'static str,
     display_string: Option<&'static str>,
@@ -149,7 +114,7 @@ pub fn assert_binding_display_string(
 /// metadata matches the given expected revision.
 ///
 /// Dais(本地化):原位于 integration_testing/objects/assertion.rs,该目录已随 Drive 云对象
-/// UI 删除;此泛型助手被 notebook/workflow 元数据断言引用,迁移至此。
+/// UI 删除;此泛型助手被 notebook 元数据断言引用,迁移至此。
 pub fn assert_metadata_revision<K, M>(id: &str, expected_revision: i64) -> AssertionCallback
 where
     K: HashableId + ToServerId + std::fmt::Debug + Into<String> + Clone + 'static,

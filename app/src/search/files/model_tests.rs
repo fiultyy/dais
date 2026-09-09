@@ -391,8 +391,8 @@ mod integration_tests {
     use super::*;
 
     #[test]
-    fn test_typical_search_workflow() {
-        // Simulate a typical search workflow
+    fn test_typical_search_flow() {
+        // Simulate a typical search flow
         let paths = vec![
             "src/main.rs",
             "src/lib.rs",
@@ -429,7 +429,7 @@ mod integration_tests {
     }
 
     #[test]
-    fn test_multi_term_search_workflow() {
+    fn test_multi_term_search_flow() {
         let paths = vec![
             "src/components/button.tsx",
             "src/components/input.tsx",

@@ -43,7 +43,7 @@ use super::model::{
     NewFolder, NewNotebook, NewServerExperiment, NewTab, NewWindow, NewWorkspace, Tab, Window,
     CODE_PANE_KIND, ENV_VAR_COLLECTION_PANE_KIND, MCP_SERVER_PANE_KIND, SETTINGS_PANE_KIND,
     TERMINAL_PANE_KIND, AI_DOCUMENT_PANE_KIND, EXECUTION_PROFILE_EDITOR_PANE_KIND,
-    NOTEBOOK_PANE_KIND, WORKFLOW_PANE_KIND,
+    NOTEBOOK_PANE_KIND,
 };
 use super::schema;
 use super::{
@@ -59,7 +59,7 @@ use objects::{GenericStringObjectId, StoredStringObject};
 use crate::drive::folders::FolderObject;
 use crate::app_state::{
     AmbientAgentPaneSnapshot, EnvVarCollectionPaneSnapshot, LeftPanelSnapshot,
-    NotebookPaneSnapshot, RightPanelSnapshot, SettingsPaneSnapshot, WorkflowPaneSnapshot,
+    NotebookPaneSnapshot, RightPanelSnapshot, SettingsPaneSnapshot,
 };
 use crate::code::editor_management::CodeSource;
 use crate::drive::DaisDriveObjectSettings;
@@ -78,7 +78,7 @@ use crate::tab::SelectedTabColor;
 use crate::terminal::history::PersistedCommand;
 use crate::terminal::ShellLaunchData;
 use crate::themes::theme::AnsiColorIdentifier;
-use crate::workflows::{WorkflowId, WorkflowObject};
+
 use crate::workspaces::workspace::Workspace as WorkspaceMetadata;
 use crate::workspaces::workspace::WorkspaceUid;
 use crate::{
@@ -91,6 +91,7 @@ use crate::{
     safe_info,
     send_telemetry_from_app_ctx,
 };
+
 
 diesel::define_sql_function! {
     fn json_extract(target: diesel::sql_types::Text, path: diesel::sql_types::Text) -> diesel::sql_types::Text;
@@ -750,9 +751,6 @@ fn handle_model_event(event: ModelEvent, connection: &mut SqliteConnection) -> a
         ModelEvent::Snapshot(app_state) => {
             save_app_state(connection, &app_state).context("error saving app state")
         }
-        ModelEvent::UpsertWorkflows(workflows) => {
-            upsert_workflows(connection, workflows).context("error saving workflows")
-        }
         ModelEvent::UpsertNotebooks(notebooks) => {
             upsert_notebooks(connection, notebooks).context("error saving notebooks")
         }
@@ -769,9 +767,6 @@ fn handle_model_event(event: ModelEvent, connection: &mut SqliteConnection) -> a
         }
         ModelEvent::UpsertNotebook { notebook } => {
             upsert_notebooks(connection, vec![notebook]).context("error upserting notebook")
-        }
-        ModelEvent::UpsertWorkflow { workflow } => {
-            upsert_workflows(connection, vec![workflow]).context("error upserting workflow")
         }
         ModelEvent::UpsertFolder { folder } => {
             upsert_folders(connection, vec![folder]).context("error upserting folder")
@@ -953,7 +948,6 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
         diesel::delete(schema::code_panes::dsl::code_panes).execute(conn)?;
         diesel::delete(schema::env_var_collection_panes::dsl::env_var_collection_panes)
             .execute(conn)?;
-        diesel::delete(schema::workflow_panes::dsl::workflow_panes).execute(conn)?;
         diesel::delete(schema::settings_panes::dsl::settings_panes).execute(conn)?;
         diesel::delete(schema::ai_document_panes::dsl::ai_document_panes).execute(conn)?;
         diesel::delete(schema::mcp_server_panes::dsl::mcp_server_panes).execute(conn)?;
@@ -1192,7 +1186,6 @@ fn save_pane_state(
         LeafContents::Terminal(_) => TERMINAL_PANE_KIND,
         LeafContents::Code(_) => CODE_PANE_KIND,
         LeafContents::Notebook(_) => NOTEBOOK_PANE_KIND,
-        LeafContents::Workflow(_) => WORKFLOW_PANE_KIND,
         LeafContents::AIDocument(_) => AI_DOCUMENT_PANE_KIND,
         LeafContents::ExecutionProfileEditor => EXECUTION_PROFILE_EDITOR_PANE_KIND,
         LeafContents::Settings(_) => SETTINGS_PANE_KIND,
@@ -1368,20 +1361,6 @@ fn save_pane_state(
 
             diesel::insert_into(schema::notebook_panes::dsl::notebook_panes)
                 .values(notebook)
-                .execute(conn)?;
-        }
-        LeafContents::Workflow(workflow_pane_snapshot) => {
-            let workflow_id = match workflow_pane_snapshot {
-                WorkflowPaneSnapshot::WorkflowObject {
-                    workflow_id,
-                    settings: _,
-                } => workflow_id.map(|id| id.sqlite_uid_hash(ObjectIdType::Workflow)),
-            };
-
-            let workflow = model::NewWorkflowPane { id, workflow_id };
-
-            diesel::insert_into(schema::workflow_panes::dsl::workflow_panes)
-                .values(workflow)
                 .execute(conn)?;
         }
         LeafContents::AIDocument(ai_document_snapshot) => match ai_document_snapshot {
@@ -1950,32 +1929,6 @@ fn upsert_generic_string_objects(
     })
 }
 
-fn upsert_workflows(
-    conn: &mut SqliteConnection,
-    cloud_workflows: Vec<WorkflowObject>,
-) -> Result<(), Error> {
-    use schema::workflows::dsl::*;
-    conn.transaction::<(), Error, _>(|conn| {
-        for workflow in cloud_workflows {
-            if let Ok(serialized_workflow) = serde_json::to_string(&workflow.model().data) {
-                let row_id = deterministic_row_id(
-                    &workflow.id.sqlite_uid_hash(ObjectIdType::Workflow),
-                );
-                let new_workflow = model::NewWorkflow {
-                    id: row_id,
-                    data: serialized_workflow,
-                };
-                diesel::insert_into(schema::workflows::dsl::workflows)
-                    .values(&new_workflow)
-                    .on_conflict(schema::workflows::dsl::id)
-                    .do_update()
-                    .set(data.eq(&new_workflow.data))
-                    .execute(conn)?;
-            }
-        }
-        Ok(())
-    })
-}
 
 fn upsert_notebooks(
     conn: &mut SqliteConnection,
@@ -2177,23 +2130,6 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
                             notebook_id,
                             settings: DaisDriveObjectSettings::default(),
                         },
-                    })
-                }
-                WORKFLOW_PANE_KIND => {
-                    let workflow_pane = schema::workflow_panes::dsl::workflow_panes
-                        .find(node.id)
-                        .select(model::WorkflowPane::as_select())
-                        .first(conn)?;
-
-                    let workflow_id = workflow_pane.workflow_id.and_then(|id| {
-                        ClientId::from_hash(&id).map(SyncId::ClientId).or_else(|| {
-                            WorkflowId::from_hash(&id).map(|id| SyncId::ServerId(id.into()))
-                        })
-                    });
-
-                    LeafContents::Workflow(WorkflowPaneSnapshot::WorkflowObject {
-                        workflow_id,
-                        settings: DaisDriveObjectSettings::default(),
                     })
                 }
                 ENV_VAR_COLLECTION_PANE_KIND => {
@@ -2480,7 +2416,6 @@ fn read_sqlite_data(
         })
         .collect();
 
-
     // Dais(云表裁剪): teams/team_members/team_settings 表已 DROP, workspace 本地缓存
     // 不再携带 teams; workspace_teams 行保留但指向的团队缓存已不可恢复。
     let workspaces: Vec<WorkspaceMetadata> = schema::workspaces::dsl::workspaces
@@ -2542,7 +2477,7 @@ fn read_sqlite_data(
     };
     // Dais(云表裁剪): object_metadata/object_actions/objectss_refreshes 已 DROP,
     // 本地 stored object 不再经 sqlite 恢复与持久化, 启动时 ObjectStoreModel 为空。
-    // note: note/workflow 重启恢复断链由 sync-engine 轮重建本地持久化路径。
+    // note: note 重启恢复断链由 sync-engine 轮重建本地持久化路径。
 
     Ok(PersistedData {
         app_state,
@@ -2588,11 +2523,10 @@ impl From<StartedCommandMetadata> for model::NewCommand {
                 id.try_into().ok()
             }),
             git_branch: metadata.git_branch,
-            cloud_workflow_id: metadata
-                .cloud_workflow_id
-                .map(|id| id.sqlite_uid_hash(ObjectIdType::Workflow)),
-            workflow_command: metadata.workflow_command,
             is_agent_executed: Some(metadata.is_agent_executed),
+            // crates/persistence 的 workflow 两列归 B3 迁移处置,这里显式置空。
+            cloud_workflow_id: None,
+            workflow_command: None,
         }
     }
 }
@@ -2685,10 +2619,6 @@ fn delete_objects(
                 ObjectIdType::Notebook => {
                     use schema::notebooks::dsl::*;
                     diesel::delete(notebooks.filter(id.eq(row_id))).execute(conn)?;
-                }
-                ObjectIdType::Workflow => {
-                    use schema::workflows::dsl::*;
-                    diesel::delete(workflows.filter(id.eq(row_id))).execute(conn)?;
                 }
                 ObjectIdType::Folder => {
                     use schema::folders::dsl::*;

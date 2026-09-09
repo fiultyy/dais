@@ -79,7 +79,6 @@ impl PaneContentFactory for RecordingFactory {
             LeafContents::EnvVarCollection(_) => "EnvVarCollection",
             LeafContents::Settings(_) => "Settings",
             LeafContents::Notebook(_) => "Notebook",
-            LeafContents::Workflow(_) => "Workflow",
             LeafContents::AIDocument(_) => "AIDocument",
             LeafContents::ExecutionProfileEditor => "ExecutionProfileEditor(unrestorable)",
             LeafContents::AmbientAgent(_) => "Terminal",
@@ -348,6 +347,7 @@ fn leaf_contents_is_persisted_truth_table_covers_all_variants() {
         .is_persisted()
     );
     assert!(
+
         LeafContents::Settings(SettingsPaneSnapshot::Local {
             current_page: crate::settings_view::SettingsSection::default(),
             search_query: None,

@@ -55,7 +55,6 @@ pub enum CustomAction {
     ClearEditor,
     Find,
     SelectAll,
-    Workflows,
     HistorySearch,
     SaveCurrentConfig,
     History,
@@ -107,7 +106,6 @@ pub enum CustomAction {
     AddWindow,
     CloseCurrentSession,
     CloseWindow,
-    NewPersonalWorkflow,
     NewPersonalNotebook,
     NewPersonalEnvVars,
     SearchDrive,
@@ -123,7 +121,6 @@ pub enum CustomAction {
     AttachSelectionAsAgentModeContext,
     OpenMCPServerCollection,
     ToggleProjectExplorer,
-    NewPersonalAIPrompt,
     OpenRepository,
     NewTerminalTab,
     NewAgentTab,
@@ -281,7 +278,6 @@ pub fn custom_tag_to_keystroke(custom: CustomTag) -> Option<Keystroke> {
         CustomAction::Find => Keystroke::parse(cmd_or_ctrl_shift("f")).ok(),
         CustomAction::SelectAll => Keystroke::parse("cmdorctrl-a").ok(),
         CustomAction::CommandSearch => Keystroke::parse("ctrl-r").ok(),
-        CustomAction::Workflows => Keystroke::parse("ctrl-shift-R").ok(),
         CustomAction::History => Keystroke::parse("up").ok(),
         CustomAction::IncreaseFontSize => Keystroke::parse("shift-cmdorctrl-+").ok(),
         CustomAction::DecreaseFontSize => Keystroke::parse("shift-cmdorctrl-_").ok(),
@@ -348,7 +344,6 @@ pub fn custom_tag_to_keystroke(custom: CustomTag) -> Option<Keystroke> {
         CustomAction::ClearBlocks => Keystroke::parse(cmd_or_ctrl_shift("k")).ok(),
         CustomAction::SelectBlockAbove => Keystroke::parse("cmdorctrl-up").ok(),
         CustomAction::SelectBlockBelow => Keystroke::parse("cmdorctrl-down").ok(),
-        // Set this to mac-only. On Linux this conflicts with the binding to save a workflow.
         CustomAction::CreateBlockPermalink => mac_only_keystroke("cmd-shift-S"),
         CustomAction::ToggleBookmarkBlock => Keystroke::parse(cmd_or_ctrl_shift("b")).ok(),
         CustomAction::CopyBlockOutput => Keystroke::parse("cmdorctrl-alt-shift-C").ok(),
@@ -446,12 +441,10 @@ pub fn custom_tag_to_keystroke(custom: CustomTag) -> Option<Keystroke> {
         | CustomAction::HistorySearch
         | CustomAction::DisableSyncTerminalInputs
         | CustomAction::ToggleSyncAllTerminalInputsInAllTabs
-        | CustomAction::NewPersonalWorkflow
         | CustomAction::NewPersonalNotebook
         | CustomAction::NewPersonalEnvVars
         | CustomAction::SearchDrive
         | CustomAction::OpenMCPServerCollection
-        | CustomAction::NewPersonalAIPrompt
         | CustomAction::NewAgentTab => None,
     }
 }
@@ -789,7 +782,6 @@ pub enum BindingGroup {
     Close,
     Navigation,
     WarpAi,
-    Workflow,
     Notebooks,
     Folders,
     KeyboardShortcuts,
@@ -806,7 +798,6 @@ impl BindingGroup {
             Self::Settings => "settings",
             Self::WarpAi => "warp_ai",
             Self::Navigation => "navigation",
-            Self::Workflow => "workflows",
             Self::Notebooks => "notebooks",
             Self::Folders => "folders",
             Self::KeyboardShortcuts => "keyboard_shortcuts",

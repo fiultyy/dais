@@ -25,7 +25,6 @@ use crate::terminal::ssh::error::SshErrorBlockAction;
 use crate::terminal::view::RichContentSecretTooltipInfo;
 use crate::terminal::view::inline_banner::AgentModeSetupSpeedbumpBannerAction;
 use crate::terminal::view::passive_suggestions::PromptSuggestionResolution;
-use crate::workflows::workflow::Workflow;
 use crate::{
     terminal::{ block_list_element::{ BlockHoverAction, BlockListMenuSource, BlockSelectAction, BlockTextSelectAction, }, block_list_viewport::OverhangingBlock, model::{ SecretHandle, terminal_model::WithinModel }, },
 };
@@ -273,10 +272,6 @@ pub enum TerminalAction {
         layout: crate::util::file::external_editor::settings::EditorLayout,
         line_col: Option<warp_util::path::LineAndColumnArg>,
     },
-    OpenWorkflowModal,
-    OpenWorkflowModalForAIWorkflow(Workflow),
-    OpenWorkflowModalForBlock(BlockIndex),
-    OpenWorkflowModalWithWorkflowObject(SyncId),
     AskAIAssistant {
         block_index: BlockIndex,
     },
@@ -350,7 +345,6 @@ pub enum TerminalAction {
     OpenEditSkillPane {
         skill_reference: SkillReference,
     },
-    OpenAddPromptPane,
     OpenConversationsPalette,
     PickRepoToOpen,
     DismissCodeToolbeltTooltip,
@@ -513,14 +507,6 @@ impl fmt::Debug for TerminalAction {
             OpenFileInWarp(_) => f.write_str("OpenFileInWarp"),
             #[cfg(feature = "local_fs")]
             OpenCodeInWarp { .. } => f.write_str("OpenCodeInWarp"),
-            OpenWorkflowModal => f.write_str("OpenWorkflowModal"),
-            OpenWorkflowModalForAIWorkflow(_) => f.write_str("OpenWorkflowModalForAIWorkflow"),
-            OpenWorkflowModalForBlock(block_index) => {
-                write!(f, "OpenWorkflowModalForBlock({block_index:?})")
-            }
-            OpenWorkflowModalWithWorkflowObject(_) => {
-                f.write_str("OpenWorkflowModalWithWorkflowObject")
-            }
             OpenBlockListContextMenu => f.write_str("OpenBlockListContextMenu"),
             AskAIAssistant { block_index } => write!(f, "AskAIAssistant({block_index:?})"),
             TriggerSubshellBootstrap => f.write_str("TriggerSubshellBootstrap"),
@@ -593,7 +579,6 @@ impl fmt::Debug for TerminalAction {
             OpenAddRulePane => write!(f, "OpenAddRulePane"),
             OpenRulesPane => write!(f, "OpenRulesPane"),
             OpenEditSkillPane { .. } => write!(f, "OpenEditSkillPane"),
-            OpenAddPromptPane => write!(f, "OpenAddPromptPane"),
             OpenConversationsPalette => write!(f, "OpenConversationsPalette"),
             PickRepoToOpen => write!(f, "PickRepoToOpen"),
             DismissCodeToolbeltTooltip => write!(f, "DismissCodeToolbeltTooltip"),

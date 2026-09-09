@@ -22,7 +22,7 @@ use crate::objects::{
 };
 use crate::pricing::PricingInfoModel;
 use crate::search::files::model::FileSearchModel;
-use objects::ids::ClientId;
+use objects::ids::{ClientId, SyncId};
 use crate::terminal::cli_agent_sessions::CLIAgentSessionsModel;
 use crate::terminal::input::slash_command_model::SlashCommandEntryState;
 use crate::terminal::input::slash_commands::SlashCommandsEvent;
@@ -90,10 +90,6 @@ use warpui::{App, ReadModel, UpdateView, WindowId};
 use crate::terminal::universal_developer_input::UniversalDeveloperInputButtonBarEvent;
 
 use warp_util::user_input::UserInput;
-use workflows::{
-    workflow::{Argument, ArgumentType, Workflow},
-    WorkflowObject, WorkflowObjectModel,
-};
 
 use crate::context_chips::prompt::Prompt;
 use crate::terminal::general_settings::UserDefaultShellUnsupportedBannerState;
@@ -141,7 +137,6 @@ pub fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_ctx| SyncedInputState::mock());
     app.add_singleton_model(|_| ResizableData::default());
     app.add_singleton_model(|_| History::default());
-    app.add_singleton_model(LocalWorkflows::new);
     app.add_singleton_model(|_| KeybindingChangedNotifier::new());
     app.add_singleton_model(TerminalKeybindings::new);
     app.add_singleton_model(|_| ActiveSession::default());
@@ -150,6 +145,9 @@ pub fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| CLIAgentSessionsModel::new());
     // issue #13: Input 构造 InterceptConfigBar 需要该单例。
     app.add_singleton_model(crate::terminal::intercept_sessions::InterceptSessionsModel::new);
+    // cockpit-instant:TerminalView 事件泵会推送 TerminalActivityModel;
+    // 未注册时 .handle() panic(基线即缺失,补齐)。
+    app.add_singleton_model(crate::terminal::terminal_activity::TerminalActivityModel::new);
     app.add_singleton_model(BlocklistAIPermissions::new);
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
     app.add_singleton_model(AuthManager::new_for_test);
@@ -260,23 +258,6 @@ fn enable_vim_mode(app: &mut App) {
     });
 }
 
-fn create_cloud_workflow(app: &mut App, workflow: Workflow) -> SyncId {
-    ObjectStoreModel::handle(app).update(app, |object_store_model, ctx| {
-        let client_id = ClientId::new();
-        let sync_id = SyncId::ClientId(client_id);
-        object_store_model.create_object(
-            sync_id,
-            WorkflowObject::new_local(
-                WorkflowObjectModel::new(workflow),
-                Owner::mock_current_user(),
-                None,
-                client_id,
-            ),
-            ctx,
-        );
-        sync_id
-    })
-}
 
 fn create_cloud_notebook(
     app: &mut App,
@@ -1360,8 +1341,6 @@ fn test_histignorespace_support_in_zsh() {
                 &ExecuteCommandEvent {
                     command: "cd".into(),
                     session_id,
-                    workflow_id: None,
-                    workflow_command: None,
                     should_add_command_to_history: true,
                     source: CommandExecutionSource::User,
                 },
@@ -1375,8 +1354,6 @@ fn test_histignorespace_support_in_zsh() {
                 &ExecuteCommandEvent {
                     command: " ls".into(),
                     session_id,
-                    workflow_id: None,
-                    workflow_command: None,
                     should_add_command_to_history: true,
                     source: CommandExecutionSource::User,
                 },
@@ -2571,62 +2548,6 @@ fn test_open_slash_command_triggers_completions_when_selected() {
 }
 
 #[test]
-fn test_slash_menu_saved_prompt_inserts_context_reference() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let prompt = "Generate a concise commit message".to_string();
-        let workflow_id = create_cloud_workflow(
-            &mut app,
-            Workflow::AgentMode {
-                name: "commit".to_string(),
-                query: prompt.clone(),
-                description: None,
-                arguments: vec![],
-            },
-        );
-        let terminal = add_window_with_bootstrapped_terminal(&mut app, None, None).await;
-        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
-
-        input.update(&mut app, |input, ctx| {
-            input.replace_buffer_content("/comm", ctx);
-            input.ai_context_model.update(ctx, |model, _ctx| {
-                model.register_at_context_attachment(
-                    "@commit".to_string(),
-                    AIAgentAttachment::PlainText("stale".to_string()),
-                );
-            });
-            input.handle_slash_commands_menu_event(
-                &SlashCommandsEvent::SelectedSavedPrompt { id: workflow_id },
-                ctx,
-            );
-        });
-
-        input.read(&app, |input, ctx| {
-            let pending_attachments = input
-                .ai_context_model
-                .as_ref(ctx)
-                .pending_at_context_attachments();
-            assert_eq!(input.buffer_text(ctx), "@commit ");
-            assert!(!input.is_workflows_info_box_open());
-            assert!(input.ai_input_model.as_ref(ctx).is_ai_input_enabled());
-            assert_eq!(pending_attachments.len(), 1);
-            assert_eq!(
-                pending_attachments.get("@commit"),
-                Some(&AIAgentAttachment::DriveObject {
-                    uid: workflow_id.uid(),
-                    payload: Some(DriveObjectPayload::Workflow {
-                        name: "commit".to_string(),
-                        description: String::new(),
-                        command: prompt,
-                    }),
-                })
-            );
-        });
-    });
-}
-
-#[test]
 fn test_open_slash_command_requires_path() {
     App::test((), |mut app| async move {
         initialize_app(&mut app);
@@ -2653,6 +2574,11 @@ fn test_open_slash_command_requires_path() {
 #[test]
 fn test_changelog_slash_command_clears_buffer_on_success() {
     App::test((), |mut app| async move {
+        // /changelog 由 FeatureFlag::Changelog 门控;单测默认关。
+        // 此前该用例靠 saved-prompts 异步源让菜单保持打开而"碰巧"通过,
+        // 该源已随 workflow 剥离删除,现按 docker-sandbox 用例的模式
+        // 同线程直调 execute_slash_command,保证 override 可见、断言确定。
+        let _changelog_flag = FeatureFlag::Changelog.override_enabled(true);
         initialize_app(&mut app);
 
         let terminal = add_window_with_bootstrapped_terminal(
@@ -2666,10 +2592,14 @@ fn test_changelog_slash_command_clears_buffer_on_success() {
             input.editor.update(ctx, |editor, ctx| {
                 editor.set_buffer_text(commands::CHANGELOG.name, ctx)
             });
-        });
-
-        input.update(&mut app, |input, ctx| {
-            input.input_enter(ctx);
+            let handled = input.execute_slash_command(
+                &commands::CHANGELOG,
+                None,
+                SlashCommandTrigger::input(),
+                /*is_queued_prompt*/ false,
+                ctx,
+            );
+            assert!(handled);
         });
 
         input.read(&app, |input, ctx| {
@@ -4027,308 +3957,6 @@ fn test_powershell_should_insert_newline_on_enter() {
             });
             assert!(!input.should_insert_newline_on_enter(ctx));
         });
-    })
-}
-
-#[test]
-fn test_workflow_selected() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let terminal = add_window_with_bootstrapped_terminal(
-            &mut app, None, /* history_file_commands */
-            None,
-        )
-        .await;
-        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
-        input.update(&mut app, |input, ctx| {
-            input.user_insert("hello", ctx);
-        });
-
-        let workflow = Workflow::new(
-            "test",
-            "{{p1}} {{parameter_2}} {{p3}} foo {{p1}} {{parameter_2}}",
-        )
-        .with_arguments(vec![
-            Argument::new("p1", ArgumentType::Text),
-            Argument::new("parameter_2", ArgumentType::Text),
-            Argument::new("p3", ArgumentType::Text),
-        ]);
-
-        input.update(&mut app, |input, ctx| {
-            input.show_workflows_info_box_on_workflow_selection(
-                WorkflowType::Local(workflow),
-                WorkflowSource::Global,
-                WorkflowSelectionSource::Undefined,
-                None,
-                ctx,
-            );
-        });
-
-        input.read(&app, |input, ctx| {
-            assert_eq!(
-                input.buffer_text(ctx),
-                "p1 parameter_2 p3 foo p1 parameter_2"
-            );
-        });
-    });
-}
-
-#[test]
-fn test_workflow_selected_with_default_value() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let terminal = add_window_with_bootstrapped_terminal(
-            &mut app, None, /* history_file_commands */
-            None,
-        )
-        .await;
-        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
-
-        let workflow = Workflow::new("test", "{{p1}}/{{parameter_2}}").with_arguments(vec![
-            Argument {
-                name: "p1".into(),
-                description: None,
-                default_value: Some("default_parameter_1".into()),
-                arg_type: Default::default(),
-            },
-            Argument {
-                name: "parameter_2".into(),
-                description: None,
-                default_value: Some("default_parameter_2".into()),
-                arg_type: Default::default(),
-            },
-        ]);
-
-        input.update(&mut app, |input, ctx| {
-            input.show_workflows_info_box_on_workflow_selection(
-                WorkflowType::Local(workflow),
-                WorkflowSource::Global,
-                WorkflowSelectionSource::Undefined,
-                None,
-                ctx,
-            );
-        });
-
-        input.read(&app, |input, ctx| {
-            assert_eq!(
-                input.buffer_text(ctx),
-                "default_parameter_1/default_parameter_2"
-            );
-        });
-    });
-}
-
-#[test]
-fn test_multiple_workflows_selected() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let terminal = add_window_with_bootstrapped_terminal(
-            &mut app, None, /* history_file_commands */
-            None,
-        )
-        .await;
-        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
-
-        let workflow = Workflow::new("test", "p1 {{foo}} bar")
-            .with_arguments(vec![Argument::new("foo", ArgumentType::Text)]);
-
-        input.update(&mut app, |input, ctx| {
-            input.show_workflows_info_box_on_workflow_selection(
-                WorkflowType::Local(workflow.clone()),
-                WorkflowSource::Global,
-                WorkflowSelectionSource::Undefined,
-                None,
-                ctx,
-            );
-        });
-
-        input.read(&app, |input, ctx| {
-            assert_eq!(input.buffer_text(ctx), "p1 foo bar");
-        });
-
-        // "foo" should be the only range highlighted.
-        input.update(&mut app, |input, ctx| {
-            let text_style_runs = input.editor.read(ctx, |editor, ctx| {
-                editor
-                    .text_style_runs(ctx)
-                    .filter_map(|text_run| {
-                        text_run
-                            .text_style()
-                            .background_color
-                            .map(|_| text_run.text().to_owned())
-                    })
-                    .collect::<Vec<_>>()
-            });
-
-            assert_eq!(text_style_runs, ["foo"]);
-        });
-
-        // Input the workflow again.
-        input.update(&mut app, |input, ctx| {
-            input.show_workflows_info_box_on_workflow_selection(
-                WorkflowType::Local(workflow),
-                WorkflowSource::Global,
-                WorkflowSelectionSource::Undefined,
-                None,
-                ctx,
-            );
-        });
-
-        input.read(&app, |input, ctx| {
-            assert_eq!(input.buffer_text(ctx), "p1 foo bar");
-        });
-
-        // "foo" should be the only range highlighted.
-        input.update(&mut app, |input, ctx| {
-            let text_style_runs = input.editor.read(ctx, |editor, ctx| {
-                editor
-                    .text_style_runs(ctx)
-                    .filter_map(|text_run| {
-                        text_run
-                            .text_style()
-                            .background_color
-                            .map(|_| text_run.text().to_owned())
-                    })
-                    .collect::<Vec<_>>()
-            });
-
-            assert_eq!(text_style_runs, ["foo"]);
-        });
-    });
-}
-
-#[test]
-fn test_workflow_argument_tab_with_syntax_highlighting() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let terminal = add_window_with_bootstrapped_terminal(&mut app, None, None).await;
-
-        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
-
-        let workflow = Workflow::new("test", "yarn {{cwd}} {{flags}}").with_arguments(vec![
-            Argument {
-                name: "cwd".into(),
-                description: None,
-                default_value: Some("--cwd ./".into()),
-                arg_type: Default::default(),
-            },
-            Argument::new("flags", ArgumentType::Text),
-        ]);
-
-        input.update(&mut app, |input, ctx| {
-            input.show_workflows_info_box_on_workflow_selection(
-                WorkflowType::Local(workflow.clone()),
-                WorkflowSource::Global,
-                WorkflowSelectionSource::Undefined,
-                None,
-                ctx,
-            );
-
-            // Simulates syntax highlighting highlighting a portion of an argument
-            input.editor.update(ctx, |editor, ctx| {
-                let theme = Appearance::as_ref(ctx).theme();
-                let terminal_colors_normal = theme.terminal_colors().normal.to_owned();
-                editor.update_buffer_styles(
-                    vec![ByteOffset::from(5)..ByteOffset::from(10)],
-                    TextStyleOperation::default().set_syntax_color(
-                        AnsiColorIdentifier::Yellow
-                            .to_ansi_color(&terminal_colors_normal)
-                            .into(),
-                    ),
-                    ctx,
-                )
-            })
-        });
-
-        // Even though there are 2 args, there will be 3 runs
-        input.read(&app, |input, ctx| {
-            // Buffer text should equal our command w/ defaults inserted
-            assert_eq!(input.buffer_text(ctx), "yarn --cwd ./ flags");
-
-            let selected_text = input
-                .editor
-                .read(ctx, |editor, ctx| editor.selected_text(ctx));
-
-            // Currently selected text should be the text for the first arg
-            assert_eq!(selected_text, "--cwd ./");
-
-            let text_style_runs = input.editor.read(ctx, |editor, ctx| {
-                editor
-                    .text_style_runs(ctx)
-                    .filter_map(|text_run| {
-                        text_run
-                            .text_style()
-                            .background_color
-                            .map(|_| text_run.text().to_owned())
-                    })
-                    .collect::<Vec<_>>()
-            });
-
-            // Even though we have only 2 args, there will be 3 runs b/c of syntax highlighting
-            assert_eq!(text_style_runs, ["--cwd", " ./", "flags"]);
-        });
-
-        input.update(&mut app, |input, ctx| {
-            input.input_shift_tab(ctx);
-        });
-
-        input.read(&app, |input, ctx| {
-            let selected_text = input
-                .editor
-                .read(ctx, |editor, ctx| editor.selected_text(ctx));
-
-            // Tab moves over to next argument
-            assert_eq!(selected_text, "flags");
-        })
-    })
-}
-
-#[test]
-fn test_workflow_view_does_not_panic() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let terminal = add_window_with_bootstrapped_terminal(&mut app, None, None).await;
-
-        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
-
-        let workflows = vec![
-            Workflow::new("Test Workflow", "echo \"Hello World\""),
-            Workflow::new("Test Workflow with Description", "echo \"Hello World\"")
-                .with_description("This is a test workflow that prints Hello World!".into()),
-            Workflow::new("Test Workflow with Args", "echo \"Hello {{person}}\"")
-                .with_arguments(vec![Argument::new("person", ArgumentType::Text)
-                    .with_description("The person you want to say hello to".to_string())]),
-            Workflow::new("test", "echo \"Hello {{person}}\"")
-                .with_description("This is a test workflow that prints Hello {{person}}!".into())
-                .with_arguments(vec![Argument::new("person", ArgumentType::Text)
-                    .with_description("The person you want to say hello to".to_string())]),
-        ];
-
-        for workflow in workflows {
-            let command = workflow.content().to_string();
-            input.update(&mut app, |input, ctx| {
-                input.show_workflows_info_box_on_workflow_selection(
-                    WorkflowType::Local(workflow),
-                    WorkflowSource::Global,
-                    WorkflowSelectionSource::Undefined,
-                    None,
-                    ctx,
-                );
-            });
-
-            input.read(&app, |input, ctx| {
-                // Buffer text should equal our command w/ defaults inserted
-                assert_eq!(
-                    input.buffer_text(ctx),
-                    command.replace("{{", "").replace("}}", "")
-                );
-            });
-        }
     })
 }
 
@@ -5986,129 +5614,6 @@ fn test_ai_context_menu_preserves_lock_state() {
         });
         assert_eq!(config_after_close.input_type, InputType::Shell);
         assert!(!config_after_close.is_locked);
-    });
-}
-
-#[test]
-fn test_ai_context_menu_keeps_workflow_reference_in_shell_input() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let workflow_id = create_cloud_workflow(
-            &mut app,
-            Workflow::new("proxy", "export http_proxy=127.0.0.1"),
-        );
-        let terminal = add_window_with_bootstrapped_terminal(&mut app, None, None).await;
-        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
-
-        input.update(&mut app, |input, ctx| {
-            input.replace_buffer_content("@proxy", ctx);
-            input.suggestions_mode_model().update(ctx, |model, ctx| {
-                model.set_mode(
-                    InputSuggestionsMode::AIContextMenu {
-                        filter_text: "proxy".to_string(),
-                        at_symbol_position: 0,
-                    },
-                    ctx,
-                );
-            });
-
-            input.handle_editor_event(
-                &EditorEvent::AcceptAIContextMenuItem(
-                    AIContextMenuSearchableAction::InsertDriveObject {
-                        object_type: ObjectType::Workflow,
-                        object_uid: workflow_id.uid(),
-                        display_name: "proxy".to_string(),
-                    },
-                ),
-                ctx,
-            );
-        });
-
-        input.read(&app, |input, ctx| {
-            assert_eq!(input.buffer_text(ctx), "@proxy ");
-            assert!(!input.is_workflows_info_box_open());
-            assert!(input.ai_input_model.as_ref(ctx).is_ai_input_enabled());
-            assert_eq!(
-                input
-                    .ai_context_model
-                    .as_ref(ctx)
-                    .pending_at_context_attachments()
-                    .get("@proxy"),
-                Some(&AIAgentAttachment::DriveObject {
-                    uid: workflow_id.uid(),
-                    payload: Some(DriveObjectPayload::Workflow {
-                        name: "proxy".to_string(),
-                        description: String::new(),
-                        command: "export http_proxy=127.0.0.1".to_string(),
-                    }),
-                })
-            );
-        });
-    });
-}
-
-#[test]
-fn test_ai_context_menu_keeps_workflow_reference_in_ai_input() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let workflow_id = create_cloud_workflow(
-            &mut app,
-            Workflow::new("proxy", "export http_proxy=127.0.0.1"),
-        );
-        let terminal = add_window_with_bootstrapped_terminal(&mut app, None, None).await;
-        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
-
-        input.update(&mut app, |input, ctx| {
-            input.set_input_mode_agent(false, ctx);
-            input.replace_buffer_content("@proxy", ctx);
-            input.suggestions_mode_model().update(ctx, |model, ctx| {
-                model.set_mode(
-                    InputSuggestionsMode::AIContextMenu {
-                        filter_text: "proxy".to_string(),
-                        at_symbol_position: 0,
-                    },
-                    ctx,
-                );
-            });
-
-            input.handle_editor_event(
-                &EditorEvent::AcceptAIContextMenuItem(
-                    AIContextMenuSearchableAction::InsertDriveObject {
-                        object_type: ObjectType::Workflow,
-                        object_uid: workflow_id.uid(),
-                        display_name: "proxy".to_string(),
-                    },
-                ),
-                ctx,
-            );
-        });
-
-        input.read(&app, |input, ctx| {
-            assert_eq!(input.buffer_text(ctx), "@proxy ");
-            assert!(!input.is_workflows_info_box_open());
-            assert!(input
-                .ai_context_model
-                .as_ref(ctx)
-                .pending_at_context_attachments()
-                .contains_key("@proxy"));
-            assert_eq!(
-                input
-                    .ai_context_model
-                    .as_ref(ctx)
-                    .pending_at_context_attachments()
-                    .get("@proxy"),
-                Some(&AIAgentAttachment::DriveObject {
-                    uid: workflow_id.uid(),
-                    payload: Some(DriveObjectPayload::Workflow {
-                        name: "proxy".to_string(),
-                        description: String::new(),
-                        command: "export http_proxy=127.0.0.1".to_string(),
-                    }),
-                })
-            );
-        });
     });
 }
 

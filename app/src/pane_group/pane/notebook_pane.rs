@@ -1,6 +1,5 @@
 use crate::pane_group::pane::PaneIdConstruct;
 use anyhow::Context;
-use std::sync::Arc;
 use url::Url;
 
 use warpui::{AppContext, ModelHandle, SingletonEntity, ViewContext, ViewHandle};
@@ -8,8 +7,11 @@ use warpui::{AppContext, ModelHandle, SingletonEntity, ViewContext, ViewHandle};
 use crate::{
     app_state::{LeafContents, NotebookPaneSnapshot},
     drive::{items::WarpDriveItemId, ObjectTypeAndId, DaisDriveObjectSettings},
-    notebooks::{ link::{LinkEvent, NotebookLinks}, manager::{NotebookManager, NotebookSource}, notebook::{NotebookEvent, NotebookView}, },
-    workflows::{WorkflowSelectionSource, WorkflowSource, WorkflowType},
+    notebooks::{
+        link::{LinkEvent, NotebookLinks},
+        manager::{NotebookManager, NotebookSource},
+        notebook::{NotebookEvent, NotebookView},
+    },
     workspaces::user_workspaces::UserWorkspaces,
 };
 use objects::{Space, ids::SyncId};
@@ -220,12 +222,6 @@ fn handle_notebook_event(
     ctx: &mut ViewContext<PaneGroup>,
 ) {
     match event {
-        NotebookEvent::RunWorkflow { workflow, source } => {
-            run_notebook_workflow(workflow.clone(), *source, ctx)
-        }
-        NotebookEvent::EditWorkflow(id) => {
-            ctx.emit(crate::pane_group::Event::OpenCloudWorkflowForEdit(*id))
-        }
         NotebookEvent::ViewInWarpDrive(id) => view_in_warp_drive(*id, ctx),
         NotebookEvent::MoveToSpace {
             object_type_and_id,
@@ -238,23 +234,6 @@ fn handle_notebook_event(
             })
         }
     }
-}
-
-/// Runs a workflow from a notebook contained in this pane group in the active session.
-fn run_notebook_workflow(
-    workflow: Arc<WorkflowType>,
-    workflow_source: WorkflowSource,
-    ctx: &mut ViewContext<PaneGroup>,
-) {
-    // If the notebook was visible, then this pane group is almost certainly the active tab at the
-    // workspace level. However, we dispatch to the workspace anyways for consistency (e.g. showing
-    // a message if the active session is busy).
-    ctx.emit(crate::pane_group::Event::RunWorkflow {
-        workflow,
-        workflow_source,
-        workflow_selection_source: WorkflowSelectionSource::Notebook,
-        argument_override: None,
-    });
 }
 
 fn view_in_warp_drive(id: WarpDriveItemId, ctx: &mut ViewContext<PaneGroup>) {

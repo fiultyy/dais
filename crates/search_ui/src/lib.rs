@@ -6,8 +6,6 @@
 //! - [`searcher`]:tantivy 全文检索引擎(SimpleFullTextSearcher /
 //!   FullTextSearchSchema / tokenizer / schema trait 面,wasm 目标 cfg 摘除);
 //! - [`command_search::settings`]:CommandSearchSettings 设置组(settings crate DSL);
-//! - [`workflows::fuzzy_match`]:Workflow 模糊匹配(依赖 workflows_ui::Workflow,
-//!   R2-b 已就绪的 data_source 依赖面);
 //! - [`env_var_collections::fuzzy_match`]:EnvVarCollection 模糊匹配
 //!   (依赖 env_vars_ui::EnvVarCollection,R1 已就绪);
 //! - [`slash_command_menu::fuzzy_match`]:slash 命令名/描述模糊匹配;
@@ -18,7 +16,7 @@
 //! - [`ai_context_menu`]:is_valid_search_query 纯启发式 + styles 常量 +
 //!   safe_truncate / floor_char_boundary UTF-8 安全截断工具。
 //!
-//! 只依赖既有 crate 面(warpui / fuzzy_match / workflows_ui / env_vars_ui /
+//! 只依赖既有 crate 面(warpui / fuzzy_match / env_vars_ui /
 //! settings / tantivy 等),禁止依赖任何 app 类型(无 `dais::` / `crate::`
 //! 反向引用),零 `ObjectStoreModel` 引用。
 //!
@@ -57,7 +55,6 @@ pub mod external_secrets;
 pub mod files;
 pub mod searcher;
 pub mod slash_command_menu;
-pub mod workflows;
 
 /// P-ARC R8-B: workspace 全局搜索模型(原 app/src/workspace/view/global_search)。
 /// SearchConfig/GlobalSearchEvent 随迁;宿主 mod.rs/view.rs re-export 兼容。

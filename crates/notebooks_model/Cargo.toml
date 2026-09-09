@@ -9,4 +9,3 @@ publish.workspace = true
 objects.workspace = true
 serde.workspace = true
 warpui.workspace = true
-workflows_ui.workspace = true

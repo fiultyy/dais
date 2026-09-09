@@ -2,7 +2,7 @@
 //! 已下沉 crates/drive_ui, 本模块保旧路径继续可解析 (复刻 R1 auth::user_uid 模式)。
 //!
 //! 留守文件 (持有 app 侧 `*Object`, 物理依赖约束, 详见 drive_ui crate 文档):
-//! folder / notebook / workflow / ai_fact / mcp_server — 在 app 侧 impl
+//! folder / notebook / ai_fact / mcp_server — 在 app 侧 impl
 //! drive_ui::WarpDriveItem。
 
 pub use drive_ui::items::{WarpDriveItem, WarpDriveItemId};
@@ -23,4 +23,3 @@ pub mod notebook;
 pub mod space {
     pub use drive_ui::items::space::*;
 }
-pub mod workflow;

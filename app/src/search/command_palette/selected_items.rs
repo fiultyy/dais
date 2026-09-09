@@ -7,8 +7,8 @@ use warpui::{Entity, SingletonEntity};
 ///
 /// Only a small set of selected items are stored (15). However, we store more items than we render
 /// in the command palette since it's not guaranteed that all of the items are available at a
-/// given time (available bindings are dependent on which view is focused, sessions could have been
-/// closed, workflows could have been deleted).
+/// given time (available bindings are dependent on which view is focused, sessions could have
+/// been closed).
 const MAX_SIZE: usize = 15;
 
 /// Store of all of recently selected items within the command palette. Only one item of any given

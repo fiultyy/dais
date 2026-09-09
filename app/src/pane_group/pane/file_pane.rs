@@ -9,7 +9,6 @@ use crate::{
     app_state::{LeafContents, NotebookPaneSnapshot},
     notebooks::file::{FileNotebookEvent, FileNotebookView},
     terminal::model::session::Session,
-    workflows::WorkflowSelectionSource,
     workspace::ActiveSession,
 };
 
@@ -149,14 +148,6 @@ impl PaneContent for FilePane {
         ctx.subscribe_to_view(
             &self.file_view(ctx),
             move |pane_group, _, event, ctx| match event {
-                FileNotebookEvent::RunWorkflow { workflow, source } => {
-                    ctx.emit(crate::pane_group::Event::RunWorkflow {
-                        workflow: workflow.clone(),
-                        workflow_source: *source,
-                        workflow_selection_source: WorkflowSelectionSource::Notebook,
-                        argument_override: None,
-                    });
-                }
                 FileNotebookEvent::TitleUpdated => {
                     ctx.emit(crate::pane_group::Event::PaneTitleUpdated)
                 }

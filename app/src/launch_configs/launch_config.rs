@@ -144,7 +144,7 @@ impl TryFrom<PaneNodeSnapshot> for PaneTemplateType {
                     pane_mode: PaneMode::Terminal,
                     shell: None,
                 }),
-                // Dais Wave 7-3:Notebook/Workflow 臂随 pane 物理删。
+                // Dais Wave 7-3:Notebook 臂随 pane 物理删。
                 LeafContents::Image { .. }
                 | LeafContents::EnvVarCollection(_)
                 | LeafContents::Code(_)
@@ -153,7 +153,6 @@ impl TryFrom<PaneNodeSnapshot> for PaneTemplateType {
                 | LeafContents::Sftp { .. }
                 | LeafContents::Observatory
                 | LeafContents::Cockpit
-                | LeafContents::Workflow(_)
                 | LeafContents::Notebook(_)
                 | LeafContents::AIDocument(_)
                 | LeafContents::ExecutionProfileEditor

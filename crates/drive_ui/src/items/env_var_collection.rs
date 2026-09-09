@@ -46,7 +46,6 @@ impl WarpDriveItem for WarpDriveEnvVarCollection {
         None
     }
 
-
     fn preview(&self, appearance: &Appearance) -> Option<Box<dyn Element>> {
         let title_text = self.env_var_collection.model().string_model.title.clone();
         let title_to_render = if let Some(title) = title_text {

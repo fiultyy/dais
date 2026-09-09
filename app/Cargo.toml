@@ -142,7 +142,6 @@ terminal_model.workspace = true
 code_model.workspace = true
 context_chips_ui.workspace = true
 search_ui.workspace = true
-workflows_ui.workspace = true
 
 persistence.workspace = true
 pin-project.workspace = true
@@ -208,7 +207,6 @@ vec1.workspace = true
 version-compare.workspace = true
 vte.workspace = true
 walkdir.workspace = true
-warp-workflows.workspace = true
 warp_completer.workspace = true
 warp_core.workspace = true
 cockpit_model.workspace = true
@@ -446,7 +444,6 @@ default = [
     "agent_mode",
     "render_continuous_block_selections_with_single_border",
     "settings_import",
-    "block_toolbelt_save_as_workflow",
     "remove_alt_screen_padding",
     "less_horizontal_terminal_padding",
     "external_agent_mode_context",
@@ -454,16 +451,13 @@ default = [
     "minimalist_ui",
     "avatar_in_tab_bar",
     "full_screen_zen_mode",
-    "workflow_aliases",
     "ligatures",
-    "dynamic_workflow_enums",
     "rect_selection",
     "reload_stale_conversation_files",
     "warp_packs",
     "ai_rules",
     "suggested_rules",
     "default_waterfall_mode",
-    "am_workflows",
     "autoupdate_ui_revamp",
     "render_agent_mode_output_markdown",
     "agent_mode_primary_xml",
@@ -590,18 +584,16 @@ default = [
     "completions_v2",
 ]
 
-# Enable the local orchestration plane (multi-agent workflow coordination).
+# Enable the local orchestration plane (multi-agent run coordination).
 orchestration = ["ai/orchestration"]
 # Enable this feature to automatically perform heap profiling.  NOTE: This will
 # substantially slow down program execution.
 dhat_heap_profiling = ["dep:dhat"]
-dynamic_workflow_enums = []
 editable_markdown_mermaid = []
 drag_tabs_to_windows = []
 embedded_code_review_comments = []
 interactive_conversation_management_view = []
 default_waterfall_mode = []
-suggested_agent_mode_workflows = []
 ssh_tmux_wrapper = []
 extern_plist = []
 full_screen_zen_mode = []
@@ -709,14 +701,11 @@ integration_tests = [
     "warp_core/integration_tests",
 ]
 traces = []
-workflow_aliases = []
 rect_selection = []
 alacritty_settings_import = []
 ai_rules = []
-am_workflows = []
 less_horizontal_terminal_padding = []
 shell_selector = []
-block_toolbelt_save_as_workflow = []
 blocklist_markdown_table_rendering = []
 blocklist_markdown_images = []
 minimalist_ui = []
@@ -849,10 +838,6 @@ normal = ["embed_plist"]
 
 [dev-dependencies.objects]
 path = "../crates/objects"
-features = ["test-support"]
-
-[dev-dependencies.workflows_ui]
-path = "../crates/workflows_ui"
 features = ["test-support"]
 
 [dev-dependencies.terminal_grid_model]

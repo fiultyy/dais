@@ -20,15 +20,13 @@ use warpui::{SingletonEntity, ViewContext};
 use crate::ai::blocklist::agent_view::{
     AgentViewEntryOrigin, DismissalStrategy, EphemeralMessage, ENTER_OR_EXIT_CONFIRMATION_WINDOW,
 };
-use crate::ai::blocklist::drive_object_attachment_for_reference;
 use crate::ai::blocklist::{BlocklistAIHistoryModel, SlashCommandRequest};
-use objects::{ObjectType};
-use crate::objects::model::persistence::ObjectStoreModel;
+
 use crate::code_review::telemetry_event::CodeReviewPaneEntrypoint;
 use crate::search::slash_command_menu::static_commands::commands::{self, COMMAND_REGISTRY};
 use crate::search::slash_command_menu::static_commands::Availability;
 use crate::search::slash_command_menu::{SlashCommandId, StaticCommand};
-use objects::ids::SyncId;
+
 use crate::server::telemetry::SlashCommandAcceptedDetails;
 use crate::settings::AISettings;
 use crate::terminal::input::decorations::InputBackgroundJobOptions;
@@ -51,9 +49,6 @@ use crate::TelemetryEvent;
 pub enum AcceptSlashCommandOrSavedPrompt {
     SlashCommand {
         id: SlashCommandId,
-    },
-    SavedPrompt {
-        id: SyncId,
     },
     /// A skill selected from browse or search. Contains name (for display/insertion) and path/bundled_skill_id (for execution).
     Skill {
@@ -237,45 +232,6 @@ impl Input {
                 });
                 ctx.notify();
             }
-            SlashCommandsEvent::SelectedSavedPrompt { id } => {
-                let Some(workflow) = ObjectStoreModel::as_ref(ctx).get_workflow(id).cloned() else {
-                    log::warn!("Tried to execute workflow for id {id:?} but it does not exist");
-                    return;
-                };
-                let is_in_agent_view = FeatureFlag::AgentView.is_enabled()
-                    && self.agent_view_controller.as_ref(ctx).is_fullscreen();
-                send_telemetry_from_ctx!(
-                    TelemetryEvent::SlashCommandAccepted {
-                        command_details: SlashCommandAcceptedDetails::SavedPrompt,
-                        is_in_agent_view,
-                    },
-                    ctx
-                );
-
-                self.close_slash_commands_menu(ctx);
-                self.clear_buffer_and_reset_undo_stack(ctx);
-                self.ai_context_model.update(ctx, |model, _ctx| {
-                    model.clear_at_context_attachments();
-                });
-
-                let workflow_uid = workflow.id.uid();
-                let reference = self.at_context_reference_for_display_name(
-                    workflow.model().data.name(),
-                    &workflow_uid,
-                    ctx,
-                );
-                let attachment =
-                    drive_object_attachment_for_reference(&workflow_uid, ObjectType::Workflow, ctx);
-
-                self.enter_ai_mode_for_ai_context_menu_selection(ctx);
-                self.ai_context_model.update(ctx, |model, _ctx| {
-                    model.register_at_context_attachment(reference.clone(), attachment);
-                });
-                self.editor.update(ctx, |editor, ctx| {
-                    editor.set_buffer_text(&format!("{reference} "), ctx);
-                });
-                self.focus_input_box(ctx);
-            }
             SlashCommandsEvent::SelectedStaticCommand {
                 id,
                 cmd_or_ctrl_enter,
@@ -337,9 +293,6 @@ impl Input {
         match command.name {
             add_mcp if command.name == commands::ADD_MCP.name => {
                 ctx.dispatch_typed_action(&TerminalAction::OpenAddMCPPane);
-            }
-            add_prompt if command.name == commands::ADD_PROMPT.name => {
-                ctx.dispatch_typed_action(&TerminalAction::OpenAddPromptPane);
             }
             add_rule if command.name == commands::ADD_RULE.name => {
                 ctx.dispatch_typed_action(&TerminalAction::OpenAddRulePane);
@@ -611,13 +564,6 @@ impl Input {
                 }
 
                 self.open_profile_selector(ctx);
-            }
-            prompts if command.name == commands::PROMPTS.name => {
-                if FeatureFlag::AgentView.is_enabled() {
-                    self.open_prompts_menu(ctx);
-                } else {
-                    return false;
-                }
             }
             rewind if command.name == commands::REWIND.name => {
                 self.open_rewind_menu(ctx);
@@ -910,6 +856,11 @@ impl Input {
             return true;
         }
 
+        {
+            use crate::terminal::input::slash_command_model::SlashCommandEntryState as _st;
+            let ds = &self.slash_command_data_source;
+            let names: Vec<String> = ds.as_ref(ctx).active_commands().map(|(_, c)| c.name.to_string()).collect();
+        }
         match self.slash_command_model.as_ref(ctx).state() {
             SlashCommandEntryState::SlashCommand(detected_command) => {
                 let command = detected_command.command.clone();

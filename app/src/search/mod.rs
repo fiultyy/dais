@@ -16,7 +16,6 @@ mod palette_styles;
 pub mod result_renderer;
 pub mod search_bar;
 pub mod slash_command_menu;
-mod workflows;
 
 // R5 路径兼容 shim:tantivy 全文检索引擎已下沉 crates/search_ui,保持
 // `crate::search::searcher::*` 旧路径不变。wasm 目标下模块为空(与原
@@ -39,4 +38,3 @@ pub use result_renderer::ItemHighlightState;
 
 pub use data_source::QueryFilter;
 use filter_chip_renderer::FilterChipRenderer;
-pub use workflows::fuzzy_match::FuzzyMatchWorkflowResult;

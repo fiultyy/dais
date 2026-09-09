@@ -24,14 +24,6 @@ lazy_static! {
         primary_text: "history:",
         aliases: vec!["h:"]
     };
-    static ref WORKFLOWS_FILTER_ATOM: FilterAtom = FilterAtom {
-        primary_text: "workflows:",
-        aliases: vec!["w:"]
-    };
-    static ref AGENT_MODE_WORKFLOWS_FILTER_ATOM: FilterAtom = FilterAtom {
-        primary_text: "prompts:",
-        aliases: vec!["p:"]
-    };
     static ref NOTEBOOKS_FILTER_ATOM: FilterAtom = FilterAtom {
         primary_text: "notebooks:",
         aliases: vec!["n:"]
@@ -153,12 +145,6 @@ pub enum QueryFilter {
     /// Only include results from HistoryDataSource.
     History,
 
-    /// Only include command workflows from WorkflowsDataSource.
-    Workflows,
-
-    /// Only include agent mode workflows (prompts) from WorkflowsDataSource.
-    AgentModeWorkflows,
-
     /// Only include results from NotebooksDataSource.
     Notebooks,
 
@@ -242,10 +228,6 @@ impl QueryFilter {
     pub fn placeholder_text(&self) -> String {
         match self {
             QueryFilter::History => crate::t!("search-filter-placeholder-history"),
-            QueryFilter::Workflows => crate::t!("search-filter-placeholder-workflows"),
-            QueryFilter::AgentModeWorkflows => {
-                crate::t!("search-filter-placeholder-agent-mode-workflows")
-            }
             QueryFilter::Notebooks => crate::t!("search-filter-placeholder-notebooks"),
             QueryFilter::Plans => crate::t!("search-filter-placeholder-plans"),
             QueryFilter::NaturalLanguage => crate::t!("search-filter-placeholder-natural-language"),
@@ -289,8 +271,6 @@ impl QueryFilter {
     pub fn filter_atom(&self) -> &'static FilterAtom {
         match self {
             QueryFilter::History => &HISTORY_FILTER_ATOM,
-            QueryFilter::Workflows => &WORKFLOWS_FILTER_ATOM,
-            QueryFilter::AgentModeWorkflows => &AGENT_MODE_WORKFLOWS_FILTER_ATOM,
             QueryFilter::Notebooks => &NOTEBOOKS_FILTER_ATOM,
             QueryFilter::Plans => &PLANS_FILTER_ATOM,
             QueryFilter::NaturalLanguage => &NATURAL_LANGUAGE_FILTER_ATOM,
@@ -322,10 +302,6 @@ impl QueryFilter {
     pub fn display_name(&self) -> String {
         match self {
             QueryFilter::History => crate::t!("search-filter-display-history"),
-            QueryFilter::Workflows => crate::t!("search-filter-display-workflows"),
-            QueryFilter::AgentModeWorkflows => {
-                crate::t!("search-filter-display-agent-mode-workflows")
-            }
             QueryFilter::Notebooks => crate::t!("search-filter-display-notebooks"),
             QueryFilter::Plans => crate::t!("search-filter-display-plans"),
             QueryFilter::NaturalLanguage => crate::t!("search-filter-display-natural-language"),
@@ -369,7 +345,6 @@ impl QueryFilter {
     pub fn icon_svg_path(&self) -> Option<&'static str> {
         match self {
             QueryFilter::History => Some("bundled/svg/history.svg"),
-            QueryFilter::Workflows => Some("bundled/svg/workflow.svg"),
             QueryFilter::Notebooks => Some("bundled/svg/notebook.svg"),
             QueryFilter::Plans => Some("bundled/svg/compass-3.svg"),
             QueryFilter::NaturalLanguage => {
@@ -387,9 +362,7 @@ impl QueryFilter {
             QueryFilter::LaunchConfigurations => Some("bundled/svg/navigation.svg"),
             QueryFilter::Drive => Some("bundled/svg/warp.svg"),
             QueryFilter::EnvironmentVariables => Some("bundled/svg/env-var-collection.svg"),
-            QueryFilter::AgentModeWorkflows | QueryFilter::PromptHistory => {
-                Some(Icon::Prompt.into())
-            }
+            QueryFilter::PromptHistory => Some(Icon::Prompt.into()),
             QueryFilter::Files => Some("bundled/svg/completion-file.svg"),
             QueryFilter::Commands => Some("bundled/svg/terminal.svg"),
             QueryFilter::Blocks => Some("bundled/svg/block.svg"),

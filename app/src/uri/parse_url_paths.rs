@@ -32,7 +32,6 @@ fn extract_server_id_and_object_type_from_warp_drive_link(
     // into an object type
     let object_type = match object_type {
         Some("notebook") => ObjectType::Notebook,
-        Some("workflow") => ObjectType::Workflow,
         _ => return None,
     };
     let query_string: HashMap<_, _> = url.query_pairs().collect();

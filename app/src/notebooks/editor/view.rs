@@ -60,7 +60,11 @@ use crate::{
     cmd_or_ctrl_shift,
     editor::InteractionState,
     features::FeatureFlag,
-    notebooks::{ editor::{find_bar::FindBarAction, model::word_unit}, link::{LinkTarget, NotebookLinks, ResolveError}, telemetry::{ActionEntrypoint, BlockInfo, EmbeddedObjectInfo, SelectionMode}, },
+    notebooks::{
+        editor::{find_bar::FindBarAction, model::word_unit},
+        link::{LinkTarget, NotebookLinks, ResolveError},
+        telemetry::{ActionEntrypoint, BlockInfo, SelectionMode},
+    },
     settings::{AppEditorSettings, FontSettings, SelectionSettings},
     terminal::{grid_renderer::URL_COLOR, links::directly_open_link_keybinding_string},
     ui_components::icons::ICON_DIMENSIONS,
@@ -71,7 +75,6 @@ use objects::ids::SyncId;
 
 #[cfg(feature = "local_fs")]
 use crate::util::link_detection::{detect_file_paths, get_word_range_at_offset, DetectedLinkType};
-
 #[cfg(feature = "local_fs")]
 use warpui::text::word_boundaries::WordBoundariesPolicy;
 
@@ -82,7 +85,7 @@ use super::{
     link_editor::{LinkEditor, LinkEditorEvent},
     model::{NotebooksEditorModel, RichTextEditorModelEvent},
     omnibar::{Omnibar, OmnibarEvent},
-    rich_text_styles, BlockType, NotebookWorkflow,
+    rich_text_styles, BlockType,
 };
 
 #[cfg(test)]
@@ -337,13 +340,6 @@ pub fn init(app: &mut AppContext) {
         )
         .with_context_predicate(id!("RichTextEditorView"))
         .with_key_binding("cmdorctrl-down"),
-        EditableBinding::new(
-            "editor_view:run_commands",
-            crate::t!("keybinding-desc-nbeditor-run-commands"),
-            EditorViewAction::RunSelectedCommands,
-        )
-        .with_context_predicate(id!("RichTextEditorView") & id!("CanExecuteShellCommands"))
-        .with_key_binding("cmdorctrl-enter"),
     ]);
 
     // When shell command execution is disabled (e.g., comment editors),
@@ -859,17 +855,10 @@ pub enum EditorViewAction {
     ShiftTab,
     CommandUp,
     CommandDown,
-    /// Run the selected command blocks in the attached terminal session.
-    RunSelectedCommands,
     /// Exits command selection and switches back to text selection.
     ExitCommandSelection,
     /// Selects the command at the text cursor.
     SelectCommandAtCursor,
-    /// Signal from a child model ([`NotebookCommand`] or [`EmbeddedItemModel`]) to run a
-    /// workflow-like command.
-    RunWorkflow(NotebookWorkflow),
-    /// Signal from [`NotebookCommand`] to open a workflow.
-    EditWorkflow(SyncId),
     /// Signal from [`NotebookCommand`] that a new code block type has been selected.
     CodeBlockTypeSelectedAtOffset {
         start_anchor: Anchor,
@@ -927,19 +916,12 @@ pub enum EditorViewEvent {
         line_and_column_num: Option<LineAndColumnArg>,
         force_open_in_warp: bool,
     },
-    /// Emitted when the user runs a notebook workflow. The parent `NotebookView` is responsible
-    /// for sending it to the active terminal.
-    RunWorkflow(NotebookWorkflow),
-    EditWorkflow(SyncId),
     /// The block insertion menu was opened.
     OpenedBlockInsertionMenu(BlockInsertionSource),
     /// The embedded object search menu was opened.
     OpenedEmbeddedObjectSearch,
     /// The find bar was opened.
     OpenedFindBar,
-    /// An embedded object was inserted (via the menu - this doesn't account for copy/pasting
-    /// embeds).
-    InsertedEmbeddedObject(EmbeddedObjectInfo),
     CopiedBlock {
         block: BlockInfo,
         entrypoint: ActionEntrypoint,
@@ -1060,7 +1042,7 @@ pub struct RichTextEditorConfig {
     pub gutter_width: Option<f32>,
     pub vertical_expansion_behavior: Option<VerticalExpansionBehavior>,
 
-    /// Enable or disable embedded objects (notebooks, workflows) in the block insertion menu.
+    /// Enable or disable embedded objects (notebooks) in the block insertion menu.
     pub embedded_objects_enabled: Option<bool>,
 
     /// Configure whether this editor can execute shell commands via Cmd/Ctrl+Enter.
@@ -1810,8 +1792,8 @@ impl RichTextEditorView {
         });
     }
 
-    /// Select a block by its starting offset. Currently, block-level selection only applies to
-    /// workflow/command blocks.
+    /// Select a block by its starting offset. Currently, block-level selection only applies
+    /// to command blocks.
     fn select_block(&mut self, block_start: CharOffset, ctx: &mut ViewContext<Self>) {
         self.focus(ctx);
         self.model
@@ -2155,23 +2137,6 @@ impl RichTextEditorView {
         }
 
         ctx.notify();
-    }
-
-    /// Run the currently-selected command blocks.
-    ///
-    /// If there is no selected command, but the text cursor is inside a command block, that
-    /// command will be selected first.
-    fn run_selected_commands(&self, ctx: &mut ViewContext<Self>) {
-        let workflow = self.model.update(ctx, |model, ctx| {
-            if !model.has_command_selection(ctx) {
-                model.select_command_at_cursor(ctx);
-            }
-            model.selected_command_workflow(ctx)
-        });
-
-        if let Some(workflow) = workflow {
-            ctx.emit(EditorViewEvent::RunWorkflow(workflow))
-        }
     }
 
     /// Render tooltip shown when user clicks on a link in the notebook.
@@ -2941,7 +2906,6 @@ impl TypedActionView for RichTextEditorView {
             InsertBlock(block_type) => self.insert_block(block_type.clone(), ctx),
             CommandUp => self.command_up(ctx),
             CommandDown => self.command_down(ctx),
-            RunSelectedCommands => self.run_selected_commands(ctx),
             ExitCommandSelection => {
                 self.close_overlays(ctx);
                 if !self.model.as_ref(ctx).has_command_selection(ctx) {
@@ -2957,8 +2921,6 @@ impl TypedActionView for RichTextEditorView {
                 self.model
                     .update(ctx, |model, ctx| model.select_command_at_cursor(ctx))
             }
-            EditWorkflow(id) => ctx.emit(EditorViewEvent::EditWorkflow(*id)),
-            RunWorkflow(workflow) => ctx.emit(EditorViewEvent::RunWorkflow(workflow.clone())),
             CodeBlockTypeSelectedAtOffset {
                 start_anchor,
                 code_block_type,
@@ -3206,10 +3168,7 @@ impl TypedActionView for RichTextEditorView {
             | EditorViewAction::InsertPlaceholder
             | EditorViewAction::DismissOpenLink
             | EditorViewAction::MaybeOpenFileOrUrl { .. }
-            | EditorViewAction::RunSelectedCommands
             | EditorViewAction::CmdEnter
-            | EditorViewAction::EditWorkflow(_)
-            | EditorViewAction::RunWorkflow(_)
             | EditorViewAction::RemoveEmbeddingAt(_)
             | EditorViewAction::OpenFile { .. }
             | EditorViewAction::VimUserTyped(_) => ActionAccessibilityContent::Empty,
@@ -3233,13 +3192,11 @@ impl warp_editor::editor::EditorView for RichTextEditorView {
 
     fn embedded_item_at<'a>(
         &self,
-        block_offset: CharOffset,
-        ctx: &'a AppContext,
+        _block_offset: CharOffset,
+        _ctx: &'a AppContext,
     ) -> Option<&'a dyn EmbeddedItemModel> {
-        self.model
-            .as_ref(ctx)
-            .notebook_embed_for_block(block_offset)
-            .map(|model| model.as_ref(ctx) as &'a dyn EmbeddedItemModel)
+        // 笔记本已不支持嵌入式对象。
+        None
     }
 
     fn text_decorations<'a>(

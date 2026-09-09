@@ -96,7 +96,7 @@ mod user_config;
 pub mod util;
 mod view_components;
 mod vim_registers;
-mod voltron;
+
 mod warp_managed_paths_watcher;
 mod workspaces;
 mod window_settings;
@@ -178,7 +178,6 @@ use terminal::keys_settings::KeysSettings;
 #[cfg(all(not(target_family = "wasm"), feature = "local_tty"))]
 use terminal::local_shell::LocalShellState;
 pub use util::bindings::cmd_or_ctrl_shift;
-pub mod workflows;
 pub mod workspace;
 
 #[cfg(feature = "integration_tests")]
@@ -193,7 +192,6 @@ use warp_core::user_preferences::GetUserPreferences as _;
 use warpui::modals::{AlertDialogWithCallbacks, AppModalCallback};
 use warpui::platform::app::ApproveTerminateResult;
 use window_settings::WindowSettings;
-use workflows::manager::WorkflowManager;
 
 use crate::ai::ambient_agents::github_auth_notifier::GitHubAuthNotifier;
 use crate::ai::document::ai_document_model::AIDocumentModel;
@@ -238,8 +236,6 @@ use crate::undo_close::UndoCloseStack;
 use crate::user_config::WarpConfig;
 use crate::vim_registers::VimRegisters;
 use crate::warp_managed_paths_watcher::{ensure_warp_watch_roots_exist, WarpManagedPathsWatcher};
-use crate::workflows::aliases::WorkflowAliases;
-use crate::workflows::local_workflows::LocalWorkflows;
 use crate::workspace::{ActiveSession, ToastStack};
 use crate::workspaces::user_profiles::UserProfiles;
 #[cfg(feature = "local_tty")]
@@ -1624,11 +1620,9 @@ fn initialize_app(
     editor::init(ctx);
     menu::init(ctx);
     launch_configs::init(ctx);
-    workflows::init(ctx);
     notifications::init(ctx);
     themes::theme_chooser::init(ctx);
     root_view::init(ctx);
-    voltron::init(ctx);
     auth::init(ctx);
     crate::view_components::find::init(ctx);
     prompt::editor_modal::init(ctx);
@@ -1659,6 +1653,7 @@ fn initialize_app(
     ctx.add_singleton_model(crate::terminal::cli_agent::CLIAgentInstallModel::new);
 
     let display_count = ctx.windows().display_count();
+
     ctx.add_singleton_model(|_| DisplayCount(display_count));
 
     ctx.add_singleton_model(|_| RelaunchModel::new());
@@ -1851,11 +1846,7 @@ fn initialize_app(
     ctx.add_singleton_model(|_| ResizableData::default());
 
     ctx.add_singleton_model(EnvVarCollectionManager::new);
-    ctx.add_singleton_model(WorkflowManager::new);
-
     AutoupdateState::register(ctx, update_http_client.clone());
-
-    ctx.add_singleton_model(LocalWorkflows::new);
 
     ctx.add_singleton_model(LLMPreferences::new);
 
@@ -1897,11 +1888,6 @@ fn initialize_app(
 
     ctx.add_singleton_model(move |_| IgnoredSuggestionsModel::new(persisted_ignored_suggestions));
 
-    // Subscribe WorkflowAliases to the ObjectStore so that it can be notified when objects are
-    // trashed.
-    WorkflowAliases::handle(ctx).update(ctx, |aliases, ctx| {
-        aliases.connect(ctx);
-    });
 
     // When running natively, add the http server singleton to the application.
     #[cfg(not(target_family = "wasm"))]
@@ -2465,11 +2451,8 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::RectSelection,
         #[cfg(feature = "alacritty_settings_import")]
         FeatureFlag::AlacrittySettingsImport,
-        #[cfg(feature = "dynamic_workflow_enums")]
-        FeatureFlag::DynamicWorkflowEnums,
+
         FeatureFlag::SharedWithMe,
-        #[cfg(feature = "am_workflows")]
-        FeatureFlag::AgentModeWorkflows,
         #[cfg(feature = "ai_rules")]
         FeatureFlag::AIRules,
         #[cfg(feature = "ssh_tmux_wrapper")]
@@ -2480,8 +2463,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::LessHorizontalTerminalPadding,
         #[cfg(feature = "shell_selector")]
         FeatureFlag::ShellSelector,
-        #[cfg(feature = "block_toolbelt_save_as_workflow")]
-        FeatureFlag::BlockToolbeltSaveAsWorkflow,
         // Dais Wave 7-2:`CloudEnvironments` FeatureFlag 随 cloud ambient agent 主体子系统
         // 物理删 —— `warp environment` 子命令 + `--environment` 参数同步下线。
         #[cfg(all(feature = "simulate_github_unauthed", debug_assertions))]
@@ -2494,8 +2475,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::RemoveAltScreenPadding,
         #[cfg(feature = "avatar_in_tab_bar")]
         FeatureFlag::AvatarInTabBar,
-        #[cfg(feature = "workflow_aliases")]
-        FeatureFlag::WorkflowAliases,
         #[cfg(feature = "ssh_drag_and_drop")]
         FeatureFlag::SshDragAndDrop,
         #[cfg(feature = "drag_tabs_to_windows")]
@@ -2530,8 +2509,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::AgentOnboarding,
         #[cfg(feature = "suggested_rules")]
         FeatureFlag::SuggestedRules,
-        #[cfg(feature = "suggested_agent_mode_workflows")]
-        FeatureFlag::SuggestedAgentModeWorkflows,
         #[cfg(feature = "command_correction_key")]
         FeatureFlag::CommandCorrectionKey,
         #[cfg(feature = "predict_am_queries")]

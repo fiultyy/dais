@@ -104,7 +104,6 @@ pub enum LeafContents {
     },
     Code(CodePaneSnapShot),
     EnvVarCollection(EnvVarCollectionPaneSnapshot),
-    Workflow(WorkflowPaneSnapshot),
     Notebook(NotebookPaneSnapshot),
     AIDocument(AIDocumentPaneSnapshot),
     ExecutionProfileEditor,
@@ -165,7 +164,6 @@ impl LeafContents {
             LeafContents::Terminal(_)
             | LeafContents::EnvVarCollection(_)
             | LeafContents::Settings(_)
-            | LeafContents::Workflow(_)
             | LeafContents::Notebook(_)
             | LeafContents::ExecutionProfileEditor
             | LeafContents::AIDocument(_)
@@ -249,15 +247,7 @@ pub enum AIDocumentPaneSnapshot {
     },
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum WorkflowPaneSnapshot {
-    WorkflowObject {
-        workflow_id: Option<SyncId>,
-        // Settings for the workflow pane when it's opened (such as a folder to focus upon opening)
-        settings: DaisDriveObjectSettings,
-    },
-}
-
+// Dais Wave 7-3:`EnvironmentManagementPaneSnapshot` 随 LeafContents variant 一同物理删。
 #[derive(Clone, Debug, PartialEq)]
 pub enum SettingsPaneSnapshot {
     Local {

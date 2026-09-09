@@ -60,7 +60,6 @@ integration_tests! {
     test_session_restoration_with_multiple_shells,
     test_restore_snapshot_with_background_output,
     test_restore_snapshot_with_notebooks,
-    test_restore_snapshot_with_workflows,
     test_restore_snapshot_with_test_json_object,
     test_restore_snapshot_with_common_shareable_metadata_ids,
     test_restore_snapshot_with_markdown_file,
@@ -98,10 +97,6 @@ integration_tests! {
     test_palette_opens_when_theme_chooser_is_open,
     #[cfg(target_os="macos")]
     test_preview_config_dir_migration,
-    #[ignore = "Flakes in CI"]
-    test_add_workflows_to_warp_config,
-    #[ignore = "Flakes in CI"]
-    test_loading_project_workflows,
     test_completions_as_you_type,
     test_completions_as_you_type_one_matching_entry_tab,
     test_completions_as_you_type_execute_on_enter,
@@ -187,9 +182,6 @@ integration_tests! {
 
     test_private_public_settings_routing_with_flag_enabled,
     test_private_settings_preloaded_and_not_leaked_to_toml,
-    test_history_command_is_linked_to_local_workflow,
-    #[ignore = "Affected by agent_view feature flag UI changes"]
-    test_up_arrow_history_enters_shift_tab_for_workflow,
 
     test_websocket_begins_on_startup,
     test_websocket_does_not_begin_on_startup,
@@ -224,10 +216,6 @@ integration_tests! {
     test_open_in_warp_banner,
     test_close_notebook_window,
     test_backspace_inside_rendered_mermaid_block_is_atomic,
-
-    test_open_workflow_in_pane,
-    test_create_personal_workflow_pane_from_command_palette,
-    test_create_team_workflow_pane_from_command_palette,
 
     // TODO(alokedesai): Fix this on the latest version of Bash.
     #[ignore]

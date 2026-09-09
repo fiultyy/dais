@@ -216,18 +216,6 @@ fn check_cloud_folders(app: &mut App, number_of_folders: usize) {
     });
 }
 
-fn check_cloud_workflows(app: &mut App, number_of_workflows: usize) {
-    ObjectStoreModel::handle(app).read(app, |model, _| {
-        assert_eq!(
-            number_of_workflows,
-            model.get_all_active_and_inactive_workflows().count(),
-            "we expected {} workflows, and received {}",
-            number_of_workflows,
-            model.get_all_active_and_inactive_workflows().count()
-        );
-    });
-}
-
 fn check_cloud_notebooks(app: &mut App, number_of_notebooks: usize) {
     ObjectStoreModel::handle(app).read(app, |model, _| {
         assert_eq!(

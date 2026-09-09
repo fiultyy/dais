@@ -27,7 +27,6 @@ use warpui::{
 use crate::{
     notebooks::export_notebook,
     view_components::ToastLink,
-    workflows::export_workflow::export_serialize,
     workspace::WorkspaceAction,
 };
 use crate::objects::object_store::get_duplicate_object_name;
@@ -276,17 +275,6 @@ impl ExportManager {
     ) -> anyhow::Result<SpawnedFutureHandle> {
         let object_store_model = ObjectStoreModel::as_ref(ctx);
         let (name, extension, data) = match object {
-            ObjectTypeAndId::Workflow(workflow_id) => {
-                let workflow = object_store_model
-                    .get_workflow(&workflow_id)
-                    .ok_or_else(|| anyhow!("no workflow for {workflow_id}"))?;
-
-                let mut serializer = serde_yaml::Serializer::new(Vec::new());
-                export_serialize(&workflow.model().data, &mut serializer, ctx)?;
-                let data = serializer.into_inner();
-
-                (workflow.model().data.name().to_owned(), "yaml", data)
-            }
             ObjectTypeAndId::Notebook(notebook_id) => {
                 let notebook = object_store_model
                     .get_notebook(&notebook_id)

@@ -28,7 +28,6 @@ use crate::{
     settings_view::mcp_servers::{ server_card::{ ServerCardEvent, ServerCardOptions, ServerCardStatus, ServerCardView, TitleChip, }, style, ServerCardItemId, },
     ui_components::blended_colors,
     view_components::action_button::{ActionButton, NakedTheme},
-    workflows::local_workflows::tail_command_for_shell,
     workspace::Workspace,
 };
 use objects::{GenericStringObjectFormat, JsonObjectType};
@@ -40,6 +39,7 @@ use std::cmp::Ordering;
 use std::{collections::HashMap, path::PathBuf};
 use strum::IntoEnumIterator;
 use uuid::Uuid;
+use warp_util::path::ShellFamily;
 use warp_core::features::FeatureFlag;
 use warp_core::send_telemetry_from_ctx;
 use warp_core::ui::{appearance::AppearanceEvent, theme::color::internal_colors, Icon};
@@ -490,8 +490,17 @@ impl MCPServersListPageView {
 
             terminal_view_handle.update(ctx, |terminal, ctx| {
                 let shell_family = terminal.shell_family(ctx);
-                let tail_command = tail_command_for_shell(shell_family, log_file_path);
-                terminal.set_pending_command(&tail_command, ctx)});
+                // 用 debug 格式化路径：非 Unicode 组件会被转义，路径自动带引号。
+                // PowerShell 避免 debug 转义反斜杠。
+                let tail_command = match shell_family {
+                    ShellFamily::Posix => format!("tail -f {log_file_path:?}"),
+                    ShellFamily::PowerShell => format!(
+                        "Get-Content -Wait -Tail 10 -Path \"{}\"",
+                        log_file_path.display()
+                    ),
+                };
+                terminal.set_pending_command(&tail_command, ctx);
+            });
         })
     }
 

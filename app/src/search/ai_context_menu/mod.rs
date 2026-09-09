@@ -9,7 +9,6 @@ mod rules;
 #[cfg(not(target_family = "wasm"))]
 mod skills;
 pub mod view;
-mod workflows;
 
 // R5 路径兼容 shim:is_valid_search_query 纯启发式 / styles 常量 /
 // safe_truncate / floor_char_boundary 工具已下沉 crates/search_ui;

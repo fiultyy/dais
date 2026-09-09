@@ -6,11 +6,7 @@ mod imp;
 
 use crate::tab_configs::{TabConfig, TabConfigError};
 use crate::themes::theme::WarpThemeConfig;
-use crate::{
-    launch_configs::launch_config::LaunchConfig,
-    themes::theme::ThemeKind,
-    workflows::workflow::Workflow,
-};
+use crate::launch_configs::launch_config::LaunchConfig;
 use lazy_static::lazy_static;
 #[cfg(feature = "local_fs")]
 use std::path::Path;
@@ -20,8 +16,6 @@ use warpui::{Entity, ModelContext, SingletonEntity};
 
 #[cfg(test)]
 pub(crate) use imp::load_tab_configs;
-#[cfg(feature = "local_fs")]
-pub use imp::load_workflows;
 pub use imp::{load_launch_configs, load_theme_configs};
 
 lazy_static! {
@@ -54,8 +48,6 @@ lazy_static! {
 #[derive(Clone)]
 pub enum WarpConfigUpdateEvent {
     Themes,
-    #[cfg_attr(not(feature = "local_fs"), expect(dead_code))]
-    LocalUserWorkflows,
     LaunchConfigs,
     #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
     TabConfigs,
@@ -73,11 +65,10 @@ pub enum WarpConfigUpdateEvent {
     SettingsErrorsCleared,
 }
 
-/// Singleton model containing user configurable file entities like themes, launch configs, and
-/// workflows.
+/// Singleton model containing user configurable file entities like themes and launch configs.
 ///
 /// Emits events when entities are changed, which are detected via filesystem
-/// watchers on the user's `data_dir()` (themes, workflows, launch configs,
+/// watchers on the user's `data_dir()` (themes, launch configs,
 /// tab configs, etc.) and, on platforms where it differs, `config_local_dir()`
 /// (`settings.toml`, `keybindings.yaml`, `user_preferences.json`).
 #[derive(Default)]
@@ -87,7 +78,6 @@ pub struct WarpConfig {
     #[cfg_attr(target_family = "wasm", allow(dead_code))]
     tab_config_errors: Vec<TabConfigError>,
     theme_config: WarpThemeConfig,
-    local_user_workflows: Vec<Workflow>,
 }
 
 /// Platform-independent parts of WarpConfig.
@@ -115,9 +105,6 @@ impl WarpConfig {
         &self.theme_config
     }
 
-    pub fn local_user_workflows(&self) -> &Vec<Workflow> {
-        &self.local_user_workflows
-    }
 
     /// Saving the newly created launch configuration to the WarpConfig that we currently
     /// have.
@@ -165,11 +152,6 @@ pub fn themes_dir() -> PathBuf {
     warp_core::paths::themes_dir()
 }
 
-/// Returns the path to the directory containing the user's custom workflows.
-#[cfg_attr(target_family = "wasm", expect(dead_code))]
-pub fn workflows_dir() -> PathBuf {
-    crate::workflows::local_workflows::workflows_dir(base_dir())
-}
 
 /// Returns the path to the directory containing the user's launch
 /// configurations.

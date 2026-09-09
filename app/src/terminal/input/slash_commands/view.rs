@@ -8,9 +8,8 @@ use warpui::{Entity, ModelHandle, View, ViewHandle};
 
 use crate::ai::blocklist::agent_view::AgentViewController;
 use crate::search::data_source::{Query, QueryFilter};
-use crate::search::mixer::{AddAsyncSourceOptions, SearchMixer};
+use crate::search::mixer::SearchMixer;
 use crate::search::slash_command_menu::SlashCommandId;
-use objects::ids::SyncId;
 use crate::terminal::input::buffer_model::InputBufferModel;
 use crate::terminal::input::inline_menu::{InlineMenuEvent, InlineMenuPositioner, InlineMenuView};
 use crate::terminal::input::slash_command_model::SlashCommandEntryState;
@@ -48,9 +47,6 @@ impl CloseReason {
 #[derive(Debug, Clone)]
 pub enum SlashCommandsEvent {
     Close(CloseReason),
-    SelectedSavedPrompt {
-        id: SyncId,
-    },
     /// `cmd_or_ctrl_enter` is true if accepted via Cmd/Ctrl+Enter (vs Enter/click).
     SelectedStaticCommand {
         id: SlashCommandId,
@@ -100,8 +96,8 @@ impl InlineSlashCommandView {
                 });
             },
         );
+
         let zero_state_source = ctx.add_model(|_| ZeroStateDataSource::new(&slash_commands_source));
-        let saved_prompts_source = super::saved_prompts_data_source();
 
         let mixer = ctx.add_model(|ctx| {
             let mut mixer = SearchMixer::<AcceptSlashCommandOrSavedPrompt>::new();
@@ -110,17 +106,6 @@ impl InlineSlashCommandView {
             mixer.add_sync_source(
                 slash_commands_source.clone(),
                 [QueryFilter::StaticSlashCommands],
-            );
-            mixer.add_async_source(
-                saved_prompts_source,
-                [QueryFilter::StaticSlashCommands],
-                AddAsyncSourceOptions {
-                    // Any debounce makes the loading state flicker longer.
-                    debounce_interval: None,
-                    run_in_zero_state: false,
-                    run_when_unfiltered: false,
-                },
-                ctx,
             );
             mixer.add_sync_source(
                 zero_state_source.clone(),
@@ -232,9 +217,6 @@ impl InlineSlashCommandView {
                     id: *id,
                     cmd_or_ctrl_enter,
                 });
-            }
-            AcceptSlashCommandOrSavedPrompt::SavedPrompt { id } => {
-                ctx.emit(SlashCommandsEvent::SelectedSavedPrompt { id: *id });
             }
             AcceptSlashCommandOrSavedPrompt::Skill { name, reference } => {
                 ctx.emit(SlashCommandsEvent::SelectedSkill {

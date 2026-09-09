@@ -1,6 +1,6 @@
 //! # Dais 本地化说明(Phase 2d-4b,2026-05-11 修订)
 //!
-//! 本模块在上游 Dais 中承担 "云对象" 抽象,统一描述 Notebook / Workflow / EnvVar /
+//! 本模块在上游 Dais 中承担 "云对象" 抽象,统一描述 Notebook / EnvVar /
 //! Fact / MCP / ExecutionProfile / AIDocument 等需要在多设备间同步的对象类型。
 //!
 //! 在 Dais 中云端同步链路(RTC / ObjectStore / SyncQueue / ServerApiProvider)
@@ -43,7 +43,6 @@ use crate::{
     },
     ui_components::breadcrumb::Breadcrumb,
     util::time_format::format_approx_duration_from_now_utc,
-    workflows::{WorkflowObject, WorkflowSource},
     workspaces::{user_profiles::UserProfiles, user_workspaces::UserWorkspaces},
 };
 use chrono::{Duration, Utc};

@@ -18,7 +18,7 @@ pub enum AIContextMenuSearchableAction {
         text: String,
     },
     InsertDriveObject {
-        /// Drive 对象类型(Workflow、Notebook 等)。
+        /// Drive 对象类型(Notebook 等)。
         object_type: ObjectType,
         /// 要附加的 Drive 对象 UID。
         object_uid: String,

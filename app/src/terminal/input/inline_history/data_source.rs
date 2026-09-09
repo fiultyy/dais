@@ -13,8 +13,7 @@ use crate::input_suggestions::{HistoryInputSuggestion, HistoryOrder};
 use crate::search::data_source::{Query, QueryFilter, QueryResult};
 use crate::search::mixer::DataSourceRunErrorWrapper;
 use crate::search::SyncDataSource;
-use crate::terminal::history::UpArrowHistoryConfig;
-use crate::terminal::history::{History, LinkedWorkflowData};
+use crate::terminal::history::{History, UpArrowHistoryConfig};
 use crate::terminal::input::inline_history::search_item::InlineHistoryItem;
 use crate::terminal::input::inline_menu::{
     InlineMenuAction, InlineMenuClickBehavior, InlineMenuType,
@@ -34,7 +33,6 @@ pub enum AcceptHistoryItem {
     },
     Command {
         command: String,
-        linked_workflow_data: Option<LinkedWorkflowData>,
     },
     AIPrompt {
         query_text: String,
@@ -123,12 +121,8 @@ impl InlineHistoryMenuDataSource {
                     }
                     let timestamp = entry.start_ts.unwrap_or_else(Local::now);
                     (
-                        InlineHistoryItem::command(
-                            command.to_string(),
-                            entry.linked_workflow_data(),
-                            timestamp,
-                        )
-                        .with_prefix_match_len(prefix_match_len),
+                        InlineHistoryItem::command(command.to_string(), timestamp)
+                            .with_prefix_match_len(prefix_match_len),
                         OrderedFloat(results.len() as f64),
                     )
                 }
@@ -217,7 +211,6 @@ enum MenuItem {
     },
     Command {
         command: String,
-        linked_workflow_data: Option<LinkedWorkflowData>,
         display_timestamp: DateTime<Local>,
         prefix_match_len: usize,
     },
@@ -309,7 +302,6 @@ impl SyncDataSource for InlineHistoryMenuDataSource {
                         sort_timestamp,
                         item: MenuItem::Command {
                             command: command.to_string(),
-                            linked_workflow_data: entry.linked_workflow_data(),
                             display_timestamp,
                             prefix_match_len,
                         },
@@ -346,10 +338,9 @@ impl SyncDataSource for InlineHistoryMenuDataSource {
                 .with_name_match_result(match_result),
                 MenuItem::Command {
                     command,
-                    linked_workflow_data,
                     display_timestamp,
                     prefix_match_len,
-                } => InlineHistoryItem::command(command, linked_workflow_data, display_timestamp)
+                } => InlineHistoryItem::command(command, display_timestamp)
                     .with_prefix_match_len(prefix_match_len),
             };
 

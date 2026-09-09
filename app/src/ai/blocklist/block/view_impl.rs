@@ -647,14 +647,13 @@ pub fn render_citation_chips(
 
 /// P-ARC R1: `StoredObject::to_warp_drive_item` 已从 crate trait 裁撤(见 objects/src/lib.rs
 /// 头注释)。宿主侧按 object_type 分发重建 drive item,与原各 model 的 impl 逐一对应;
-/// Preference/WorkflowEnum/AIExecutionProfile/TemplatableMCPServer 维持原默认 None。
+/// Preference/AIExecutionProfile/TemplatableMCPServer 维持原默认 None。
 fn citation_warp_drive_item(
     object: &dyn crate::objects::StoredObject,
 ) -> Option<Box<dyn crate::drive::items::WarpDriveItem>> {
     use crate::drive::items::{
         ai_fact::WarpDriveAIFact, env_var_collection::WarpDriveEnvVarCollection,
         folder::WarpDriveFolder, mcp_server::WarpDriveMCPServer, notebook::WarpDriveNotebook,
-        workflow::WarpDriveWorkflow,
     };
     use crate::objects::{GenericStringObjectFormat, JsonObjectType, ObjectType, ObjectTypeAndId};
 
@@ -675,15 +674,6 @@ fn citation_warp_drive_item(
                     ObjectTypeAndId::Notebook(id),
                     notebook.clone(),
                     notebook.model().ai_document_id.is_some(),
-                )) as Box<dyn crate::drive::items::WarpDriveItem>
-            }),
-        ObjectType::Workflow => object
-            .as_any()
-            .downcast_ref::<crate::workflows::WorkflowObject>()
-            .map(|workflow| {
-                Box::new(WarpDriveWorkflow::new(
-                    ObjectTypeAndId::Workflow(id),
-                    workflow.clone(),
                 )) as Box<dyn crate::drive::items::WarpDriveItem>
             }),
         ObjectType::GenericStringObject(format) => {

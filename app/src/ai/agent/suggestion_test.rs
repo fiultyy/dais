@@ -1,6 +1,4 @@
-use crate::ai::agent::{
-    SuggestedAgentModeWorkflow, SuggestedLoggingId, SuggestedRule, Suggestions,
-};
+use crate::ai::agent::{SuggestedLoggingId, SuggestedRule, Suggestions};
 
 #[test]
 fn test_extend_suggestions() {
@@ -16,18 +14,6 @@ fn test_extend_suggestions() {
                 name: "rule2".into(),
                 content: "content2".into(),
                 logging_id: SuggestedLoggingId::from("id2".to_string()),
-            },
-        ],
-        agent_mode_workflows: vec![
-            SuggestedAgentModeWorkflow {
-                name: "workflow1".into(),
-                prompt: "prompt1".into(),
-                logging_id: SuggestedLoggingId::from("wid1".to_string()),
-            },
-            SuggestedAgentModeWorkflow {
-                name: "workflow2".into(),
-                prompt: "prompt2".into(),
-                logging_id: SuggestedLoggingId::from("wid2".to_string()),
             },
         ],
     };
@@ -52,26 +38,6 @@ fn test_extend_suggestions() {
                 name: "rule4".into(),
                 content: "content4".into(),
                 logging_id: SuggestedLoggingId::from("id4".to_string()),
-            },
-        ],
-        agent_mode_workflows: vec![
-            // Duplicate workflow logging_id but different name/prompt
-            SuggestedAgentModeWorkflow {
-                name: "workflow1_modified".into(),
-                prompt: "prompt1_modified".into(),
-                logging_id: SuggestedLoggingId::from("wid1".to_string()),
-            },
-            // New unique workflow
-            SuggestedAgentModeWorkflow {
-                name: "workflow3".into(),
-                prompt: "prompt3".into(),
-                logging_id: SuggestedLoggingId::from("wid3".to_string()),
-            },
-            // Another new unique workflow
-            SuggestedAgentModeWorkflow {
-                name: "workflow4".into(),
-                prompt: "prompt4".into(),
-                logging_id: SuggestedLoggingId::from("wid4".to_string()),
             },
         ],
     };
@@ -118,42 +84,4 @@ fn test_extend_suggestions() {
         .iter()
         .any(|r| r.logging_id.to_string() == "id1" && r.name == "rule1_modified"));
 
-    // Verify workflows
-
-    // Verify the length (should be 4 because one was a duplicate)
-    assert_eq!(base_suggestions.agent_mode_workflows.len(), 4);
-
-    // Verify that original workflows with wid1 and wid2 are still present and unchanged
-    assert!(base_suggestions
-        .agent_mode_workflows
-        .iter()
-        .any(|w| w.logging_id.to_string() == "wid1"
-            && w.name == "workflow1"
-            && w.prompt == "prompt1"));
-    assert!(base_suggestions
-        .agent_mode_workflows
-        .iter()
-        .any(|w| w.logging_id.to_string() == "wid2"
-            && w.name == "workflow2"
-            && w.prompt == "prompt2"));
-
-    // Verify that new unique workflows (wid3 and wid4) were added
-    assert!(base_suggestions
-        .agent_mode_workflows
-        .iter()
-        .any(|w| w.logging_id.to_string() == "wid3"
-            && w.name == "workflow3"
-            && w.prompt == "prompt3"));
-    assert!(base_suggestions
-        .agent_mode_workflows
-        .iter()
-        .any(|w| w.logging_id.to_string() == "wid4"
-            && w.name == "workflow4"
-            && w.prompt == "prompt4"));
-
-    // Verify that the modified version of wid1 was not added (deduplication worked)
-    assert!(!base_suggestions
-        .agent_mode_workflows
-        .iter()
-        .any(|w| w.logging_id.to_string() == "wid1" && w.name == "workflow1_modified"));
 }

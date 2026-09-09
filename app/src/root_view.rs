@@ -843,11 +843,6 @@ fn open_warp_drive_object(arg: &DaisDriveObjectArgs, ctx: &mut AppContext) {
             arg.settings.clone(),
             ctx,
         ),
-        ObjectType::Workflow => open_new_workspace_with_workflow_open(
-            SyncId::ServerId(arg.server_id),
-            arg.settings.clone(),
-            ctx,
-        ),
         _ => log::info!("Open object type {:?} not yet supported", arg.object_type),
     }
 }
@@ -868,20 +863,6 @@ fn open_new_workspace_with_notebook_open(
     open_new_with_workspace_source(
         NewWorkspaceSource::NotebookById {
             id: notebook_id,
-            settings,
-        },
-        ctx,
-    );
-}
-
-fn open_new_workspace_with_workflow_open(
-    workflow_id: SyncId,
-    settings: DaisDriveObjectSettings,
-    ctx: &mut AppContext,
-) {
-    open_new_with_workspace_source(
-        NewWorkspaceSource::WorkflowById {
-            id: workflow_id,
             settings,
         },
         ctx,
@@ -1274,10 +1255,6 @@ pub enum NewWorkspaceSource {
         file_path: Option<PathBuf>,
     },
     NotebookById {
-        id: SyncId,
-        settings: DaisDriveObjectSettings,
-    },
-    WorkflowById {
         id: SyncId,
         settings: DaisDriveObjectSettings,
     },
@@ -1911,12 +1888,6 @@ impl RootView {
                     handle.update(ctx, |workspace, ctx| {
                         let notebook_id = SyncId::ServerId(arg.server_id);
                         workspace.open_notebook(&NotebookSource::Existing(notebook_id), ctx, false);
-                    });
-                }
-                ObjectType::Workflow => {
-                    handle.update(ctx, |workspace, ctx| {
-                        let workflow_id = SyncId::ServerId(arg.server_id);
-                        workspace.open_workflow_from_intent(workflow_id, ctx);
                     });
                 }
                 ObjectType::GenericStringObject(GenericStringObjectFormat::Json(

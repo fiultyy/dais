@@ -11,8 +11,6 @@ use walkdir::{DirEntry, WalkDir};
 
 use crate::launch_configs::launch_config::LaunchConfig;
 use crate::tab_configs::{TabConfig, TabConfigError};
-use crate::themes::theme::{ThemeKind, WarpTheme, WarpThemeConfig};
-use crate::workflows::workflow::Workflow;
 
 const CONFIG_FILE_SUFFIXES: &[&str] = &[".yaml", ".yml"];
 const TOML_CONFIG_FILE_SUFFIX: &str = ".toml";
@@ -141,9 +139,6 @@ fn name_to_camel_case(name: &str) -> String {
     name.split('_').map(title_case).join(" ")
 }
 
-pub(super) fn parse_multi_workflow_dir_entry(item: &DirEntry) -> Option<Vec<Workflow>> {
-    parse_multi_item_file(item, |_, workflow| workflow)
-}
 
 pub(super) fn parse_multi_launch_config_dir_entry(item: &DirEntry) -> Option<Vec<LaunchConfig>> {
     parse_multi_item_file(item, |_file_name, config| config)

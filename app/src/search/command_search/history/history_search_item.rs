@@ -5,7 +5,7 @@ use warp_core::ui::builder;
 use warpui::{
     elements::{
         Align, ConstrainedBox, Container, CrossAxisAlignment, Flex, Highlight, Icon,
-        MainAxisAlignment, MainAxisSize, ParentElement, Shrinkable, Text,
+        MainAxisSize, ParentElement, Shrinkable, Text,
     },
     fonts::{Properties, Weight},
     ui_components::components::{Coords, UiComponent, UiComponentStyles},
@@ -84,56 +84,10 @@ impl SearchItem for HistorySearchItem {
         .left()
         .finish();
 
-        let mut command_and_workflow = Flex::column()
-            .with_main_axis_alignment(MainAxisAlignment::Center)
-            .with_main_axis_size(MainAxisSize::Max)
-            .with_child(command);
-
-        if let Some(workflow) = self.entry.linked_workflow(app) {
-            command_and_workflow.add_child(
-                Flex::row()
-                    .with_cross_axis_alignment(CrossAxisAlignment::Center)
-                    .with_children([
-                        ConstrainedBox::new(
-                            Icon::new(
-                                "bundled/svg/workflow.svg",
-                                highlight_state.sub_text_fill(appearance).into_solid(),
-                            )
-                            .finish(),
-                        )
-                        .with_height(appearance.monospace_font_size() - 4.)
-                        .with_width(appearance.monospace_font_size() - 4.)
-                        .finish(),
-                        Shrinkable::new(
-                            1.,
-                            Align::new(
-                                Container::new(
-                                    Text::new_inline(
-                                        workflow.name().to_owned(),
-                                        appearance.ui_font_family(),
-                                        appearance.monospace_font_size() - 2.,
-                                    )
-                                    .with_color(
-                                        highlight_state.sub_text_fill(appearance).into_solid(),
-                                    )
-                                    .finish(),
-                                )
-                                .with_margin_left(4.)
-                                .finish(),
-                            )
-                            .left()
-                            .finish(),
-                        )
-                        .finish(),
-                    ])
-                    .finish(),
-            );
-        }
-
         let mut item = Flex::row()
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
             .with_main_axis_size(MainAxisSize::Max)
-            .with_child(Shrinkable::new(1., command_and_workflow.finish()).finish());
+            .with_child(Shrinkable::new(1., command).finish());
 
         if let Some(metadata) = self.render_command_level_metadata(&highlight_state, appearance) {
             item.add_child(metadata);
@@ -154,7 +108,6 @@ impl SearchItem for HistorySearchItem {
     fn accept_result(&self) -> CommandSearchItemAction {
         CommandSearchItemAction::AcceptHistory(AcceptedHistoryItem {
             command: self.entry.command.clone(),
-            linked_workflow_data: self.entry.linked_workflow_data(),
         })
     }
 

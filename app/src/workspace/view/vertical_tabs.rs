@@ -28,7 +28,7 @@ use crate::editor::EditorView;
 use crate::pane_group::pane::IPaneType;
 use crate::pane_group::TerminalPane;
 use crate::pane_group::{
-    CodePane, NotebookPane, PaneGroup, PaneId, TabBarHoverIndex, WorkflowPane,
+    CodePane, NotebookPane, PaneGroup, PaneId, TabBarHoverIndex,
 };
 use crate::tab::{tab_position_id, SelectedTabColor, TabData};
 use crate::terminal::session_settings::SessionSettings;
@@ -791,7 +791,6 @@ enum SummaryPaneKind {
     Code { title: String },
     File,
     Notebook { is_plan: bool },
-    Workflow { is_ai_prompt: bool },
     Settings,
     EnvVarCollection,
     // Dais Wave 7-3:`EnvironmentManagement` variant 随 ambient-agent UI 子系统物理删。
@@ -3394,16 +3393,6 @@ fn resolve_icon_with_status_variant(
                 is_ai_document: *is_plan,
             }),
         },
-        TypedPane::Workflow { is_ai_prompt: true } => IconWithStatusVariant::Neutral {
-            icon: typed.icon(),
-            icon_color: drive_color(DriveObjectType::AgentModeWorkflow),
-        },
-        TypedPane::Workflow {
-            is_ai_prompt: false,
-        } => IconWithStatusVariant::Neutral {
-            icon: typed.icon(),
-            icon_color: drive_color(DriveObjectType::Workflow),
-        },
         TypedPane::EnvVarCollection => IconWithStatusVariant::Neutral {
             icon: typed.icon(),
             icon_color: drive_color(DriveObjectType::EnvVarCollection),
@@ -3714,7 +3703,6 @@ enum TypedPane<'a> {
     Code(&'a CodePane),
     File,
     Notebook { is_plan: bool },
-    Workflow { is_ai_prompt: bool },
     Settings,
     EnvVarCollection,
     AIDocument,
@@ -3751,9 +3739,6 @@ impl TypedPane<'_> {
             },
             TypedPane::File => SummaryPaneKind::File,
             TypedPane::Notebook { is_plan } => SummaryPaneKind::Notebook { is_plan: *is_plan },
-            TypedPane::Workflow { is_ai_prompt } => SummaryPaneKind::Workflow {
-                is_ai_prompt: *is_ai_prompt,
-            },
             TypedPane::Settings => SummaryPaneKind::Settings,
             TypedPane::EnvVarCollection => SummaryPaneKind::EnvVarCollection,
             TypedPane::AIDocument => SummaryPaneKind::AIDocument,
@@ -3776,7 +3761,6 @@ impl TypedPane<'_> {
             TypedPane::Code(_) => crate::t!("vertical-tabs-pane-kind-code"),
             TypedPane::File => crate::t!("vertical-tabs-pane-kind-file"),
             TypedPane::Notebook { .. } => crate::t!("vertical-tabs-pane-kind-notebook"),
-            TypedPane::Workflow { .. } => crate::t!("vertical-tabs-pane-kind-workflow"),
             TypedPane::Settings => crate::t!("settings-title"),
             TypedPane::EnvVarCollection => {
                 crate::t!("vertical-tabs-pane-kind-environment-variables")
@@ -3799,7 +3783,6 @@ impl TypedPane<'_> {
             TypedPane::Terminal(_)
             | TypedPane::File
             | TypedPane::Notebook { .. }
-            | TypedPane::Workflow { .. }
             | TypedPane::Settings
             | TypedPane::EnvVarCollection
             // Dais Wave 7-3:`TypedPane::EnvironmentManagement` arm 随 variant 物理删。
@@ -3816,10 +3799,6 @@ impl TypedPane<'_> {
             TypedPane::File => WarpIcon::File,
             TypedPane::Notebook { is_plan: true } => WarpIcon::Compass,
             TypedPane::Notebook { is_plan: false } => WarpIcon::Notebook,
-            TypedPane::Workflow { is_ai_prompt: true } => WarpIcon::Prompt,
-            TypedPane::Workflow {
-                is_ai_prompt: false,
-            } => WarpIcon::Workflow,
             TypedPane::Settings => WarpIcon::Gear,
             // Dais Wave 7-3:`TypedPane::EnvironmentManagement` icon arm 随 variant 物理删。
             TypedPane::EnvVarCollection => WarpIcon::EnvVarCollection,
@@ -3954,7 +3933,6 @@ fn build_vertical_tabs_summary_data(
             }
             TypedPane::File
             | TypedPane::Notebook { .. }
-            | TypedPane::Workflow { .. }
             | TypedPane::Settings
             | TypedPane::EnvVarCollection
             // Dais Wave 7-3:`TypedPane::EnvironmentManagement` arm 随 variant 物理删。
@@ -4075,7 +4053,6 @@ impl<'a> PaneProps<'a> {
             TypedPane::Code(_)
             | TypedPane::File
             | TypedPane::Notebook { .. }
-            | TypedPane::Workflow { .. }
             | TypedPane::Settings
             | TypedPane::EnvVarCollection
             // Dais Wave 7-3:`TypedPane::EnvironmentManagement` arm 随 variant 物理删。
@@ -4376,16 +4353,6 @@ impl PaneGroup {
                     .map(|np| np.notebook_view(app).as_ref(app).is_plan(app))
                     .unwrap_or(false);
                 TypedPane::Notebook { is_plan }
-            }
-            IPaneType::Workflow => {
-                let is_ai_prompt = self
-                    .downcast_pane_by_id::<WorkflowPane>(pane_id)
-                    .map(|wp| {
-                        let wv = wp.get_view(app);
-                        wv.as_ref(app).is_agent_mode_workflow()
-                    })
-                    .unwrap_or(false);
-                TypedPane::Workflow { is_ai_prompt }
             }
             IPaneType::Settings => TypedPane::Settings,
             IPaneType::EnvVarCollection => TypedPane::EnvVarCollection,
@@ -4919,7 +4886,6 @@ fn render_summary_pane_kind_icon_circle(
         SummaryPaneKind::Terminal
         | SummaryPaneKind::File
         | SummaryPaneKind::Notebook { .. }
-        | SummaryPaneKind::Workflow { .. }
         | SummaryPaneKind::Settings
         | SummaryPaneKind::EnvVarCollection
         // Dais Wave 7-3:`SummaryPaneKind::EnvironmentManagement` arm 随 variant 物理删。
@@ -4983,18 +4949,6 @@ fn summary_pane_kind_icon(
             drive_color(DriveObjectType::Notebook {
                 is_ai_document: is_plan,
             }),
-        ),
-        SummaryPaneKind::Workflow { is_ai_prompt } => (
-            if is_ai_prompt {
-                WarpIcon::Prompt
-            } else {
-                WarpIcon::Workflow
-            },
-            if is_ai_prompt {
-                drive_color(DriveObjectType::AgentModeWorkflow)
-            } else {
-                drive_color(DriveObjectType::Workflow)
-            },
         ),
         SummaryPaneKind::Settings => (WarpIcon::Gear, main_text),
         // Dais Wave 7-3:`SummaryPaneKind::EnvironmentManagement` arm 随 variant 物理删。
@@ -5454,7 +5408,7 @@ fn compute_tab_group_color_mode(
                             .and_then(|c| c.ansi_color())
                     })
             } else {
-                // Other non-terminal panes (notebook, workflow, etc.): fall back to the
+                // Other non-terminal panes (notebook, etc.): fall back to the
                 // cached directory color from the tab's last active terminal.
                 tab.default_directory_color
             };
@@ -6802,10 +6756,6 @@ fn typed_pane_warp_drive_object_type(typed: &TypedPane<'_>) -> Option<DriveObjec
         TypedPane::Notebook { is_plan } => Some(DriveObjectType::Notebook {
             is_ai_document: *is_plan,
         }),
-        TypedPane::Workflow { is_ai_prompt: true } => Some(DriveObjectType::AgentModeWorkflow),
-        TypedPane::Workflow {
-            is_ai_prompt: false,
-        } => Some(DriveObjectType::Workflow),
         TypedPane::EnvVarCollection => Some(DriveObjectType::EnvVarCollection),
         TypedPane::AIDocument => Some(DriveObjectType::Notebook {
             is_ai_document: true,
@@ -6834,7 +6784,6 @@ fn render_detail_section(
         ),
         TypedPane::Code(_) => render_code_detail_section(props, appearance, app),
         TypedPane::Notebook { .. }
-        | TypedPane::Workflow { .. }
         | TypedPane::EnvVarCollection
         | TypedPane::AIDocument => render_warp_drive_object_detail_section(props, appearance, app),
         TypedPane::File

@@ -61,7 +61,6 @@ lazy_static! {
         [
             if FeatureFlag::AgentMode.is_enabled() { "input:toggle_input_type" } else { "workspace:toggle_ai_assistant" },
             "workspace:show_theme_chooser",
-            "workspace:create_personal_workflow",
         ]
     );
 }
@@ -94,8 +93,6 @@ pub enum Event {
     Close {
         accepted_action_type: Option<&'static str>,
     },
-    /// Execute the workflow identified by `id`.
-    ExecuteWorkflow { id: SyncId },
     /// Invoke the env vars identified by `id`.
     InvokeEnvironmentVariables { id: SyncId },
     /// Open a notebook identified by `id`.
@@ -876,9 +873,6 @@ impl View {
                         open_in_active_window,
                     },
                 );
-            }
-            CommandPaletteItemAction::ExecuteWorkflow { id } => {
-                ctx.emit(Event::ExecuteWorkflow { id })
             }
             CommandPaletteItemAction::InvokeEnvironmentVariables { id } => {
                 ctx.emit(Event::InvokeEnvironmentVariables { id })

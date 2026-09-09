@@ -15,11 +15,11 @@
 //!
 //! ## 留守 app 的 item (物理依赖约束)
 //!
-//! - `folder` / `notebook` / `workflow` / `ai_fact` / `mcp_server` 五类 item
+//! - `folder` / `notebook` / `ai_fact` / `mcp_server` 五类 item
 //!   持有 app 侧 `*Object`:
 //!   `FolderObjectModel::upsert_event` 依 app `persistence::ModelEvent`;
-//!   `NotebookObject` / `WorkflowObject`(G2 互斥区) / `AIFactObject` /
-//!   `MCPServerObject` 分别在 notebooks / workflows / ai 域, 随其域 crate 化
+//!   `NotebookObject`(G2 互斥区) / `AIFactObject` /
+//!   `MCPServerObject` 分别在 notebooks / ai 域, 随其域 crate 化
 //!   再迁, 届时在 app 侧 impl 本 crate trait 即可 (trait 对宿主实现开放)。
 //!
 //! app 侧 `drive::items` / `drive::objects_styling` / `drive::DriveObjectType`

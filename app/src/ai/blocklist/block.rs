@@ -4984,10 +4984,6 @@ pub enum AIBlockEvent {
     ShowSecretTooltip(RichContentSecretTooltipInfo),
     DismissSecretTooltip,
     OpenCitation(AIAgentCitation),
-    OpenWorkflow {
-        sync_id: SyncId,
-    },
-    /// Emitted when the continue conversation button is clicked
     ContinueConversation {
         conversation_id: AIConversationId,
     },

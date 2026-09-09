@@ -14,7 +14,6 @@ use crate::features::FeatureFlag;
 use crate::search::data_source::{Query, QueryFilter};
 use crate::search::mixer::{SearchMixer, SearchMixerEvent};
 use crate::settings_view::SettingsSection;
-use crate::terminal::history::LinkedWorkflowData;
 use crate::terminal::input::buffer_model::InputBufferModel;
 use crate::terminal::input::inline_history::data_source::{
     AcceptHistoryItem, InlineHistoryMenuDataSource,
@@ -38,14 +37,12 @@ pub enum InlineHistoryMenuEvent {
     },
     AcceptCommand {
         command: String,
-        linked_workflow_data: Option<LinkedWorkflowData>,
     },
     AcceptAIPrompt {
         query_text: String,
     },
     SelectCommand {
         command: String,
-        linked_workflow_data: Option<LinkedWorkflowData>,
     },
     SelectAIPrompt {
         query_text: String,
@@ -351,13 +348,9 @@ impl InlineHistoryMenuView {
                         conversation_id: *conversation_id,
                     });
                 }
-                AcceptHistoryItem::Command {
-                    command,
-                    linked_workflow_data,
-                } => {
+                AcceptHistoryItem::Command { command } => {
                     ctx.emit(InlineHistoryMenuEvent::AcceptCommand {
                         command: command.clone(),
-                        linked_workflow_data: linked_workflow_data.clone(),
                     });
                 }
                 AcceptHistoryItem::AIPrompt { query_text } => {
@@ -367,13 +360,9 @@ impl InlineHistoryMenuView {
                 }
             },
             InlineMenuEvent::SelectedItem { item } => match item {
-                AcceptHistoryItem::Command {
-                    command,
-                    linked_workflow_data,
-                } => {
+                AcceptHistoryItem::Command { command } => {
                     ctx.emit(InlineHistoryMenuEvent::SelectCommand {
                         command: command.clone(),
-                        linked_workflow_data: linked_workflow_data.clone(),
                     });
                 }
                 AcceptHistoryItem::AIPrompt { query_text } => {

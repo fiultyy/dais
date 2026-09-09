@@ -18,8 +18,8 @@ lazy_static! {
     // Regex to match <block:[block_id]> patterns
     pub static ref BLOCK_CONTEXT_ATTACHMENT_REGEX: Regex = Regex::new(r"<block:([^>]+)>")
         .expect("Block context attachment regex should be parsed");
-    // Regex to match dais drive objects inserted via at-context. Ex: <notebook:[workflow_id]>
-    pub static ref DRIVE_OBJECT_ATTACHMENT_REGEX: Regex = Regex::new(r"<(workflow|notebook|plan|rule):([^>]+)>")
+    // Regex to match dais drive objects inserted via at-context. Ex: <notebook:[notebook_id]>
+    pub static ref DRIVE_OBJECT_ATTACHMENT_REGEX: Regex = Regex::new(r"<(notebook|plan|rule):([^>]+)>")
         .expect("Drive object attachment regex should be parsed");
     // Regex to match <change:filename:line_start-line_end> patterns
     pub static ref DIFF_HUNK_ATTACHMENT_REGEX: Regex = Regex::new(r"<change:([^>]+)>")
@@ -94,7 +94,7 @@ pub(super) fn parse_context_attachments(
         }
     }
 
-    // Parse drive object attachments (notebooks, workflows, etc)
+    // Parse drive object attachments (notebooks, etc)
     for capture in DRIVE_OBJECT_ATTACHMENT_REGEX.captures_iter(query) {
         if let (Some(full_match), Some(object_type_match), Some(object_id_match)) =
             (capture.get(0), capture.get(1), capture.get(2))
@@ -109,7 +109,6 @@ pub(super) fn parse_context_attachments(
                 }
             } else {
                 let object_type = match object_type_str {
-                    "workflow" => ObjectType::Workflow,
                     "notebook" => ObjectType::Notebook,
                     "rule" => ObjectType::GenericStringObject(GenericStringObjectFormat::Json(
                         JsonObjectType::AIFact,
@@ -275,18 +274,6 @@ fn get_object_attachment_payload(
     ctx: &AppContext,
 ) -> Option<DriveObjectPayload> {
     match object_type {
-        ObjectType::Workflow => {
-            ObjectStoreModel::as_ref(ctx)
-                .get_workflow_by_uid(uid)
-                .map(|workflow| {
-                    let workflow_data = &workflow.model().data;
-                    DriveObjectPayload::Workflow {
-                        name: workflow_data.name().to_string(),
-                        description: workflow_data.description().cloned().unwrap_or_default(),
-                        command: workflow_data.content().to_string(),
-                    }
-                })
-        }
         ObjectType::Notebook => {
             ObjectStoreModel::as_ref(ctx)
                 .get_notebook_by_uid(uid)
@@ -321,7 +308,6 @@ fn generic_string_object_format_name(format: GenericStringObjectFormat) -> Strin
     match format {
         GenericStringObjectFormat::Json(JsonObjectType::Preference) => "JsonPreference",
         GenericStringObjectFormat::Json(JsonObjectType::EnvVarCollection) => "JsonEnvVarCollection",
-        GenericStringObjectFormat::Json(JsonObjectType::WorkflowEnum) => "JsonWorkflowEnum",
         GenericStringObjectFormat::Json(JsonObjectType::AIFact) => "JsonAIFact",
         GenericStringObjectFormat::Json(JsonObjectType::MCPServer) => "JsonMCPServer",
         GenericStringObjectFormat::Json(JsonObjectType::AIExecutionProfile) => {

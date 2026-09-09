@@ -5,15 +5,13 @@ pub mod folders;
 pub mod items;
 pub mod settings;
 pub mod sharing;
-pub mod workflows;
 
 use std::cmp::Ordering;
 use serde::{Deserialize, Serialize};
 use warp_core::user_preferences::GetUserPreferences as _;
 use warpui::AppContext;
 
-use crate::workflows::WorkflowObject;
-use crate::objects::{GenericStringObjectFormat, ObjectIdType, ObjectType, StoredObject, ids::{HashedSqliteId, ObjectUid, ServerId, SyncId}};
+use crate::objects::{ObjectType, StoredObject, ids::ServerId};
 use crate::objects::model::view::{ObjectStoreViewModel, UpdateTimestamp};
 
 type SortByComparator<'a> = dyn FnMut(&&dyn StoredObject, &&dyn StoredObject) -> Ordering + 'a;
@@ -127,18 +125,6 @@ impl DriveSortOrder {
                         ObjectType::Folder => 0,
                         ObjectType::GenericStringObject(_) => 1,
                         ObjectType::Notebook => 2,
-                        ObjectType::Workflow => {
-                            let Some(workflow) = obj.as_any().downcast_ref::<WorkflowObject>()
-                            else {
-                                return 3;
-                            };
-
-                            if workflow.model().data.is_agent_mode_workflow() {
-                                4
-                            } else {
-                                3
-                            }
-                        }
                     };
 
                     // First compare by object type ordering, then by display name alphabetically if equal

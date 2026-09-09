@@ -10,7 +10,6 @@ use crate::{
     },
     ui_components::breadcrumb::Breadcrumb,
     util::time_format::format_approx_duration_from_now_utc,
-    workflows::WorkflowSource,
     workspaces::{user_profiles::UserProfiles, user_workspaces::UserWorkspaces},
 };
 use chrono::{Duration, Utc};
@@ -86,27 +85,6 @@ impl ContainingObjectKind {
         match self {
             ContainingObjectKind::Space(space) => WarpDriveItemId::Space(space),
             ContainingObjectKind::Object(object) => WarpDriveItemId::Object(object),
-        }
-    }
-}
-
-impl From<Space> for WorkflowSource {
-    fn from(space: Space) -> Self {
-        match space {
-            Space::Personal => WorkflowSource::PersonalCloud,
-            Space::Team { team_uid } => WorkflowSource::Team { team_uid },
-            // TODO(ben): Model sharing in workflow telemetry.
-            Space::Shared => WorkflowSource::PersonalCloud,
-        }
-    }
-}
-
-impl From<Owner> for WorkflowSource {
-    fn from(owner: Owner) -> WorkflowSource {
-        match owner {
-            // TODO(ben): Represent shared objects in telemetry.
-            Owner::User { .. } => Self::PersonalCloud,
-            Owner::Team { team_uid } => Self::Team { team_uid },
         }
     }
 }
@@ -208,7 +186,7 @@ fn get_top_folder_trashed_ts(
 
 /// P-ARC R1: crate `StringModel` 裁撤 drive 展示语义后的宿主侧扩展 trait。
 /// 各域 StringModel impl 若需 drive 徽章/链接行为,另 impl 本 trait。
-/// 不要求 StringModel: Folder/Notebook/Workflow 的 ObjectModel 走 StoredObjectModel。
+/// 不要求 StringModel: Folder/Notebook 的 ObjectModel 走 StoredObjectModel。
 pub trait WarpDriveItemOverrides {
     fn renders_in_warp_drive(&self) -> bool;
 }

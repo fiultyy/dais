@@ -19,7 +19,6 @@ use warpui::{
 use super::{
     common::{
         add_command_xray_overlay, add_input_suggestions_overlays, add_vim_status_to_stack,
-        add_voltron_overlay, add_workflow_info_overlay,
         wrap_input_with_terminal_padding_and_focus_handler,
     },
     Input,
@@ -120,22 +119,6 @@ impl Input {
             column.finish(),
             true, // use adjusted padding for UDI
         ));
-
-        if let Some(selected_workflow_state) = self.workflows_state.selected_workflow_state.as_ref()
-        {
-            if selected_workflow_state.should_show_more_info_view {
-                add_workflow_info_overlay(
-                    &mut stack,
-                    selected_workflow_state,
-                    self.size_info(app).pane_height_px().as_f32(),
-                    menu_positioning,
-                );
-            }
-        }
-
-        if self.is_voltron_open && self.is_pane_focused(app) {
-            add_voltron_overlay(&mut stack, &self.voltron_view, menu_positioning);
-        }
 
         if self.is_pane_focused(app) {
             add_input_suggestions_overlays(self, &mut stack, appearance, menu_positioning, app);

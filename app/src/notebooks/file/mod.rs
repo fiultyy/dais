@@ -41,7 +41,6 @@ use crate::{
     terminal::model::session::Session,
     ui_components::icons::Icon,
     view_components::{MarkdownToggleEvent, MarkdownToggleView},
-    workflows::{WorkflowSource, WorkflowType},
     workspace::ActiveSession,
 };
 
@@ -102,10 +101,6 @@ pub struct FileNotebookView {
 
 #[derive(Debug, Clone)]
 pub enum FileNotebookEvent {
-    RunWorkflow {
-        workflow: Arc<WorkflowType>,
-        source: WorkflowSource,
-    },
     TitleUpdated,
     FileLoaded,
     Pane(PaneEvent),
@@ -592,22 +587,6 @@ impl FileNotebookView {
     ) {
         match event {
             EditorViewEvent::Focused => ctx.emit(FileNotebookEvent::Pane(PaneEvent::FocusSelf)),
-            EditorViewEvent::RunWorkflow(workflow) => {
-                let workflow_type = workflow.named_workflow(|| {
-                    self.location
-                        .as_ref()
-                        .map(|location| format!("Command from {}", location.name))
-                });
-                let source = workflow.source.unwrap_or(WorkflowSource::Notebook {
-                    notebook_id: None,
-                    team_uid: None,
-                    location: NotebookLocation::LocalFile,
-                });
-                ctx.emit(FileNotebookEvent::RunWorkflow {
-                    workflow: workflow_type,
-                    source,
-                });
-            }
             EditorViewEvent::OpenedBlockInsertionMenu(source) => self.send_telemetry_action(
                 NotebookTelemetryAction::OpenBlockInsertionMenu { source: *source },
                 ctx,
@@ -618,8 +597,6 @@ impl FileNotebookView {
             EditorViewEvent::OpenedFindBar => {
                 self.send_telemetry_action(NotebookTelemetryAction::OpenFindBar, ctx)
             }
-            EditorViewEvent::InsertedEmbeddedObject(info) => self
-                .send_telemetry_action(NotebookTelemetryAction::InsertEmbeddedObject(*info), ctx),
             EditorViewEvent::CopiedBlock { block, entrypoint } => self.send_telemetry_action(
                 NotebookTelemetryAction::CopyBlock {
                     block: *block,
@@ -636,7 +613,6 @@ impl FileNotebookView {
             ),
             EditorViewEvent::Navigate(_)
             | EditorViewEvent::Edited
-            | EditorViewEvent::EditWorkflow(_)
             | EditorViewEvent::CmdEnter
             | EditorViewEvent::EscapePressed
             | EditorViewEvent::TextSelectionChanged => (),
