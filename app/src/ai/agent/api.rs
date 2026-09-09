@@ -182,7 +182,6 @@ impl RequestParams {
             input,
             conversation_token: None,
             forked_from_conversation_token: None,
-            ambient_agent_task_id: None,
             tasks,
             existing_suggestions: None,
             metadata: None,
