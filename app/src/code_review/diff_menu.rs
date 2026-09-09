@@ -24,10 +24,7 @@ use warpui::{
 use crate::{
     appearance::Appearance,
     code_review::{diff_selector::DiffTarget, diff_state::DiffMode},
-    editor::{
-        EditorOptions, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys,
-        TextOptions,
-    },
+    editor::{ EditorOptions, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, TextOptions, },
     ui_components::icons::Icon,
 };
 

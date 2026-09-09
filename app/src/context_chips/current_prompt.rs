@@ -1,4 +1,6 @@
+use terminal_grid_model::block::{Block, BlockMetadata};
 use crate::features::FeatureFlag;
+use crate::context_chips::ContextChipKindExt as _;
 use crate::report_if_error;
 use crate::settings::{InputSettings, WarpPromptSeparator};
 use crate::terminal::event::{BlockType, UserBlockCompleted};
@@ -8,17 +10,7 @@ use crate::{
     debounce::debounce,
     editor::EditorView,
     menu::{MenuItem, MenuItemFields},
-    terminal::{
-        model::{
-            block::{Block, BlockMetadata},
-            session::Sessions,
-        },
-        session_settings::{
-            GithubPrPromptChipDefaultValidation, SessionSettings, SessionSettingsChangedEvent,
-            ToolbarChipSelection,
-        },
-        view::{ContextMenuAction, PromptPart, PromptPosition, TerminalAction},
-    },
+    terminal::{ model::{session::Sessions}, session_settings::{ GithubPrPromptChipDefaultValidation, SessionSettings, SessionSettingsChangedEvent, ToolbarChipSelection, }, view::{ContextMenuAction, PromptPart, PromptPosition, TerminalAction}, },
 };
 use futures::{pin_mut, FutureExt as _};
 use itertools::Itertools;
@@ -31,8 +23,8 @@ use super::{
     chips_to_string,
     context_chip::{
         ChipAvailability, ChipDisabledReason, ChipFingerprintInput, ChipRuntimeCapabilities,
-        ContextChip, Environment, ExternalCommandsAvailability, GeneratorContext, PromptGenerator,
-        RefreshConfig, ShellCommandGenerator,
+        ContextChip, Environment, EnvironmentHostExt, ExternalCommandsAvailability,
+        GeneratorContext, PromptGenerator, RefreshConfig, ShellCommandGenerator,
     },
     logging::{ChipCommandLogEntry, PromptChipExecutionPhase, PromptChipLogger},
     prompt::Prompt,
@@ -41,7 +33,8 @@ use super::{
 #[cfg(feature = "local_fs")]
 use crate::code_review::git_status_update::{GitRepoStatusEvent, GitRepoStatusModel};
 #[cfg(feature = "local_fs")]
-use crate::context_chips::display_chip::GitLineChanges;
+use terminal_grid_model::prompt_snapshot::GitLineChanges;
+use crate::context_chips::display_chip::GitLineChangesExt as _;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash as _, Hasher as _};
 use std::sync::Arc;

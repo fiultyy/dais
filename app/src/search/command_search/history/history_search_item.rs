@@ -17,10 +17,14 @@ use crate::search::{
     command_search::searcher::AcceptedHistoryItem, result_renderer::ItemHighlightState,
 };
 use crate::{
-    appearance::Appearance, terminal::rich_history::render_rich_history,
+    appearance::Appearance,
+    terminal::rich_history::render_rich_history,
     util::time_format::format_approx_duration_from_now,
 };
-use crate::{search::command_search::searcher::CommandSearchItemAction, terminal::HistoryEntry};
+use crate::{
+    search::command_search::searcher::CommandSearchItemAction,
+    terminal::HistoryEntry,
+};
 
 const COMMAND_METADATA_LEFT_MARGIN_FROM_METADATA: f32 = 8.;
 

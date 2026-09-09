@@ -12,7 +12,7 @@ use crate::ai::blocklist::telemetry_banner::should_collect_ai_ugc_telemetry;
 use crate::auth::AuthState;
 use crate::auth::AuthStateProvider;
 use crate::auth::SyncedUserSettings;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
+use crate::objects::model::persistence::ObjectStoreModel;
 use crate::report_error;
 // Dais Wave 3-1:`AuthClient` trait + `MockAuthClient` 随 server_api/auth.rs
 // 整件物理删,`SyncedUserSettings` 迁到 `crate::auth`。

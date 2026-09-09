@@ -9,6 +9,7 @@ license.workspace = true
 local_fs = []
 
 [dependencies]
+agent_ids = { path = "../agent_ids" }
 chrono.workspace = true
 diesel = { workspace = true, features = [
     "chrono",

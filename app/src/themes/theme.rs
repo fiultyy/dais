@@ -1,11 +1,7 @@
 use super::default_themes::*;
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use std::path::PathBuf;
-use warp_core::ui::color::pick_foreground_color;
-use warpui::assets::asset_cache::AssetSource;
 use warpui::{
     color::ColorU,
     elements::{
@@ -15,104 +11,79 @@ use warpui::{
     fonts::FamilyId,
 };
 
-use super::theme_creator::{pick_accent_color_from_options, top_colors_for_image};
+pub use warp_core::ui::theme::*;
 
 pub use warp_core::ui::color::blend::Blend;
-pub use warp_core::ui::theme::*;
 
 const THUMBNAIL_MARGIN: f32 = 10.;
 
-// We use the discriminant of enum variants to determine the order of theme types in the
-// theme chooser view.
 #[derive(
     Clone,
     Debug,
     Default,
     PartialEq,
     Serialize,
-    Deserialize,
     Hash,
     Eq,
     Ord,
     PartialOrd,
     schemars::JsonSchema,
-    settings_value::SettingsValue,
 )]
 #[schemars(description = "The color theme.", rename_all = "snake_case")]
 pub enum ThemeKind {
-    // Need an alias for backwards-compatibility: Originally we only had a single reward theme
-    // so it was named `ReferralReward`.
-    #[serde(alias = "ReferralReward")]
-    #[schemars(skip)]
-    SentReferralReward,
-    #[schemars(skip)]
-    ReceivedReferralReward,
-    #[schemars(description = "Adeberry")]
-    Adeberry,
-    #[schemars(description = "Phenomenon")]
-    Phenomenon,
     #[default]
     #[schemars(description = "Dark")]
     Dark,
-    #[schemars(description = "Dracula")]
-    Dracula,
-    #[schemars(description = "Tokyo Night")]
-    TokyoNight,
-    #[schemars(description = "One Dark")]
-    OneDark,
-    #[schemars(description = "Fancy Dracula")]
-    FancyDracula,
-    #[schemars(description = "Cyber Wave")]
-    CyberWave,
-    #[schemars(description = "Solar Flare")]
-    SolarFlare,
-    #[schemars(description = "Solarized Dark")]
-    SolarizedDark,
-    #[schemars(description = "Willow Dream")]
-    WillowDream,
     #[schemars(description = "Light")]
     Light,
-    #[schemars(description = "Dark City")]
-    DarkCity,
-    #[schemars(description = "Gruvbox Dark")]
-    GruvboxDark,
-    #[schemars(description = "Red Rock")]
-    RedRock,
-    #[schemars(description = "Jellyfish")]
-    JellyFish,
-    #[schemars(description = "Leafy")]
-    Leafy,
-    #[schemars(description = "WezTerm Classic")]
-    WezTermClassic,
-    #[schemars(description = "VS Code 2026 Dark")]
-    VsCode2026Dark,
-    #[schemars(description = "Koi")]
-    Koi,
-    #[schemars(description = "Solarized Light")]
-    SolarizedLight,
-    #[schemars(description = "Snowy")]
-    Snowy,
-    #[schemars(description = "Gruvbox Light")]
-    GruvboxLight,
-    #[schemars(description = "Pink City")]
-    PinkCity,
-    #[schemars(description = "Marble")]
-    Marble,
-    #[schemars(description = "A user-provided custom theme loaded from a file.")]
-    Custom(CustomTheme),
-    /// Base16 themes are a special case of custom themes with their own semantics for ANSI colors that override "bright" color variants.
-    #[schemars(description = "A custom theme using the Base16 color scheme format.")]
-    CustomBase16(CustomTheme),
-    #[schemars(skip)]
-    InMemory(InMemoryThemeOptions),
 }
 
-impl From<CustomTheme> for ThemeKind {
-    fn from(custom_theme: CustomTheme) -> ThemeKind {
-        if custom_theme.name.as_str().starts_with("Base16") {
-            ThemeKind::CustomBase16(custom_theme)
-        } else {
-            ThemeKind::Custom(custom_theme)
+impl<'de> Deserialize<'de> for ThemeKind {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct Fallback;
+
+        impl<'de> serde::de::Visitor<'de> for Fallback {
+            type Value = ThemeKind;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a theme name")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<ThemeKind, E> {
+                match value {
+                    // 兼容新旧两种拼写:旧 TOML 用 PascalCase("Dark"/"Light"),
+                    // 新序列化输出小写。
+                    "light" | "Light" => Ok(ThemeKind::Light),
+                    _ => Ok(ThemeKind::Dark),
+                }
+            }
+
+            // Legacy persisted shapes for removed variants (e.g. `{"custom": …}`)
+            // also fall back to Dark instead of failing to deserialize.
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                mut access: A,
+            ) -> Result<ThemeKind, A::Error> {
+                while access.next_key::<serde::de::IgnoredAny>()?.is_some() {
+                    access.next_value::<serde::de::IgnoredAny>()?;
+                }
+                Ok(ThemeKind::Dark)
+            }
+        }
+
+        deserializer.deserialize_any(Fallback)
+    }
+}
+
+/// Unknown values from legacy settings files map to `Dark` instead of failing.
+impl settings_value::SettingsValue for ThemeKind {
+    fn from_file_value(value: &serde_json::Value) -> Option<Self> {
+        match value.as_str() {
+            Some("light") => Some(ThemeKind::Light),
+            _ => Some(ThemeKind::Dark),
         }
     }
 }
@@ -122,34 +93,6 @@ impl std::fmt::Display for ThemeKind {
         let value = match &self {
             ThemeKind::Light => "Light",
             ThemeKind::Dark => "Dark",
-            ThemeKind::Dracula => "Dracula",
-            ThemeKind::TokyoNight => "Tokyo Night",
-            ThemeKind::OneDark => "One Dark",
-            ThemeKind::SolarizedDark => "Solarized Dark",
-            ThemeKind::SolarizedLight => "Solarized Light",
-            ThemeKind::GruvboxDark => "Gruvbox Dark",
-            ThemeKind::GruvboxLight => "Gruvbox Light",
-            ThemeKind::JellyFish => "Jellyfish",
-            ThemeKind::Koi => "Koi",
-            ThemeKind::Leafy => "Leafy",
-            ThemeKind::Marble => "Marble",
-            ThemeKind::PinkCity => "Pink City",
-            ThemeKind::Snowy => "Snowy",
-            ThemeKind::DarkCity => "Dark City",
-            ThemeKind::RedRock => "Red Rock",
-            ThemeKind::CyberWave => "Cyber Wave",
-            ThemeKind::WillowDream => "Willow Dream",
-            ThemeKind::FancyDracula => "Fancy Dracula",
-            ThemeKind::Phenomenon => "Phenomenon",
-            ThemeKind::SolarFlare => "Solar Flare",
-            ThemeKind::Adeberry => "Adeberry",
-            ThemeKind::WezTermClassic => "WezTerm Classic",
-            ThemeKind::VsCode2026Dark => "VS Code 2026 Dark",
-            ThemeKind::SentReferralReward => "Dais Referral",
-            ThemeKind::ReceivedReferralReward => "Referred to Dais",
-            ThemeKind::Custom(custom_theme) => custom_theme.name.as_str(),
-            ThemeKind::CustomBase16(custom_theme) => custom_theme.name.as_str(),
-            ThemeKind::InMemory(in_memory_theme) => in_memory_theme.name.as_str(),
         };
         write!(f, "{value}")
     }
@@ -162,143 +105,6 @@ impl ThemeKind {
     }
 }
 
-#[derive(
-    Debug,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    PartialOrd,
-    Ord,
-    schemars::JsonSchema,
-    settings_value::SettingsValue,
-)]
-#[schemars(description = "A user-provided custom theme.")]
-pub struct CustomTheme {
-    #[schemars(description = "The display name of the custom theme.")]
-    name: String,
-    #[schemars(description = "The file path to the custom theme definition.")]
-    path: PathBuf,
-}
-
-impl CustomTheme {
-    pub fn new(s: String, p: PathBuf) -> Self {
-        CustomTheme { name: s, path: p }
-    }
-
-    pub fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    pub fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
-}
-
-#[derive(
-    Debug,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    PartialOrd,
-    Ord,
-    settings_value::SettingsValue,
-)]
-pub struct InMemoryThemeOptions {
-    name: String,
-    path: PathBuf,
-    #[serde(skip)]
-    possible_bg_colors: Vec<ColorU>,
-    #[serde(skip)]
-    chosen_bg_color_index: usize,
-}
-
-impl InMemoryThemeOptions {
-    pub async fn new(name: String, path: PathBuf) -> Result<Self> {
-        top_colors_for_image(path.clone()).map(|top_colors| InMemoryThemeOptions {
-            name,
-            path,
-            possible_bg_colors: top_colors,
-            chosen_bg_color_index: 0,
-        })
-    }
-
-    pub fn chosen_bg_color(&self) -> ColorU {
-        self.possible_bg_colors[self.chosen_bg_color_index]
-    }
-
-    pub fn possible_bg_colors(&self) -> Vec<ColorU> {
-        self.possible_bg_colors.clone()
-    }
-
-    pub fn chosen_bg_color_index(&self) -> usize {
-        self.chosen_bg_color_index
-    }
-
-    pub fn set_chosen_bg_color_index(&mut self, index: usize) {
-        self.chosen_bg_color_index = index;
-    }
-
-    pub fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    pub fn set_name(&mut self, name: String) {
-        self.name = name;
-    }
-
-    pub fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
-
-    pub fn set_path(&mut self, path: PathBuf) {
-        self.path = path;
-    }
-
-    pub fn theme(&self) -> WarpTheme {
-        let bg_color = self.chosen_bg_color();
-        let fg_color = pick_foreground_color(bg_color);
-        let possible_accent_colors: Vec<ColorU> = self
-            .possible_bg_colors
-            .iter()
-            .enumerate()
-            .filter(|(index, _)| *index != self.chosen_bg_color_index)
-            .map(|(_, color)| *color)
-            .collect();
-        let accent_color =
-            pick_accent_color_from_options(&[bg_color, fg_color], &possible_accent_colors[..]);
-
-        let (details, terminal_colors) = if fg_color.eq(&ColorU::white()) {
-            (Details::Darker, dark_mode_colors())
-        } else {
-            (Details::Lighter, light_mode_colors())
-        };
-
-        WarpTheme::new(
-            bg_color.into(),
-            fg_color,
-            accent_color.into(),
-            None,
-            Some(details),
-            terminal_colors,
-            Some(Image {
-                // Note that, as an invariant, in-memory themes come from local files.
-                source: AssetSource::LocalFile {
-                    path: self.path().to_str().unwrap_or_default().to_owned(),
-                },
-                opacity: 30,
-            }),
-            Some(self.name()),
-            None,
-        )
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct WarpThemeConfig {
     theme_map: HashMap<ThemeKind, WarpTheme>,
@@ -308,46 +114,14 @@ impl WarpThemeConfig {
     pub fn new() -> Self {
         // preload with built-in themes
         let theme_map: HashMap<ThemeKind, WarpTheme> = HashMap::from_iter([
-            (ThemeKind::SentReferralReward, sent_referral_reward()),
-            (
-                ThemeKind::ReceivedReferralReward,
-                received_referral_reward(),
-            ),
             (ThemeKind::Dark, dark_theme()),
             (ThemeKind::Light, light_theme()),
-            (ThemeKind::SolarizedDark, solarized_dark()),
-            (ThemeKind::SolarizedLight, solarized_light()),
-            (ThemeKind::Dracula, dracula()),
-            (ThemeKind::TokyoNight, tokyo_night()),
-            (ThemeKind::OneDark, one_dark()),
-            (ThemeKind::GruvboxDark, gruvbox_dark()),
-            (ThemeKind::GruvboxLight, gruvbox_light()),
-            (ThemeKind::JellyFish, jellyfish()),
-            (ThemeKind::Koi, koi()),
-            (ThemeKind::Leafy, leafy()),
-            (ThemeKind::Marble, marble()),
-            (ThemeKind::PinkCity, pink_city()),
-            (ThemeKind::Snowy, snowy()),
-            (ThemeKind::DarkCity, dark_city()),
-            (ThemeKind::RedRock, red_rock()),
-            (ThemeKind::CyberWave, cyber_wave()),
-            (ThemeKind::WillowDream, willow_dream()),
-            (ThemeKind::FancyDracula, fancy_dracula()),
-            (ThemeKind::Phenomenon, phenomenon()),
-            (ThemeKind::SolarFlare, solar_flare()),
-            (ThemeKind::Adeberry, adeberry()),
-            (ThemeKind::WezTermClassic, wezterm_classic()),
-            (ThemeKind::VsCode2026Dark, vscode_2026_dark()),
         ]);
         WarpThemeConfig { theme_map }
     }
 
     pub fn add_new_theme(&mut self, theme_name: ThemeKind, theme: WarpTheme) {
         self.theme_map.insert(theme_name, theme);
-    }
-
-    pub fn file_to_theme(name: String, path: PathBuf) -> ThemeKind {
-        CustomTheme::new(name, path).into()
     }
 
     pub fn theme_items(&self) -> impl Iterator<Item = (&ThemeKind, &WarpTheme)> {

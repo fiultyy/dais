@@ -3,8 +3,6 @@ mod figma_utils;
 mod model;
 mod movement;
 mod snapshot;
-#[cfg(feature = "voice_input")]
-mod voice;
 
 /// The editor interfaces that we publicly expose to consumers.
 /// This should be a very limited set; if you need to add something here,
@@ -21,8 +19,6 @@ pub use {
 use self::model::{LocalSelections, Selection, UpdateBufferOption};
 use super::soft_wrap::{ClampDirection, DisplayPointAndClampDirection};
 use super::Point;
-#[cfg(feature = "voice_input")]
-use crate::view_components::FeaturePopup;
 use base64::{engine::general_purpose, Engine as _};
 use element::CommandXRayMouseStateHandle;
 use figma_utils::is_figma_png;
@@ -64,18 +60,19 @@ use crate::ui_components::icons;
 use crate::view_components::DismissibleToast;
 use crate::vim_registers::{RegisterContent, VimRegisters};
 use crate::workspace::ToastStack;
-use crate::{ai::blocklist::InputType, settings::AISettings};
+use crate::{
+    ai::blocklist::InputType,
+    settings::AISettings,
+};
 
 use crate::editor::RangeExt;
 use crate::features::FeatureFlag;
-#[cfg(feature = "voice_input")]
-use crate::settings::AISettingsChangedEvent;
 use crate::settings::{AppEditorSettings, CursorBlink};
 use crate::settings::{
     AppEditorSettingsChangedEvent, CursorDisplayType, InputSettings, SelectionSettings,
 };
 use crate::terminal::grid_size_util::grid_cell_dimensions;
-use crate::terminal::model::block::BlockId;
+use terminal_grid_model::block::BlockId;
 use crate::themes::theme::Fill;
 use crate::ui_components::avatar::{Avatar, AvatarContent};
 use crate::util::bindings::{cmd_or_ctrl_shift, keybinding_name_to_keystroke, CustomAction};
@@ -83,7 +80,10 @@ use crate::util::clipboard::clipboard_content_with_escaped_paths;
 use crate::util::color::{ContrastingColor, MinimumAllowedContrast};
 use crate::util::image::{resize_image, MAX_IMAGE_COUNT_FOR_QUERY, MAX_IMAGE_SIZE_BYTES};
 use crate::util::merge_ranges;
-use crate::{workspace::Workspace, BlocklistAIHistoryModel};
+use crate::{
+    workspace::Workspace,
+    BlocklistAIHistoryModel,
+};
 use anyhow::Result;
 use core::f32;
 use std::path::Path;
@@ -1103,19 +1103,18 @@ pub enum EditorAction {
     AddCursorBelow,
     CmdEnter,
     InspectCommand,
-    /// Requests to try to show the command x-ray overlay when the mouse
+    InsertAutosuggestion,
+    EmacsBinding,
+/// Requests to try to show the command x-ray overlay when the mouse
     /// is at the given display point.  The x-ray will only actually be shown
     /// if the underlying command is parseable and there is a token under the
     /// displat point that we have a description for.
     TryToShowXRay(DisplayPoint),
+
     HideXRay,
     InsertLastWordPrevCommand,
     InsertNonExpandingSpace,
     ShowCharacterPalette,
-    InsertAutosuggestion,
-    EmacsBinding,
-    #[cfg(feature = "voice_input")]
-    ToggleVoiceInput(voice_input::VoiceInputToggledFrom),
     AttachFiles,
     SetAIContextMenuOpen(bool),
     ReadAndProcessImagesAsync {
@@ -1432,9 +1431,6 @@ pub enum BaselinePositionComputationMethod {
     /// computation for a Line (ultimately uses TOP_BOTTOM_RATIO).
     Default,
 }
-
-// Re-export voice transcription types for backwards compatibility
-pub use crate::voice::transcriber::{Transcriber, VoiceTranscriber};
 
 /// Similar to [`ImageContext`], but contains un-processed and un-resized image data.
 #[derive(Clone)]
@@ -1892,28 +1888,6 @@ pub struct EditorView {
     autosuggestion_ignore_view: ViewHandle<AutosuggestionIgnore>,
     show_autosuggestion_keybinding_hint: bool,
     show_autosuggestion_ignore_button: bool,
-
-    /// The state of voice input for this editor.
-    /// Must only be mutated through [`Self::set_voice_input_state`], which keeps
-    /// the editor's [`InteractionState`] in sync (locking input during voice).
-    #[cfg(feature = "voice_input")]
-    voice_input_state: voice::VoiceInputState,
-
-    /// The interaction state before voice input was activated, to restore when voice input ends.
-    #[cfg(feature = "voice_input")]
-    interaction_state_before_voice: Option<InteractionState>,
-
-    /// Options for voice transcription.
-    #[cfg(feature = "voice_input")]
-    voice_transcription_options: VoiceTranscriptionOptions,
-
-    /// The mouse handle for the voice transcription icon.
-    #[cfg(feature = "voice_input")]
-    voice_transcription_button_mouse_handle: MouseStateHandle,
-
-    /// The new feature popup for voice transcription.
-    #[cfg(feature = "voice_input")]
-    voice_new_feature_popup: ViewHandle<FeaturePopup>,
 
     context_model: Option<ModelHandle<BlocklistAIContextModel>>,
 
@@ -2895,8 +2869,8 @@ impl VimHandler for EditorView {
 
 impl EditorView {
     fn snapshot(&self, ctx: &AppContext) -> ViewSnapshot {
-        let font_cache = ctx.font_cache();
         let appearance = Appearance::as_ref(ctx);
+        let font_cache = ctx.font_cache();
         ViewSnapshot {
             view_id: self.view_id,
             is_focused: self.is_focused(),
@@ -2923,9 +2897,6 @@ impl EditorView {
             cached_buffer_points: self.cached_buffer_points.clone(),
 
             baseline_position_computation_method: self.baseline_position_computation_method.clone(),
-
-            #[cfg(feature = "voice_input")]
-            voice_input_state: self.voice_input_state.clone(),
 
             editor_height_shrink_delay: self.editor_height_shrink_delay.clone(),
         }
@@ -3019,28 +2990,6 @@ impl EditorView {
                 }
             },
         );
-
-        #[cfg(feature = "voice_input")]
-        {
-            use crate::workspaces::user_workspaces::UserWorkspaces;
-
-            ctx.subscribe_to_model(&UserWorkspaces::handle(ctx), |me, _handle, _event, ctx| {
-                me.update_voice_transcription_options(Self::voice_options(ctx), ctx);
-                // Re-render if teams-related data changed that may affect whether features such as voice input are enabled.
-                ctx.notify();
-            });
-
-            ctx.subscribe_to_model(
-                &AISettings::handle(ctx),
-                |editor, _, event, ctx| match event {
-                    AISettingsChangedEvent::VoiceInputEnabled { .. } => {
-                        editor.update_voice_transcription_options(Self::voice_options(ctx), ctx)
-                    }
-                    AISettingsChangedEvent::VoiceInputToggleKey { .. } => ctx.notify(),
-                    _ => {}
-                },
-            );
-        }
 
         let editor_model = ctx.add_model(|ctx| {
             EditorModel::new(
@@ -3154,6 +3103,7 @@ impl EditorView {
 
         Self {
             view_id: ctx.view_id(),
+            is_ai_input: false,
             editor_model,
             scroll_position: Arc::new(Mutex::new(Vector2F::zero())),
             autoscroll_requested: Arc::new(Mutex::new(false)),
@@ -3206,17 +3156,6 @@ impl EditorView {
             show_autosuggestion_ignore_button: *editor_settings_handle
                 .as_ref(ctx)
                 .show_autosuggestion_ignore_button,
-            #[cfg(feature = "voice_input")]
-            voice_transcription_button_mouse_handle: Default::default(),
-            #[cfg(feature = "voice_input")]
-            voice_input_state: Default::default(),
-            #[cfg(feature = "voice_input")]
-            interaction_state_before_voice: None,
-            #[cfg(feature = "voice_input")]
-            voice_transcription_options: Self::voice_options(ctx),
-            #[cfg(feature = "voice_input")]
-            voice_new_feature_popup: Self::create_voice_new_feature_popup(ctx),
-            is_ai_input: false,
             convert_newline_to_space: options.convert_newline_to_space,
             context_model: None,
             image_context_options: ImageContextOptions::Disabled,
@@ -3701,14 +3640,6 @@ impl EditorView {
         interaction_state: InteractionState,
         ctx: &mut ViewContext<Self>,
     ) {
-        #[cfg(feature = "voice_input")]
-        if self.is_voice_input_active() {
-            // Voice has locked the editor to Selectable. Stash the requested
-            // state so it's restored correctly when voice ends.
-            self.interaction_state_before_voice = Some(interaction_state);
-            return;
-        }
-
         self.editor_model.update(ctx, |model, _| {
             model.set_interaction_state(interaction_state);
         });
@@ -4334,11 +4265,6 @@ impl EditorView {
     /// Clears editor buffer if the vim mode allows for it, but does not
     /// clear the undo/redo stack.
     pub fn handle_ctrl_c(&mut self, ctx: &mut ViewContext<Self>) {
-        #[cfg(feature = "voice_input")]
-        {
-            self.stop_voice_input(true, ctx);
-        }
-
         #[cfg(windows)]
         // On Windows, if there is selected text, users expect ctrl-c to copy.
         if !self.selected_text(ctx).is_empty() {
@@ -4381,9 +4307,10 @@ impl EditorView {
         // If there is a pending passive ai block, we don't want ctrl+c to clear the buffer.
         let is_pending_passive_ai_block = terminal_view.is_some_and(|terminal_view| {
             let terminal_model = terminal_view.as_ref(ctx).model.lock();
-            terminal_model
-                .block_list()
-                .last_non_hidden_ai_block_handle(ctx)
+            crate::ai::blocklist::view_util::last_non_hidden_ai_block_handle(
+                terminal_model.block_list(),
+                ctx,
+            )
                 .is_some_and(|ai_block| {
                     let block = ai_block.as_ref(ctx);
                     // Ctrl+c should dismiss the passive ai block only if the keybindings for the block are not hidden.
@@ -4973,15 +4900,6 @@ impl EditorView {
                 }
             }),
         );
-    }
-
-    fn voice_input_toggle_key_code(&self, ctx: &AppContext) -> Option<KeyCode> {
-        let ai_settings_handle = &AISettings::handle(ctx);
-        ai_settings_handle
-            .as_ref(ctx)
-            .voice_input_toggle_key
-            .value()
-            .to_key_code()
     }
 
     pub fn attach_files(&mut self, ctx: &mut ViewContext<Self>) {
@@ -6108,8 +6026,6 @@ impl EditorView {
                 });
             }
         }
-        #[cfg(feature = "voice_input")]
-        self.stop_voice_input(true, ctx);
     }
 
     fn delete_all(&mut self, direction: CutDirection, cut: bool, ctx: &mut ViewContext<Self>) {
@@ -7512,12 +7428,6 @@ impl EditorView {
     }
 
     fn should_draw_cursors(&self, ctx: &AppContext) -> bool {
-        // Always draw cursors when voice input is active.
-        #[cfg(feature = "voice_input")]
-        if self.voice_input_state.is_active() {
-            return true;
-        }
-
         self.cursors_visible && self.focused_in_active_window(ctx) && self.can_edit(ctx)
     }
 
@@ -8187,13 +8097,6 @@ impl EditorView {
     /// If the editor should show any controls, render them.
     /// Otherwise, return the child element.
     fn render_controls(&self, ctx: &AppContext) -> Option<Box<dyn Element>> {
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "voice_input")] {
-                let should_show_voice = self.voice_transcription_options.should_show_button();
-            } else {
-                let should_show_voice = false;
-            }
-        }
         let input_settings = InputSettings::as_ref(ctx);
         let is_universal_input_enabled = input_settings.is_universal_developer_input_enabled(ctx);
         let is_any_ai_enabled = AISettings::as_ref(ctx).is_any_ai_enabled(ctx);
@@ -8223,7 +8126,7 @@ impl EditorView {
                 }
             };
 
-        if !should_show_voice && !should_show_image && !should_show_at_context_menu {
+        if !should_show_image && !should_show_at_context_menu {
             return None;
         }
 
@@ -8255,23 +8158,6 @@ impl EditorView {
                 .with_margin_left(4.)
                 .finish(),
             );
-        }
-
-        #[cfg(feature = "voice_input")]
-        if should_show_voice {
-            controls.add_child(
-                Container::new(self.render_voice_transcription_button(icon_size, appearance, ctx))
-                    .with_margin_left(4.)
-                    .finish(),
-            );
-
-            if self.should_show_voice_new_feature_popup(ctx) {
-                controls.add_child(
-                    Container::new(ChildView::new(&self.voice_new_feature_popup).finish())
-                        .with_margin_left(4.)
-                        .finish(),
-                );
-            }
         }
 
         Some(controls.finish())
@@ -8460,10 +8346,6 @@ impl TypedActionView for EditorView {
             Scroll(position) => self.scroll(*position, ctx),
             Select(action) => self.select(action, ctx),
             UserInsert(text) => self.user_insert(text.as_ref(), ctx),
-            #[cfg(feature = "voice_input")]
-            ToggleVoiceInput(source) => {
-                self.toggle_voice_input(source, ctx);
-            }
             AttachFiles => self.attach_files(ctx),
             ReadAndProcessImagesAsync {
                 num_images_user_attached,
@@ -8681,7 +8563,6 @@ impl View for EditorView {
             local_selection_data,
             remote_selections_data,
             self.cursor_display_override,
-            self.voice_input_toggle_key_code(ctx),
         )
         .with_input_editor_icons(
             &self.accept_autosuggestion_keybinding_view,
@@ -8691,9 +8572,6 @@ impl View for EditorView {
             self.next_command_state(ctx).is_cycling(),
             ctx,
         );
-
-        #[cfg(feature = "voice_input")]
-        let editor_element = self.configure_editor_element_voice(editor_element, appearance);
 
         let hoverable = Hoverable::new(self.hover_handle.clone(), |_state| editor_element.finish())
             .with_cursor(Cursor::IBeam)

@@ -5,16 +5,16 @@ mod tests {
     use warpui::{App, SingletonEntity};
 
     use crate::auth::AuthStateProvider;
-    use crate::cloud_object::model::persistence::ObjectStoreModel;
-    use crate::cloud_object::model::view::ObjectStoreViewModel;
-    use crate::cloud_object::update_manager::UpdateManager;
-    use crate::cloud_object::{Revision, StoredObjectMetadata, StoredObjectPermissions};
+    use crate::objects::model::persistence::ObjectStoreModel;
+    use crate::objects::model::view::ObjectStoreViewModel;
+    use crate::objects::object_store::ObjectStore;
+    use objects::{Revision, StoredObjectMetadata, StoredObjectPermissions};
     use crate::notebooks::manager::NotebookManager;
     use crate::notebooks::{NotebookObject, NotebookObjectModel};
     use crate::search::ai_context_menu::notebooks::data_source::NotebookDataSource;
     use crate::search::data_source::Query;
     use crate::search::mixer::SyncDataSource;
-    use crate::server::ids::SyncId;
+    use objects::ids::SyncId;
     use crate::settings::AISettings;
     use crate::system::SystemStats;
     use crate::workspaces::user_profiles::UserProfiles;
@@ -44,7 +44,7 @@ mod tests {
         app.add_singleton_model(|_| SystemStats::new());
         app.add_singleton_model(|ctx| UserWorkspaces::mock(vec![], ctx));
         app.add_singleton_model(ObjectStoreModel::mock);
-        app.add_singleton_model(|ctx| UpdateManager::new(None, ctx));
+        app.add_singleton_model(|ctx| ObjectStore::new(None, ctx));
         app.add_singleton_model(|_| UserProfiles::new(Vec::new()));
         app.add_singleton_model(ObjectStoreViewModel::new);
         app.add_singleton_model(NotebookManager::mock);

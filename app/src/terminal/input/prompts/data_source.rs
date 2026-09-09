@@ -1,24 +1,28 @@
+use std::collections::HashMap;
+
 use fuzzy_match::FuzzyMatchResult;
 use ordered_float::OrderedFloat;
 use warp_core::ui::icons::Icon;
 use warpui::elements::{ConstrainedBox, Container, Highlight, Text};
 use warpui::fonts::{Properties, Weight};
 use warpui::text_layout::ClipConfig;
-use warpui::{AppContext, Element, Entity, ModelContext, ModelHandle, SingletonEntity as _};
+use warpui::{AppContext, Element, Entity, ModelContext, SingletonEntity as _};
 
 use crate::appearance::Appearance;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::search::command_palette::warp_drive;
+use crate::objects::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
+use objects::StoredObject;
 use crate::search::data_source::{DataSourceSearchError, Query, QueryResult};
 use crate::search::mixer::DataSourceRunErrorWrapper;
 use crate::search::result_renderer::ItemHighlightState;
+use crate::search::FuzzyMatchWorkflowResult;
 use crate::search::{SearchItem, SyncDataSource};
-use crate::server::ids::SyncId;
+use objects::ids::{ObjectUid, SyncId};
 use crate::terminal::input::inline_menu::styles as inline_styles;
 use crate::terminal::input::inline_menu::{
     default_navigation_message_items, InlineMenuAction, InlineMenuMessageArgs, InlineMenuType,
 };
 use crate::terminal::input::message_bar::Message;
+use crate::workflows::workflow::Workflow;
 use crate::workflows::WorkflowObject;
 
 #[derive(Clone, Debug)]
@@ -35,18 +39,41 @@ impl InlineMenuAction for AcceptPrompt {
 }
 
 pub struct PromptsMenuDataSource {
-    warp_drive_data_source: ModelHandle<warp_drive::DataSource>,
+    workflows: HashMap<ObjectUid, (SyncId, Workflow)>,
 }
 
 impl PromptsMenuDataSource {
     pub fn new(ctx: &mut ModelContext<Self>) -> Self {
-        // Ideally this would be a full-text searching but full text searching is slow, and
-        // currently its implementation is not well-setup for async use.
-        //
-        // TODO(zachbai): Revert to full-text search and make this an `AsyncDataSource`.
-        let warp_drive_data_source = ctx.add_model(warp_drive::DataSource::new_fuzzy);
-        Self {
-            warp_drive_data_source,
+        ctx.subscribe_to_model(
+            &ObjectStoreModel::handle(ctx),
+            Self::handle_objects_updated,
+        );
+        let mut workflows = HashMap::new();
+        for workflow in ObjectStoreModel::as_ref(ctx).get_all_active_workflows() {
+            workflows.insert(workflow.uid(), (workflow.id, workflow.model().data.clone()));
+        }
+        Self { workflows }
+    }
+
+    fn handle_objects_updated(
+        &mut self,
+        event: &ObjectStoreEvent,
+        ctx: &mut ModelContext<Self>,
+    ) {
+        if let ObjectStoreEvent::ObjectCreated { type_and_id }
+        | ObjectStoreEvent::ObjectUntrashed { type_and_id, .. }
+        | ObjectStoreEvent::ObjectMoved { type_and_id, .. }
+        | ObjectStoreEvent::ObjectUpdated { type_and_id, .. } = event
+        {
+            let workflow: Option<&WorkflowObject> = ObjectStoreModel::as_ref(ctx)
+                .get_by_uid(&type_and_id.uid())
+                .and_then(|object| object.into());
+            if let Some(workflow) = workflow {
+                self.workflows
+                    .insert(workflow.uid(), (workflow.id, workflow.model().data.clone()));
+            }
+        } else if let ObjectStoreEvent::ObjectTrashed { type_and_id, .. } = event {
+            self.workflows.remove(&type_and_id.uid());
         }
     }
 }
@@ -88,35 +115,38 @@ impl SyncDataSource for PromptsMenuDataSource {
                 .collect());
         }
 
-        self.warp_drive_data_source
-            .as_ref(app)
-            .search_workflows(query, true, false, app)
-            .map(|results| {
-                results
-                    .into_iter()
-                    .filter_map(|result| {
-                        let score = result.score();
-                        // Avoid spamming results with extremely weak matches.
-                        (score > OrderedFloat(25.0)).then(|| {
-                            let workflow = result.workflow;
-                            if workflow.model().data.is_command_workflow() {
-                                return None;
-                            }
+        let query_text_lower = query.text.to_lowercase();
+        let results = self
+            .workflows
+            .values()
+            .filter_map(|(id, workflow)| {
+                let match_result =
+                    FuzzyMatchWorkflowResult::try_match(&query_text_lower, workflow, "");
+                match_result.map(|match_result| (match_result, id, workflow))
+            })
+            .filter_map(|(match_result, id, workflow)| {
+                let score = match_result.score();
+                // Avoid spamming results with extremely weak matches.
+                (score > OrderedFloat(25.0)).then(|| {
+                    if workflow.is_command_workflow() {
+                        return None;
+                    }
 
-                            Some(QueryResult::from(
-                                PromptSearchItem::from_workflow(&workflow)
-                                    .with_name_match_result(result.match_result.name_match_result)
-                                    .with_score(score),
-                            ))
-                        })?
-                    })
-                    .collect()
+                    Some((match_result, id, workflow))
+                })?
             })
-            .map_err(|e| {
-                Box::new(DataSourceSearchError {
-                    message: e.to_string(),
-                }) as DataSourceRunErrorWrapper
+            .map(|(match_result, id, workflow)| {
+                let score = match_result.score();
+                QueryResult::from(PromptSearchItem {
+                    id: *id,
+                    name: workflow.name().to_owned(),
+                    name_match_result: match_result.name_match_result,
+                    score,
+                })
             })
+            .collect();
+
+        Ok(results)
     }
 }
 

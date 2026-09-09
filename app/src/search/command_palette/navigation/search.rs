@@ -1,16 +1,13 @@
+use std::ops::Range;
 use crate::pane_group::PaneId;
 use crate::search::command_palette::navigation::render::CommandRenderInfo;
-use crate::search::command_palette::navigation::search_item::SearchItem;
 use crate::search::command_palette::navigation::DataSource;
 use crate::search::data_source::QueryResult;
 use crate::search::SyncDataSource;
-use crate::session_management::{CommandContext, SessionNavigationData, SessionSource};
-use fuzzy_match::match_indices_case_insensitive;
-use itertools::Itertools;
-use std::ops::Range;
-use warpui::{AppContext, ModelHandle};
+use crate::session_management::{CommandContext, SessionNavigationData};
+use warpui::AppContext;
 
-/// A session that was fuzzy matched against a search term.
+/// A session that was matched against a search term.
 pub struct MatchedSession {
     pub session: SessionNavigationData,
     pub match_result: SessionMatchResult,
@@ -86,42 +83,6 @@ impl SessionHighlightIndices {
     }
 }
 
-/// Returns an iterator of sessions that match `search_term`.
-pub fn filter_sessions<'a, 'b, I>(
-    sessions_iter: I,
-    search_term: &'b str,
-) -> impl Iterator<Item = MatchedSession> + use<'a, 'b, I>
-where
-    I: IntoIterator<Item = &'a SessionNavigationData>,
-{
-    sessions_iter
-        .into_iter()
-        .filter_map(move |session| {
-            if search_term.is_empty() {
-                Some((SessionMatchResult::no_match(), session.clone()))
-            } else {
-                let (searchable_string, session_highlights) =
-                    searchable_session_string_and_ranges(session);
-
-                match_indices_case_insensitive(&searchable_string, search_term).map(|result| {
-                    let highlight_indices =
-                        SessionHighlightIndices::new(result.matched_indices, session_highlights);
-                    (
-                        SessionMatchResult {
-                            score: result.score,
-                            highlight_indices,
-                        },
-                        session.clone(),
-                    )
-                })
-            }
-        })
-        .map(|(match_result, session)| MatchedSession {
-            session,
-            match_result,
-        })
-}
-
 /// The searchable string format is: [prompt] [command] [hint text],
 /// where [command] may or may not be present.
 fn searchable_session_string_and_ranges(
@@ -135,7 +96,7 @@ fn searchable_session_string_and_ranges(
             last_run_command,
             mins_since_completion: _,
         } => {
-            // Fuzzy search gives different weights to characters in the same word vs different words.
+            // 字段间以空格分隔, 避免相邻字段拼成一个无意义的词元。
             searchable_string.push(' ');
             searchable_string.push_str(last_run_command.as_str());
 
@@ -144,7 +105,7 @@ fn searchable_session_string_and_ranges(
             Some(start..end)
         }
         CommandContext::RunningCommand { running_command } => {
-            // Fuzzy search gives different weights to characters in the same word vs different words.
+            // 字段间以空格分隔, 避免相邻字段拼成一个无意义的词元。
             searchable_string.push(' ');
             searchable_string.push_str(running_command.as_str());
 
@@ -153,7 +114,7 @@ fn searchable_session_string_and_ranges(
             Some(start..end)
         }
         CommandContext::LastRunAIBlock { prompt } | CommandContext::RunningAIBlock { prompt } => {
-            // Fuzzy search gives different weights to characters in the same word vs different words.
+            // 字段间以空格分隔, 避免相邻字段拼成一个无意义的词元。
             searchable_string.push(' ');
             searchable_string.push_str(prompt.as_str());
 
@@ -206,43 +167,10 @@ pub trait SessionSearcher {
     fn active_session_id(&self, app: &AppContext) -> Option<PaneId>;
 }
 
-pub struct FuzzySessionSearcher {
-    pub(crate) session_source_handle: ModelHandle<SessionSource>,
-}
-
-impl SessionSearcher for FuzzySessionSearcher {
-    fn search(
-        &self,
-        search_term: &str,
-        app: &AppContext,
-    ) -> anyhow::Result<Vec<QueryResult<SearcherAction>>> {
-        let active_session_id = match self.session_source_handle.as_ref(app) {
-            SessionSource::None => None,
-            SessionSource::Set { active_pane_id, .. } => Some(*active_pane_id),
-        };
-
-        // Sort sessions by last focus timestamp so sessions that were focused first are shown first.
-        let all_sessions =
-            SessionNavigationData::all_sessions(app).sorted_by_key(|x| x.last_focus_ts());
-
-        Ok(filter_sessions(all_sessions.as_slice(), search_term)
-            .map(|matched_session| SearchItem::new(matched_session, active_session_id).into())
-            .collect())
-    }
-
-    fn active_session_id(&self, app: &AppContext) -> Option<PaneId> {
-        match self.session_source_handle.as_ref(app) {
-            SessionSource::None => None,
-            SessionSource::Set { active_pane_id, .. } => Some(*active_pane_id),
-        }
-    }
-}
-
-// re-export 必须与 mod 挂载同条件, 否则 feature 缺省时引用不存在的模块
-#[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
+#[cfg(not(target_family = "wasm"))]
 pub use full_text_searcher::FullTextSessionSearcher;
-// tantivy 为 optional dep: 该全文搜索 mod 仅在 use_tantivy_search feature 下编译
-#[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
+// wasm 下 tantivy 不支持: 本 crate 为桌面专属, 不构建 wasm 目标
+#[cfg(not(target_family = "wasm"))]
 mod full_text_searcher {
     use crate::define_search_schema;
     use crate::pane_group::PaneId;
@@ -379,6 +307,6 @@ mod full_text_searcher {
 }
 
 // 测试引用 full_text_searcher 内部符号, gate 条件需与被测 mod 一致
-#[cfg(all(test, not(target_family = "wasm"), feature = "use_tantivy_search"))]
+#[cfg(all(test, not(target_family = "wasm")))]
 #[path = "search_tests.rs"]
 mod tests;

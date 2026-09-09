@@ -1,3 +1,4 @@
+use crate::objects_display::StoredObjectHostExt;
 use std::{cmp::Ordering, collections::HashMap};
 
 use anyhow::Error;
@@ -23,17 +24,15 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::{model::persistence::ObjectStoreModel, StoredObject},
-    editor::{
-        EditOrigin, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys,
-        SingleLineEditorOptions, TextOptions, ValidInputType,
-    },
+    editor::{ EditOrigin, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, ValidInputType, },
     send_telemetry_from_ctx,
-    server::{ids::SyncId, telemetry::TelemetrySpace},
+    server::telemetry::TelemetrySpace,
     ui_components::{buttons::icon_button, icons::Icon},
     workflows::aliases::{WorkflowAlias, WorkflowAliases},
     TelemetryEvent,
 };
+use objects::{StoredObject, ids::SyncId};
+use crate::objects::model::persistence::ObjectStoreModel;
 
 /// Width of the alias name editor.
 const ALIAS_EDITOR_WIDTH: f32 = 100.;

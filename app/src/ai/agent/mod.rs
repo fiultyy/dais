@@ -46,7 +46,7 @@ use warp_multi_agent_api::{diff_hunk as diff_hunk_api, AgentEvent, AgentType};
 
 pub use self::api::{MaybeAIAgentOutputMessage, MessageToAIAgentOutputMessageError};
 use crate::ai_assistant::execution_context::WarpAiExecutionContext;
-use crate::terminal::model::block::BlockId;
+use terminal_grid_model::block::BlockId;
 use crate::terminal::shell::ShellType;
 use crate::terminal::view::block_onboarding::onboarding_agentic_suggestions_block::OnboardingChipType;
 use crate::TelemetryEvent;
@@ -825,38 +825,8 @@ pub struct SuggestedAgentModeWorkflow {
 ///
 /// The internal ID itself should be opaque to all callers. This ID may be relayed back to the AI with
 /// the `AIAgentActionResult` from the action.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct AIAgentActionId(String);
-
-impl From<String> for AIAgentActionId {
-    fn from(value: String) -> Self {
-        AIAgentActionId(value)
-    }
-}
-
-impl From<AIAgentActionId> for String {
-    fn from(value: AIAgentActionId) -> Self {
-        value.0
-    }
-}
-
-impl Display for AIAgentActionId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl From<crate::persistence::model::AIAgentActionId> for AIAgentActionId {
-    fn from(value: crate::persistence::model::AIAgentActionId) -> Self {
-        Self(value.0)
-    }
-}
-
-impl From<AIAgentActionId> for crate::persistence::model::AIAgentActionId {
-    fn from(value: AIAgentActionId) -> Self {
-        crate::persistence::model::AIAgentActionId(value.0)
-    }
-}
+// R15: AIAgentActionId 单源化 agent_ids crate。
+pub use agent_ids::AIAgentActionId;
 
 /// An "action" included in an AI output.
 #[derive(Debug, Clone, Eq, PartialEq)]

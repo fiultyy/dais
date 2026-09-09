@@ -5,9 +5,7 @@ use warpui::{
 };
 
 use crate::{
-    ai::blocklist::block::view_impl::{
-        common::render_user_avatar, CONTENT_HORIZONTAL_PADDING, CONTENT_ITEM_VERTICAL_MARGIN,
-    },
+    ai::blocklist::block::view_impl::{ common::render_user_avatar, CONTENT_HORIZONTAL_PADDING, CONTENT_ITEM_VERTICAL_MARGIN, },
     appearance::Appearance,
     ui_components::{blended_colors, icons::Icon},
     view_components::action_button::{ActionButton, ButtonSize, NakedTheme},

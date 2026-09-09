@@ -7,7 +7,6 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::model::persistence::ObjectStoreModel,
     editor::InteractionState,
     notebooks::editor::keys::NotebookKeybindings,
     settings_view::keybindings::KeybindingChangedNotifier,
@@ -17,6 +16,7 @@ use crate::{
     workspaces::user_workspaces::UserWorkspaces,
     AuthStateProvider,
 };
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use super::{CodeEditorRenderOptions, CodeEditorView, CodeEditorViewAction};
 use warp_util::user_input::UserInput;

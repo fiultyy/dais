@@ -5,15 +5,13 @@ use std::{
 
 use uuid::Uuid;
 
-use crate::server::ids::ObjectUid;
+use objects::ids::ObjectUid;
 
 pub mod destructive_mcp_confirmation_dialog;
 pub mod edit_page;
-pub mod installation_modal;
 pub mod list_page;
 pub mod server_card;
 pub mod style;
-pub mod update_modal;
 
 // TODO(aeybel/pei): In the future, to enable the re-use of ServerCard for different types of servers (eg. MCP, LSP, etc.)
 // We should make ServerCardView and its corresponding events and actions generic

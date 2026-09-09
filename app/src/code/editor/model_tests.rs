@@ -7,8 +7,10 @@ use warp_util::content_version::ContentVersion;
 use warpui::{text::point::Point, App};
 
 use crate::{
-    code::editor::line::EditorLineLocation, code::editor::view::code_text_styles,
-    settings::FontSettings, test_util::settings::initialize_settings_for_tests,
+    code::editor::line::EditorLineLocation,
+    code::editor::view::code_text_styles,
+    settings::FontSettings,
+    test_util::settings::initialize_settings_for_tests,
 };
 
 use super::*;

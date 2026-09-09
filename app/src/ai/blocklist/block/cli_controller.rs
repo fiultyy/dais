@@ -1,4 +1,13 @@
+use terminal_grid_model::block::BlockId;
 use std::{collections::HashMap, sync::Arc};
+// R23: LongRunningCommandControlState/UserTakeOverReason 提升 terminal_grid_model::interaction。
+#[derive(Debug, Clone, Default)]
+struct ActiveCLISubagentState {
+    task_id: Option<TaskId>,
+    last_snapshot_at: Option<Instant>,
+}
+
+pub use terminal_grid_model::interaction::{LongRunningCommandControlState, UserTakeOverReason};
 
 use crate::server::telemetry::{CLISubagentControlState, TelemetryEvent};
 use instant::Instant;
@@ -9,114 +18,12 @@ use warpui::{Entity, EntityId, ModelContext, ModelHandle, SingletonEntity};
 
 use crate::ai::blocklist::context_model::block_context_from_terminal_model;
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversationId, task::TaskId, AIAgentActionId, AIAgentActionResultType,
-            AIAgentContext, CancellationReason, ReadShellCommandOutputResult,
-            RequestCommandOutputResult, TransferShellCommandControlToUserResult,
-            WriteToLongRunningShellCommandResult,
-        },
-        blocklist::{
-            agent_view::{AgentViewController, AgentViewEntryOrigin},
-            BlocklistAIActionEvent, BlocklistAIActionModel, BlocklistAIController,
-            BlocklistAIHistoryEvent,
-        },
-    },
-    terminal::{
-        model::block::BlockId,
-        model_events::{ModelEvent, ModelEventDispatcher},
-        TerminalModel,
-    },
+    ai::{ agent::{ conversation::AIConversationId, task::TaskId, AIAgentActionId, AIAgentActionResultType, AIAgentContext, CancellationReason, ReadShellCommandOutputResult, RequestCommandOutputResult, TransferShellCommandControlToUserResult, WriteToLongRunningShellCommandResult, }, blocklist::{ agent_view::{AgentViewController, AgentViewEntryOrigin}, BlocklistAIActionEvent, BlocklistAIActionModel, BlocklistAIController, BlocklistAIHistoryEvent, }, },
+    terminal::{ model_events::{ModelEvent, ModelEventDispatcher}, TerminalModel, },
     BlocklistAIHistoryModel,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum UserTakeOverReason {
-    Manual,
-    Stop,
-    /// The agent explicitly transferred control to the user via the
-    /// TransferShellCommandControlToUser tool call.
-    TransferFromAgent {
-        /// The reason the agent gave for transferring control.
-        reason: String,
-    },
-}
 
-#[derive(Debug, Clone, Default)]
-struct ActiveCLISubagentState {
-    task_id: Option<TaskId>,
-    last_snapshot_at: Option<Instant>,
-}
-
-impl UserTakeOverReason {
-    pub fn is_stop(&self) -> bool {
-        matches!(self, Self::Stop)
-    }
-
-    pub fn is_transfer_from_agent(&self) -> bool {
-        matches!(self, Self::TransferFromAgent { .. })
-    }
-
-    pub fn transfer_reason(&self) -> Option<&str> {
-        match self {
-            Self::TransferFromAgent { reason } => Some(reason.as_str()),
-            _ => None,
-        }
-    }
-}
-
-/// Represents which party is in control of the active long running command.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum LongRunningCommandControlState {
-    /// The agent is in control.
-    ///
-    /// When the agent has control, the user cannot submit input to the command.
-    Agent {
-        /// `true` if the agent is blocked on approval from the user for submitting input.
-        is_blocked: bool,
-        /// `true` if agent responses should be hidden in the UI.
-        should_hide_responses: bool,
-    },
-    /// The user is in control.
-    User { reason: UserTakeOverReason },
-}
-
-impl LongRunningCommandControlState {
-    pub fn is_agent_in_control(&self) -> bool {
-        matches!(self, Self::Agent { .. })
-    }
-
-    pub fn is_agent_blocked(&self) -> bool {
-        matches!(
-            self,
-            Self::Agent {
-                is_blocked: true,
-                ..
-            }
-        )
-    }
-
-    pub fn is_user_in_control(&self) -> bool {
-        matches!(self, Self::User { .. })
-    }
-
-    pub fn should_hide_responses(&self) -> bool {
-        matches!(
-            self,
-            Self::Agent {
-                should_hide_responses: true,
-                ..
-            }
-        )
-    }
-
-    pub fn user_take_over_reason(&self) -> Option<&UserTakeOverReason> {
-        match &self {
-            LongRunningCommandControlState::Agent { .. } => None,
-            LongRunningCommandControlState::User { reason } => Some(reason),
-        }
-    }
-}
 
 /// Responsible for managing 'control' (e.g. write permissions) for the active long running
 /// agent-requested command.

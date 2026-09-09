@@ -6,7 +6,10 @@ use std::{fmt, vec};
 use crate::safe_triangle::SafeTriangle;
 use crate::themes::theme::Fill;
 use crate::util::time_format::format_approx_duration_from_now_sentence_case;
-use crate::{appearance::Appearance, ui_components::icons};
+use crate::{
+    appearance::Appearance,
+    ui_components::icons,
+};
 use chrono::{DateTime, Local};
 use pathfinder_color::ColorU;
 use pathfinder_geometry::rect::RectF;

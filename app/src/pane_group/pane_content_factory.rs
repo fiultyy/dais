@@ -25,12 +25,12 @@ use crate::ai::restored_conversations::RestoredAgentConversations;
 #[cfg(feature = "local_fs")]
 use crate::app_state::CodePaneSnapShot;
 use crate::app_state::{
-    AIFactPaneSnapshot, EnvVarCollectionPaneSnapshot, LeafContents, LeafSnapshot,
-    NotebookPaneSnapshot, PaneUuid, SettingsPaneSnapshot, WorkflowPaneSnapshot,
+    EnvVarCollectionPaneSnapshot, LeafContents, LeafSnapshot, NotebookPaneSnapshot, PaneUuid,
+    SettingsPaneSnapshot, WorkflowPaneSnapshot,
 };
-use crate::banner::BannerState;
 #[cfg(feature = "local_fs")]
 use crate::code::editor_management::CodeSource;
+use crate::pane_group::pane::PaneIdConstruct;
 use crate::code::view::CodeView;
 use crate::features::FeatureFlag;
 use crate::persistence::ModelEvent;
@@ -38,10 +38,11 @@ use crate::terminal::available_shells::AvailableShells;
 use crate::terminal::view::ConversationRestorationInNewPaneType;
 use crate::workspace::WorkspaceAction;
 
+use crate::banner::BannerState;
 use super::{
-    AIFactPane, AnyPaneContent, CodePane, EnvVarCollectionPane, FilePane, GetStartedPane,
-    InitialFocus, NotebookPane, PaneContent, PaneData, PaneGroup, PaneId, PaneIdConstruct,
-    SettingsPane, TerminalPane, TerminalViewResources, WelcomePane, WorkflowPane,
+    AnyPaneContent, CodePane, EnvVarCollectionPane, FilePane, InitialFocus, NotebookPane,
+    PaneContent, PaneData, PaneGroup, PaneId, SettingsPane, TerminalPane, TerminalViewResources,
+    WorkflowPane,
 };
 
 /// restore 链的按值输入包。`Terminal` / `AmbientAgent` 臂会消费
@@ -251,30 +252,6 @@ impl PaneContentFactory for AppPaneContentFactory {
 
                 Ok((PaneData::new(pane_id), focus))
             }
-            LeafContents::Notebook(snapshot) => {
-                let pane: Box<dyn AnyPaneContent + 'static> = match snapshot {
-                    NotebookPaneSnapshot::NotebookObject {
-                        notebook_id,
-                        settings,
-                    } => Box::new(NotebookPane::restore(notebook_id, &settings, ctx)?),
-                    NotebookPaneSnapshot::LocalFileNotebook { path } => Box::new(FilePane::new(
-                        path,
-                        None,
-                        #[cfg(feature = "local_fs")]
-                        None,
-                        ctx,
-                    )),
-                };
-
-                let pane_id = pane.as_pane().id();
-                pane_contents.insert(pane_id, pane);
-                let focus = InitialFocus {
-                    focused_pane: leaf.is_focused.then_some(pane_id),
-                    active_session: None,
-                };
-
-                Ok((PaneData::new(pane_id), focus))
-            }
             #[cfg(feature = "local_fs")]
             LeafContents::Code(snapshot) => {
                 let CodePaneSnapShot::Local {
@@ -305,11 +282,19 @@ impl PaneContentFactory for AppPaneContentFactory {
             LeafContents::Code(_) => Err(anyhow::anyhow!(
                 "Code pane restoration not supported on this platform"
             )),
-            LeafContents::EnvVarCollection(snapshot) => {
+            LeafContents::Notebook(snapshot) => {
                 let pane: Box<dyn AnyPaneContent + 'static> = match snapshot {
-                    EnvVarCollectionPaneSnapshot::EnvVarCollectionObject {
-                        env_var_collection_id,
-                    } => Box::new(EnvVarCollectionPane::restore(env_var_collection_id, ctx)?),
+                    NotebookPaneSnapshot::NotebookObject {
+                        notebook_id,
+                        settings,
+                    } => Box::new(NotebookPane::restore(notebook_id, &settings, ctx)?),
+                    NotebookPaneSnapshot::LocalFileNotebook { path } => Box::new(FilePane::new(
+                        path,
+                        None,
+                        #[cfg(feature = "local_fs")]
+                        None,
+                        ctx,
+                    )),
                 };
 
                 let pane_id = pane.as_pane().id();
@@ -321,12 +306,11 @@ impl PaneContentFactory for AppPaneContentFactory {
 
                 Ok((PaneData::new(pane_id), focus))
             }
-            LeafContents::Workflow(snapshot) => {
+            LeafContents::EnvVarCollection(snapshot) => {
                 let pane: Box<dyn AnyPaneContent + 'static> = match snapshot {
-                    WorkflowPaneSnapshot::WorkflowObject {
-                        workflow_id,
-                        settings,
-                    } => Box::new(WorkflowPane::restore(workflow_id, settings, ctx)?),
+                    EnvVarCollectionPaneSnapshot::EnvVarCollectionObject {
+                        env_var_collection_id,
+                    } => Box::new(EnvVarCollectionPane::restore(env_var_collection_id, ctx)?),
                 };
 
                 let pane_id = pane.as_pane().id();
@@ -359,6 +343,29 @@ impl PaneContentFactory for AppPaneContentFactory {
                 };
                 Ok((PaneData::new(pane_id), focus))
             }
+            LeafContents::Workflow(snapshot) => {
+                let pane: Box<dyn AnyPaneContent + 'static> = match snapshot {
+                    WorkflowPaneSnapshot::WorkflowObject {
+                        workflow_id,
+                        settings,
+                    } => Box::new(WorkflowPane::restore(workflow_id, settings, ctx)?),
+                };
+
+                let pane_id = pane.as_pane().id();
+                pane_contents.insert(pane_id, pane);
+                let focus = InitialFocus {
+                    focused_pane: leaf.is_focused.then_some(pane_id),
+                    active_session: None,
+                };
+
+                Ok((PaneData::new(pane_id), focus))
+            }
+            LeafContents::ExecutionProfileEditor => {
+                // We don't yet support restoring execution profile editor panes.
+                Err(anyhow::anyhow!(
+                    "Can't restore execution profile editor panes"
+                ))
+            }
             #[cfg(not(target_family = "wasm"))]
             LeafContents::Observatory => Err(anyhow::anyhow!(
                 "Observatory pane is not persisted and cannot be restored"
@@ -366,21 +373,6 @@ impl PaneContentFactory for AppPaneContentFactory {
             LeafContents::Cockpit => Err(anyhow::anyhow!(
                 "Cockpit pane is not persisted and cannot be restored"
             )),
-            LeafContents::AIFact(snapshot) => {
-                if !FeatureFlag::AIRules.is_enabled() {
-                    return Err(anyhow::anyhow!("AI fact pane not enabled"));
-                }
-                let pane: Box<dyn AnyPaneContent + 'static> = match snapshot {
-                    AIFactPaneSnapshot::Personal => Box::new(AIFactPane::new(ctx)),
-                };
-                let pane_id = pane.as_pane().id();
-                pane_contents.insert(pane_id, pane);
-                let focus = InitialFocus {
-                    focused_pane: leaf.is_focused.then_some(pane_id),
-                    active_session: None,
-                };
-                Ok((PaneData::new(pane_id), focus))
-            }
             LeafContents::AmbientAgent(snapshot) => {
                 let task_data = snapshot.task_id.map(|task_id| {
                     let task = AgentConversationsModel::handle(ctx)
@@ -451,15 +443,6 @@ impl PaneContentFactory for AppPaneContentFactory {
                 };
                 Ok((PaneData::new(pane_id), focus))
             }
-            LeafContents::CodeReview(_) => {
-                Err(anyhow::anyhow!("Code review panes are no longer supported"))
-            }
-            LeafContents::ExecutionProfileEditor => {
-                // We don't yet support restoring execution profile editor panes.
-                Err(anyhow::anyhow!(
-                    "Can't restore execution profile editor panes"
-                ))
-            }
             LeafContents::SshServer { .. } => {
                 // SSH server editor panes are intentionally not restored —
                 // they're transient editor surfaces over the persistent
@@ -483,37 +466,8 @@ impl PaneContentFactory for AppPaneContentFactory {
                     "Image pane should not have been persisted, as it is not restorable"
                 ))
             }
-            LeafContents::GetStarted => {
-                if !FeatureFlag::GetStartedTab.is_enabled() {
-                    Err(anyhow::anyhow!("GetStarted pane not supported"))
-                } else {
-                    let pane: Box<dyn AnyPaneContent + 'static> =
-                        Box::new(GetStartedPane::new(ctx));
-                    let pane_id = pane.as_pane().id();
-                    pane_contents.insert(pane_id, pane);
-                    let focus = InitialFocus {
-                        focused_pane: leaf.is_focused.then_some(pane_id),
-                        active_session: None,
-                    };
-                    Ok((PaneData::new(pane_id), focus))
-                }
-            }
-            LeafContents::Welcome { startup_directory } => {
-                if !FeatureFlag::WelcomeTab.is_enabled() {
-                    Err(anyhow::anyhow!("Welcome pane not supported"))
-                } else {
-                    let pane: Box<dyn AnyPaneContent + 'static> =
-                        Box::new(WelcomePane::new(startup_directory, ctx));
-                    let pane_id = pane.as_pane().id();
-                    pane_contents.insert(pane_id, pane);
-                    let focus = InitialFocus {
-                        focused_pane: leaf.is_focused.then_some(pane_id),
-                        active_session: None,
-                    };
-                    Ok((PaneData::new(pane_id), focus))
-                }
-            } // Dais Wave 7-3:`EnvironmentManagement` LeafContents arm 随 ambient-agent UI
-              // 子系统物理删。
+            // Dais Wave 7-3:`EnvironmentManagement` LeafContents arm 随 ambient-agent UI
+            // 子系统物理删。
         }
     }
 }

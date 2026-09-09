@@ -27,7 +27,8 @@ use crate::terminal::warpify::settings::{
 use crate::ui_components::blended_colors;
 use crate::{
     appearance::Appearance,
-    report_if_error, send_telemetry_from_ctx,
+    report_if_error,
+    send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
     terminal::warpify::settings::WarpifySettings,
     view_components::{SubmittableTextInput, SubmittableTextInputEvent},

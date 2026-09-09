@@ -24,6 +24,8 @@ mod terminal_message_bar;
 mod universal;
 pub mod user_query;
 
+use terminal_grid_model::block::{AgentInteractionMetadata, BlockId, BlockMetadata, BlocklistEnvVarMetadata};
+use crate::objects_display::StoredObjectHostExt;
 use crate::ai::agent::api::ServerConversationToken;
 use crate::ai::agent::conversation::AIConversationId;
 use crate::ai::agent::{AIAgentAttachment, AIAgentExchangeId, CancellationReason};
@@ -102,89 +104,28 @@ use crate::ai::block_context::BlockContext;
 use crate::ai::blocklist::AttachmentType;
 use crate::ai::mcp::TemplatableMCPServerManager;
 use crate::{
-    ai::{
-        agent::{AIAgentContext, EntrypointType},
-        blocklist::{
-            drive_object_attachment_for_reference, plan_attachment_for_reference,
-            prompt::prompt_alert::PromptAlertView, render_ai_agent_mode_icon,
-            render_ai_follow_up_icon, telemetry_banner::should_collect_ai_ugc_telemetry,
-            BlocklistAIContextEvent, BlocklistAIContextModel, BlocklistAIController,
-            BlocklistAIControllerEvent, BlocklistAIHistoryEvent, BlocklistAIHistoryModel,
-            BlocklistAIInputEvent, BlocklistAIInputModel, InputConfig, InputType,
-            BLOCK_CONTEXT_ATTACHMENT_REGEX, DIFF_HUNK_ATTACHMENT_REGEX,
-            DRIVE_OBJECT_ATTACHMENT_REGEX,
-        },
-        llms::{LLMPreferences, LLMPreferencesEvent},
-        predict::next_command_model::{
-            is_command_valid, is_next_command_enabled, NextCommandModel, NextCommandModelEvent,
-            NextCommandSuggestionState, ZeroStateSuggestionInfo,
-        },
-        AIRequestUsageModel,
-    },
+    ai::{ agent::{AIAgentContext, EntrypointType}, blocklist::{ drive_object_attachment_for_reference, plan_attachment_for_reference, prompt::prompt_alert::PromptAlertView, render_ai_agent_mode_icon, render_ai_follow_up_icon, telemetry_banner::should_collect_ai_ugc_telemetry, BlocklistAIContextEvent, BlocklistAIContextModel, BlocklistAIController, BlocklistAIControllerEvent, BlocklistAIHistoryEvent, BlocklistAIHistoryModel, BlocklistAIInputEvent, BlocklistAIInputModel, InputConfig, InputType, BLOCK_CONTEXT_ATTACHMENT_REGEX, DIFF_HUNK_ATTACHMENT_REGEX, DRIVE_OBJECT_ATTACHMENT_REGEX, }, llms::{LLMPreferences, LLMPreferencesEvent}, predict::next_command_model::{ is_command_valid, is_next_command_enabled, NextCommandModel, NextCommandModelEvent, NextCommandSuggestionState, ZeroStateSuggestionInfo, }, AIRequestUsageModel, },
     ai_assistant::execution_context::WarpAiExecutionContext,
     appearance::{Appearance, AppearanceEvent},
     channel::{Channel, ChannelState},
-    cloud_object::{
-        model::{
-            actions::ObjectActionType, persistence::ObjectStoreModel, view::ObjectStoreViewModel,
-        },
-        update_manager::UpdateManager,
-        Space, StoredObject,
-    },
     cmd_or_ctrl_shift,
     code_review::diff_state::DiffMode,
     completer::SessionContext,
-    context_chips::{
-        display::{PromptDisplay, PromptDisplayEvent},
-        display_chip::DisplayChipConfig,
-        prompt_type::PromptType,
-    },
+    context_chips::{ display::{PromptDisplay, PromptDisplayEvent}, display_chip::DisplayChipConfig, prompt_type::PromptType, },
     debounce::debounce,
-    editor::{
-        default_cursor_colors, position_id_for_cached_point, position_id_for_cursor,
-        position_id_for_first_cursor, AttachedImage as AttachedImageRawData,
-        AutosuggestionLocation, AutosuggestionType, BaselinePositionComputationMethod,
-        CommandXRayAnchor, CrdtOperation, CursorColors, DisplayPoint, EditOrigin, EditorAction,
-        EditorDecoratorElements, EditorOptions, EditorSnapshot, EditorView, Event as EditorEvent,
-        ImageContextOptions, InteractionState, PathTransformerFn, PlainTextEditorViewAction,
-        Point as BufferPoint, PropagateAndNoOpEscapeKey, PropagateAndNoOpNavigationKeys,
-        PropagateHorizontalNavigationKeys, ReplicaId, TextColors, TextRun,
-        MAX_IMAGES_PER_CONVERSATION,
-    },
+    editor::{ default_cursor_colors, position_id_for_cached_point, position_id_for_cursor, position_id_for_first_cursor, AttachedImage as AttachedImageRawData, AutosuggestionLocation, AutosuggestionType, BaselinePositionComputationMethod, CommandXRayAnchor, CrdtOperation, CursorColors, DisplayPoint, EditOrigin, EditorAction, EditorDecoratorElements, EditorOptions, EditorSnapshot, EditorView, Event as EditorEvent, ImageContextOptions, InteractionState, PathTransformerFn, PlainTextEditorViewAction, Point as BufferPoint, PropagateAndNoOpEscapeKey, PropagateAndNoOpNavigationKeys, PropagateHorizontalNavigationKeys, ReplicaId, TextColors, TextRun, MAX_IMAGES_PER_CONVERSATION, },
     features::FeatureFlag,
-    input_suggestions::{
-        Event as InputSuggestionsEvent, HistoryInputSuggestion, InputSuggestions,
-        TabCompletionsPreselectOption,
-    },
+    input_suggestions::{ Event as InputSuggestionsEvent, HistoryInputSuggestion, InputSuggestions, TabCompletionsPreselectOption, },
     network::NetworkStatus,
     pane_group::PaneGroupAction,
     prefix::longest_common_prefix,
     report_if_error,
-    resource_center::{
-        mark_feature_used_and_write_to_user_defaults, Tip, TipAction, TipHint, TipsCompleted,
-    },
-    search::{
-        ai_context_menu::{
-            mixer::AIContextMenuSearchableAction, search::is_valid_search_query,
-            view::AIContextMenuAction,
-        },
-        QueryFilter,
-    },
+    resource_center::{ mark_feature_used_and_write_to_user_defaults, Tip, TipAction, TipHint, TipsCompleted, },
+    search::{ ai_context_menu::{ mixer::AIContextMenuSearchableAction, search::is_valid_search_query, view::AIContextMenuAction, }, QueryFilter, },
     send_telemetry_from_ctx,
-    server::{
-        ids::SyncId,
-        telemetry::{
-            AICommandSearchEntrypoint, AgentModeAutoDetectionFalsePositivePayload,
-            AgentModeAutoDetectionSettingOrigin, CommandXRayTrigger, EnvVarTelemetryMetadata,
-            TelemetryEvent, TelemetrySpace, WorkflowTelemetryMetadata,
-        },
-    },
+    server::{telemetry::{ AICommandSearchEntrypoint, AgentModeAutoDetectionFalsePositivePayload, AgentModeAutoDetectionSettingOrigin, CommandXRayTrigger, EnvVarTelemetryMetadata, TelemetryEvent, TelemetrySpace, WorkflowTelemetryMetadata, }},
     session_management::SessionNavigationPromptElements,
-    settings::{
-        AISettings, AISettingsChangedEvent, AliasExpansionSettings, AppEditorSettings,
-        AppEditorSettingsChangedEvent, InputModeSettings, InputSettings, InputSettingsChangedEvent,
-        MAX_TIMES_TO_SHOW_AUTOSUGGESTION_HINT,
-    },
+    settings::{ AISettings, AISettingsChangedEvent, AliasExpansionSettings, AppEditorSettings, AppEditorSettingsChangedEvent, InputModeSettings, InputSettings, InputSettingsChangedEvent, MAX_TIMES_TO_SHOW_AUTOSUGGESTION_HINT, },
     settings_view::{flags, SettingsSection},
     terminal::view::inline_banner::PromptSuggestionsView,
     ui_components::{blended_colors, icons::Icon},
@@ -192,32 +133,16 @@ use crate::{
     util::bindings::{self, CustomAction},
     util::image::MAX_IMAGE_COUNT_FOR_QUERY,
     view_components::{DismissibleToast, ToastFlavor},
-    voltron::{
-        Voltron, VoltronEvent, VoltronFeatureView, VoltronFeatureViewHandle,
-        VoltronFeatureViewMeta, VoltronItem, VoltronMetadata,
-    },
-    workflows::{
-        self,
-        aliases::WorkflowAliases,
-        command_parser::{
-            compute_workflow_display_data, compute_workflow_display_data_for_history_command,
-            compute_workflow_display_data_with_overrides, WorkflowArgumentIndex,
-            WorkflowDisplayData,
-        },
-        info_box::{
-            WorkflowsInfoBoxViewEvent, WorkflowsMoreInfoView, WORKFLOW_PARAMETER_HIGHLIGHT_COLOR,
-        },
-        local_workflows::LocalWorkflows,
-        workflow_enum::EnumVariants,
-        WorkflowSelectionSource, WorkflowSource, WorkflowType,
-    },
-    workspace::{
-        sync_inputs::SyncedInputState, CommandSearchOptions, ForkFromExchange,
-        ForkedConversationDestination, InitContent, RestoreConversationLayout, ToastStack,
-        WorkspaceAction,
-    },
+    voltron::{ Voltron, VoltronEvent, VoltronFeatureView, VoltronFeatureViewHandle, VoltronFeatureViewMeta, VoltronItem, VoltronMetadata, },
+    workflows::{ self, aliases::WorkflowAliases, command_parser::{ compute_workflow_display_data, compute_workflow_display_data_for_history_command, compute_workflow_display_data_with_overrides, WorkflowArgumentIndex, WorkflowDisplayData, }, info_box::{ WorkflowsInfoBoxViewEvent, WorkflowsMoreInfoView, WORKFLOW_PARAMETER_HIGHLIGHT_COLOR, }, local_workflows::LocalWorkflows, workflow_enum::EnumVariants, WorkflowSelectionSource, WorkflowSource, WorkflowType, },
+    workspace::{ sync_inputs::SyncedInputState, CommandSearchOptions, ForkFromExchange, ForkedConversationDestination, InitContent, RestoreConversationLayout, ToastStack, WorkspaceAction, },
     AgentModeEntrypoint,
 };
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::model::view::ObjectStoreViewModel;
+use crate::objects::object_store::ObjectStore;
+use objects::{Space, StoredObject, ids::SyncId};
+use objects::ObjectActionType;
 
 use crate::terminal::shared_session::protocol::ParticipantId;
 use ai::skills::SkillReference;
@@ -298,10 +223,7 @@ use super::{
     block_list_viewport::InputMode,
     event::{BlockCompletedEvent, BlockType, UserBlockCompleted},
     ligature_settings::LigatureSettings,
-    model::{
-        block::{AgentInteractionMetadata, BlockId, BlockMetadata, BlocklistEnvVarMetadata},
-        session::{Session, SessionId, SessionType, Sessions},
-    },
+    model::{session::{Session, SessionId, SessionType, Sessions}},
     prompt,
     prompt_render_helper::{
         should_render_prompt_on_same_line, should_render_prompt_using_editor_decorator_elements,
@@ -2178,10 +2100,6 @@ impl Input {
 
         ctx.subscribe_to_view(&agent_input_footer, |me, _, event, ctx| {
             match event {
-                #[cfg(feature = "voice_input")]
-                AgentInputFooterEvent::ToggleVoiceInput(from) => {
-                    me.toggle_voice_input(from, ctx);
-                }
                 AgentInputFooterEvent::SelectFile => {
                     me.select_image(ctx);
                 }
@@ -2353,8 +2271,6 @@ impl Input {
             let ai_input_model = ai_input_model.clone();
 
             ctx.subscribe_to_model(&ai_input_model, |me, _, _, ctx| {
-                #[cfg(feature = "voice_input")]
-                me.update_voice_transcription_options(ctx);
                 me.update_image_context_options(ctx);
                 me.update_ai_context_menu(ctx);
                 me.check_slash_menu_disabled_state(ctx);
@@ -3208,38 +3124,11 @@ impl Input {
             input.set_zero_state_hint_text(ctx);
         }
 
-        #[cfg(feature = "voice_input")]
-        input.update_voice_transcription_options(ctx);
         input.update_image_context_options(ctx);
         input.update_ai_context_menu(ctx);
         input
     }
 
-    #[cfg(feature = "voice_input")]
-    fn update_voice_transcription_options(&mut self, ctx: &mut ViewContext<Self>) {
-        let ai_input_model = self.ai_input_model.as_ref(ctx);
-        let ai_settings = AISettings::as_ref(ctx);
-
-        let voice_transcription_options = match (
-            ai_input_model.input_type(),
-            ai_settings.is_voice_input_enabled(ctx),
-        ) {
-            (InputType::AI, true) => crate::editor::VoiceTranscriptionOptions::Enabled {
-                // If UDI is enabled, we show the button below the text input
-                show_button: !self.should_show_universal_developer_input(ctx)
-                    && !FeatureFlag::AgentView.is_enabled(),
-            },
-            (InputType::Shell, true) => {
-                crate::editor::VoiceTranscriptionOptions::Enabled { show_button: false }
-            }
-            (_, false) => crate::editor::VoiceTranscriptionOptions::Disabled,
-        };
-
-        self.editor.update(ctx, move |editor, ctx| {
-            editor.update_voice_transcription_options(voice_transcription_options, ctx);
-            ctx.notify();
-        });
-    }
 
     fn update_ai_context_menu(&mut self, ctx: &mut ViewContext<Self>) {
         let ai_input_model = self.ai_input_model.as_ref(ctx);
@@ -5167,20 +5056,6 @@ impl Input {
         }
     }
 
-    #[cfg(feature = "voice_input")]
-    pub(super) fn toggle_voice_input(
-        &mut self,
-        from: &voice_input::VoiceInputToggledFrom,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        self.enter_ai_mode(ctx);
-        let did_start_listening = self
-            .editor
-            .update(ctx, |editor, ctx| editor.toggle_voice_input(from, ctx));
-        if did_start_listening {
-            self.focus_input_box(ctx);
-        }
-    }
 
     fn select_image(&mut self, ctx: &mut ViewContext<Self>) {
         self.focus_input_box(ctx);
@@ -5278,10 +5153,6 @@ impl Input {
         ctx: &mut ViewContext<Self>,
     ) {
         match event {
-            #[cfg(feature = "voice_input")]
-            UniversalDeveloperInputButtonBarEvent::ToggleVoiceInput(from) => {
-                self.toggle_voice_input(from, ctx);
-            }
             UniversalDeveloperInputButtonBarEvent::InputTypeSelected(input_type) => {
                 if self.is_input_mode_toggle_disabled() {
                     return;
@@ -5626,10 +5497,6 @@ impl Input {
                         ctx,
                     );
                 }
-            }
-            #[cfg(feature = "voice_input")]
-            AISettingsChangedEvent::VoiceInputEnabled { .. } => {
-                self.update_voice_transcription_options(ctx);
             }
             _ => {}
         }
@@ -6551,7 +6418,7 @@ impl Input {
 
         if shell_type == ShellType::Fish {
             // Dais currently doesn't support newlines in Fish, just prepend the vars
-            let mut command = env_vars.export_variables_for_shell(ShellType::Fish);
+            let mut command = env_vars.export_variables_for_shell(ShellType::Fish.into());
             command.push(' ');
             Some(command)
         } else {
@@ -8961,7 +8828,7 @@ impl Input {
                             }
 
                             let has_active_ai_block =
-                                self.model.lock().block_list().has_active_ai_block(ctx);
+                                crate::ai::blocklist::view_util::has_active_ai_block(self.model.lock().block_list(), ctx);
                             // We only focus the input if there is no active AI
                             // block. Otherwise, the input is incorrectly focused
                             // when executing an AI query from the history menu.
@@ -9410,34 +9277,6 @@ impl Input {
             EditorEvent::Focused => ctx.emit(Event::EditorFocused),
             EditorEvent::ProcessingAttachedImages(is_processing) => {
                 self.set_is_processing_attached_images(*is_processing, ctx);
-            }
-            EditorEvent::VoiceStateUpdated {
-                is_listening,
-                is_transcribing,
-            } => {
-                self.universal_developer_input_button_bar
-                    .update(ctx, |button_bar, ctx| {
-                        button_bar.set_voice_is_listening(*is_listening, ctx);
-                    });
-                self.agent_input_footer.update(ctx, |footer, ctx| {
-                    footer.set_voice_is_active(*is_listening || *is_transcribing, ctx);
-                });
-
-                if *is_listening || *is_transcribing {
-                    // Show voice status as placeholder when the buffer is empty.
-                    if self.editor.as_ref(ctx).is_empty(ctx) {
-                        let placeholder = if *is_listening {
-                            "Listening..."
-                        } else {
-                            "Transcribing..."
-                        };
-                        self.editor.update(ctx, |editor, ctx| {
-                            editor.set_placeholder_text(placeholder, ctx);
-                        });
-                    }
-                } else {
-                    self.set_zero_state_hint_text(ctx);
-                }
             }
             EditorEvent::SetAIContextMenuOpen(open) => {
                 self.set_ai_context_menu_open(*open, ctx);
@@ -12273,8 +12112,8 @@ impl Input {
                     ctx
                 );
 
-                UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                    update_manager.record_object_action(
+                ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                    object_store.record_object_action(
                         workflow.object_type_and_id(),
                         ObjectActionType::Execute,
                         None,
@@ -13761,9 +13600,11 @@ impl View for Input {
         // blocklist that is undismissed (i.e. keybindings are shown in the banner/block).
         // This is to prevent any keybinding conflicts (with actions such as split pane
         // down on non-Macs).
-        let has_undismissed_passive_code_diff = model_lock
-            .block_list()
-            .last_non_hidden_ai_block_handle(app)
+        let has_undismissed_passive_code_diff =
+            crate::ai::blocklist::view_util::last_non_hidden_ai_block_handle(
+                model_lock.block_list(),
+                app,
+            )
             .is_some_and(|ai_block| {
                 let block = ai_block.as_ref(app);
                 block.is_passive_conversation(app)

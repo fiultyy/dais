@@ -15,10 +15,7 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    editor::{
-        EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions,
-        TextOptions,
-    },
+    editor::{ EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, },
 };
 
 use super::model::NotebooksEditorModel;

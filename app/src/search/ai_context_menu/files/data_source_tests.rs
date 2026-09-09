@@ -8,7 +8,10 @@ use crate::search::{
     item::SearchItem,
     mixer::AsyncDataSource,
 };
-use crate::{terminal::model::session::Session, workspace::ActiveSession};
+use crate::{
+    terminal::model::session::Session,
+    workspace::ActiveSession,
+};
 use repo_metadata::repositories::DetectedRepositories;
 use repo_metadata::RepoMetadataModel;
 use std::collections::HashMap;

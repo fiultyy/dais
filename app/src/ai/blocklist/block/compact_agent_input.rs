@@ -6,10 +6,7 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    editor::{
-        EditorOptions, EditorView, Event as EditorEvent, PropagateAndNoOpEscapeKey,
-        PropagateAndNoOpNavigationKeys, PropagateHorizontalNavigationKeys, TextOptions,
-    },
+    editor::{ EditorOptions, EditorView, Event as EditorEvent, PropagateAndNoOpEscapeKey, PropagateAndNoOpNavigationKeys, PropagateHorizontalNavigationKeys, TextOptions, },
 };
 
 /// Wraps an [`EditorView`] for inline prompts that need a lightweight text input.

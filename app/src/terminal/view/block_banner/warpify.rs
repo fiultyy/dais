@@ -15,10 +15,7 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    terminal::{
-        ssh::warpify::warpify_description,
-        view::{RememberForWarpification, TerminalAction},
-    },
+    terminal::{ ssh::warpify::warpify_description, view::{RememberForWarpification, TerminalAction}, },
     themes::theme::Fill,
     ui_components::blended_colors,
 };

@@ -6,7 +6,7 @@ use warpui::{AppContext, Entity, EntityId, WindowId};
 
 use crate::context_chips::prompt_snapshot::PromptSnapshot;
 use crate::pane_group::PaneGroup;
-use crate::terminal::model::blockgrid::BlockGrid;
+use terminal_grid_model::grid::blockgrid::BlockGrid;
 use crate::terminal::shared_session::SharedSessionStatus;
 use crate::{
     pane_group::PaneId,

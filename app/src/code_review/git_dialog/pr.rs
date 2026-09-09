@@ -15,10 +15,7 @@ use warpui::{
 };
 
 use crate::{
-    code_review::git_dialog::{
-        interactive_path_future, render_branch_section, render_file_changes_box, show_toast,
-        user_facing_git_error, GitDialog, GitDialogAction, GitDialogEvent, GitDialogMode,
-    },
+    code_review::git_dialog::{ interactive_path_future, render_branch_section, render_file_changes_box, show_toast, user_facing_git_error, GitDialog, GitDialogAction, GitDialogEvent, GitDialogMode, },
     ui_components::icons::Icon,
     util::git::{create_pr, get_branch_diff_entries, FileChangeEntry, PrInfo},
     view_components::{DismissibleToast, ToastLink},

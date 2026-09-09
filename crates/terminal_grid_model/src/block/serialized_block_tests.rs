@@ -1,0 +1,101 @@
+use agent_ids::TaskId;
+use super::*;
+
+/// Serialized block JSON with byte fields encoded as base64 strings, as produced by `to_json`.
+const BASE64_JSON: &str = r#"{
+    "id": "test-block-1",
+    "stylized_command": "ZWNobyBoZWxsbw==",
+    "stylized_output": "aGVsbG8gd29ybGQ=",
+    "pwd": null,
+    "git_head": null,
+    "virtual_env": null,
+    "conda_env": null,
+    "node_version": null,
+    "exit_code": 0,
+    "did_execute": true,
+    "completed_ts": null,
+    "start_ts": null,
+    "ps1": null,
+    "rprompt": null,
+    "honor_ps1": false,
+    "is_background": false,
+    "session_id": null,
+    "shell_host": null,
+    "prompt_snapshot": null,
+    "ai_metadata": null
+}"#;
+
+/// Serialized block JSON with byte fields as integer arrays, as produced by plain `serde_json`.
+const ARRAY_JSON: &str = r#"{
+    "id": "test-block-1",
+    "stylized_command": [101,99,104,111,32,104,101,108,108,111],
+    "stylized_output": [104,101,108,108,111,32,119,111,114,108,100],
+    "pwd": null,
+    "git_head": null,
+    "virtual_env": null,
+    "conda_env": null,
+    "node_version": null,
+    "exit_code": 0,
+    "did_execute": true,
+    "completed_ts": null,
+    "start_ts": null,
+    "ps1": null,
+    "rprompt": null,
+    "honor_ps1": false,
+    "is_background": false,
+    "session_id": null,
+    "shell_host": null,
+    "prompt_snapshot": null,
+    "ai_metadata": null
+}"#;
+
+#[test]
+fn from_json_accepts_base64_encoded_bytes() {
+    let block = SerializedBlock::from_json(BASE64_JSON.as_bytes()).unwrap();
+    assert_eq!(block.stylized_command, b"echo hello");
+    assert_eq!(block.stylized_output, b"hello world");
+}
+
+#[test]
+fn from_json_accepts_integer_array_bytes() {
+    let block = SerializedBlock::from_json(ARRAY_JSON.as_bytes()).unwrap();
+    assert_eq!(block.stylized_command, b"echo hello");
+    assert_eq!(block.stylized_output, b"hello world");
+}
+
+#[test]
+fn serialized_ai_metadata_defaults_missing_should_hide_block_to_true() {
+    let conversation_id = AIConversationId::new();
+    let json = serde_json::json!({
+        "requested_command_action_id": null,
+        "conversation_id": conversation_id,
+        "subagent_task_id": null,
+        "long_running_control_state": null,
+        "has_agent_written_to_block": false
+    });
+
+    let metadata: SerializedAIMetadata = serde_json::from_value(json).unwrap();
+    let agent_metadata: AgentInteractionMetadata = metadata.into();
+
+    assert!(agent_metadata.should_hide_block());
+}
+
+#[test]
+fn serialized_ai_metadata_preserves_explicit_visible_block() {
+    let metadata = SerializedAIMetadata::from(AgentInteractionMetadata::new(
+        None,
+        AIConversationId::new(),
+        Some(TaskId::new("cli-task-1".to_string())),
+        None,
+        false,
+        false,
+    ));
+
+    let json = serde_json::to_value(&metadata).unwrap();
+    assert_eq!(json["should_hide_block"], false);
+
+    let restored_metadata: SerializedAIMetadata = serde_json::from_value(json).unwrap();
+    let agent_metadata: AgentInteractionMetadata = restored_metadata.into();
+
+    assert!(!agent_metadata.should_hide_block());
+}

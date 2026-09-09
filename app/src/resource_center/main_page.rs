@@ -6,7 +6,6 @@ use crate::{
     resource_center::skip_tips_and_write_to_user_defaults,
     send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
-    settings::Settings,
     themes::theme::{Blend, Fill as FillTheme},
 };
 use pathfinder_geometry::vector::vec2f;
@@ -14,30 +13,32 @@ use warpui::{
     elements::{
         Align, ClippedScrollStateHandle, ClippedScrollable, Container, CornerRadius, Element,
         Empty, Fill, Flex, Hoverable, Icon, MainAxisAlignment, MainAxisSize, MouseStateHandle,
-        ParentElement, Radius, Shrinkable,
+        ParentElement, Radius, ScrollbarWidth, Shrinkable,
     },
     platform::Cursor,
-    presenter::ChildView,
     ui_components::{
         button::{ButtonVariant, TextAndIcon, TextAndIconAlignment},
         components::{Coords, UiComponent, UiComponentStyles},
     },
     AppContext, Entity, EntityId, ModelHandle, SingletonEntity, TypedActionView, View, ViewContext,
-    ViewHandle, WindowId,
+    WindowId,
 };
 
-use crate::{appearance::Appearance, workspace::WorkspaceAction};
-
-use super::{
-    section_views::{
-        feature_section::FeatureSectionEvent, SectionViewHandle, BUTTON_PADDING, DETAIL_FONT_SIZE,
-        FOOTER_ICON_SIZE, SCROLLBAR_OFFSET, SCROLLBAR_WIDTH, SECTION_SPACING,
-        SECTION_SPACING_BOTTOM,
-    },
-    sections::sections,
-    ChangelogSectionView, ContentSectionData, ContentSectionView, FeatureSection,
-    FeatureSectionData, FeatureSectionView, Section, TipsCompleted,
+use crate::{
+    appearance::Appearance,
+    workspace::WorkspaceAction,
 };
+
+use super::TipsCompleted;
+
+// 原 section_views 常量,随模块删除后本地化(仅保留本文件用到的)。
+const SCROLLBAR_OFFSET: f32 = 7.;
+const SCROLLBAR_WIDTH: ScrollbarWidth = ScrollbarWidth::Auto;
+const SECTION_SPACING_BOTTOM: f32 = 24.;
+const SECTION_SPACING: f32 = 12.;
+const BUTTON_PADDING: f32 = 10.;
+const DETAIL_FONT_SIZE: f32 = 12.;
+const FOOTER_ICON_SIZE: f32 = 15.;
 
 const SEND_SVG_PATH: &str = "bundled/svg/send.svg";
 
@@ -55,7 +56,6 @@ pub enum ResourceCenterMainEvent {
 pub struct ResourceCenterMainView {
     button_mouse_states: MouseStateHandles,
     clipped_scroll_state: ClippedScrollStateHandle,
-    section_views: Vec<SectionViewHandle>,
     tips_completed: ModelHandle<TipsCompleted>,
 }
 
@@ -71,230 +71,31 @@ impl ResourceCenterMainView {
         tips_completed: ModelHandle<TipsCompleted>,
         changelog_model_handle: ModelHandle<ChangelogModel>,
     ) -> Self {
-        let action_target = ctx.add_model(|_| ActionTarget::None);
-        let section_views = Self::initialize_section_views(
-            tips_completed.clone(),
-            action_target.clone(),
-            ctx,
-            changelog_model_handle.clone(),
-        );
+        let _ = changelog_model_handle; // 章节视图已删除; 保留签名兼容现有调用方。
         Self {
             button_mouse_states: Default::default(),
             clipped_scroll_state: Default::default(),
-            section_views,
             tips_completed,
         }
     }
 
-    fn initialize_section_views(
-        tips_completed: ModelHandle<TipsCompleted>,
-        action_target: ModelHandle<ActionTarget>,
-        ctx: &mut ViewContext<Self>,
-        changelog_model_handle: ModelHandle<ChangelogModel>,
-    ) -> Vec<SectionViewHandle> {
-        let sections = sections(ctx);
-
-        // Set gamified tips count
-        let gamified_tips_count = sections
-            .iter()
-            .map(|section| {
-                let mut count = 0;
-                if let Section::Feature(data) = section {
-                    count = data.items.len()
-                }
-                count
-            })
-            .sum();
-
-        tips_completed.update(ctx, |tips_completed, _ctx| {
-            tips_completed.set_gamified_tips_count(gamified_tips_count);
-        });
-
-        // Determines if user has completed all tips under Getting Started
-        let is_onboarded = sections.iter().any(|section| {
-            if let Section::Feature(data) = section {
-                let is_section_completed = data.is_section_completed(tips_completed.as_ref(ctx));
-                is_section_completed && data.section_name == FeatureSection::GettingStarted
-            } else {
-                false
-            }
-        });
-
-        sections
-            .iter()
-            .map(|section| match section {
-                Section::Feature(data) => {
-                    let is_tips_completed = tips_completed.as_ref(ctx).skipped_or_completed;
-                    let is_expanded = match data.section_name {
-                        // Always show What's New section
-                        FeatureSection::WhatsNew => true,
-                        FeatureSection::GettingStarted => match ChannelState::app_version() {
-                            Some(version) => {
-                                match Settings::has_changelog_been_shown(version, ctx) {
-                                    true => !is_tips_completed && !is_onboarded,
-                                    false => false,
-                                }
-                            }
-                            None => !is_tips_completed && !is_onboarded,
-                        },
-                        // Expand Maximize Dais section once user has completed welcome tips,
-                        // and keep open after users have completed/skipped all tips
-                        FeatureSection::MaximizeWarp => match ChannelState::app_version() {
-                            Some(version) => {
-                                match Settings::has_changelog_been_shown(version, ctx) {
-                                    true => is_tips_completed || is_onboarded,
-                                    false => false,
-                                }
-                            }
-                            None => is_tips_completed || is_onboarded,
-                        },
-                        _ => false,
-                    };
-
-                    // Show tips progress for every section except changelog
-                    let show_tips_progress = !matches!(data.section_name, FeatureSection::WhatsNew);
-
-                    SectionViewHandle::Feature(Self::build_feature_section_view(
-                        data,
-                        action_target.clone(),
-                        ctx,
-                        tips_completed.clone(),
-                        show_tips_progress,
-                        is_expanded,
-                    ))
-                }
-                Section::Content(data) => {
-                    SectionViewHandle::Content(Self::build_content_section_view(data, ctx))
-                }
-                Section::Changelog() => SectionViewHandle::Changelog(
-                    Self::build_changelog_section_view(changelog_model_handle.clone(), ctx),
-                ),
-            })
-            .collect()
-    }
-
-    fn build_feature_section_view(
-        section_data: &FeatureSectionData,
-        action_target: ModelHandle<ActionTarget>,
-        ctx: &mut ViewContext<ResourceCenterMainView>,
-        tips_completed: ModelHandle<TipsCompleted>,
-        show_tips_progress: bool,
-        is_expanded: bool,
-    ) -> ViewHandle<FeatureSectionView> {
-        let feature_section_view = ctx.add_typed_action_view(|ctx| {
-            FeatureSectionView::new(
-                section_data.clone(),
-                action_target,
-                ctx,
-                tips_completed.clone(),
-                show_tips_progress,
-                is_expanded,
-            )
-        });
-
-        ctx.subscribe_to_view(&feature_section_view, move |me, _, event, ctx| {
-            me.handle_feature_section_event(event, ctx);
-        });
-
-        feature_section_view
-    }
-
-    fn handle_feature_section_event(
-        &mut self,
-        event: &FeatureSectionEvent,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        match event {
-            FeatureSectionEvent::CloseResourceCenter => {
-                ctx.emit(ResourceCenterMainEvent::Close);
-                ctx.notify();
-            }
-            FeatureSectionEvent::ExpandSection(section_name) => {
-                for section_view in &self.section_views {
-                    match section_view {
-                        SectionViewHandle::Feature(feature_view_handle) => {
-                            if feature_view_handle
-                                .as_ref(ctx)
-                                .feature_section_data
-                                .section_name
-                                == *section_name
-                            {
-                                feature_view_handle.update(ctx, |view, ctx| {
-                                    view.expand_section(ctx);
-                                })
-                            }
-                        }
-                        SectionViewHandle::Content(_) => {}
-                        SectionViewHandle::Changelog(_) => {}
-                    }
-                }
-                ctx.notify();
-            }
-        }
-    }
-
-    fn build_content_section_view(
-        section_data: &ContentSectionData,
-        ctx: &mut ViewContext<ResourceCenterMainView>,
-    ) -> ViewHandle<ContentSectionView> {
-        ctx.add_typed_action_view(|ctx| ContentSectionView::new(section_data.clone(), false, ctx))
-    }
-
-    fn build_changelog_section_view(
-        changelog_model_handle: ModelHandle<ChangelogModel>,
-        ctx: &mut ViewContext<ResourceCenterMainView>,
-    ) -> ViewHandle<ChangelogSectionView> {
-        let showing_new_changelog = match ChannelState::app_version() {
-            Some(version) => !Settings::has_changelog_been_shown(version, ctx),
-            None => false,
-        };
-
-        ctx.add_typed_action_view(|ctx: &mut ViewContext<_>| {
-            ChangelogSectionView::new(changelog_model_handle, showing_new_changelog, ctx)
-        })
-    }
-
     pub fn set_action_target(
         &mut self,
-        window_id: WindowId,
-        input_id: Option<EntityId>,
-        ctx: &mut ViewContext<Self>,
+        _window_id: WindowId,
+        _input_id: Option<EntityId>,
+        _ctx: &mut ViewContext<Self>,
     ) {
-        for section_view in &self.section_views {
-            match section_view {
-                SectionViewHandle::Feature(view_handle) => {
-                    view_handle.update(ctx, |feature_section_view, ctx| {
-                        feature_section_view.set_action_target(window_id, input_id, ctx)
-                    });
-                }
-                SectionViewHandle::Content(_) => {}
-                SectionViewHandle::Changelog(_) => {}
-            }
-        }
+        // 章节视图已删除, 无需转发 action target。
     }
 
     fn render_body(&self, appearance: &Appearance) -> Box<dyn Element> {
-        let mut body = Flex::column();
-
-        for section_view in &self.section_views {
-            match section_view {
-                SectionViewHandle::Feature(feature_view_handle) => {
-                    body.add_child(ChildView::new(feature_view_handle).finish());
-                }
-                SectionViewHandle::Content(section_view_handle) => {
-                    body.add_child(ChildView::new(section_view_handle).finish());
-                }
-                SectionViewHandle::Changelog(section_view_handle) => {
-                    body.add_child(ChildView::new(section_view_handle).finish());
-                }
-            }
-        }
-
         let theme = appearance.theme();
+        // 章节视图已删除: 主页面仅保留空滚动容器占位。
+        let body = Flex::column().finish();
 
         ClippedScrollable::vertical(
             self.clipped_scroll_state.clone(),
-            body.finish(),
+            body,
             SCROLLBAR_WIDTH,
             theme.disabled_text_color(theme.background()).into(),
             theme.main_text_color(theme.background()).into(),
@@ -451,27 +252,6 @@ impl ResourceCenterMainView {
         .with_margin_right(SCROLLBAR_OFFSET + SECTION_SPACING)
         .finish()
     }
-}
-
-/// A model for tracking where the events from the resource center view should be dispatched
-///
-/// Similar to command palette - we need a model to cache the information of where
-/// we should send the actions from the resource center features. When the resource center is opened,
-/// we cache the current active window ID as well as the input ID of the active
-/// tab/pane. By sending all the actions to the input view, we ensure that
-/// they propagate correctly. This propagation assumes that each feature action
-/// must be in the responder chain. If an action is not in the responder chain
-/// (such as a block navigation action) then it won't propagate correctly.
-pub enum ActionTarget {
-    None,
-    View {
-        window_id: WindowId,
-        input_id: Option<EntityId>,
-    },
-}
-
-impl Entity for ActionTarget {
-    type Event = ();
 }
 
 impl Entity for ResourceCenterMainView {

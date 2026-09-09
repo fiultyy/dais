@@ -17,7 +17,10 @@ use ai::diff_validation::DiffType;
 use super::editor::view::CodeEditorView;
 use super::ImmediateSaveError;
 use crate::terminal::TerminalView;
-use crate::{code::editor::EditorReviewComment, code_review::comments::CommentId};
+use crate::{
+    code::editor::EditorReviewComment,
+    code_review::comments::CommentId,
+};
 use warp_core::ui::appearance::Appearance;
 
 pub use super::diff_viewer::DisplayMode;

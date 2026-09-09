@@ -15,8 +15,11 @@ use super::{
     LocalOnlyIconState, SettingsAction, SettingsSection, ToggleState,
 };
 use crate::{
-    appearance::Appearance, send_telemetry_from_ctx, settings::CodeSettings,
-    terminal::general_settings::GeneralSettings, workspace::tab_settings::TabSettings,
+    appearance::Appearance,
+    send_telemetry_from_ctx,
+    settings::CodeSettings,
+    terminal::general_settings::GeneralSettings,
+    workspace::tab_settings::TabSettings,
     TelemetryEvent,
 };
 use ai::project_context::model::{ProjectContextModel, ProjectContextModelEvent};

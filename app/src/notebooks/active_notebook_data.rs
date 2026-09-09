@@ -1,19 +1,14 @@
+use crate::objects_display::StoredObjectHostExt;
 use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
 
 use crate::{
     ai::document::ai_document_model::AIDocumentId,
-    cloud_object::{
-        breadcrumbs::ContainingObject,
-        model::{
-            persistence::{ObjectStoreEvent, ObjectStoreModel},
-            view::{Editor, EditorState, ObjectStoreViewModel},
-        },
-        Owner, Space, StoredObject,
-    },
     drive::sharing::{ContentEditability, SharingAccessLevel},
     notebooks::NotebookObject,
-    server::ids::{ClientId, SyncId},
 };
+use objects::{Owner, Space, StoredObject, ids::{ClientId, SyncId}};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::model::view::{Editor, ObjectStoreViewModel};
 
 use super::NotebookObjectModel;
 
@@ -55,60 +50,19 @@ pub struct ActiveNotebookData {
     pub saving_status: SavingStatus,
     pub active_notebook: ActiveNotebook,
 
-    pub show_grab_edit_access_modal: bool,
     pub feature_not_available: bool,
 }
 
 impl ActiveNotebookData {
-    pub fn new(ctx: &mut ModelContext<Self>) -> Self {
-        let object_store_model = ObjectStoreModel::handle(ctx);
-        ctx.subscribe_to_model(&object_store_model, |me, event, ctx| {
-            me.handle_object_store_event(event, ctx);
-        });
-
+    pub fn new(_ctx: &mut ModelContext<Self>) -> Self {
         Self {
             ..Default::default()
-        }
-    }
-
-    fn handle_object_store_event(
-        &mut self,
-        event: &ObjectStoreEvent,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        match event {
-            ObjectStoreEvent::NotebookEditorChangedExternally { notebook_id } => {
-                if self.is_active_notebook(*notebook_id) {
-                    if let Some(new_editor) = ObjectStoreViewModel::as_ref(ctx)
-                        .object_current_editor(&notebook_id.uid(), ctx)
-                    {
-                        if self.mode == Mode::Editing
-                            && matches!(new_editor.state, EditorState::OtherUserActive)
-                        {
-                            self.mode = Mode::View;
-                            ctx.emit(ActiveNotebookDataEvent::ModeChangedFromServer);
-                        }
-                    }
-                    ctx.notify();
-                }
-            }
-            ObjectStoreEvent::ObjectMoved { type_and_id, .. } => {
-                if let Some(notebook_id) = type_and_id.as_notebook_id() {
-                    // Update breadcrumb when a notebook is moved, whether by the user or a
-                    // teammate.
-                    if self.is_active_notebook(notebook_id) {
-                        ctx.emit(ActiveNotebookDataEvent::BreadcrumbsChanged);
-                    }
-                }
-            }
-            _ => (),
         }
     }
 
     pub fn reset(&mut self) {
         self.mode = Mode::View;
         self.saving_status = SavingStatus::default();
-        self.show_grab_edit_access_modal = false;
         self.active_notebook = ActiveNotebook::None;
         self.feature_not_available = false;
     }
@@ -117,7 +71,7 @@ impl ActiveNotebookData {
         &mut self,
         owner: Owner,
         initial_folder_id: Option<SyncId>,
-        ctx: &mut ModelContext<Self>,
+        _ctx: &mut ModelContext<Self>,
     ) {
         self.reset();
 
@@ -131,13 +85,11 @@ impl ActiveNotebookData {
             initial_folder_id,
             new_id,
         )));
-        ctx.emit(ActiveNotebookDataEvent::BreadcrumbsChanged);
     }
 
-    pub fn open_existing(&mut self, notebook_id: SyncId, ctx: &mut ModelContext<Self>) {
+    pub fn open_existing(&mut self, notebook_id: SyncId, _ctx: &mut ModelContext<Self>) {
         self.reset();
         self.active_notebook = ActiveNotebook::CommittedNotebook(notebook_id);
-        ctx.emit(ActiveNotebookDataEvent::BreadcrumbsChanged);
     }
 
     pub fn id(&self) -> Option<SyncId> {
@@ -170,16 +122,8 @@ impl ActiveNotebookData {
         )
     }
 
-    /// Calculate the breadcrumbs for this object.
-    pub fn breadcrumbs(&self, ctx: &AppContext) -> Option<Vec<ContainingObject>> {
-        let cloud_notebook = match &self.active_notebook {
-            ActiveNotebook::None => None,
-            ActiveNotebook::CommittedNotebook(id) => ObjectStoreModel::as_ref(ctx).get_notebook(id),
-            ActiveNotebook::NewNotebook(notebook) => Some(notebook.as_ref()),
-        };
-
-        cloud_notebook.map(|notebook| notebook.containing_objects_path(ctx))
-    }
+    // Dais(W3-d8): `breadcrumbs()` 已随 objects::breadcrumbs 裁撤;
+    // containing_objects_path 仍由 StoredObject trait 提供。
 
     /// The space that the active notebook is shown in for this user.
     pub fn space(&self, app: &AppContext) -> Option<Space> {
@@ -219,9 +163,7 @@ impl ActiveNotebookData {
     pub fn has_conflicts(&self, ctx: &AppContext) -> bool {
         self.id()
             .and_then(|id| ObjectStoreModel::as_ref(ctx).get_by_uid(&id.uid()))
-            .is_some_and(|object| {
-                object.has_conflicting_changes() && !object.metadata().has_pending_content_changes()
-            })
+            .is_some_and(|object| object.has_conflicting_changes())
     }
 
     pub fn feature_not_available(&self) -> bool {
@@ -277,16 +219,6 @@ impl ActiveNotebookData {
 }
 
 pub enum ActiveNotebookDataEvent {
-    /// Another user stole the baton for the current object.
-    ModeChangedFromServer,
-    /// The editing baton for the current object was successfully grabbed server-side.
-    SwitchedToEditMode,
-    /// An edit to the current object was rejected.
-    EditRejected,
-    /// The notebook's breadcrumbs were updated.
-    BreadcrumbsChanged,
-    /// This notebook was created on the server.
-    CreatedOnServer,
     /// This notebook was trashed or untrashed (used for refreshing pane overflow items)
     TrashStatusChanged,
     // This notebook was moved to a shared space.

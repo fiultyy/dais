@@ -4,10 +4,7 @@ use warpui::{elements::MouseStateHandle, fonts::Weight, Element, EntityId};
 
 use crate::{
     appearance::Appearance,
-    terminal::{
-        model::session::Session,
-        view::{open_in_warp::OpenablePath, InlineBannerId, TerminalAction},
-    },
+    terminal::{ model::session::Session, view::{open_in_warp::OpenablePath, InlineBannerId, TerminalAction}, },
     util::openable_file_type::OpenableFileType,
 };
 

@@ -31,7 +31,7 @@ mod block_insertion_menu;
 mod embedded_item;
 mod embedding_model;
 mod find_bar;
-mod interaction_state_model;
+pub use notebooks_model::interaction_state_model;
 pub mod keys;
 mod link_editor;
 pub mod model;

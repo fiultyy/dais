@@ -1,12 +1,16 @@
 use warpui::{platform::WindowStyle, App};
 
 use crate::{
-    auth::AuthManager, cloud_object::model::persistence::ObjectStoreModel,
-    cloud_object::update_manager::UpdateManager, network::NetworkStatus,
-    settings_view::keybindings::KeybindingChangedNotifier, system::SystemStats,
+    auth::{AuthManager, AuthStateProvider},
+    network::NetworkStatus,
+    settings_view::keybindings::KeybindingChangedNotifier,
+    system::SystemStats,
     test_util::settings::initialize_settings_for_tests,
     workspaces::user_workspaces::UserWorkspaces,
 };
+
+use crate::objects::object_store::ObjectStore;
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use super::*;
 
@@ -19,12 +23,10 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| SystemStats::new());
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(UserWorkspaces::default_mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(|_| Appearance::mock());
     app.add_singleton_model(|_| ResizableData::default());
     app.add_singleton_model(|_| KeybindingChangedNotifier::mock());
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
 }
 
 #[test]

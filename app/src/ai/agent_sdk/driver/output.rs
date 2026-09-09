@@ -11,15 +11,9 @@ pub mod text {
     use itertools::Itertools;
 
     use crate::{
-        ai::agent::{
-            AIAgentActionType, AIAgentInput, AIAgentOutput, AIAgentOutputMessageType, AIAgentTodo,
-            ArtifactCreatedData, CallMCPToolResult, FileGlobResult, FileGlobV2Result, GrepResult,
-            ReadFilesResult, ReadMCPResourceResult, RequestCommandOutputResult,
-            RequestFileEditsResult, SuggestNewConversationResult, SuggestPromptResult,
-            TodoOperation, WebFetchStatus, WebSearchStatus, WriteToLongRunningShellCommandResult,
-        },
-        AIAgentActionResultType,
-    };
+    ai::agent::{ AIAgentActionType, AIAgentInput, AIAgentOutput, AIAgentOutputMessageType, AIAgentTodo, ArtifactCreatedData, CallMCPToolResult, FileGlobResult, FileGlobV2Result, GrepResult, ReadFilesResult, ReadMCPResourceResult, RequestCommandOutputResult, RequestFileEditsResult, SuggestNewConversationResult, SuggestPromptResult, TodoOperation, WebFetchStatus, WebSearchStatus, WriteToLongRunningShellCommandResult, },
+    AIAgentActionResultType,
+};
 
     /// Format an agent input as a human-readable string. For action results, it's assumed that
     /// the action is shown immediately before this result.
@@ -473,15 +467,9 @@ pub mod text {
 
 pub mod json {
     use crate::{
-        ai::agent::{
-            AIAgentActionType, AIAgentInput, AIAgentOutput, AIAgentOutputMessage,
-            AIAgentOutputMessageType, AIAgentTodo, ArtifactCreatedData, CallMCPToolResult,
-            FileContext, FileGlobResult, FileGlobV2Result, GrepResult, ReadFilesResult,
-            ReadMCPResourceResult, RequestCommandOutputResult, RequestFileEditsResult,
-            SubagentCall, TodoOperation, WriteToLongRunningShellCommandResult,
-        },
-        AIAgentActionResultType,
-    };
+    ai::agent::{ AIAgentActionType, AIAgentInput, AIAgentOutput, AIAgentOutputMessage, AIAgentOutputMessageType, AIAgentTodo, ArtifactCreatedData, CallMCPToolResult, FileContext, FileGlobResult, FileGlobV2Result, GrepResult, ReadFilesResult, ReadMCPResourceResult, RequestCommandOutputResult, RequestFileEditsResult, SubagentCall, TodoOperation, WriteToLongRunningShellCommandResult, },
+    AIAgentActionResultType,
+};
 
     use crate::ai::agent::comment::ReviewComment;
     use serde::Serialize;

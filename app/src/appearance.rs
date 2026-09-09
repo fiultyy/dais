@@ -21,11 +21,7 @@ mod macos_app_icon {
 use macos_app_icon::*;
 
 use crate::{
-    settings::{
-        active_theme_kind, font::heading_font_size_multipliers_from_settings, FontSettings,
-        FontSettingsChangedEvent, MonospaceFontSize, Settings, ThemeSettings, UI_FONT_SIZE_MIN,
-        UI_FONT_SIZE_MAX,
-    },
+    settings::{ active_theme_kind, font::heading_font_size_multipliers_from_settings, FontSettings, FontSettingsChangedEvent, MonospaceFontSize, Settings, ThemeSettings, UI_FONT_SIZE_MIN, UI_FONT_SIZE_MAX, },
     themes::theme::{ThemeKind, WarpTheme},
     ASSETS,
 };

@@ -14,8 +14,8 @@ use settings::{
 define_settings_group!(ThemeSettings, settings: [
     theme_kind: Theme {
         type: ThemeKind,
-        // Note that for new users, we now override this default value in SettingsInitializer
-        // to set the default theme to Phenomenon.
+        // The default is Dark; older Phenomenon/Adeberry values deserialize
+        // back to Dark since only Dark/Light remain.
         default: ThemeKind::default(),
         supported_platforms: SupportedPlatforms::ALL,
         sync_to_cloud: SyncToCloud::Globally(RespectUserSyncSetting::Yes),
@@ -46,14 +46,6 @@ define_settings_group!(ThemeSettings, settings: [
         description: "The themes to use for system light and dark modes.",
     },
 ]);
-
-impl Theme {
-    fn current_value_is_syncable(&self) -> bool {
-        let current_value = self.value();
-        // Custom themes reference local files, so they remain local-only.
-        !matches!(current_value, ThemeKind::Custom(_))
-    }
-}
 
 /// Returns a derived value for whether to respect the system theme based on
 /// the current theme settings.

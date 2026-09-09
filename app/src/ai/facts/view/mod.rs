@@ -3,7 +3,7 @@
 // 整体移除并精简 imports。Pane 容器视图本身保留,负责在 Rules / RuleEditor 两页之间切换。
 use crate::pane_group::focus_state::PaneFocusHandle;
 use crate::pane_group::{pane::view, BackingView, PaneConfiguration, PaneEvent};
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 use std::path::PathBuf;
 use warp_core::ui::appearance::Appearance;
 use warpui::{
@@ -138,27 +138,6 @@ impl AIFactView {
             RuleEditorViewEvent::Add { name, content } => {
                 self.rule_view.update(ctx, |rule_view, ctx| {
                     rule_view.add_ai_rule(name.clone(), content.clone(), ctx);
-                });
-            }
-            RuleEditorViewEvent::Edit {
-                name,
-                content,
-                sync_id,
-                revision_ts,
-            } => {
-                self.rule_view.update(ctx, |rule_view, ctx| {
-                    rule_view.edit_ai_rule(
-                        name.clone(),
-                        content.clone(),
-                        *sync_id,
-                        revision_ts.clone(),
-                        ctx,
-                    );
-                });
-            }
-            RuleEditorViewEvent::Delete { sync_id } => {
-                self.rule_view.update(ctx, |rule_view, ctx| {
-                    rule_view.delete_ai_rule(*sync_id, ctx);
                 });
             }
             _ => {}

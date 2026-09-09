@@ -14,7 +14,10 @@ use warp_util::path::ShellFamily;
 #[cfg(all(not(target_family = "wasm"), feature = "local_tty"))]
 use crate::terminal::local_shell::execute_command;
 
-use crate::{terminal::shell::ShellType, ui_components::icons::Icon};
+use crate::{
+    terminal::shell::ShellType,
+    ui_components::icons::Icon,
+};
 
 lazy_static! {
     // Used as a delimeter to separate metadata (such as names and references)

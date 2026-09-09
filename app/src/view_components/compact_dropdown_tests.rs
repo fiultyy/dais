@@ -1,7 +1,10 @@
 use warp_core::ui::appearance::Appearance;
 use warpui::{platform::WindowStyle, App, View};
 
-use crate::{menu::MenuVariant, ui_components::icons::Icon};
+use crate::{
+    menu::MenuVariant,
+    ui_components::icons::Icon,
+};
 
 use super::{CompactDropdown, CompactDropdownItem};
 

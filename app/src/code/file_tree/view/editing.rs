@@ -13,10 +13,7 @@ use warpui::{elements::MouseStateHandle, ViewContext};
 
 use super::{FileTreeIdentifier, FileTreeItem, FileTreeView};
 use crate::{
-    code::file_tree::{
-        view::{PendingEdit, PendingEditKind},
-        FileTreeEvent,
-    },
+    code::file_tree::{ view::{PendingEdit, PendingEditKind}, FileTreeEvent, },
     send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
 };

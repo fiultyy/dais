@@ -21,17 +21,11 @@ use warpui::{
 };
 
 use crate::{
-    editor::{
-        EditorOptions, EditorView, EnterSettings, Event as EditorEvent, InteractionState,
-        PropagateAndNoOpNavigationKeys, TextOptions,
-    },
-    server::ids::SyncId,
-    ui_components::{
-        buttons::{highlight, icon_button},
-        icons::{self, Icon},
-    },
+    editor::{ EditorOptions, EditorView, EnterSettings, Event as EditorEvent, InteractionState, PropagateAndNoOpNavigationKeys, TextOptions, },
+    ui_components::{ buttons::{highlight, icon_button}, icons::{self, Icon}, },
     workflows::workflow::ArgumentType,
 };
+use objects::ids::SyncId;
 
 use warpui::platform::Cursor;
 

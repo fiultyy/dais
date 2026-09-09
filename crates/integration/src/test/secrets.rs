@@ -1,7 +1,8 @@
-use warp::integration_testing::terminal::{
+use terminal_model::index::Point;
+use dais::integration_testing::terminal::{
     initialize_secret_regexes, open_context_menu_for_selected_block,
 };
-use warp::{
+use dais::{
     integration_testing::{
         clipboard::assert_clipboard_contains_string,
         secret_redaction::{assert_secret_tooltip_open, assert_secrets_redacted_for_ai},
@@ -14,7 +15,7 @@ use warp::{
         },
         view_getters::single_terminal_view,
     },
-    terminal::model::{index::Point, terminal_model::WithinModel},
+    terminal::model::terminal_model::WithinModel,
 };
 use warpui::{async_assert, integration::TestStep};
 

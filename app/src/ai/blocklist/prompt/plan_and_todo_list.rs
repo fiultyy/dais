@@ -20,19 +20,11 @@ use warpui::{
 use warp_core::features::FeatureFlag;
 
 use crate::{
-    ai::{
-        agent::{
-            icons::todo_list_icon,
-            todos::popup::{AgentTodosPopupEvent, AgentTodosPopupView},
-        },
-        blocklist::{BlocklistAIContextEvent, BlocklistAIContextModel, BlocklistAIHistoryEvent},
-        document::ai_document_model::{
-            AIDocumentId, AIDocumentModel, AIDocumentModelEvent, AIDocumentVersion,
-        },
-    },
+    ai::{ agent::{ icons::todo_list_icon, todos::popup::{AgentTodosPopupEvent, AgentTodosPopupView}, }, blocklist::{BlocklistAIContextEvent, BlocklistAIContextModel, BlocklistAIHistoryEvent}, document::ai_document_model::{ AIDocumentId, AIDocumentModel, AIDocumentModelEvent, AIDocumentVersion, }, },
     terminal::input::{MenuPositioning, MenuPositioningProvider},
     ui_components::blended_colors,
-    AIAgentTodoList, BlocklistAIHistoryModel,
+    AIAgentTodoList,
+    BlocklistAIHistoryModel,
 };
 use warpui::fonts::{Properties, Weight};
 

@@ -60,38 +60,20 @@ use crate::send_telemetry_from_ctx;
 use crate::server::telemetry::TelemetryEvent;
 use crate::settings::{AISettings, SelectionSettings};
 use crate::terminal::input::SET_INPUT_MODE_TERMINAL_ACTION_NAME;
-use crate::terminal::model::block::{AgentInteractionMetadata, BlockId};
+use terminal_grid_model::block::{AgentInteractionMetadata, BlockId};
 use crate::terminal::{ShellLaunchData, TerminalModel};
 use crate::view_components::DismissibleToast;
 use crate::workspace::WorkspaceAction;
 use crate::ToastStack;
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversationId, task::TaskId, AIAgentActionType, AIAgentExchangeId,
-            AIAgentOutput, AIAgentOutputMessageType, AIAgentText, AIAgentTextSection,
-            ProgrammingLanguage, WebSearchStatus,
-        },
-        blocklist::{
-            code_block::CodeSnippetButtonHandles, BlocklistAIActionModel, BlocklistAIHistoryEvent,
-            BlocklistAIPermissions,
-        },
-        execution_profiles::profiles::{AIExecutionProfilesModel, AIExecutionProfilesModelEvent},
-    },
+    ai::{ agent::{ conversation::AIConversationId, task::TaskId, AIAgentActionType, AIAgentExchangeId, AIAgentOutput, AIAgentOutputMessageType, AIAgentText, AIAgentTextSection, ProgrammingLanguage, WebSearchStatus, }, blocklist::{ code_block::CodeSnippetButtonHandles, BlocklistAIActionModel, BlocklistAIHistoryEvent, BlocklistAIPermissions, }, execution_profiles::profiles::{AIExecutionProfilesModel, AIExecutionProfilesModelEvent}, },
     code::{editor::view::CodeEditorView, editor_management::CodeSource},
     editor::InteractionState,
     menu::{Event as MenuEvent, Menu, MenuVariant},
     settings_view::SettingsSection,
     terminal::safe_mode_settings::get_secret_obfuscation_mode,
     ui_components::{blended_colors, icons::Icon},
-    view_components::{
-        action_button::{ButtonSize, KeystrokeSource, NakedTheme, PrimaryTheme},
-        compactible_action_button::{
-            render_compact_and_regular_button_rows, CompactibleActionButton,
-            RenderCompactibleActionButton,
-        },
-        compactible_split_action_button::CompactibleSplitActionButton,
-    },
+    view_components::{ action_button::{ButtonSize, KeystrokeSource, NakedTheme, PrimaryTheme}, compactible_action_button::{ render_compact_and_regular_button_rows, CompactibleActionButton, RenderCompactibleActionButton, }, compactible_split_action_button::CompactibleSplitActionButton, },
     BlocklistAIHistoryModel,
 };
 

@@ -1,3 +1,4 @@
+use terminal_grid_model::block::BlockMetadata;
 use std::{
     any::Any,
     collections::{HashMap, VecDeque},
@@ -15,30 +16,18 @@ use warpui_extras::user_preferences;
 
 #[cfg(feature = "local_fs")]
 use crate::code_review::diff_state::DiffStats;
+use crate::context_chips::ContextChipKindExt as _;
 #[cfg(feature = "local_fs")]
 use crate::code_review::git_status_update::{GitRepoStatusModel, GitStatusMetadata};
 #[cfg(windows)]
 use crate::system::SystemInfo;
 use crate::{
     auth::{AuthManager, AuthStateProvider},
-    context_chips::{
-        context_chip::{ChipFingerprintInput, Environment},
-        prompt::Prompt,
-        ChipAvailability, ChipDisabledReason, ChipRuntimeCapabilities, ContextChipKind,
-    },
+    context_chips::{ context_chip::{ChipFingerprintInput, Environment}, prompt::Prompt, ChipAvailability, ChipDisabledReason, ChipRuntimeCapabilities, ContextChipKind, },
     features::FeatureFlag,
     menu::MenuItem,
     settings::WarpPromptSeparator,
-    terminal::{
-        model::{
-            block::BlockMetadata,
-            session::{CommandExecutor, ExecuteCommandOptions, SessionId, SessionInfo, Sessions},
-        },
-        session_settings::{GithubPrPromptChipDefaultValidation, SessionSettings},
-        shell::Shell,
-        view::PromptPosition,
-        History,
-    },
+    terminal::{ model::{session::{CommandExecutor, ExecuteCommandOptions, SessionId, SessionInfo, Sessions}}, session_settings::{GithubPrPromptChipDefaultValidation, SessionSettings}, shell::Shell, view::PromptPosition, History, },
 };
 #[cfg(feature = "local_fs")]
 use repo_metadata::DirectoryWatcher;

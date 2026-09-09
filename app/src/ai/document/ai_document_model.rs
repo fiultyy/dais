@@ -17,23 +17,11 @@ use crate::ai::ai_document_view::DEFAULT_PLANNING_DOCUMENT_TITLE;
 use crate::global_resource_handles::GlobalResourceHandlesProvider;
 use crate::persistence::ModelEvent;
 use crate::{
-    ai::{
-        agent::{conversation::AIConversationId, AIAgentActionId},
-        execution_profiles::profiles::AIExecutionProfilesModel,
-    },
+    ai::{ agent::{conversation::AIConversationId, AIAgentActionId}, execution_profiles::profiles::AIExecutionProfilesModel, },
     appearance::Appearance,
-    notebooks::{
-        editor::{
-            model::{FileLinkResolutionContext, NotebooksEditorModel, RichTextEditorModelEvent},
-            rich_text_styles,
-        },
-        post_process_notebook,
-    },
+    notebooks::{ editor::{ model::{FileLinkResolutionContext, NotebooksEditorModel, RichTextEditorModelEvent}, rich_text_styles, }, post_process_notebook, },
     settings::FontSettings,
-    terminal::{
-        model::session::{active_session::ActiveSession, Session},
-        TerminalView,
-    },
+    terminal::{ model::session::{active_session::ActiveSession, Session}, TerminalView, },
     throttle::throttle,
 };
 use ai::diff_validation::DiffDelta;

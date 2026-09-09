@@ -1,7 +1,9 @@
 use std::{collections::HashMap, fmt::Display};
 
 use crate::{
-    send_telemetry_from_app_ctx, server::telemetry::TelemetryEvent, terminal::shell::ShellType,
+    send_telemetry_from_app_ctx,
+    server::telemetry::TelemetryEvent,
+    terminal::shell::ShellType,
 };
 use regex::Regex;
 use url::Url;

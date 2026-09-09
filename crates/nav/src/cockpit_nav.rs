@@ -29,9 +29,9 @@ use ui_components::combo_button::combo_inner_button;
 use warp_core::ui::appearance::Appearance;
 use warp_core::ui::theme::WarpTheme;
 use warpui::elements::{
-    ClippedScrollStateHandle, ClippedScrollable, Container, CornerRadius, CrossAxisAlignment,
-    Empty, Expanded, Fill as ElementFill, Flex, Hoverable, MainAxisAlignment, MainAxisSize,
-    MouseStateHandle, ParentElement, ScrollbarWidth, Shrinkable, Text,
+    ClippedScrollStateHandle, ClippedScrollable, ConstrainedBox, Container, CornerRadius,
+    CrossAxisAlignment, Empty, Expanded, Fill as ElementFill, Flex, Hoverable, MainAxisAlignment,
+    MainAxisSize, MouseStateHandle, ParentElement, ScrollbarWidth, Shrinkable, Text,
 };
 use warpui::platform::Cursor;
 use warpui::scene::Radius;
@@ -41,41 +41,148 @@ use warpui::{
     ViewContext, ViewHandle,
 };
 
-use cockpit_model::{CockpitCard, CockpitCardGroup, CockpitModel};
-use crate::status_row::status_dot_element;
+use cockpit_model::{CockpitCard, CockpitCardGroup, CockpitCardStatus, CockpitModel};
+use warpui::color::ColorU;
 
-// ── 布局常量 ──────────────────────────────────────────────────────────────────
+// ── 布局常量(Orca sidebar 对齐: 无边框卡片 + 背景 wash 分层 + 紧凑密度)──────
 
 /// 头部/空态水平内边距。
 const HEADER_PADDING: f32 = 10.;
 /// 元素间距。
 const SPACING: f32 = 6.;
-/// 卡片行间垂直间距。≥6: 1px 边框相邻卡贴排时两条边框会在间隙里
-/// 压成一条粗线(高 DPI 下尤甚),视觉上呈"行重叠"。
-const CARD_GAP: f32 = 6.;
+/// 卡片行间垂直间距(Orca space-y-1 = 4px)。
+const CARD_GAP: f32 = 4.;
+/// 组间距(去边框后组边界全靠留白,必须显著大于卡间距)。
+const GROUP_GAP: f32 = 12.;
 /// 左栏对账刷新间隔(与 cockpit 面板 COCKPIT_RECONCILE_INTERVAL_MS 一致)。
 const COCKPIT_NAV_RECONCILE_INTERVAL_MS: u64 = 2_000;
 /// 行水平内边距。
 const CARD_PADDING: f32 = 8.;
-/// 行垂直内边距。
-const CARD_ROW_VERTICAL_PADDING: f32 = 4.;
-/// 行圆角半径。
+/// 行垂直内边距(Orca pt-1.25/pb-1.5 ≈ 5/6px)。
+const CARD_ROW_VERTICAL_PADDING: f32 = 5.;
+/// 行圆角半径(Orca rounded-lg 档)。
 const CARD_RADIUS: f32 = 6.;
-/// 主文本字号。
+/// 主文本字号(标题)。
 const FONT_SIZE: f32 = 13.;
+/// 组头字号。
+const GROUP_FONT_SIZE: f32 = 12.;
 /// 辅助文本字号。
 const SMALL_FONT_SIZE: f32 = 11.;
+/// mono 微字号(#id/agent 名右槽)。
+const MONO_FONT_SIZE: f32 = 10.;
+/// 状态点尺寸(Orca AgentStateDot sm = 10px)。
+const STATUS_ICON_SIZE: f32 = 10.;
+/// 状态 gutter 槽宽:状态点 10 + 右间距 4。五态恒占位(含 Idle),
+/// 保证所有行状态点/标题起点同列(扫视竖线)。
+const STATUS_GUTTER: f32 = 14.;
+/// 身份图标尺寸(agent 品牌 logo 14px,「谁」与「什么状态」两个独立 glyph)。
+const IDENTITY_ICON_SIZE: f32 = 14.;
+/// agent 名右槽宽(固定宽:内容换入换出不引发行宽变化)。
+const AGENT_SLOT_WIDTH: f32 = 56.;
 /// 卡片标题截断上限(字符)。
 const TITLE_MAX_CHARS: usize = 28;
-/// tree 缩进:实例行相对组头(项目行)的左缩进,表达从属关系(v1 缩进即
-/// 连接线,不画线)。
-const TREE_INDENT: f32 = 14.;
-/// 卡片行2 recap 截断上限(字符)。
+/// recap 截断上限(字符)。
 const RECAP_MAX_CHARS: usize = 48;
+/// tree 缩进:实例行相对组头的左缩进,表达从属关系。
+const TREE_INDENT: f32 = 13.;
 
 /// 顶部标题。
 // TODO(i18n): 文案硬编码中文,主线程统一补 ftl key 后替换。
 const NAV_TITLE: &str = "导航";
+
+// ── Orca 化呈现 helper(状态五态词汇表 / agent 身份图标 / 选中 wash)──────────
+
+/// 状态 → (图标, 颜色)。五态全占位(Idle 也有中性弱化点),保证 gutter
+/// 扫视竖线成立。色语义对齐 Orca AgentStateDot:
+/// - Working = ClockLoader magenta(agent 在跑;Orca 为 spinner,此处静态帧)
+/// - Busy = ClockLoader blue(机器/长命令在跑;Orca 词汇表无此态,dais 扩展)
+/// - Blocked = HelpCircle amber(等用户输入/权限;≡ Orca waiting/permission,
+///   **不是** Orca 的 blocked=红——dais 无失败态,红留给未来 Failed)
+/// - Done = Check green(与 idle 灰点显式区分)
+/// - Idle = Circle 中性 40% alpha
+fn status_glyph(
+    status: &CockpitCardStatus,
+    theme: &WarpTheme,
+) -> (warp_core::ui::icons::Icon, ColorU) {
+    use cockpit_model::CockpitCardStatus;
+    use warp_core::ui::icons::Icon;
+    match status {
+        CockpitCardStatus::Working => (Icon::ClockLoader, theme.ansi_fg_magenta()),
+        CockpitCardStatus::Busy => (Icon::ClockLoader, theme.ansi_fg_blue()),
+        CockpitCardStatus::Blocked(_) => (Icon::HelpCircle, theme.ansi_fg_yellow()),
+        CockpitCardStatus::Done => (Icon::Check, theme.ansi_fg_green()),
+        CockpitCardStatus::Idle => {
+            let c = theme.disabled_ui_text_color().into_solid();
+            (Icon::Circle, ColorU::new(c.r, c.g, c.b, 102))
+        }
+    }
+}
+
+/// 状态 gutter 槽元素:固定宽 ConstrainedBox 包状态点。所有行恒占位。
+fn status_gutter(status: &CockpitCardStatus, theme: &WarpTheme) -> Box<dyn Element> {
+    let (icon, color) = status_glyph(status, theme);
+    ConstrainedBox::new(icon.to_warpui_icon(warp_core::ui::theme::Fill::Solid(color)).finish())
+        .with_width(STATUS_GUTTER)
+        .with_height(STATUS_GUTTER)
+        .finish()
+}
+
+/// agent 身份图标:agent_name 匹配品牌 logo(「谁」),无匹配的 agent 用
+/// AiAssistant 兜底,无 agent(纯 shell)用 Terminal。与状态点互为独立 glyph。
+fn identity_icon(card: &CockpitCard) -> warp_core::ui::icons::Icon {
+    use warp_core::ui::icons::Icon;
+    let Some(name) = card.agent_name else {
+        return Icon::Terminal;
+    };
+    let n = name.to_ascii_lowercase();
+    if n.contains("claude") {
+        Icon::ClaudeLogo
+    } else if n.contains("codex") || n.contains("openai") || n.contains("gpt") {
+        Icon::OpenAILogo
+    } else if n.contains("gemini") {
+        Icon::GeminiLogo
+    } else if n.contains("cursor") {
+        Icon::CursorLogo
+    } else if n.contains("copilot") {
+        Icon::CopilotLogo
+    } else if n.contains("goose") {
+        Icon::GooseLogo
+    } else if n.contains("droid") {
+        Icon::DroidLogo
+    } else if n.contains("amp") {
+        Icon::AmpLogo
+    } else if n.contains("deepseek") {
+        Icon::DeepSeekLogo
+    } else if n.contains("pi") && n.len() <= 4 {
+        Icon::PiLogo
+    } else if n.contains("omp") {
+        Icon::OmpLogo
+    } else {
+        Icon::AiAssistant
+    }
+}
+
+/// 选中卡背景 wash:accent 低透明(Orca isActiveSurface 语义)。预混在
+/// 侧栏纯色底上与 alpha 混合数学等价,这里直接用 ColorU alpha 通道。
+fn selected_wash(theme: &WarpTheme) -> ColorU {
+    let a = theme.accent().into_solid();
+    ColorU::new(a.r, a.g, a.b, 38)
+}
+
+/// 查看端/只读标记的轻量描述:仅受限端有值(只读=Lock;共享查看端=Eye)。
+/// 返回 (icon, muted 色) 而非元素——元素不可克隆,轻量描述可被 content
+/// 闭包按 hover 重建时反复物化。
+fn restricted_glyph(card: &CockpitCard, theme: &WarpTheme) -> Option<(warp_core::ui::icons::Icon, ColorU)> {
+    use warp_core::ui::icons::Icon;
+    let icon = if !card.writable {
+        Icon::Lock
+    } else if card.connected {
+        Icon::Eye
+    } else {
+        return None;
+    };
+    Some((icon, theme.disabled_ui_text_color().into_solid()))
+}
 
 // ── 刷新钩子(app 半边注入)────────────────────────────────────────────────────
 
@@ -233,17 +340,13 @@ impl CockpitNavView {
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
             .with_spacing(SPACING);
         row.add_child(
-            Text::new(
-                NAV_TITLE,
-                appearance.ui_font_family(),
-                appearance.ui_font_size(),
-            )
-            .with_color(theme.active_ui_text_color().into())
-            .finish(),
+            Text::new(NAV_TITLE, appearance.ui_font_family(), GROUP_FONT_SIZE)
+                .with_color(theme.sub_text_color(theme.background()).into())
+                .finish(),
         );
         row.add_child(Expanded::new(1., Empty::new().finish()).finish());
         row.add_child(
-            Text::new(count_text, appearance.ui_font_family(), SMALL_FONT_SIZE)
+            Text::new(count_text, appearance.monospace_font_family(), MONO_FONT_SIZE)
                 .with_color(theme.nonactive_ui_text_color().into_solid())
                 .soft_wrap(false)
                 .finish(),
@@ -292,9 +395,10 @@ impl CockpitNavView {
         let card_handles = self.card_handles.borrow().clone();
 
         let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Min)
             .with_main_axis_alignment(MainAxisAlignment::Start)
             .with_cross_axis_alignment(CrossAxisAlignment::Start)
-            .with_spacing(SPACING);
+            .with_spacing(GROUP_GAP);
 
         for (gi, group) in groups.iter().enumerate() {
             let Some(group_handle) = group_handles.get(gi) else {
@@ -376,19 +480,21 @@ impl CockpitNavView {
         .finish()
     }
 
-    /// 组头:折叠箭头 + 分组 key(空 key = 未分组)+ 组内实例数。
-    /// 点击 → 折叠/展开;组含选中实例时高亮(照抄 render_card
-    /// focused_selected 分支:accent 边框 + surface_overlay_1 背景)。
+    /// 组头(Orca 化轻量):无框标题行 = 折叠图标 + 项目名(12px semibold
+    /// muted)+ working/blocked 分列计数 + 右端实例数 + hover 加号。
+    /// 去边框去背景;层级全靠字重/颜色/留白(Orca SidebarHeader 语义)。
+    /// 点击 → 折叠/展开。
     fn render_group_header(
         &self,
         group: &CockpitCardGroup,
         cards: &[CockpitCard],
         handle: MouseStateHandle,
         add_button_mouse_state: MouseStateHandle,
-        group_selected: bool,
+        _group_selected: bool,
         appearance: &Appearance,
         theme: &WarpTheme,
     ) -> Box<dyn Element> {
+        use warp_core::ui::icons::Icon;
         let font_family = appearance.ui_font_family();
         let collapsed = self.collapsed_groups.contains(&group.key);
         // TODO(i18n): 未分组文案待 ftl 增加 cockpit-group-ungrouped 后替换,
@@ -399,31 +505,24 @@ impl CockpitNavView {
             group.key.clone()
         };
         let count_label = group.range.len().to_string();
-        // 组内 working 计数(项目行右侧 ●n;Blocked 也视为等待,计入)。
-        // TODO(i18n): 纯数字角标,无需 ftl。
-        let working_count = group
-            .range
-            .clone()
-            .filter_map(|idx| cards.get(idx))
-            .filter(|c| {
-                matches!(
-                    c.status,
-                    cockpit_model::CockpitCardStatus::Working
-                        | cockpit_model::CockpitCardStatus::Blocked(_)
-                )
-            })
-            .count();
-        let chevron = if collapsed { "▸" } else { "▾" };
-        let key_color = if group_selected {
-            theme.accent().into()
+        // 组级活动计数,拆开双语义:working=agent 在跑(magenta),
+        // blocked=有人等我(amber,行动项)。分列渲染,不再混计一个黄点。
+        let mut working_count = 0usize;
+        let mut blocked_count = 0usize;
+        for idx in group.range.clone() {
+            match cards.get(idx).map(|c| &c.status) {
+                Some(cockpit_model::CockpitCardStatus::Working) => working_count += 1,
+                Some(cockpit_model::CockpitCardStatus::Blocked(_)) => blocked_count += 1,
+                _ => {}
+            }
+        }
+        let chevron_icon = if collapsed {
+            Icon::ListCollapsed
         } else {
-            theme.sub_text_color(theme.background()).into()
+            Icon::ListOpen
         };
-        let border_color = if group_selected {
-            theme.accent()
-        } else {
-            theme.nonactive_ui_detail().into()
-        };
+        let chevron_color = theme.sub_text_color(theme.background()).into();
+        let key_color = theme.sub_text_color(theme.background()).into();
         let key_for_action = group.key.clone();
 
         let content = move |hovered: bool| {
@@ -432,20 +531,33 @@ impl CockpitNavView {
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                 .with_spacing(SPACING);
             row.add_child(
-                Text::new(chevron, font_family, SMALL_FONT_SIZE)
-                    .with_color(key_color)
-                    .finish(),
+                ConstrainedBox::new(
+                    chevron_icon
+                        .to_warpui_icon(warp_core::ui::theme::Fill::Solid(chevron_color))
+                        .finish(),
+                )
+                .with_width(GROUP_FONT_SIZE)
+                .with_height(GROUP_FONT_SIZE)
+                .finish(),
             );
             row.add_child(
-                Text::new(key_label.clone(), font_family, SMALL_FONT_SIZE)
+                Text::new(key_label.clone(), font_family, GROUP_FONT_SIZE)
                     .with_color(key_color)
                     .soft_wrap(false)
                     .finish(),
             );
-            // working 计数点(组内 working/blocked > 0 时显示 ●n)。
+            // 组级活动计数:●n magenta(在跑)+ ?n amber(等输入)。
             if working_count > 0 {
                 row.add_child(
                     Text::new(format!("●{working_count}"), font_family, SMALL_FONT_SIZE)
+                        .with_color(theme.ansi_fg_magenta())
+                        .soft_wrap(false)
+                        .finish(),
+                );
+            }
+            if blocked_count > 0 {
+                row.add_child(
+                    Text::new(format!("?{blocked_count}"), font_family, SMALL_FONT_SIZE)
                         .with_color(theme.ansi_fg_yellow())
                         .soft_wrap(false)
                         .finish(),
@@ -465,7 +577,7 @@ impl CockpitNavView {
             let add_button = combo_inner_button(
                 theme,
                 warp_core::ui::icons::Icon::Plus,
-                false,
+                hovered,
                 add_button_mouse_state.clone(),
             )
             .with_style(
@@ -479,12 +591,13 @@ impl CockpitNavView {
             })
             .finish();
             row.add_child(add_button);
+            // 无边框组头;hover 仅极淡 wash(Orca 组头无背景,这里给一点
+            // 可点性反馈,弱于卡片 hover)。
             let mut container = Container::new(row.finish())
                 .with_horizontal_padding(CARD_PADDING)
                 .with_vertical_padding(CARD_ROW_VERTICAL_PADDING)
-                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(CARD_RADIUS)))
-                .with_border(warpui::elements::Border::all(1.).with_border_fill(border_color));
-            if hovered || group_selected {
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(CARD_RADIUS)));
+            if hovered {
                 container = container.with_background(theme.surface_overlay_1());
             }
             container.finish()
@@ -501,9 +614,16 @@ impl CockpitNavView {
             .finish()
     }
 
-    /// 实例卡(两行布局):行1 = 状态点 + 标题 + 右侧 agent 名;行2 =
-    /// 小号次级色辅助信息(branch ▸ + cwd 末段 + recap 截断,全空则单行)。
-    /// 选中/悬停高亮(照抄 render_card focused_selected 分支)。点击 →
+    /// 实例卡(Orca 化三行制,无边框):
+    /// 行1 标题行 = [状态 gutter(恒占位)] + [身份图标 14px] + [标题 13px,
+    /// Blocked 时提亮强调] + 右端 [受限 glyph(仅查看端/只读)] + [agent 名右槽
+    /// 56px 固定宽];
+    /// 行2 meta = [#id 10px mono] + [▸branch 11px](cwd 末段删除——组头已
+    /// 表达,卡内重复);
+    /// 行3 内容行(按状态分流):Blocked → 行动行「tool — message」amber;
+    /// Working/Done → recap 11px;Busy → recap mono(命令尾);Idle → 无。
+    /// 选中 = accent wash 背景;hover = surface_overlay_1(弱一档)。
+    /// 无边框:层级靠背景 wash + 间距 + 字重(Orca 卡面语义)。点击 →
     /// ActivateCard。
     fn render_card_row(
         &self,
@@ -514,8 +634,8 @@ impl CockpitNavView {
         theme: &WarpTheme,
     ) -> Box<dyn Element> {
         let font_family = appearance.ui_font_family();
+        let mono_family = appearance.monospace_font_family();
         let title = truncate_str(&card.title, TITLE_MAX_CHARS);
-        let agent_label = card.agent_name.unwrap_or("Shell");
         // 卡片 ID(EntityId 稳定哈希 4-hex,照抄 cockpit card_tag):身份辨识,
         // 与日志/编排器侧 tag 对账。TODO(i18n): # 前缀符号无需 ftl。
         let id_label = {
@@ -523,97 +643,171 @@ impl CockpitNavView {
             std::hash::Hash::hash(&card.terminal_view_id, &mut hasher);
             format!("#{:04x}", (std::hash::Hasher::finish(&hasher) & 0xffff) as u16)
         };
-        let dot_key = card.status.dot_key().map(str::to_owned);
-        let border_color = if selected {
-            theme.accent()
-        } else {
-            theme.nonactive_ui_detail().into()
-        };
+        let agent_label = card.agent_name.unwrap_or("Shell").to_string();
         let card_id = card.terminal_view_id;
-
-        // 行2 辅助段:ID(恒有)+branch(有则 ▸branch)+ cwd 末段(有则)+
-        // recap 截断(有则)。
-        // TODO(i18n): 辅助分隔符为符号,无需 ftl。
-        let mut aux_parts: Vec<String> = vec![id_label];
-        if let Some(branch) = card.branch.as_deref().filter(|b| !b.trim().is_empty()) {
-            aux_parts.push(format!("▸{branch}"));
-        }
-        if let Some(cwd) = card.cwd.as_deref().filter(|c| !c.trim().is_empty()) {
-            let tail = cwd
-                .rsplit('/')
-                .find(|seg| !seg.trim().is_empty())
-                .unwrap_or(cwd);
-            aux_parts.push(tail.to_string());
-        }
-        if let Some(recap) = card.recap.as_deref().filter(|r| !r.trim().is_empty()) {
-            aux_parts.push(truncate_str(recap, RECAP_MAX_CHARS));
-        }
-        let aux_label = if aux_parts.is_empty() {
-            None
-        } else {
-            Some(aux_parts.join("  "))
+        // 行1 标题色:Blocked/Working 提亮(需要我/在跑),其余降一档灰。
+        let title_color = match card.status {
+            cockpit_model::CockpitCardStatus::Working
+            | cockpit_model::CockpitCardStatus::Blocked(_) => {
+                theme.main_text_color(theme.background()).into()
+            }
+            _ => theme.sub_text_color(theme.background()).into(),
         };
+        // 行3 内容行:按状态分流(见 fn 注释)。
+        let content_line: Option<(String, ColorU, bool)> = match &card.status {
+            cockpit_model::CockpitCardStatus::Blocked(_) => {
+                // 行动行:工具名 — message,amber 系,压过一切 recap。
+                let tool = card.tool_name.as_deref().unwrap_or("");
+                let msg = card
+                    .status
+                    .blocked_message()
+                    .unwrap_or("等待输入");
+                let text = if tool.is_empty() {
+                    msg.to_string()
+                } else {
+                    format!("{tool} — {msg}")
+                };
+                Some((truncate_str(&text, RECAP_MAX_CHARS), theme.ansi_fg_yellow(), false))
+            }
+            cockpit_model::CockpitCardStatus::Busy => card
+                .recap
+                .as_deref()
+                .filter(|r| !r.trim().is_empty())
+                .map(|r| (truncate_str(r, RECAP_MAX_CHARS), theme.sub_text_color(theme.background()).into(), true)),
+            cockpit_model::CockpitCardStatus::Working | cockpit_model::CockpitCardStatus::Done => card
+                .recap
+                .as_deref()
+                .filter(|r| !r.trim().is_empty())
+                .map(|r| (truncate_str(r, RECAP_MAX_CHARS), theme.sub_text_color(theme.background()).into(), false)),
+            cockpit_model::CockpitCardStatus::Idle => None,
+        };
+        let identity = identity_icon(card);
+        let identity_color = theme.sub_text_color(theme.background()).into();
+        let restricted = restricted_glyph(card, theme);
 
         let content = move |hovered: bool| {
-            // 行1:状态点 + 标题 + agent 名。
+            // 行1:状态 gutter + 身份图标 + 标题 + 受限 glyph + agent 右槽。
             let mut first_line = Flex::row()
                 .with_main_axis_size(MainAxisSize::Max)
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                 .with_spacing(SPACING);
-            if let Some(key) = &dot_key {
-                first_line.add_child(status_dot_element(key, theme));
-            }
+            first_line.add_child(status_gutter(&card.status, theme));
             first_line.add_child(
-                // Expanded(Tight) 而非 Shrinkable(Loose): 长标题测量宽会
-                // 撑爆行宽把卡片推出栏缘(右缘被裁,排版错乱);Tight 钳到
-                // 分配空间,配合 soft_wrap(false) 溢出部分不绘制。
+                ConstrainedBox::new(
+                    identity.to_warpui_icon(warp_core::ui::theme::Fill::Solid(identity_color)).finish(),
+                )
+                .with_width(IDENTITY_ICON_SIZE)
+                .with_height(IDENTITY_ICON_SIZE)
+                .finish(),
+            );
+            first_line.add_child(
+                // Expanded(Tight): 长标题钳到分配空间,溢出不绘制(防撑爆栏宽)。
                 Expanded::new(
                     1.,
                     Text::new(title.clone(), font_family, FONT_SIZE)
-                        .with_color(theme.main_text_color(theme.background()).into())
+                        .with_color(title_color)
                         .soft_wrap(false)
                         .finish(),
                 )
                 .finish(),
             );
-            first_line.add_child(
-                Text::new(agent_label.to_string(), font_family, SMALL_FONT_SIZE)
-                    .with_color(theme.disabled_ui_text_color().into_solid())
-                    .soft_wrap(false)
+            if let Some((icon, color)) = &restricted {
+                first_line.add_child(
+                    ConstrainedBox::new(
+                        icon.to_warpui_icon(warp_core::ui::theme::Fill::Solid(*color)).finish(),
+                    )
+                    .with_width(MONO_FONT_SIZE)
+                    .with_height(MONO_FONT_SIZE)
                     .finish(),
+                );
+            }
+            // agent 名右槽:固定宽,右对齐(列稳定;未来 hover 动作换入
+            // 同槽不 reflow)。
+            first_line.add_child(
+                ConstrainedBox::new(
+                    Text::new(agent_label.clone(), mono_family, MONO_FONT_SIZE)
+                        .with_color(theme.disabled_ui_text_color().into_solid())
+                        .soft_wrap(false)
+                        .with_clip(warpui::text_layout::ClipConfig::ellipsis())
+                        .finish(),
+                )
+                .with_width(AGENT_SLOT_WIDTH)
+                .finish(),
             );
 
-            // 行2(可选):小号次级色辅助信息。aux 行放 Expanded(Tight) 的
-            // row 里而不是 column 裸 Text: 纵向裁切实测(行2 只画 2px)来自
-            // column 直接量测 Loose 高度;Tight 行 + ellipsis 文本稳定。
+            // 行2 meta:#id(mono 弱化,右列第二扫视锚)+branch(有则)。
             let mut body = Flex::column()
                 .with_main_axis_size(MainAxisSize::Min)
                 .with_cross_axis_alignment(CrossAxisAlignment::Start);
             body.add_child(first_line.finish());
-            if let Some(aux) = &aux_label {
-                let mut aux_row = Flex::row()
+            let branch_part = card
+                .branch
+                .as_deref()
+                .filter(|b| !b.trim().is_empty())
+                .map(|b| format!("▸{b}"));
+            {
+                let mut meta_row = Flex::row()
+                    .with_main_axis_size(MainAxisSize::Max)
+                    .with_cross_axis_alignment(CrossAxisAlignment::Center)
+                    .with_spacing(SPACING);
+                // gutter 对齐占位(meta 行 #id 与上行状态点同列)。
+                meta_row.add_child(
+                    ConstrainedBox::new(Empty::new().finish())
+                        .with_width(STATUS_GUTTER)
+                        .with_height(1.)
+                        .finish(),
+                );
+                meta_row.add_child(
+                    Text::new(id_label.clone(), mono_family, MONO_FONT_SIZE)
+                        .with_color(theme.disabled_ui_text_color().into_solid())
+                        .soft_wrap(false)
+                        .finish(),
+                );
+                if let Some(branch) = &branch_part {
+                    meta_row.add_child(
+                        Text::new(branch.clone(), font_family, SMALL_FONT_SIZE)
+                            .with_color(theme.sub_text_color(theme.background()).into())
+                            .soft_wrap(false)
+                            .with_clip(warpui::text_layout::ClipConfig::ellipsis())
+                            .finish(),
+                    );
+                }
+                body.add_child(meta_row.finish());
+            }
+            // 行3 内容行(状态分流,可省略)。
+            if let Some((text, color, is_mono)) = &content_line {
+                let mut row3 = Flex::row()
                     .with_main_axis_size(MainAxisSize::Max)
                     .with_cross_axis_alignment(CrossAxisAlignment::Center);
-                aux_row.add_child(
+                row3.add_child(
+                    ConstrainedBox::new(Empty::new().finish())
+                        .with_width(STATUS_GUTTER)
+                        .with_height(1.)
+                        .finish(),
+                );
+                let family = if *is_mono { mono_family } else { font_family };
+                let size = if *is_mono { MONO_FONT_SIZE } else { SMALL_FONT_SIZE };
+                row3.add_child(
                     Expanded::new(
                         1.,
-                        Text::new(aux.clone(), font_family, SMALL_FONT_SIZE)
-                            .with_color(theme.sub_text_color(theme.background()).into())
+                        Text::new(text.clone(), family, size)
+                            .with_color(*color)
                             .soft_wrap(false)
                             .with_clip(warpui::text_layout::ClipConfig::ellipsis())
                             .finish(),
                     )
                     .finish(),
                 );
-                body.add_child(aux_row.finish());
+                body.add_child(row3.finish());
             }
 
             let mut container = Container::new(body.finish())
                 .with_horizontal_padding(CARD_PADDING)
                 .with_vertical_padding(CARD_ROW_VERTICAL_PADDING)
-                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(CARD_RADIUS)))
-                .with_border(warpui::elements::Border::all(1.).with_border_fill(border_color));
-            if hovered || selected {
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(CARD_RADIUS)));
+            if selected {
+                container = container.with_background_color(selected_wash(theme));
+            } else if hovered {
                 container = container.with_background(theme.surface_overlay_1());
             }
             container.finish()
@@ -690,6 +884,7 @@ impl View for CockpitNavView {
         let model = self.model.as_ref(app);
 
         let mut col = Flex::column()
+            .with_main_axis_size(MainAxisSize::Max)
             .with_main_axis_alignment(MainAxisAlignment::Start)
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
             .with_spacing(SPACING);
@@ -702,7 +897,7 @@ impl View for CockpitNavView {
         }
 
         Container::new(col.finish())
-            .with_background(theme.background())
+            .with_background_color(theme.background().into())
             .finish()
     }
 }

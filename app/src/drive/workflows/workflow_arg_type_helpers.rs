@@ -3,17 +3,12 @@ use std::collections::HashMap;
 use warpui::{AppContext, SingletonEntity, ViewHandle};
 
 use crate::{
-    cloud_object::{
-        model::persistence::ObjectStoreModel, update_manager::UpdateManager, Owner,
-        StoredObjectEventEntrypoint,
-    },
     editor::EditorView,
-    server::ids::SyncId,
-    workflows::{
-        workflow::{Argument, ArgumentType},
-        workflow_enum::WorkflowEnum,
-    },
+    workflows::{ workflow::{Argument, ArgumentType}, workflow_enum::WorkflowEnum, },
 };
+use objects::{Owner, StoredObjectEventEntrypoint, ids::SyncId};
+use crate::objects::object_store::ObjectStore;
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use super::{
     enum_creation_dialog::{EnumCreationDialog, WorkflowEnumData},
@@ -28,12 +23,6 @@ pub struct ArgumentEditorRowIndex(pub usize);
 /// `WorkflowView` and `WorkflowModal` components.
 pub trait ArgumentTypeEditor {
     fn arg_type_editor(&self) -> &ViewHandle<WorkflowArgSelector>;
-}
-
-impl ArgumentTypeEditor for super::modal::ArgumentEditorRow {
-    fn arg_type_editor(&self) -> &ViewHandle<WorkflowArgSelector> {
-        &self.typed_default_value_editor
-    }
 }
 
 /// Get all workflow enums in the space, filtering to only show the shared ones
@@ -174,8 +163,8 @@ pub fn save_enum<V>(
     match enum_data.id {
         SyncId::ClientId(client_id) => {
             if let Some(owner) = owner {
-                UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                    update_manager.create_workflow_enum(
+                ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                    object_store.create_workflow_enum(
                         workflow_enum,
                         owner,
                         client_id,
@@ -188,8 +177,8 @@ pub fn save_enum<V>(
         }
         SyncId::ServerId(_) => {
             // We will issue enum update requests here
-            UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                update_manager.update_workflow_enum(
+            ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                object_store.update_workflow_enum(
                     workflow_enum,
                     enum_data.id,
                     enum_data.revision_ts.clone(),

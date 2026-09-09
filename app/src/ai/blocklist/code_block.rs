@@ -21,8 +21,14 @@ use warpui::{EventContext, ViewHandle};
 use crate::code::editor::view::CodeEditorView;
 use crate::ui_components::blended_colors;
 use crate::ui_components::buttons::icon_button;
-use crate::{ai::agent::ProgrammingLanguage, ui_components::buttons::icon_button_with_color};
-use crate::{appearance::Appearance, ui_components::icons::Icon};
+use crate::{
+    ai::agent::ProgrammingLanguage,
+    ui_components::buttons::icon_button_with_color,
+};
+use crate::{
+    appearance::Appearance,
+    ui_components::icons::Icon,
+};
 use std::path::Path;
 
 const CODE_BLOCK_CORNER_RADIUS: f32 = 8.0;

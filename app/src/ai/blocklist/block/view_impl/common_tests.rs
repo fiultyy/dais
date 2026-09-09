@@ -17,10 +17,7 @@ use super::{
     CollapsibleExpansionState, QueryContextReference, VisualMarkdownLightboxCollection,
 };
 use crate::{
-    ai::agent::{
-        AIAgentAttachment, AIAgentInput, AIAgentTextSection, AgentOutputImage,
-        AgentOutputImageLayout, AgentOutputMermaidDiagram, MessageId, UserQueryMode,
-    },
+    ai::agent::{ AIAgentAttachment, AIAgentInput, AIAgentTextSection, AgentOutputImage, AgentOutputImageLayout, AgentOutputMermaidDiagram, MessageId, UserQueryMode, },
     features::FeatureFlag,
     search::slash_command_menu::static_commands::commands,
     ui_components::icons::Icon,

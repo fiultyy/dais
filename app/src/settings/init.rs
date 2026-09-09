@@ -10,18 +10,7 @@ use crate::{
     report_if_error,
     resource_center::TipsCompleted,
     search::command_search::settings::CommandSearchSettings,
-    terminal::{
-        alt_screen_reporting::AltScreenReporting,
-        general_settings::GeneralSettings,
-        keys_settings::KeysSettings,
-        ligature_settings::LigatureSettings,
-        safe_mode_settings::SafeModeSettings,
-        session_settings::{SessionSettings, SessionSettingsChangedEvent},
-        settings::TerminalSettings,
-        shared_session::settings::SharedSessionSettings,
-        warpify::settings::WarpifySettings,
-        BlockListSettings,
-    },
+    terminal::{ alt_screen_reporting::AltScreenReporting, general_settings::GeneralSettings, keys_settings::KeysSettings, ligature_settings::LigatureSettings, safe_mode_settings::SafeModeSettings, session_settings::{SessionSettings, SessionSettingsChangedEvent}, settings::TerminalSettings, shared_session::settings::SharedSessionSettings, warpify::settings::WarpifySettings, BlockListSettings, },
     undo_close::UndoCloseSettings,
     window_settings::WindowSettings,
     workflows::aliases::WorkflowAliases,
@@ -32,7 +21,7 @@ use warp_core::semantic_selection::SemanticSelection;
 
 use super::{
     app_icon::AppIconSettings, app_installation_detection::UserAppInstallDetectionSettings,
-    cloud_preferences::PreferencesSettings, cloud_sync::CloudSyncSettings,
+    cloud_preferences::PreferencesSettings,
     initializer::SettingsInitializer,
     language::LanguageSettings, native_preference::NativePreferenceSettings,
     network::NetworkSettings, AISettings, AccessibilitySettings, AliasExpansionSettings,
@@ -96,7 +85,6 @@ pub fn register_all_settings(ctx: &mut AppContext) {
     VimBannerSettings::register(ctx);
     SharedSessionSettings::register(ctx);
     WarpDriveSettings::register(ctx);
-    CloudSyncSettings::register(ctx);
     WorkflowAliases::register(ctx);
     EmacsBindingsSettings::register(ctx);
     SameLinePromptBlockSettings::register(ctx);

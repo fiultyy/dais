@@ -15,23 +15,12 @@ use warpui::{
 };
 
 use crate::{
-    ai::{
-        agent::{AIAgentActionId, AIIdentifiers},
-        predict::prompt_suggestions::{
-            ACCEPT_PROMPT_SUGGESTION_KEYBINDING, REJECT_PROMPT_SUGGESTION_KEYSTROKE,
-        },
-    },
+    ai::{ agent::{AIAgentActionId, AIIdentifiers}, predict::prompt_suggestions::{ ACCEPT_PROMPT_SUGGESTION_KEYBINDING, REJECT_PROMPT_SUGGESTION_KEYSTROKE, }, },
     send_telemetry_from_ctx,
     server::telemetry::ToggleCodeSuggestionsSettingSource,
     settings::AISettings,
     ui_components::{blended_colors, icons::Icon},
-    view_components::{
-        action_button::{ButtonSize, KeystrokeSource, NakedTheme, PrimaryTheme},
-        compactible_action_button::{
-            render_compact_and_regular_button_rows, CompactibleActionButton,
-            MEDIUM_SIZE_SWITCH_THRESHOLD,
-        },
-    },
+    view_components::{ action_button::{ButtonSize, KeystrokeSource, NakedTheme, PrimaryTheme}, compactible_action_button::{ render_compact_and_regular_button_rows, CompactibleActionButton, MEDIUM_SIZE_SWITCH_THRESHOLD, }, },
     TelemetryEvent,
 };
 

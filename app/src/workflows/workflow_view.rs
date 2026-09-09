@@ -1,3 +1,4 @@
+use crate::objects_display::{SpaceExt, StoredObjectHostExt};
 use alias_bar::{AliasBar, AliasBarEvent};
 use argument_editor::{ArgumentEditorRow, DEFAULT_ARGUMENT_PREFIX};
 use env_var_selector::{EnvVarSelector, EnvVarSelectorEvent};
@@ -16,67 +17,22 @@ use crate::{
     ai::blocklist::secret_redaction::find_secrets_in_text,
     appearance::Appearance,
     auth::{AuthState, AuthStateProvider},
-    cloud_object::{
-        breadcrumbs::ContainingObject,
-        model::{
-            persistence::{ObjectStoreEvent, ObjectStoreModel},
-            view::ObjectStoreViewModel,
-        },
-        update_manager::{
-            FetchSingleObjectOption, ObjectOperation, OperationSuccessType, UpdateManager,
-            UpdateManagerEvent,
-        },
-        ObjectType, Owner, Revision, Space, StoredObject, StoredObjectEventEntrypoint,
-    },
-    drive::{
-        cloud_object_styling::warp_drive_icon_color,
-        drive_helpers::has_feature_gated_anonymous_user_reached_workflow_limit,
-        items::WarpDriveItemId,
-        sharing::{ContentEditability, SharingAccessLevel},
-        workflows::{
-            ai_assist::GeneratedCommandMetadataError,
-            arguments::ArgumentsState,
-            enum_creation_dialog::{EnumCreationDialog, EnumCreationDialogEvent, WorkflowEnumData},
-            workflow_arg_selector::{WorkflowArgSelector, WorkflowArgSelectorEvent},
-            workflow_arg_type_helpers::{self, ArgumentEditorRowIndex},
-        },
-        DriveObjectType, ObjectTypeAndId, DaisDriveObjectSettings,
-    },
-    editor::{
-        EditorOptions, EditorView, EnterAction, EnterSettings, Event as EditorEvent,
-        InteractionState, PlainTextEditorViewAction as EditorAction,
-        PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, TextStyleOperation,
-    },
+    drive::{ objects_styling::warp_drive_icon_color, drive_helpers::has_feature_gated_anonymous_user_reached_workflow_limit, items::WarpDriveItemId, workflows::{ ai_assist::GeneratedCommandMetadataError, arguments::ArgumentsState, enum_creation_dialog::{EnumCreationDialog, EnumCreationDialogEvent, WorkflowEnumData}, workflow_arg_selector::{WorkflowArgSelector, WorkflowArgSelectorEvent}, workflow_arg_type_helpers::{self, ArgumentEditorRowIndex}, }, DriveObjectType, ObjectTypeAndId, DaisDriveObjectSettings, },
+    editor::{ EditorOptions, EditorView, EnterAction, EnterSettings, Event as EditorEvent, InteractionState, PlainTextEditorViewAction as EditorAction, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, TextStyleOperation, },
     menu::{MenuItem, MenuItemFields},
-    network::NetworkStatus,
-    pane_group::{
-        focus_state::PaneFocusHandle, pane::view, BackingView, PaneConfiguration, PaneEvent,
-    },
+    pane_group::{ focus_state::PaneFocusHandle, pane::view, BackingView, PaneConfiguration, PaneEvent, },
     send_telemetry_from_ctx,
-    server::{
-        ids::{ClientId, ServerId, SyncId},
-        telemetry::{ObjectTelemetryMetadata, TelemetryEvent, TelemetryObjectType},
-    },
-    settings::{
-        app_installation_detection::{UserAppInstallDetectionSettings, UserAppInstallStatus},
-        AISettings,
-    },
+    server::{telemetry::{ObjectTelemetryMetadata, TelemetryEvent, TelemetryObjectType}},
+    settings::{ app_installation_detection::{UserAppInstallDetectionSettings, UserAppInstallStatus}, AISettings, },
     terminal::safe_mode_settings::get_secret_obfuscation_mode,
-    ui_components::{
-        breadcrumb::{render_breadcrumbs, BreadcrumbState},
-        buttons::{accent_icon_button, icon_button},
-        dialog::{dialog_styles, Dialog},
-        icons::Icon,
-    },
+    ui_components::{ breadcrumb::{render_breadcrumbs, BreadcrumbState}, buttons::{accent_icon_button, icon_button}, dialog::{dialog_styles, Dialog}, icons::Icon, },
     util::bindings::CustomAction,
     view_components::{DismissibleToast, ToastType},
-    workflows::{
-        workflow::{Argument, Workflow},
-        WorkflowObject,
-    },
+    workflows::{ workflow::{Argument, Workflow}, WorkflowObject, },
     workspace::ToastStack,
     FeatureFlag,
 };
+use crate::objects::{ContainingObject, ObjectType, Owner, Revision, Space, StoredObject, StoredObjectEventEntrypoint, ids::{ClientId, SyncId}, model::persistence::{ObjectStoreEvent, ObjectStoreModel}, object_store::ObjectStore};
 
 use warp_core::{context_flag::ContextFlag, settings::Setting, ui::theme::AnsiColorIdentifier};
 use warp_editor::editor::NavigationKey;
@@ -102,8 +58,8 @@ use warpui::{
 };
 
 use super::{
-    aliases::WorkflowAliases, command_parser::WorkflowCommandDisplayData, WorkflowObjectModel,
-    WorkflowSource, WorkflowType, WorkflowViewMode,
+    command_parser::WorkflowCommandDisplayData, WorkflowObjectModel, WorkflowSource, WorkflowType,
+    WorkflowViewMode,
 };
 
 #[cfg(target_family = "wasm")]
@@ -521,11 +477,6 @@ impl WorkflowView {
             &ObjectStoreModel::handle(ctx),
             move |workflow, _, event, ctx| workflow.handle_object_store_event(event, ctx),
         );
-
-        let update_manager = UpdateManager::handle(ctx);
-        ctx.subscribe_to_model(&update_manager, |me, _, event, ctx| {
-            me.handle_update_manager_event(event, ctx);
-        });
     }
 
     fn handle_object_store_event(&mut self, event: &ObjectStoreEvent, ctx: &mut ViewContext<Self>) {
@@ -542,66 +493,6 @@ impl WorkflowView {
             | ObjectStoreEvent::ObjectDeleted { .. }
             | ObjectStoreEvent::ObjectUntrashed { .. } => ctx.notify(),
             _ => (),
-        }
-    }
-
-    fn handle_update_manager_event(
-        &mut self,
-        event: &UpdateManagerEvent,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        let UpdateManagerEvent::ObjectOperationComplete { result } = event else {
-            return;
-        };
-
-        if let (ObjectOperation::Create { .. }, OperationSuccessType::Success) =
-            (&result.operation, &result.success_type)
-        {
-            if self.workflow_id.into_client() == result.client_id {
-                let server_id = result
-                    .server_id
-                    .expect("Expect server id on success creation");
-
-                // The aliases were created with the old client sync id.  Update them to the new server id.
-                WorkflowAliases::handle(ctx).update(ctx, |aliases, ctx| {
-                    if let Result::Err(e) =
-                        aliases.update_workflow_id(self.workflow_id, server_id.into(), ctx)
-                    {
-                        log::error!("Failed to update aliases after workflow creation: {e:?}");
-                    }
-                });
-
-                if let Some(workflow) =
-                    ObjectStoreModel::as_ref(ctx).get_workflow_by_uid(&server_id.uid())
-                {
-                    self.load(
-                        workflow.clone(),
-                        &DaisDriveObjectSettings::default(),
-                        self.workflow_view_mode,
-                        ctx,
-                    );
-                }
-                ctx.notify();
-            }
-        }
-
-        if let (ObjectOperation::Update, OperationSuccessType::Success) =
-            (&result.operation, &result.success_type)
-        {
-            if let Some(workflow) = self.get_cloud_workflow(ctx) {
-                // This makes sure we get the correct updated revision_ts. So our subsequent
-                // updates don't fail
-                if self.workflow_id.into_client() == result.client_id
-                    || self.workflow_id.uid() == result.server_id.unwrap_or_default().uid()
-                {
-                    self.load(
-                        workflow,
-                        &DaisDriveObjectSettings::default(),
-                        self.workflow_view_mode,
-                        ctx,
-                    );
-                }
-            }
         }
     }
 
@@ -630,80 +521,24 @@ impl WorkflowView {
         ctx: &mut ViewContext<Self>,
     ) {
         let initial_load_complete =
-            crate::cloud_object::model::persistence::ObjectStoreModel::as_ref(ctx)
+            crate::objects::model::persistence::ObjectStoreModel::as_ref(ctx)
                 .initial_load_complete();
-        // TODO @ianhodge CLD-2002: it could be nice to have a loading screen here while we wait for the load
         let settings = settings.clone();
         ctx.spawn(initial_load_complete, move |me, _, ctx| {
-            let workflow = ObjectStoreModel::as_ref(ctx)
-                .get_workflow(&workflow_id)
-                .cloned();
-            // If either the focused folder or the workflow can't be found in ObjectStoreModel, fetch the object from the server
-            let fetch_needed = workflow.is_none()
-                || settings
-                    .focused_folder_id
-                    .map(SyncId::ServerId)
-                    .map(|folder_id| {
-                        ObjectStoreModel::as_ref(ctx)
-                            .get_folder(&folder_id)
-                            .is_none()
-                    })
-                    .unwrap_or(false);
-            if fetch_needed {
-                if let Some(server_id) = workflow_id.into_server() {
-                    me.fetch_and_load_workflow(server_id, &settings, mode, window_id, ctx);
-                } else {
-                    log::warn!("Tried to load workflow without server id {workflow_id:?}");
+            // Dais(本地化):无云端单对象拉取,object store 仅从本地 SQLite 恢复。
+            // 等待恢复完成后直接读取;缺失即提示对象不存在。
+            match ObjectStoreModel::as_ref(ctx).get_workflow(&workflow_id).cloned() {
+                Some(workflow) => me.load(workflow, &settings, mode, ctx),
+                None => {
+                    ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
+                        toast_stack.add_ephemeral_toast_by_type(
+                            ToastType::StoredObjectNotFound,
+                            window_id,
+                            ctx,
+                        );
+                    });
+                    log::warn!("Tried to open unknown workflow {workflow_id:?}");
                 }
-            } else if let Some(workflow) = workflow {
-                me.load(workflow, &settings, mode, ctx);
-            } else {
-                ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-                    toast_stack.add_ephemeral_toast_by_type(
-                        ToastType::StoredObjectNotFound,
-                        window_id,
-                        ctx,
-                    );
-                });
-                log::warn!("Tried to open unknown workflow {workflow_id:?}");
-            }
-        });
-    }
-
-    fn fetch_and_load_workflow(
-        &mut self,
-        workflow_id: ServerId,
-        settings: &DaisDriveObjectSettings,
-        mode: WorkflowViewMode,
-        window_id: WindowId,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        // If we have a parent folder we are trying to load as a part of this workflow, fetch that instead
-        let id_to_fetch = settings.focused_folder_id.unwrap_or(workflow_id);
-        let fetch_cloud_object_rx =
-            UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                update_manager.fetch_single_cloud_object(
-                    &id_to_fetch,
-                    FetchSingleObjectOption::None,
-                    ctx,
-                )
-            });
-        let settings = settings.clone();
-        ctx.spawn(fetch_cloud_object_rx, move |me, _, ctx| {
-            if let Some(workflow) = ObjectStoreModel::as_ref(ctx)
-                .get_workflow(&SyncId::ServerId(workflow_id))
-                .cloned()
-            {
-                me.load(workflow, &settings, mode, ctx);
-            } else {
-                ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-                    toast_stack.add_ephemeral_toast_by_type(
-                        ToastType::StoredObjectNotFound,
-                        window_id,
-                        ctx,
-                    );
-                });
-                log::warn!("Tried to open unknown workflow {workflow_id:?} after fetching");
             }
         });
     }
@@ -756,8 +591,8 @@ impl WorkflowView {
             pane_config.update(ctx, |pane_config, ctx| {
                 pane_config.set_title(workflow_name, ctx);
                 // TODO(zap-cloud-removal Phase 5): sharing UI 已退役,
-                // workflow ShareableObject 注入移除;workflow.id 仍为 cloud_object id,
-                // Phase 5 退役 cloud_object 时一并清。
+                // workflow ShareableObject 注入移除;workflow.id 仍为 objects id,
+                // Phase 5 退役 objects 时一并清。
                 let _ = workflow.id;
             });
         }
@@ -841,15 +676,8 @@ impl WorkflowView {
         self.update_editors_interactivity(ctx);
         self.refresh_pane_overflow_menu(ctx);
 
-        if let Some(focused_folder_id) = settings.focused_folder_id.map(SyncId::ServerId) {
-            self.view_in_warp_drive(
-                WarpDriveItemId::Object(ObjectTypeAndId::Folder(focused_folder_id)),
-                ctx,
-            );
-        }
-
-        // TODO(zap-cloud-removal Phase 5): workflow invitee_email 同样无 UI
-        // 出口,但 settings 由上层传入,彻底退役时清字段。
+        // Dais(本地化):focused_folder_id 的云端 folder 跳转已随 Drive 面板退役;
+        // settings 字段由上层传入,彻底退役时清字段。
         let _ = settings;
 
         if matches!(mode, WorkflowViewMode::View) {
@@ -882,7 +710,7 @@ impl WorkflowView {
         let id = self.workflow_id();
 
         if let Some(workflow) = ObjectStoreModel::as_ref(ctx).get_workflow(&id) {
-            return workflow.object_link();
+            return Some(crate::objects_display::object_link());
         }
 
         None
@@ -904,20 +732,6 @@ impl WorkflowView {
                 _ => None,
             },
         }
-    }
-
-    pub fn is_team_workflow(&self) -> bool {
-        matches!(self.owner, Some(Owner::Team { .. }))
-    }
-
-    /// The current user's access level for this workflow.
-    fn access_level(&self, app: &AppContext) -> SharingAccessLevel {
-        ObjectStoreViewModel::as_ref(app).access_level(&self.workflow_id.uid(), app)
-    }
-
-    /// Whether or not the current user is allowed to edit this workflow.
-    fn editability(&self, app: &AppContext) -> ContentEditability {
-        ObjectStoreViewModel::as_ref(app).object_editability(&self.workflow_id.uid(), app)
     }
 
     pub fn pane_configuration(&self) -> &ModelHandle<PaneConfiguration> {
@@ -1411,7 +1225,7 @@ impl WorkflowView {
             WorkflowViewMode::supported_view_mode(Some(self.workflow_id), ctx);
         // always reset with the ObjectStoreModel version whether or not we successfully
         // transition to the view mode. This reset doesn't always set the correct revision_ts
-        // we rely on the load called when we handle the update_manager's change event.
+        // we rely on the load called when we handle the object_store's change event.
         self.reset(ctx);
         self.update_editors_interactivity(ctx);
         ctx.notify()
@@ -1598,8 +1412,8 @@ impl WorkflowView {
 
         match self.workflow_view_mode {
             WorkflowViewMode::Edit => {
-                UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                    update_manager.update_workflow(
+                ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                    object_store.update_workflow(
                         workflow.clone(),
                         self.workflow_id,
                         self.revision_ts.clone(),
@@ -1627,8 +1441,8 @@ impl WorkflowView {
                 };
 
                 if let Some(space) = self.owner {
-                    UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                        update_manager.create_workflow(
+                    ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                        object_store.create_workflow(
                             workflow.clone(),
                             space,
                             self.initial_folder_id,
@@ -1812,8 +1626,7 @@ impl WorkflowView {
         let workflow = self.get_cloud_workflow(ctx);
 
         if let Some(the_workflow) = workflow {
-            self.breadcrumbs = the_workflow
-                .containing_objects_path(ctx)
+            self.breadcrumbs = Self::containing_objects_path(&the_workflow, ctx)
                 .into_iter()
                 .map(BreadcrumbState::new)
                 .collect();
@@ -1822,13 +1635,31 @@ impl WorkflowView {
         }
     }
 
+    /// P-ARC R1: `containing_objects_path` 已从 crate `StoredObject` trait 裁撤
+    /// (依赖 ObjectStoreModel/UserWorkspaces),由宿主侧按 folder 图重建(W3-d8 原语义)。
+    fn containing_objects_path(
+        object: &impl StoredObject,
+        app: &AppContext,
+    ) -> Vec<ContainingObject> {
+        let space = object.space(app);
+        match object.metadata().folder_id {
+            Some(folder_id) => {
+                let object_store_model = ObjectStoreModel::as_ref(app);
+                if let Some(folder) = object_store_model.get_folder_by_uid(&folder_id.uid()) {
+                    let mut path = Self::containing_objects_path(folder, app);
+                    path.push(folder.into());
+                    path
+                } else {
+                    vec![space.into_containing_object(app)]
+                }
+            }
+            None => vec![space.into_containing_object(app)],
+        }
+    }
+
     pub fn focus(&mut self, ctx: &mut ViewContext<Self>) {
         ctx.focus(&self.name_editor);
         ctx.emit(WorkflowViewEvent::Pane(PaneEvent::FocusSelf));
-    }
-
-    fn is_online(&self, app: &AppContext) -> bool {
-        NetworkStatus::as_ref(app).is_online()
     }
 
     /// Whether or not opening links in the desktop app is supported.
@@ -1910,11 +1741,7 @@ impl WorkflowView {
         });
     }
 
-    fn render_edit_toggle_button(
-        &self,
-        editability: ContentEditability,
-        appearance: &Appearance,
-    ) -> Box<dyn Element> {
+    fn render_edit_toggle_button(&self, appearance: &Appearance) -> Box<dyn Element> {
         let base_text_styles = UiComponentStyles {
             ..Default::default()
         };
@@ -1954,28 +1781,18 @@ impl WorkflowView {
         };
 
         if let Some((mode_text, mut edit_button)) = text_and_button {
-            if matches!(editability, ContentEditability::RequiresLogin) {
-                let ui_builder = appearance.ui_builder().clone();
-                edit_button = edit_button.with_tooltip(move || {
-                    ui_builder
-                        .tool_tip(crate::t!("notebook-sign-in-to-edit"))
-                        .build()
-                        .finish()
-                });
-            } else {
-                // openWarp UX: 与 notebook details_bar 一致,给 workflow 编辑
-                // 切换按钮加 tooltip,避免用户不知道这个铅笔能点、
-                // 点了会发生什么。Tooltip 表达「点击后会发生的动作」。
-                let tooltip_text = match self.workflow_view_mode {
-                    WorkflowViewMode::View => crate::t!("common-tooltip-enter-edit-mode"),
-                    WorkflowViewMode::Edit => crate::t!("common-tooltip-exit-edit-mode"),
-                    _ => crate::t!("common-tooltip-enter-edit-mode"),
-                };
-                let ui_builder = appearance.ui_builder().clone();
-                edit_button = edit_button.with_tooltip(move || {
-                    ui_builder.tool_tip(tooltip_text.clone()).build().finish()
-                });
-            }
+            // openWarp UX: 与 notebook details_bar 一致,给 workflow 编辑
+            // 切换按钮加 tooltip,避免用户不知道这个铅笔能点、
+            // 点了会发生什么。Tooltip 表达「点击后会发生的动作」。
+            let tooltip_text = match self.workflow_view_mode {
+                WorkflowViewMode::View => crate::t!("common-tooltip-enter-edit-mode"),
+                WorkflowViewMode::Edit => crate::t!("common-tooltip-exit-edit-mode"),
+                _ => crate::t!("common-tooltip-enter-edit-mode"),
+            };
+            let ui_builder = appearance.ui_builder().clone();
+            edit_button = edit_button.with_tooltip(move || {
+                ui_builder.tool_tip(tooltip_text.clone()).build().finish()
+            });
             let edit_button = edit_button.build();
 
             Flex::row()
@@ -2004,8 +1821,8 @@ impl WorkflowView {
             return;
         }
 
-        UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-            update_manager.duplicate_object(
+        ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+            object_store.duplicate_object(
                 &ObjectTypeAndId::from_id_and_type(self.workflow_id, ObjectType::Workflow),
                 ctx,
             );
@@ -2020,8 +1837,8 @@ impl WorkflowView {
 
         self.close(ctx);
 
-        UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-            update_manager.trash_object(
+        ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+            object_store.trash_object(
                 ObjectTypeAndId::from_id_and_type(self.workflow_id, ObjectType::Workflow),
                 ctx,
             );
@@ -2033,8 +1850,8 @@ impl WorkflowView {
             return;
         }
 
-        UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-            update_manager.untrash_object(
+        ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+            object_store.untrash_object(
                 ObjectTypeAndId::from_id_and_type(self.workflow_id, ObjectType::Workflow),
                 ctx,
             );
@@ -2864,26 +2681,13 @@ impl View for WorkflowView {
             .finish(),
         );
 
-        let editability = if FeatureFlag::SharedWithMe.is_enabled() {
-            self.editability(app)
-        } else {
-            ContentEditability::Editable
-        };
-        let mode_toggleable = match (ContextFlag::RunWorkflow.is_enabled(), editability) {
-            // If logging in would allow editing, show the toggle for discoverability.
-            (_, ContentEditability::RequiresLogin) => true,
-            // If workflows aren't runnable (so view mode is enabled) AND the user can edit the
-            // workflow, both view and edit modes are allowed.
-            (false, ContentEditability::Editable) => true,
-            // Otherwise, only one of view and edit mode is allowed.
-            (_, _) => false,
-        };
+        let mode_toggleable = ContextFlag::RunWorkflow.is_enabled();
 
         if mode_toggleable {
             row.add_child(
                 Shrinkable::new(
                     1.,
-                    Container::new(self.render_edit_toggle_button(editability, appearance))
+                    Container::new(self.render_edit_toggle_button(appearance))
                         .with_margin_right(CORE_HORIZONATAL_MARGIN)
                         .finish(),
                 )
@@ -3107,30 +2911,20 @@ impl BackingView for WorkflowView {
             }
         }
 
-        let space = ObjectStoreViewModel::as_ref(ctx).object_space(&self.workflow_id.uid(), ctx);
+        // Dais(本地化):无共享空间/在线状态,直接暴露 Duplicate 与 Trash。
+        menu_items.push(
+            MenuItemFields::new(crate::t!("common-duplicate"))
+                .with_on_select_action(WorkflowAction::Duplicate)
+                .with_icon(Icon::Duplicate)
+                .into_item(),
+        );
 
-        // Add "Duplicate" to menu
-        if space != Some(Space::Shared) {
-            menu_items.push(
-                MenuItemFields::new(crate::t!("common-duplicate"))
-                    .with_on_select_action(WorkflowAction::Duplicate)
-                    .with_icon(Icon::Duplicate)
-                    .into_item(),
-            );
-        }
-
-        // Add "Trash" to menu
-        let access_level = self.access_level(ctx);
-        if self.is_online(ctx)
-            && (!FeatureFlag::SharedWithMe.is_enabled() || access_level.can_trash())
-        {
-            menu_items.push(
-                MenuItemFields::new(crate::t!("common-trash"))
-                    .with_on_select_action(WorkflowAction::Trash)
-                    .with_icon(Icon::Trash)
-                    .into_item(),
-            );
-        }
+        menu_items.push(
+            MenuItemFields::new(crate::t!("common-trash"))
+                .with_on_select_action(WorkflowAction::Trash)
+                .with_icon(Icon::Trash)
+                .into_item(),
+        );
 
         menu_items
     }

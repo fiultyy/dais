@@ -1,76 +1,48 @@
-use pathfinder_geometry::rect::RectF;
-use std::any::Any;
-use std::fmt::Debug;
-use std::ops::AddAssign;
-use warp_util::file::FileSaveError;
-use warpui::elements::DropTargetData;
+//! Code pane 域(宿主留守层)。
+//!
+//! # P-ARC R6 后的本模块
+//!
+//! 纯模型/纯函数层已下沉 `crates/code_model`(buffer_location /
+//! global_buffer_model / file_tree::snapshot / icon / active_file /
+//! opened_files / editor::{line,line_iterator,scroll} 及根级胶水类型
+//! DiffResult / ImmediateSaveError / SaveStatus / SaveOutcome /
+//! ShowCommentEditorProvider / EditorTabBarDropTargetData)。
+//!
+//! 本模块保留(物理依赖约束,依 R2-a/R2-b/R4 留守层裁决):
+//! - `view.rs` / `wasm.rs`:`crate::pane_group`(R3 主线互斥区)、
+//!   `crate::terminal`、`crate::workspace` 等宿主视图依赖;
+//! - `local_code_editor.rs` / `local_code_editor_wasm.rs`:持有
+//!   `crate::terminal::TerminalView` / `crate::editor`,随 terminal 域
+//!   crate 化再迁;
+//! - `diff_viewer.rs` / `inline_diff.rs`:`crate::editor::InteractionState`、
+//!   `crate::ai::blocklist` 宿主锚;
+//! - `editor/` 视图主体(model / view / element / diff / comments /
+//!   comment_editor 等):`crate::t!` i18n、`crate::appearance`、
+//!   `crate::code_review` 反向锚(comments.rs 的 EditorReviewComment 被
+//!   code_review::comments 消费,双侧留守);
+//! - `file_tree/view.rs` 全家、`footer.rs`、`editor_management.rs`:
+//!   dispatch 宿主 Action / `crate::settings` / `crate::ui_components`;
+//! - 域 `init()`:宿主 view/file_tree 装配;
+//! - 路径兼容 shim(`buffer_location` / `global_buffer_model` / `icon` /
+//!   `active_file` / `opened_files` 模块 + 根级类型 re-export),保证
+//!   `crate::code::*` 全部既有路径不变(workspace/view.rs、
+//!   vertical_tabs.rs、global_search、search/files、remote_server、
+//!   ai/blocklist、lib.rs 等域外消费点零改动)。
+
 use warpui::AppContext;
 
-pub mod buffer_location;
 pub mod diff_viewer;
 pub mod editor;
 pub mod editor_management;
-pub mod global_buffer_model;
 pub mod inline_diff;
 #[cfg_attr(not(target_family = "wasm"), path = "local_code_editor.rs")]
 #[cfg_attr(target_family = "wasm", path = "local_code_editor_wasm.rs")]
 pub mod local_code_editor;
 
-#[derive(Debug, thiserror::Error)]
-#[cfg_attr(target_family = "wasm", allow(dead_code))]
-pub enum ImmediateSaveError {
-    #[error("No FileId")]
-    NoFileId,
-    #[error("failed to save file: {0:#}")]
-    FailedToSave(#[from] FileSaveError),
-    #[error("There is no file tab currently selected")]
-    NoActiveFileTab,
-}
-
-/// Trait to determine whether we should show the comment editor based on state held
-/// by the parent of the [`CodeEditorView`].
-pub trait ShowCommentEditorProvider: Debug + 'static {
-    /// Returns whether the comment editor should be shown given the location of the line where
-    /// the editor would be shown.
-    #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
-    fn should_show_comment_editor(&self, editor_line_location: RectF, app: &AppContext) -> bool;
-}
-
-#[derive(Debug)]
-struct NoopCommentEditorProvider;
-
-impl ShowCommentEditorProvider for NoopCommentEditorProvider {
-    fn should_show_comment_editor(&self, _editor_line_location: RectF, _app: &AppContext) -> bool {
-        false
-    }
-}
-
-#[cfg_attr(target_family = "wasm", expect(dead_code))]
-#[derive(Debug)]
-pub enum SaveStatus {
-    /// Save completed immediately and successfully.
-    SavedImmediately,
-    /// Save operation is in progress asynchronously (e.g., save-as dialog).
-    AsyncSaveInProgress,
-    /// Save failed with an error.
-    Failed(#[allow(unused)] ImmediateSaveError),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-#[cfg_attr(target_family = "wasm", expect(dead_code))]
-pub enum SaveOutcome {
-    Canceled,
-    Failed,
-    Succeeded,
-}
-
 pub mod file_tree;
 pub mod footer;
-mod icon;
 
-pub mod active_file;
-pub mod opened_files;
-pub use icon::icon_from_file_path;
+
 
 #[cfg_attr(not(target_family = "wasm"), path = "view.rs")]
 #[cfg_attr(target_family = "wasm", path = "wasm.rs")]
@@ -81,39 +53,29 @@ pub fn init(app: &mut AppContext) {
     self::file_tree::init(app);
 }
 
-/// The diff that results from editing a file.
-#[derive(Debug, Default, Clone)]
-pub struct DiffResult {
-    /// The changes in unified diff format.
-    pub unified_diff: String,
-    /// Number of lines added.
-    pub lines_added: usize,
-    /// Number of lines removed.
-    pub lines_removed: usize,
+// R6 路径兼容 shim:主体已下沉 crates/code_model,保持
+// `crate::code::{buffer_location,global_buffer_model,icon,active_file,
+// opened_files}::*` 旧路径不变。
+pub mod buffer_location {
+    pub use code_model::buffer_location::*;
+}
+pub mod global_buffer_model {
+    pub use code_model::global_buffer_model::*;
+}
+mod icon {
+    pub use code_model::icon::*;
+}
+pub mod active_file {
+    pub use code_model::active_file::*;
+}
+pub mod opened_files {
+    pub use code_model::opened_files::*;
 }
 
-impl AddAssign<&DiffResult> for DiffResult {
-    fn add_assign(&mut self, other: &DiffResult) {
-        self.lines_added += other.lines_added;
-        self.lines_removed += other.lines_removed;
-
-        // There's not a standardized multi-file diff format, but concatenating the diffs is enough
-        // for our needs: https://en.wikipedia.org/wiki/Diff#Extensions
-        if !self.unified_diff.is_empty() && !other.unified_diff.is_empty() {
-            self.unified_diff.push('\n');
-        }
-        self.unified_diff.push_str(&other.unified_diff);
-    }
-}
-
-#[derive(Debug)]
-#[cfg_attr(target_family = "wasm", expect(dead_code))]
-pub struct EditorTabBarDropTargetData {
-    index: usize,
-}
-
-impl DropTargetData for EditorTabBarDropTargetData {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
+// R6 根级类型 shim:原 mod.rs 顶层的纯胶水类型已 verbatim 迁
+// crates/code_model/src/lib.rs(唯二可见性放宽见彼处注释)。
+pub use code_model::{
+    DiffResult, EditorTabBarDropTargetData, ImmediateSaveError, NoopCommentEditorProvider,
+    SaveOutcome, SaveStatus, ShowCommentEditorProvider,
+};
+pub use icon::icon_from_file_path;

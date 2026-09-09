@@ -1,3 +1,4 @@
+use terminal_grid_model::grid::blockgrid::BlockGrid;
 use crate::pane_group::focus_state::PaneFocusHandle;
 use crate::server::telemetry::MCPServerCollectionPaneEntrypoint;
 use crate::settings_view::mcp_servers_page::MCPServersSettingsPage;
@@ -5,36 +6,25 @@ use crate::TelemetryEvent;
 use crate::{
     ai::execution_profiles::profiles::ClientProfileId,
     appearance::Appearance,
-    editor::{
-        EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions,
-        TextColors, TextOptions,
-    },
+    editor::{ EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextColors, TextOptions, },
     menu::{self, Menu, MenuItem, MenuItemFields},
-    pane_group::{
-        pane::view, BackingView, Direction, PaneConfiguration, PaneEvent, SplitPaneState,
-    },
-    settings::{AISettings, BlockVisibilitySettings, SettingsFileError},
-    settings_view::mcp_servers_page::MCPServersSettingsPageEvent,
-    terminal::{model::blockgrid::BlockGrid, SizeInfo},
-    ui_components::icons,
-    util::bindings::{
-        custom_tag_to_keystroke, keybinding_name_to_display_string, BindingGroup, CustomAction,
-    },
-    view_components::ToastFlavor,
+    pane_group::{ pane::view, BackingView, Direction, PaneConfiguration, PaneEvent, SplitPaneState, },
     workspace::WorkspaceAction,
-    GlobalResourceHandlesProvider,
+    settings::BlockVisibilitySettings,
+    terminal::SizeInfo,
+    ui_components::icons,
+    util::bindings::{ custom_tag_to_keystroke, keybinding_name_to_display_string, BindingGroup, CustomAction, },
+    view_components::ToastFlavor,
 };
 use about_page::AboutPageView;
 use ai_page::{AISettingsPageAction, AISettingsPageEvent, AISettingsPageView, AISubpage};
 use appearance_page::{AppearancePageAction, AppearanceSettingsPageView};
 use code_page::{CodeSettingsPageAction, CodeSettingsPageEvent};
-use features_page::{FeaturesPageView, FeaturesSettingsPageEvent};
 use itertools::Itertools as _;
 use keybindings::KeybindingsView;
 use mcp_servers_page::MCPServersSettingsPageView;
 use nav::{SettingsNavItem, SettingsUmbrella};
 use pathfinder_geometry::vector::Vector2F;
-use settings_file_footer::{render_footer, SettingsFooterKind, SettingsFooterMouseStates};
 use settings_page::{
     MatchData, SettingsPage, SettingsPageEvent, SettingsPageMeta, SettingsPageViewHandle,
     HEADER_PADDING,
@@ -68,9 +58,7 @@ use warpui::{
 mod about_page;
 mod ai_page;
 mod appearance_page;
-mod cloud_sync_page;
 mod code_page;
-mod directory_color_add_picker;
 mod execution_profile_view;
 mod features;
 mod features_page;
@@ -84,19 +72,16 @@ pub mod pane_manager;
 // Dais Inc 云端 API key 管理 UI 一同物理删。
 // Dais Wave 6-8:`referrals_page` / `show_blocks_view` 随 `ReferralsClient` /
 // `BlockClient` trait 物理删 —— 两个页面全部 stub Err / 空列表,本地无价值。
-mod settings_file_footer;
 pub(crate) mod settings_page;
 // Dais Wave 7-3:`telemetry` 随唯一 variant `EnvironmentsPageOpened` (ambient-agent UI)
 // 一同物理删。
 // Dais Wave 7-2:`update_environment_form` 随 cloud ambient agent 主体物理删 ——
 // `terminal::view::ambient_agent::first_time_setup` 与 `cloud_environments` 一同下线。
-mod warp_drive_page;
 mod warpify_page;
 
 #[cfg(not(target_family = "wasm"))]
 pub(crate) use ai_page::cli_agent_settings_widget_id;
 pub use code_page::CodeSettingsPageView;
-pub use features_page::FeaturesPageAction;
 pub use settings_page::{
     render_body_item_label, render_info_icon, render_input_list, render_separator, AdditionalInfo,
     InputListItem, LocalOnlyIconState, ToggleState,
@@ -106,25 +91,6 @@ pub use settings_page::{
 /// enabled. Preserved for Preview/Stable until `FeatureFlag::SettingsFile`
 /// is promoted.
 const SIDEBAR_WIDTH_DEFAULT: f32 = 200.;
-
-/// Wider sidebar used when the settings-file footer is enabled. Sized to
-/// match Figma's settings nav rail (223px alert + 12px horizontal padding
-/// on each side + 1px right border), giving the error-alert footer enough
-/// room to render its "Open file" and "Fix with Oz" buttons side-by-side
-/// with the designed 24px indent and 8px internal padding.
-const SIDEBAR_WIDTH_WITH_FOOTER: f32 = 248.;
-
-/// Returns the sidebar width, widened only when the settings-file footer
-/// is enabled. This keeps the wider layout gated with the footer itself so
-/// Preview/Stable users don't see an unexplained 48px width bump before
-/// the feature ships.
-fn sidebar_width() -> f32 {
-    if FeatureFlag::SettingsFile.is_enabled() {
-        SIDEBAR_WIDTH_WITH_FOOTER
-    } else {
-        SIDEBAR_WIDTH_DEFAULT
-    }
-}
 
 /// Width of the borders for the header and the sidebar.
 const SECTION_BORDER_WIDTH: f32 = 1.;
@@ -150,7 +116,6 @@ pub enum SettingsViewEvent {
         message: String,
         flavor: ToastFlavor,
     },
-    OpenAIFactCollection,
     OpenMCPServerCollection,
     OpenExecutionProfileEditor(ClientProfileId),
     OpenProjectRulesPane {
@@ -164,9 +129,7 @@ pub enum SettingsSection {
     About,
     MCPServers,
     Appearance,
-    Features,
     Keybindings,
-    DaisDrive,
     Warpify,
     /// Internal backing-page identifier for AISettingsPageView. Multiple subpages
     /// (WarpAgent, AgentProfiles, Knowledge, ThirdPartyCLIAgents) share this single
@@ -189,8 +152,6 @@ pub enum SettingsSection {
     /// removed.
     Code,
     EditorAndCodeReview,
-    /// 云同步设置页。
-    CloudSync,
     // Dais Wave 3-1:`OzCloudAPIKeys` enum variant 随 Dais Inc API key 管理 UI
     // 一同物理删。
     // Dais Wave 7-3:`CloudEnvironments` 随 ambient-agent UI 子系统物理删。
@@ -204,11 +165,10 @@ impl Display for SettingsSection {
             SettingsSection::About => crate::t!("settings-section-about"),
             SettingsSection::MCPServers => crate::t!("settings-section-mcp-servers"),
             SettingsSection::Appearance => crate::t!("settings-section-appearance"),
-            SettingsSection::Features => crate::t!("settings-section-features"),
             SettingsSection::Keybindings => crate::t!("settings-section-keybindings"),
-            SettingsSection::DaisDrive => crate::t!("settings-section-warp-drive"),
             SettingsSection::Warpify => crate::t!("settings-section-warpify"),
             SettingsSection::AI => crate::t!("settings-section-ai"),
+            SettingsSection::Network => crate::t!("settings-section-network"),
             SettingsSection::WarpAgent => crate::t!("settings-section-warp-agent"),
             SettingsSection::AgentProfiles => crate::t!("settings-section-agent-profiles"),
             SettingsSection::AgentMCPServers => crate::t!("settings-section-agent-mcp-servers"),
@@ -220,9 +180,7 @@ impl Display for SettingsSection {
             SettingsSection::EditorAndCodeReview => {
                 crate::t!("settings-section-editor-and-code-review")
             }
-            SettingsSection::CloudSync => crate::t!("settings-section-cloud-sync"),
             // 代理设置页面。i18n key `settings-section-network` 已在 en / zh-CN / ja 三种语言中齐全。
-            SettingsSection::Network => crate::t!("settings-section-network"),
             // Dais Wave 3-1:`OzCloudAPIKeys` Display arm 随 variant 一同物理删。
             // Dais Wave 7-3:`CloudEnvironments` Display arm 随 variant 物理删。
         };
@@ -286,21 +244,15 @@ impl FromStr for SettingsSection {
             "MCP Servers" => Ok(Self::MCPServers),
             "Appearance" => Ok(Self::Appearance),
             "Code" => Ok(Self::Code),
-            "Features" => Ok(Self::Features),
             "Keyboard shortcuts" => Ok(Self::Keybindings),
-            "Warpify" => Ok(Self::Warpify),
-            "DaisDrive" | "Dais Drive" => Ok(Self::DaisDrive),
             // This page was called "Oz" at one point, keep for backward compatibility.
-            "Oz" | "Dais Agent" => Ok(Self::WarpAgent),
             "Profiles" | "AgentProfiles" => Ok(Self::AgentProfiles),
             "MCP servers" | "AgentMCPServers" => Ok(Self::AgentMCPServers),
             "Knowledge" => Ok(Self::Knowledge),
             "Third party CLI agents" | "ThirdPartyCLIAgents" => Ok(Self::ThirdPartyCLIAgents),
             "Editor and Code Review" | "EditorAndCodeReview" => Ok(Self::EditorAndCodeReview),
             "Network" | "网络" => Ok(Self::Network),
-            "CloudSync" | "Cloud Sync" | "云同步" => Ok(Self::CloudSync),
             // Dais Wave 3-1:`OzCloudAPIKeys` 随 UI 一同物理删。
-            // Dais Wave 7-3:`CloudEnvironments` FromStr arm 随 variant 物理删。
             _ => Err(()),
         }
     }
@@ -453,7 +405,6 @@ pub fn init_actions_from_parent_view<T: Action + Clone>(
     builder: fn(SettingsAction) -> T,
 ) {
     appearance_page::init_actions_from_parent_view(app, context, builder);
-    features_page::init_actions_from_parent_view(app, context, builder);
     warpify_page::init_actions_from_parent_view(app, context, builder);
     ai_page::init_actions_from_parent_view(app, context, builder);
     code_page::init_actions_from_parent_view(app, context, builder);
@@ -762,11 +713,8 @@ pub enum SettingsAction {
     SelectAndRefresh(SettingsSection),
     ToggleUmbrella(usize),
     AppearancePageToggle(AppearancePageAction),
-    FeaturesPageToggle(FeaturesPageAction),
     AI(AISettingsPageAction),
     Code(CodeSettingsPageAction),
-    DaisDrive(warp_drive_page::WarpDriveSettingsPageAction),
-    CloudSync(cloud_sync_page::CloudSyncPageAction),
     WarpifyPageToggle(WarpifyPageAction),
     Tab,
     Split(Direction),
@@ -911,7 +859,6 @@ macro_rules! update_page {
     ($handle:expr, $update:expr, $ctx:expr) => {
         match $handle {
             SettingsPageViewHandle::Appearance(handle) => $ctx.update_view(handle, $update),
-            SettingsPageViewHandle::Features(handle) => $ctx.update_view(handle, $update),
             SettingsPageViewHandle::Keybindings(handle) => $ctx.update_view(handle, $update),
             SettingsPageViewHandle::Warpify(handle) => $ctx.update_view(handle, $update),
             // Dais Wave 3-1:`OzCloudAPIKeys` arm 随 variant 一同物理删。
@@ -921,10 +868,8 @@ macro_rules! update_page {
             SettingsPageViewHandle::About(handle) => $ctx.update_view(handle, $update),
             SettingsPageViewHandle::Code(handle) => $ctx.update_view(handle, $update),
             SettingsPageViewHandle::MCPServers(handle) => $ctx.update_view(handle, $update),
-            SettingsPageViewHandle::DaisDrive(handle) => $ctx.update_view(handle, $update),
             // Issue #72: 全局 HTTP 代理设置页。
             SettingsPageViewHandle::Network(handle) => $ctx.update_view(handle, $update),
-            SettingsPageViewHandle::CloudSync(handle) => $ctx.update_view(handle, $update),
         }
     };
 }
@@ -953,17 +898,6 @@ pub struct SettingsView {
     /// Per-subpage search match results. Populated during search so that
     /// subpages sharing the same backing page can be filtered independently.
     subpage_filter: HashMap<SettingsSection, MatchData>,
-    /// Current settings.toml error, mirrored from `Workspace` via
-    /// [`set_settings_error_state`]. Used by the sidebar footer to decide
-    /// whether to show the inline error alert.
-    settings_file_error: Option<SettingsFileError>,
-    /// Whether the workspace-level settings-error banner has been dismissed.
-    /// Mirrored from `Workspace` via [`set_settings_error_state`].
-    settings_error_banner_dismissed: bool,
-    /// Mouse state handles for the nav-rail footer buttons. Constructed once
-    /// per `SettingsView` per `WARP.md`'s guidance that inline
-    /// `MouseStateHandle::default()` breaks hover/click tracking.
-    footer_mouse_states: SettingsFooterMouseStates,
 }
 
 impl SettingsView {
@@ -971,25 +905,12 @@ impl SettingsView {
         let pane_configuration =
             ctx.add_model(|_ctx| PaneConfiguration::new(crate::t!("settings-title")));
 
-        let global_resource_handles = GlobalResourceHandlesProvider::as_ref(ctx).get().clone();
-
         // Appearance & themes page
         let appearance_page_handle = ctx.add_typed_action_view(AppearanceSettingsPageView::new);
         ctx.subscribe_to_view(&appearance_page_handle, |me, _, event, ctx| {
             me.handle_appearance_page_event(event, ctx);
         });
 
-        // Features page
-        let features_page_handle = ctx.add_typed_action_view(|ctx| {
-            FeaturesPageView::new(global_resource_handles.clone(), ctx)
-        });
-
-        ctx.subscribe_to_view(&features_page_handle, |me, _, event, ctx| {
-            me.handle_features_page_event(event, ctx);
-        });
-
-        // Dais Wave 6-8:Shared blocks 设置页随 `ShowBlocksView` / `BlockClient`
-        // 物理删,handle / 事件订阅一同移除。
 
         // About page
         let about_page_handle = ctx.add_typed_action_view(AboutPageView::new);
@@ -1022,24 +943,13 @@ impl SettingsView {
         // Dais Wave 6-8:Referrals 设置页随 `ReferralsPageView` / `ReferralsClient`
         // 物理删,handle / 事件订阅一同移除。
 
-        // Dais Drive page
-        let warp_drive_page_handle =
-            ctx.add_typed_action_view(warp_drive_page::WarpDriveSettingsPageView::new);
-
         // Dais Wave 3-1:`platform_page_handle` 随 `platform_page` 一同物理删。
 
         // MCP Servers page
         let mcp_servers_page_handle = ctx.add_typed_action_view(MCPServersSettingsPageView::new);
-        ctx.subscribe_to_view(&mcp_servers_page_handle, |me, _, event, ctx| {
-            me.handle_mcp_servers_page_event(event, ctx);
-        });
 
         // Network (HTTP 代理) 设置页。受 FeatureFlag::HttpProxySettings 门控。
         let network_page_handle = ctx.add_typed_action_view(network_page::NetworkPageView::new);
-
-        // Cloud Sync 设置页。
-        let cloud_sync_page_handle =
-            ctx.add_typed_action_view(cloud_sync_page::CloudSyncPageView::new);
 
         let font_family = Appearance::as_ref(ctx).ui_font_family();
         let search_editor = ctx.add_typed_action_view(|ctx| {
@@ -1073,13 +983,9 @@ impl SettingsView {
             SettingsPage::new(ai_page_handle),
             SettingsPage::new(code_page_handle),
             SettingsPage::new(appearance_page_handle),
-            SettingsPage::new(features_page_handle),
             SettingsPage::new(keybindings_handle),
-            // Dais Wave 3-1:`platform_page_handle` 随 UI 一同物理删。
             SettingsPage::new(warpify_page_handle),
-            SettingsPage::new(warp_drive_page_handle),
         ];
-
         settings_pages.extend(vec![
             SettingsPage::new(mcp_servers_page_handle),
             SettingsPage::new(about_page_handle),
@@ -1089,10 +995,6 @@ impl SettingsView {
         if warp_core::features::FeatureFlag::HttpProxySettings.is_enabled() {
             settings_pages.push(SettingsPage::new(network_page_handle));
         }
-
-        settings_pages.push(SettingsPage::new(cloud_sync_page_handle));
-
-        // 去中心化分支:本地模式下移除所有云端账号 / 计费 / 团队 / 同步 / 分享相关的
         // 设置入口。
         let mut nav_items = vec![
             SettingsNavItem::Umbrella(SettingsUmbrella::new(
@@ -1101,10 +1003,8 @@ impl SettingsView {
             )),
             SettingsNavItem::Page(SettingsSection::Code),
             SettingsNavItem::Page(SettingsSection::Appearance),
-            SettingsNavItem::Page(SettingsSection::Features),
             SettingsNavItem::Page(SettingsSection::Keybindings),
             SettingsNavItem::Page(SettingsSection::Warpify),
-            SettingsNavItem::Page(SettingsSection::CloudSync),
             SettingsNavItem::Page(SettingsSection::About),
         ];
 
@@ -1153,30 +1053,7 @@ impl SettingsView {
             ai_page_handle: ai_page_handle_for_nav,
             code_page_handle: code_page_handle_for_nav,
             subpage_filter: HashMap::new(),
-            settings_file_error: None,
-            settings_error_banner_dismissed: false,
-            footer_mouse_states: SettingsFooterMouseStates::default(),
         }
-    }
-
-    /// Pushes the current settings-file error state from `Workspace` into this
-    /// view. Called by `Workspace` once at construction time and then again
-    /// whenever the error state or banner dismissal changes. Triggers a
-    /// re-render when anything actually changed.
-    pub fn set_settings_error_state(
-        &mut self,
-        error: Option<SettingsFileError>,
-        banner_dismissed: bool,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        let error_changed = self.settings_file_error != error;
-        let dismissed_changed = self.settings_error_banner_dismissed != banner_dismissed;
-        if !error_changed && !dismissed_changed {
-            return;
-        }
-        self.settings_file_error = error;
-        self.settings_error_banner_dismissed = banner_dismissed;
-        ctx.notify();
     }
 
     pub fn pane_configuration(&self) -> ModelHandle<PaneConfiguration> {
@@ -1582,19 +1459,6 @@ impl SettingsView {
 
     // Dais Wave 7-3:`handle_environments_page_event` 随 ambient-agent UI 子系统物理删。
 
-    fn handle_features_page_event(
-        &mut self,
-        event: &FeaturesSettingsPageEvent,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        match event {
-            FeaturesSettingsPageEvent::SearchForKeybinding(query) => {
-                self.search_for_keybinding(query, ctx);
-            }
-            FeaturesSettingsPageEvent::FocusModal => ctx.focus(&self.search_editor),
-        }
-    }
-
     fn handle_warpify_page_event(
         &mut self,
         event: &SettingsPageEvent,
@@ -1612,23 +1476,6 @@ impl SettingsView {
     // Dais Wave 3-1:`handle_platform_page_event` 随 `platform_page::PlatformPageViewEvent`
     // 一同物理删。
 
-    fn handle_mcp_servers_page_event(
-        &mut self,
-        event: &MCPServersSettingsPageEvent,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        match event {
-            MCPServersSettingsPageEvent::ShowModal => {
-                // Modal rendering is handled in get_modal_content_for_page
-                ctx.notify();
-            }
-            MCPServersSettingsPageEvent::HideModal => {
-                // Modal rendering is handled in get_modal_content_for_page
-                ctx.notify();
-            }
-        }
-    }
-
     pub fn search_for_keybinding(&mut self, keybinding_name: &str, ctx: &mut ViewContext<Self>) {
         self.set_and_refresh_current_page(SettingsSection::Keybindings, ctx);
 
@@ -1644,9 +1491,6 @@ impl SettingsView {
     fn handle_ai_page_event(&mut self, event: &AISettingsPageEvent, ctx: &mut ViewContext<Self>) {
         match event {
             AISettingsPageEvent::FocusModal => ctx.focus(&self.search_editor),
-            AISettingsPageEvent::OpenAIFactCollection => {
-                ctx.emit(SettingsViewEvent::OpenAIFactCollection)
-            }
             AISettingsPageEvent::OpenMCPServerCollection => {
                 ctx.emit(SettingsViewEvent::OpenMCPServerCollection)
             }
@@ -1792,7 +1636,6 @@ impl SettingsView {
     fn should_render_page(&self, settings_page: &SettingsPage, app: &AppContext) -> bool {
         match &settings_page.view_handle {
             SettingsPageViewHandle::Keybindings(v) => v.as_ref(app).should_render(app),
-            SettingsPageViewHandle::Features(v) => v.as_ref(app).should_render(app),
             SettingsPageViewHandle::Appearance(v) => v.as_ref(app).should_render(app),
             SettingsPageViewHandle::About(v) => v.as_ref(app).should_render(app),
             // Dais Wave 3-1:`OzCloudAPIKeys` arm 随 variant 一同物理删。
@@ -1801,10 +1644,8 @@ impl SettingsView {
             SettingsPageViewHandle::AI(v) => v.as_ref(app).should_render(app),
             SettingsPageViewHandle::MCPServers(v) => v.as_ref(app).should_render(app),
             SettingsPageViewHandle::Code(v) => v.as_ref(app).should_render(app),
-            SettingsPageViewHandle::DaisDrive(v) => v.as_ref(app).should_render(app),
             // Issue #72: 全局 HTTP 代理设置页。
             SettingsPageViewHandle::Network(v) => v.as_ref(app).should_render(app),
-            SettingsPageViewHandle::CloudSync(v) => v.as_ref(app).should_render(app),
         }
     }
 
@@ -1856,17 +1697,7 @@ impl SettingsView {
             })
     }
 
-    pub fn refresh_preferred_graphics_backend_dropdown(&mut self, ctx: &mut ViewContext<Self>) {
-        if let Some(features_page) = self.settings_page(SettingsSection::Features) {
-            if let SettingsPageViewHandle::Features(view) = &features_page.view_handle {
-                view.update(ctx, |view, ctx| {
-                    view.refresh_preferred_graphics_backend_dropdown(ctx);
-                });
-            }
-        }
-    }
-
-    fn key_up(&mut self, ctx: &mut ViewContext<Self>) {
+    pub fn key_up(&mut self, ctx: &mut ViewContext<Self>) {
         self.cycle_pages(CycleDirection::Up, ctx)
     }
 
@@ -1985,22 +1816,6 @@ impl SettingsView {
         }
     }
 
-    fn get_modal_content_for_page(
-        &self,
-        page_handle: &SettingsPageViewHandle,
-        app: &AppContext,
-    ) -> Option<Box<dyn Element>> {
-        match page_handle {
-            // Dais Wave 3-1:`OzCloudAPIKeys` modal arm 随 UI 一同物理删。
-            SettingsPageViewHandle::MCPServers(view) => {
-                view.read(app, |view, _| view.get_modal_content(app))
-            }
-            // CloudSync 模态在页面内通过 Stack 自渲染居中,这里不接管
-            // (因为 SettingsView 路径无法把 CloudSyncPageAction 路由回 CloudSyncPageView)
-            _ => None,
-        }
-    }
-
     fn render_search_editor(&self, appearance: &Appearance) -> Box<dyn Element> {
         Container::new(
             Flex::row()
@@ -2085,15 +1900,15 @@ impl View for SettingsView {
         // For AI subpages, the backing SettingsPage has a different section
         // (e.g. Oz -> AI, AgentMCPServers -> MCPServers).
         let content_page_section = self.current_settings_page.parent_page_section();
-        let (page, current_page_handle) = if settings_pages.is_empty() {
-            (self.render_search_zero_state(appearance), None)
+        let page = if settings_pages.is_empty() {
+            self.render_search_zero_state(appearance)
         } else {
             match settings_pages
                 .iter()
                 .find(|(page, _)| page.section == content_page_section)
             {
-                None => (Empty::new().finish(), None),
-                Some((page, _)) => (page.view_handle.child_view(), Some(&page.view_handle)),
+                None => Empty::new().finish(),
+                Some((page, _)) => page.view_handle.child_view(),
             }
         };
 
@@ -2196,23 +2011,6 @@ impl View for SettingsView {
                 }
             }
         }
-        // Footer: "Open settings file" button, or an inline error alert if
-        // the workspace-level banner was dismissed. Rendered below the
-        // scrollable nav list but inside the same sidebar column so it
-        // shares the right-border and SIDEBAR_WIDTH constraint.
-        let footer_kind = SettingsFooterKind::choose(
-            FeatureFlag::SettingsFile.is_enabled(),
-            self.settings_file_error.is_some(),
-            self.settings_error_banner_dismissed,
-        );
-        let footer = render_footer(
-            footer_kind,
-            appearance,
-            self.settings_file_error.as_ref(),
-            AISettings::as_ref(app).is_any_ai_enabled(app),
-            &self.footer_mouse_states,
-        );
-
         let scrollable = Container::new(
             ClippedScrollable::vertical(
                 self.clipped_scroll_state.clone(),
@@ -2224,20 +2022,17 @@ impl View for SettingsView {
             )
             .finish(),
         )
-        .with_padding_top(HEADER_PADDING)
         .finish();
-
         let sidebar = ConstrainedBox::new(
             Container::new(
                 Flex::column()
                     .with_child(Expanded::new(1., scrollable).finish())
-                    .with_child(footer)
                     .finish(),
             )
             .with_border(Border::right(SECTION_BORDER_WIDTH).with_border_fill(theme.outline()))
             .finish(),
         )
-        .with_width(sidebar_width())
+        .with_width(SIDEBAR_WIDTH_DEFAULT)
         .finish();
 
         let row = Flex::row()
@@ -2276,20 +2071,6 @@ impl View for SettingsView {
                     ParentOffsetBounds::WindowByPosition,
                     ParentAnchor::TopLeft,
                     ChildAnchor::TopLeft,
-                ),
-            );
-        }
-
-        if let Some(modal_content) =
-            current_page_handle.and_then(|handle| self.get_modal_content_for_page(handle, app))
-        {
-            stack.add_positioned_overlay_child(
-                modal_content,
-                OffsetPositioning::offset_from_parent(
-                    pathfinder_geometry::vector::vec2f(0., 0.),
-                    ParentOffsetBounds::WindowByPosition,
-                    ParentAnchor::Center,
-                    ChildAnchor::Center,
                 ),
             );
         }
@@ -2335,15 +2116,6 @@ impl TypedActionView for SettingsView {
                     }
                 }
             }
-            SettingsAction::FeaturesPageToggle(feature_action) => {
-                if let Some(features_page) = self.settings_page(SettingsSection::Features) {
-                    if let SettingsPageViewHandle::Features(view) = &features_page.view_handle {
-                        view.update(ctx, |view, ctx| {
-                            view.handle_action(feature_action, ctx);
-                        })
-                    }
-                }
-            }
             SettingsAction::AI(ai_action) => {
                 if let Some(ai_page) = self.settings_page(SettingsSection::AI) {
                     if let SettingsPageViewHandle::AI(view) = &ai_page.view_handle {
@@ -2358,24 +2130,6 @@ impl TypedActionView for SettingsView {
                     if let SettingsPageViewHandle::Code(view) = &code_page.view_handle {
                         view.update(ctx, |view, ctx| {
                             view.handle_action(code_action, ctx);
-                        })
-                    }
-                }
-            }
-            SettingsAction::DaisDrive(warp_drive_action) => {
-                if let Some(warp_drive_page) = self.settings_page(SettingsSection::DaisDrive) {
-                    if let SettingsPageViewHandle::DaisDrive(view) = &warp_drive_page.view_handle {
-                        view.update(ctx, |view, ctx| {
-                            view.handle_action(warp_drive_action, ctx);
-                        })
-                    }
-                }
-            }
-            SettingsAction::CloudSync(cloud_sync_action) => {
-                if let Some(cloud_sync_page) = self.settings_page(SettingsSection::CloudSync) {
-                    if let SettingsPageViewHandle::CloudSync(view) = &cloud_sync_page.view_handle {
-                        view.update(ctx, |view, ctx| {
-                            view.handle_action(cloud_sync_action, ctx);
                         })
                     }
                 }

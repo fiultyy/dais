@@ -39,7 +39,10 @@ use warpui::{
     SingletonEntity,
 };
 
-use crate::{editor::RangeExt, vim_registers::VimRegisters};
+use crate::{
+    editor::RangeExt,
+    vim_registers::VimRegisters,
+};
 
 use vim::{
     find_next_paragraph_end, find_previous_paragraph_start,
@@ -114,18 +117,7 @@ impl EditorSnapshot {
     }
 }
 
-/// Enum representing editor responses to edit and selection actions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum InteractionState {
-    /// Editor will respond to both edits and selection actions; cursor shown.
-    Editable,
-    /// Editor was set in an editable state, but has selections that cannot be edited.
-    EditableWithInvalidSelection,
-    /// Editor will respond to selection actions, and ignore edit actions. No cursor is shown.
-    Selectable,
-    /// Editor will ignore selection and edit actions. Editor is rendered with dimmed text and no cursor.
-    Disabled,
-}
+pub use notebooks_model::InteractionState;
 
 type StaticMutableModelCallback = fn(&mut EditorModel, &mut ModelContext<EditorModel>);
 type StaticCallback = fn(&EditorModel, &mut ModelContext<EditorModel>);

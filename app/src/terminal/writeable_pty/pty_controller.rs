@@ -1,3 +1,4 @@
+use warp_terminal::model::escape_sequences;
 use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 
 use async_channel::{Receiver, Sender};
@@ -8,19 +9,20 @@ use warpui::{Entity, EntityId, ModelContext, ModelHandle, SingletonEntity};
 
 use crate::ai::agent::AIAgentPtyWriteMode;
 use crate::terminal::input::CommandExecutionSource;
-use crate::terminal::model::completions::ShellCompletion;
+use terminal_model::completions::ShellCompletion;
 use crate::terminal::model::session::{
     ExecutorCommandEvent, InBandCommandCancelledEvent, Sessions,
 };
-use crate::terminal::model::tmux::commands::TmuxCommand;
+use terminal_model::tmux::commands::TmuxCommand;
 use crate::terminal::model_events::AnsiHandlerEvent;
 use crate::terminal::view::LINEFEED_REGEX;
 #[cfg(not(target_family = "wasm"))]
 use crate::terminal::writeable_pty::bootstrap_file::{permanent_bootstrap_file, TempBootstrapFile};
+use terminal_grid_model::ansi::Handler;
 use crate::terminal::{
     bootstrap,
     line_editor_status::{LineEditorStatus, LineEditorStatusEvent},
-    model::{ansi::Handler, escape_sequences, session::SessionInfo},
+    model::{session::SessionInfo},
     model_events::{ModelEvent, ModelEventDispatcher},
     shell::ShellType,
     SizeUpdate, TerminalModel,
@@ -782,7 +784,7 @@ impl<T: EventLoopSender> PtyController<T> {
                 return;
             }
             Some(TmuxControlMode::Active { primary_pane }) => {
-                crate::terminal::model::tmux::format_input(*primary_pane, &bytes_to_write)
+                terminal_model::tmux::format_input(*primary_pane, &bytes_to_write)
                     .as_bytes()
                     .to_owned()
                     .into()

@@ -1,0 +1,24 @@
+[package]
+name = "env_vars_ui"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+i18n.workspace = true
+i18n-embed-fl.workspace = true
+itertools.workspace = true
+log.workspace = true
+objects.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+warp_terminal.workspace = true
+warp_util.workspace = true
+warpui.workspace = true
+
+[features]
+# 透传 app 同名 feature:build.rs 按平台注入(cfg 门与 app 保持一致)。
+local_fs = []
+local_tty = []

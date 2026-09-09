@@ -16,7 +16,8 @@ use crate::{
         AIIdentifiers, CancellationReason,
     },
     network::NetworkStatus,
-    report_error, send_telemetry_from_ctx,
+    report_error,
+    send_telemetry_from_ctx,
 };
 use warpui::SingletonEntity;
 

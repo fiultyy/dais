@@ -1,3 +1,5 @@
+use crate::objects_display::StoredObjectHostExt;
+use crate::objects_display::SpaceExt;
 #[cfg(feature = "local_fs")]
 use std::io::ErrorKind;
 use std::{
@@ -23,16 +25,19 @@ use warpui::{
 
 #[cfg(feature = "local_fs")]
 use crate::{
-    cloud_object::update_manager::get_duplicate_object_name, notebooks::export_notebook,
-    view_components::ToastLink, workflows::export_workflow::export_serialize,
+    notebooks::export_notebook,
+    view_components::ToastLink,
+    workflows::export_workflow::export_serialize,
     workspace::WorkspaceAction,
 };
+use crate::objects::object_store::get_duplicate_object_name;
 use crate::{
-    cloud_object::{model::persistence::ObjectStoreModel, Space},
     safe_warn,
     view_components::DismissibleToast,
     workspace::{active_terminal_in_window, ToastStack},
 };
+use objects::{Space};
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use super::ObjectTypeAndId;
 
@@ -111,8 +116,8 @@ impl ExportManager {
                 Some(obj) if !obj.can_export() => {
                     log::warn!("Tried to export un-exportable object {object:?}")
                 }
-                Some(cloud_object) => {
-                    let id = ExportId(*object, cloud_object.space(ctx));
+                Some(objects) => {
+                    let id = ExportId(*object, objects.space(ctx));
                     ids.push(id);
                     match self.exports.entry(id) {
                         Entry::Occupied(_) => {
@@ -548,7 +553,3 @@ pub fn safe_filename(filename: &str) -> String {
     });
     result
 }
-
-#[cfg(test)]
-#[path = "export_tests.rs"]
-mod tests;

@@ -8,9 +8,8 @@ use pathfinder_color::ColorU;
 use rust_embed::RustEmbed;
 use std::borrow::Cow;
 use warp_core::ui::icons::Icon;
-use warp_core::ui::theme::{AnsiColor, AnsiColors, Details, Fill, Image, TerminalColors};
+use warp_core::ui::theme::{AnsiColor, AnsiColors, Details, Fill, TerminalColors};
 use warp_core::ui::{appearance::Appearance, theme::WarpTheme};
-use warpui::assets::asset_cache::AssetSource;
 use warpui::platform;
 use warpui::{
     elements::{
@@ -72,7 +71,7 @@ struct OnboardingMainView {
 
 impl OnboardingMainView {
     fn new(ctx: &mut ViewContext<Self>) -> Self {
-        let themes = [phenomenon(), dark_theme(), light_theme(), adeberry()];
+        let themes = [dark_theme(), light_theme()];
         let default_model_id = LLMId::from("auto");
         let models = vec![
             OnboardingModelInfo {
@@ -307,65 +306,12 @@ const LIGHT_MODE_BRIGHT_COLORS: AnsiColors = AnsiColors::new(
     AnsiColor::from_u32(0x4FB8CCFF),
     AnsiColor::from_u32(0xF1F1F1FF),
 );
-
-const PHENOMENON_NORMAL_COLORS: AnsiColors = AnsiColors::new(
-    AnsiColor::from_u32(0x121212FF),
-    AnsiColor::from_u32(0xD22D1EFF),
-    AnsiColor::from_u32(0x1CA05AFF),
-    AnsiColor::from_u32(0xE5A01AFF),
-    AnsiColor::from_u32(0x3780E9FF),
-    AnsiColor::from_u32(0xBF409DFF),
-    AnsiColor::from_u32(0x799C92FF),
-    AnsiColor::from_u32(0xFAF9F6FF),
-);
-
-const PHENOMENON_BRIGHT_COLORS: AnsiColors = AnsiColors::new(
-    AnsiColor::from_u32(0x292929FF),
-    AnsiColor::from_u32(0xAE756FFF),
-    AnsiColor::from_u32(0x789B88FF),
-    AnsiColor::from_u32(0xBD9F65FF),
-    AnsiColor::from_u32(0x6F839FFF),
-    AnsiColor::from_u32(0xA57899FF),
-    AnsiColor::from_u32(0xBFC5C3FF),
-    AnsiColor::from_u32(0xFFFFFFFF),
-);
-
-const ADEBERRY_NORMAL_COLORS: AnsiColors = AnsiColors::new(
-    AnsiColor::from_u32(0x121212FF),
-    AnsiColor::from_u32(0xC76156FF),
-    AnsiColor::from_u32(0x57C78AFF),
-    AnsiColor::from_u32(0xC8A35AFF),
-    AnsiColor::from_u32(0x5785C7FF),
-    AnsiColor::from_u32(0xC756A9FF),
-    AnsiColor::from_u32(0x57C7C3FF),
-    AnsiColor::from_u32(0xEEEDEBFF),
-);
-
-const ADEBERRY_BRIGHT_COLORS: AnsiColors = AnsiColors::new(
-    AnsiColor::from_u32(0x292929FF),
-    AnsiColor::from_u32(0xE3493BFF),
-    AnsiColor::from_u32(0x1CA05AFF),
-    AnsiColor::from_u32(0xE3AA3BFF),
-    AnsiColor::from_u32(0x3BE38AFF),
-    AnsiColor::from_u32(0xC8A35AFF),
-    AnsiColor::from_u32(0x3BE3DDFF),
-    AnsiColor::from_u32(0xFFFFFFFF),
-);
-
 fn dark_mode_colors() -> TerminalColors {
     TerminalColors::new(DARK_MODE_NORMAL_COLORS, DARK_MODE_BRIGHT_COLORS)
 }
 
 fn light_mode_colors() -> TerminalColors {
     TerminalColors::new(LIGHT_MODE_NORMAL_COLORS, LIGHT_MODE_BRIGHT_COLORS)
-}
-
-fn phenomenon_colors() -> TerminalColors {
-    TerminalColors::new(PHENOMENON_NORMAL_COLORS, PHENOMENON_BRIGHT_COLORS)
-}
-
-fn adeberry_colors() -> TerminalColors {
-    TerminalColors::new(ADEBERRY_NORMAL_COLORS, ADEBERRY_BRIGHT_COLORS)
 }
 
 fn dark_theme() -> WarpTheme {
@@ -392,40 +338,6 @@ fn light_theme() -> WarpTheme {
         light_mode_colors(),
         None,
         Some("Light".to_string()),
-        None,
-    )
-}
-
-fn phenomenon() -> WarpTheme {
-    WarpTheme::new(
-        Fill::Solid(ColorU::from_u32(0x121212FF)),
-        ColorU::from_u32(0xFAF9F6FF),
-        Fill::Solid(ColorU::from_u32(0x2E5D9EFF)),
-        None,
-        Some(Details::Darker),
-        phenomenon_colors(),
-        Some(Image {
-            source: AssetSource::Bundled {
-                // Match app's asset layout: this image lives under app/assets/async.
-                path: "async/jpg/phenomenon_bg.jpg",
-            },
-            opacity: 100,
-        }),
-        Some("Phenomenon".to_string()),
-        None,
-    )
-}
-
-fn adeberry() -> WarpTheme {
-    WarpTheme::new(
-        Fill::Solid(ColorU::from_u32(0x1D2022FF)),
-        ColorU::from_u32(0xE4EEF5FF),
-        Fill::Solid(ColorU::from_u32(0x6C96B4FF)),
-        None,
-        Some(Details::Darker),
-        adeberry_colors(),
-        None,
-        Some("Adeberry".to_string()),
         None,
     )
 }

@@ -23,7 +23,7 @@ use crate::network::NetworkStatus;
 use crate::server::telemetry::PromptSuggestionFallbackReason;
 use crate::settings::AISettings;
 use crate::terminal::event::{BlockType, UserBlockCompleted};
-use crate::terminal::model::block::BlockId;
+use terminal_grid_model::block::BlockId;
 use crate::terminal::model::session::{active_session::ActiveSession, SessionType};
 use crate::terminal::model::terminal_model::TerminalModel;
 use crate::terminal::model_events::{ModelEvent, ModelEventDispatcher};

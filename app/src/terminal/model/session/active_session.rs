@@ -3,12 +3,7 @@ use warpui::{AppContext, Entity, ModelContext, ModelHandle};
 
 use crate::{
     ai_assistant::execution_context::WarpAiExecutionContext,
-    terminal::{
-        model::session::SessionsEvent,
-        model_events::{ModelEvent, ModelEventDispatcher},
-        shell::ShellType,
-        ShellLaunchData,
-    },
+    terminal::{ model::session::SessionsEvent, model_events::{ModelEvent, ModelEventDispatcher}, shell::ShellType, ShellLaunchData, },
 };
 
 use super::{Session, SessionType, Sessions};

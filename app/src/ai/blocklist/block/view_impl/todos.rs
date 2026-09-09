@@ -16,18 +16,7 @@ use crate::ai::agent::todos::AIAgentTodoList;
 use crate::ai::agent::{AIAgentTodo, MessageId};
 use crate::ai::blocklist::inline_action::inline_action_icons::cancelled_icon;
 use crate::{
-    ai::{
-        agent::icons::todo_list_icon,
-        blocklist::{
-            block::{AIBlockAction, TodoListElementState},
-            inline_action::{
-                inline_action_header::{
-                    ExpandedConfig, HeaderConfig, InteractionMode, INLINE_ACTION_HORIZONTAL_PADDING,
-                },
-                inline_action_icons::icon_size,
-            },
-        },
-    },
+    ai::{ agent::icons::todo_list_icon, blocklist::{ block::{AIBlockAction, TodoListElementState}, inline_action::{ inline_action_header::{ ExpandedConfig, HeaderConfig, InteractionMode, INLINE_ACTION_HORIZONTAL_PADDING, }, inline_action_icons::icon_size, }, }, },
     appearance::Appearance,
     ui_components::{blended_colors, icons::Icon},
 };

@@ -61,6 +61,9 @@ image = { workspace = true, default-features = false, features = ["png"] }
 rust-embed.workspace = true
 warpui = { workspace = true, features = ["test-util"] }
 warpui_core = { workspace = true, features = ["test-util"] }
+nav.workspace = true
+cockpit_model.workspace = true
+warp_core = { workspace = true, features = ["test-util"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block.workspace = true

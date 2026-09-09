@@ -5,14 +5,12 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::{
-        model::persistence::{ObjectStoreEvent, ObjectStoreModel},
-        GenericStringObjectFormat, JsonObjectType, StoredObject as _,
-    },
     drive::ObjectTypeAndId,
-    server::ids::SyncId,
     view_components::{DropdownItem, FilterableDropdown, FilterableDropdownOrientation},
 };
+use objects::{GenericStringObjectFormat, JsonObjectType, StoredObject as _, ids::SyncId};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::model::persistence::{ObjectStoreEvent};
 
 /// A reusable [`View`] for choosing environment variable collections.
 pub struct EnvVarSelector {
@@ -35,8 +33,7 @@ const DEFAULT_DROPDOWN_WIDTH: f32 = super::argument_editor::ALIAS_ARGUMENT_EDITO
 impl EnvVarSelector {
     pub fn new(ctx: &mut ViewContext<Self>) -> Self {
         ctx.subscribe_to_model(&ObjectStoreModel::handle(ctx), |me, _, event, ctx| {
-            me.handle_object_store_event(event, ctx);
-        });
+            me.handle_object_store_event(event, ctx)});
 
         let dropdown = ctx.add_typed_action_view(|ctx| {
             let mut dropdown = FilterableDropdown::new(ctx);
@@ -56,14 +53,12 @@ impl EnvVarSelector {
         ctx: &mut ViewContext<Self>,
     ) {
         self.dropdown
-            .update(ctx, |dropdown, _ctx| dropdown.set_orientation(orientation));
-    }
+            .update(ctx, |dropdown, _ctx| dropdown.set_orientation(orientation))}
 
     pub fn set_width(&mut self, width: f32, ctx: &mut ViewContext<Self>) {
         self.dropdown.update(ctx, |dropdown, ctx| {
             dropdown.set_top_bar_max_width(width);
-            dropdown.set_menu_width(width, ctx);
-        });
+            dropdown.set_menu_width(width, ctx)});
     }
 
     pub fn set_selected_env_vars(&mut self, id: Option<SyncId>, ctx: &mut ViewContext<Self>) {
@@ -116,8 +111,7 @@ impl EnvVarSelector {
                         ..
                     }
                 ) {
-                    self.refresh_dropdown_items(ctx);
-                }
+                    self.refresh_dropdown_items(ctx)}
             }
             _ => (),
         }
@@ -143,6 +137,5 @@ impl TypedActionView for EnvVarSelector {
 
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
         let EnvVarSelectorAction::Select(id) = action;
-        ctx.emit(EnvVarSelectorEvent::SelectionChanged(*id));
-    }
+        ctx.emit(EnvVarSelectorEvent::SelectionChanged(*id))}
 }

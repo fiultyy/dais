@@ -67,20 +67,8 @@ use mime_guess::from_path;
 #[cfg(feature = "local_fs")]
 use crate::ai::{agent::AnyFileContent, paths::host_native_absolute_path};
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversationId, AIAgentAction, AIAgentActionId, AIAgentActionResult,
-            AIAgentActionResultType, AIAgentActionType, CancellationReason, FileContext,
-            FileLocations, ServerOutputId,
-        },
-        ambient_agents::AmbientAgentTaskId,
-    },
-    terminal::{
-        model::session::{active_session::ActiveSession, ExecuteCommandOptions, Session},
-        model_events::ModelEventDispatcher,
-        shell::ShellType,
-        ShellLaunchData, TerminalModel,
-    },
+    ai::{ agent::{ conversation::AIConversationId, AIAgentAction, AIAgentActionId, AIAgentActionResult, AIAgentActionResultType, AIAgentActionType, CancellationReason, FileContext, FileLocations, ServerOutputId, }, ambient_agents::AmbientAgentTaskId, },
+    terminal::{ model::session::{active_session::ActiveSession, ExecuteCommandOptions, Session}, model_events::ModelEventDispatcher, shell::ShellType, ShellLaunchData, TerminalModel, },
     BlocklistAIHistoryModel,
 };
 

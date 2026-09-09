@@ -11,8 +11,11 @@ use warpui::r#async::executor::Background;
 use crate::terminal::color;
 use crate::terminal::color::Colors;
 use crate::terminal::event_listener::ChannelEventListener;
-use crate::terminal::model::grid::{Dimensions, GridStorage};
-use crate::terminal::model::{ansi, block::BlockSize, ObfuscateSecrets};
+use terminal_grid_model::grid::GridStorage;
+use warp_terminal::model::grid::Dimensions;
+use crate::terminal::model::ObfuscateSecrets;
+use terminal_grid_model::ansi;
+use terminal_grid_model::block::BlockSize;
 use crate::terminal::shell::{ShellName, ShellType};
 use crate::terminal::ShellLaunchState;
 use crate::terminal::{BlockPadding, SizeInfo, TerminalModel};
@@ -125,7 +128,7 @@ fn ref_test(dir: &Path) {
         sizes,
         color::List::from(&Colors::default()),
         channel_event_proxy,
-        Arc::new(Background::default()),
+        std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
         false, /* should_show_bootstrap_block */
         false, /* should_show_in_band_command_blocks */
         false, /* should_show_memory_stats */
@@ -147,7 +150,7 @@ fn ref_test(dir: &Path) {
     // tests.
     terminal.start_active_block_as_background_block();
 
-    let mut parser = ansi::Processor::new();
+    let mut parser = terminal_grid_model::ansi::Processor::new();
 
     parser.parse_bytes(&mut terminal, &recording, &mut io::sink());
 

@@ -14,13 +14,7 @@ use super::{TerminalAction, TerminalView};
 use crate::util::tooltips::{TooltipLink, TooltipRedaction};
 use crate::{
     appearance::Appearance,
-    terminal::{
-        links::directly_open_link_keybinding_string,
-        model::{ObfuscateSecrets, Secret},
-        safe_mode_settings::get_secret_obfuscation_mode,
-        view::SecretTooltip,
-        TerminalModel,
-    },
+    terminal::{ links::directly_open_link_keybinding_string, model::{ObfuscateSecrets, Secret}, safe_mode_settings::get_secret_obfuscation_mode, view::SecretTooltip, TerminalModel, },
 };
 
 cfg_if::cfg_if! {
@@ -50,9 +44,10 @@ fn open_in_warp_tooltip(
     app: &AppContext,
 ) -> Option<GridTooltipLink> {
     use crate::{
-        settings::CodeSettings, util::file::external_editor::EditorSettings,
-        util::tooltips::should_show_open_in_warp_link,
-    };
+    settings::CodeSettings,
+    util::file::external_editor::EditorSettings,
+    util::tooltips::should_show_open_in_warp_link,
+};
     use settings::Setting as _;
     use warpui::SingletonEntity;
 

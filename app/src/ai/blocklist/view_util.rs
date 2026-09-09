@@ -222,3 +222,26 @@ where
         })
         .finish()
 }
+
+// R16: AIBlock 反向缝反转——自 blocks.rs 两方法提升为 ai 域自由函数
+// (模型层不得伸手进 ai View 层;底层 last_non_hidden_rich_content_block_after_block
+// 仍为 BlockList pub 纯模型方法)。
+pub fn last_non_hidden_ai_block_handle(
+    block_list: &terminal_grid_model::block::blocks::BlockList,
+    app: &warpui::AppContext,
+) -> Option<warpui::ViewHandle<crate::ai::blocklist::AIBlock>> {
+    let rich_content_view_id = block_list
+        .last_non_hidden_rich_content_block_after_block(None)?
+        .1
+        .view_id;
+    let active_window_id = app.windows().active_window()?;
+    app.view_with_id::<crate::ai::blocklist::AIBlock>(active_window_id, rich_content_view_id)
+}
+
+pub fn has_active_ai_block(
+    block_list: &terminal_grid_model::block::blocks::BlockList,
+    app: &warpui::AppContext,
+) -> bool {
+    last_non_hidden_ai_block_handle(block_list, app)
+        .is_some_and(|handle| !handle.as_ref(app).is_finished())
+}

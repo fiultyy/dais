@@ -3,12 +3,9 @@ use warpui::{AppContext, Entity, ModelContext, ModelHandle, SingletonEntity};
 use crate::{
     menu::{MenuItem, MenuItemFields},
     settings::WarpPromptSeparator,
-    terminal::{
-        model::session::Sessions,
-        session_settings::{SessionSettings, ToolbarChipSelection},
-        view::{ContextMenuAction, PromptPart, PromptPosition, TerminalAction},
-    },
+    terminal::{ model::session::Sessions, session_settings::{SessionSettings, ToolbarChipSelection}, view::{ContextMenuAction, PromptPart, PromptPosition, TerminalAction}, },
 };
+use crate::context_chips::ContextChipKindExt as _;
 
 use super::{
     current_prompt::CurrentPrompt, prompt_snapshot::PromptSnapshot, ChipResult, ChipValue,
@@ -106,7 +103,7 @@ impl PromptType {
     pub fn snapshot(&self, ctx: &AppContext) -> PromptSnapshot {
         match self {
             Self::Dynamic { prompt } => {
-                PromptSnapshot::from_current_prompt(prompt.as_ref(ctx), ctx)
+                super::prompt_snapshot::prompt_snapshot_from_current_prompt(prompt.as_ref(ctx), ctx)
             }
             Self::Static { snapshot } => snapshot.clone(),
         }

@@ -1,11 +1,12 @@
-mod ai_queries;
 mod env_var_collections;
 mod history;
-mod notebooks;
 pub mod projects;
 pub mod searcher;
-pub mod settings;
+// R5 路径兼容 shim:CommandSearchSettings 设置组(settings crate DSL,
+// 零 app 依赖)已下沉 crates/search_ui。
+pub mod settings {
+    pub use search_ui::command_search::settings::*;
+}
 pub mod view;
-mod warp_ai;
 mod workflows;
 mod zero_state;

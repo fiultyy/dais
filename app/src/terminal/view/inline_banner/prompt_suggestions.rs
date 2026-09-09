@@ -25,7 +25,10 @@ use warpui::{SingletonEntity, View};
 
 use crate::terminal::view::{InputType, PromptSuggestion};
 use crate::ui_components::blended_colors;
-use crate::{appearance::Appearance, terminal::view::TerminalAction};
+use crate::{
+    appearance::Appearance,
+    terminal::view::TerminalAction,
+};
 use warp_core::ui::theme::color::internal_colors::{neutral_2, neutral_3};
 
 use crate::ui_components::icons::Icon as WarpUIIcon;

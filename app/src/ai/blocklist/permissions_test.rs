@@ -9,31 +9,19 @@ use warp_core::execution_mode::ExecutionMode;
 
 use crate::terminal::cli_agent_sessions::CLIAgentSessionsModel;
 use crate::{
-    ai::{
-        agent::conversation::AIConversationId,
-        blocklist::{
-            permissions::{
-                CommandExecutionPermission, CommandExecutionPermissionDeniedReason,
-                FileReadPermission, FileReadPermissionAllowedReason,
-                FileReadPermissionDeniedReason, FileWritePermission,
-                FileWritePermissionAllowedReason, FileWritePermissionDeniedReason,
-            },
-            CommandExecutionPermissionAllowedReason,
-        },
-        execution_profiles::{
-            profiles::AIExecutionProfilesModel, ActionPermission, WriteToPtyPermission,
-        },
-        mcp::templatable_manager::TemplatableMCPServerManager,
-    },
+    ai::{ agent::conversation::AIConversationId, blocklist::{ permissions::{ CommandExecutionPermission, CommandExecutionPermissionDeniedReason, FileReadPermission, FileReadPermissionAllowedReason, FileReadPermissionDeniedReason, FileWritePermission, FileWritePermissionAllowedReason, FileWritePermissionDeniedReason, }, CommandExecutionPermissionAllowedReason, }, execution_profiles::{ profiles::AIExecutionProfilesModel, ActionPermission, WriteToPtyPermission, }, mcp::templatable_manager::TemplatableMCPServerManager, },
     auth::AuthStateProvider,
-    cloud_object::model::persistence::ObjectStoreModel,
-    cloud_object::update_manager::UpdateManager,
     network::NetworkStatus,
     settings::{AgentModeCommandExecutionPredicate, PrivacySettings},
     test_util::settings::initialize_settings_for_tests_with_mode,
     workspaces::{user_workspaces::UserWorkspaces, workspace::SandboxedAgentSettings},
-    GlobalResourceHandles, GlobalResourceHandlesProvider, LaunchMode,
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
+    LaunchMode,
 };
+
+use crate::objects::object_store::ObjectStore;
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use super::{BlocklistAIHistoryModel, BlocklistAIPermissions};
 
@@ -75,7 +63,7 @@ fn initialize_permissions_test_with_mode(
     let terminal_view_id = EntityId::new();
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
     app.add_singleton_model(|_| NetworkStatus::new());
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(|_| TemplatableMCPServerManager::default());
     let profile_model = app.add_singleton_model(|ctx| {

@@ -1,4 +1,6 @@
 //! Module for test-only convenience methods on `TerminalView`.
+use crate::terminal::{event_listener::ChannelEventListener, BlockPadding};
+use terminal_grid_model::block::BlockSize;
 use warpui::ModelHandle;
 
 use crate::terminal::find::TerminalFindModel;
@@ -10,9 +12,10 @@ cfg_if::cfg_if! {
         use warpui::{ViewContext};
 
         use crate::{
-            ai::blocklist::SerializedBlockListItem, pane_group::TerminalViewResources,
-            resource_center::TipsCompleted,
-        };
+    ai::blocklist::SerializedBlockListItem,
+    pane_group::TerminalViewResources,
+    resource_center::TipsCompleted,
+};
         use crate::terminal::model::session::Sessions;
         use crate::terminal::model_events::ModelEventDispatcher;
         use crate::terminal::view::WARP_PROMPT_HEIGHT_LINES;
@@ -35,12 +38,7 @@ impl TerminalView {
         use pathfinder_geometry::vector::vec2f;
         use warpui::units::{IntoPixels as _, Pixels};
 
-        use crate::{
-            terminal::{
-                event_listener::ChannelEventListener, model::block::BlockSize, BlockPadding,
-            },
-            themes::default_themes::dark_theme,
-        };
+        use crate::themes::default_themes::dark_theme;
         let size_info = SizeInfo::new(
             vec2f(7., 10.5),
             1.0.into_pixels(),
@@ -80,7 +78,7 @@ impl TerminalView {
             sizes,
             colors,
             event_proxy,
-            ctx.background_executor().clone(),
+            std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
             false,
             restored_blocks,
             false, /* honor_ps1 */

@@ -33,7 +33,16 @@ impl CommandRegistry {
     }
 
     pub fn registered_commands(&self) -> impl Iterator<Item = &str> {
-        self.signatures.keys().map(|key| key.as_str())
+        // Note we need to collect the keys because MemoMap uses a mutex under the hood to control
+        // access to the underlying signature data. This means the mutex is locked as long as the
+        // iterator returned from `keys()` lives, so any caller re-entering the registry (e.g.
+        // `get_signature`) while iterating would deadlock on the non-reentrant lock. Collecting
+        // into a vec releases the lock before the iterator escapes this function.
+        self.signatures
+            .keys()
+            .map(|key| key.as_str())
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 
     pub fn global_instance() -> Arc<Self> {

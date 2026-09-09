@@ -1,13 +1,14 @@
 use super::{workflow::Workflow, WorkflowObjectModel};
 use crate::{
-    cloud_object::{model::persistence::ObjectStoreModel, GenericStoredObject, Owner},
     drive::DaisDriveObjectSettings,
     pane_group::{PaneContent, WorkflowPane},
     safe_warn,
-    server::ids::{ClientId, SyncId},
     workflows::{workflow_view::WorkflowView, WorkflowViewMode},
-    PaneViewLocator, WindowId,
+    PaneViewLocator,
+    WindowId,
 };
+use objects::{GenericStoredObject, Owner, ids::{ClientId, SyncId}};
+use crate::objects::model::persistence::ObjectStoreModel;
 use std::collections::{hash_map::Entry, HashMap};
 use warpui::{Entity, EntityId, ModelContext, SingletonEntity};
 
@@ -39,8 +40,8 @@ pub enum WorkflowOpenSource {
 
 impl WorkflowManager {
     pub fn new(_ctx: &mut ModelContext<Self>) -> Self {
-        // Dais:无云端 = 无 client_id→server_id 转换事件,原 UpdateManager
-        // 订阅 + handle_update_manager_event 为死代码,Phase 2c‑1 删除。
+        // Dais:无云端 = 无 client_id→server_id 转换事件,原 ObjectStore
+        // 订阅 + handle_object_store_event 为死代码,Phase 2c‑1 删除。
         WorkflowManager {
             panes_by_hashed_id: HashMap::new(),
         }

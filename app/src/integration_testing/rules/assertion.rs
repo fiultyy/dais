@@ -6,12 +6,10 @@ use warpui::{
 
 use crate::{
     ai::facts::{view::AIFactPage, AIFactObjectModel},
-    cloud_object::model::{
-        generic_string_model::GenericStringObjectId, persistence::ObjectStoreModel,
-    },
     integration_testing::view_getters::workspace_view,
-    server::ids::SyncId,
 };
+use crate::objects::model::persistence::ObjectStoreModel;
+use objects::{ids::SyncId, GenericStringObjectId};
 
 /// Assert that a specific AI fact exists with the given content
 pub fn assert_rule_exists(
@@ -54,21 +52,3 @@ pub fn rule_count(object_store_model: &ObjectStoreModel, _ctx: &AppContext) -> u
         .count()
 }
 
-pub fn assert_rule_pane_open(key: impl Into<String>) -> AssertionWithDataCallback {
-    let key = key.into();
-    Box::new(move |app, window_id, data| {
-        workspace_view(app, window_id).read(app, |workspace, _ctx| {
-            let sync_id: &SyncId = data.get(&key).expect("No saved AI fact ID");
-            workspace.ai_fact_view().read(app, |ai_fact_view, _ctx| {
-                let current_page = ai_fact_view.current_page();
-                async_assert_eq!(
-                    current_page,
-                    AIFactPage::RuleEditor {
-                        sync_id: Some(*sync_id)
-                    },
-                    "Rule pane should be open"
-                )
-            })
-        })
-    })
-}

@@ -3,16 +3,13 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::{
-        model::persistence::ObjectStoreModel, update_manager::UpdateManager, Space,
-        StoredObjectEventEntrypoint,
-    },
-    drive::DaisDriveObjectSettings,
     integration_testing::view_getters::workspace_view,
-    server::ids::{ClientId, SyncId},
     workflows::{manager::WorkflowOpenSource, workflow::Workflow, WorkflowViewMode},
     workspaces::user_workspaces::UserWorkspaces,
 };
+use objects::{Space, StoredObjectEventEntrypoint, ids::{ClientId, SyncId}};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::object_store::ObjectStore;
 
 use super::open_workflow_count;
 
@@ -24,8 +21,8 @@ pub fn create_a_personal_workflow(key: impl Into<String>) -> TestStep {
         .with_action(move |app, _, data| {
             let client_id = ClientId::new();
             let sync_id = SyncId::ClientId(client_id);
-            UpdateManager::handle(app).update(app, |update_manager, ctx| {
-                update_manager.create_workflow(
+            ObjectStore::handle(app).update(app, |object_store, ctx| {
+                object_store.create_workflow(
                     workflow.clone(),
                     UserWorkspaces::as_ref(ctx)
                         .personal_drive(ctx)
@@ -44,7 +41,7 @@ pub fn create_a_personal_workflow(key: impl Into<String>) -> TestStep {
             ObjectStoreModel::handle(app).read(app, |object_store_model, ctx| {
                 async_assert!(
                     object_store_model
-                        .active_cloud_objects_in_space(Space::Personal, ctx)
+                        .active_objectss_in_space(Space::Personal, ctx)
                         .count()
                         > 0,
                     "Workflow exists"
@@ -70,7 +67,6 @@ pub fn open_workflow(window_key: impl Into<String>, workflow_key: impl Into<Stri
                 WindowManager::as_ref(ctx).show_window_and_focus_app(*window_id);
                 workspace.open_workflow_in_pane(
                     &WorkflowOpenSource::Existing(*workflow_id),
-                    &DaisDriveObjectSettings::default(),
                     WorkflowViewMode::View,
                     ctx,
                 );

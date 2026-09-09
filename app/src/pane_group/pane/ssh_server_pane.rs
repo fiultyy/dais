@@ -9,10 +9,7 @@ use warpui::{AppContext, ModelHandle, View, ViewContext, ViewHandle};
 
 use crate::{
     app_state::LeafContents,
-    pane_group::{
-        pane::{ShareableLink, ShareableLinkError},
-        BackingView, PaneConfiguration, PaneContent, PaneGroup, PaneView,
-    },
+    pane_group::{ pane::{ShareableLink, ShareableLinkError}, BackingView, PaneConfiguration, PaneContent, PaneGroup, PaneView, },
     ssh_manager::server_view::SshServerView,
 };
 

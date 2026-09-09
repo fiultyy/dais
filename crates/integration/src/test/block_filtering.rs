@@ -12,21 +12,23 @@ use crate::test::integration_testing::terminal::{
 };
 use crate::test::new_step_with_default_assertions;
 use crate::test::TestStep;
-use warp::cmd_or_ctrl_shift;
-use warp::integration_testing::settings::{
+use dais::cmd_or_ctrl_shift;
+use dais::integration_testing::settings::{
     toggle_hide_secrets_in_block_list_setting, toggle_safe_mode_setting,
 };
-use warp::integration_testing::terminal::util::current_shell_starter_and_version;
-use warp::integration_testing::terminal::{
+use dais::integration_testing::terminal::util::current_shell_starter_and_version;
+use dais::integration_testing::terminal::{
     assert_context_menu_is_open, initialize_secret_regexes,
     wait_until_bootstrapped_single_pane_for_tab,
 };
-use warp::integration_testing::view_getters::single_terminal_view_for_tab;
+use dais::integration_testing::view_getters::single_terminal_view_for_tab;
 
-use warp::terminal::model::index::Point;
-use warp::terminal::model::terminal_model::{BlockIndex, WithinBlock, WithinModel};
-use warp::terminal::shell::ShellType;
-use warp::terminal::GridType;
+use terminal_model::index::Point;
+use dais::terminal::model::terminal_model::WithinModel;
+use terminal_grid_model::WithinBlock;
+use terminal_grid_model::block_index::BlockIndex;
+use dais::terminal::shell::ShellType;
+use dais::terminal::GridType;
 use warpui::{async_assert, async_assert_eq};
 
 use crate::Builder;

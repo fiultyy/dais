@@ -6,9 +6,7 @@ use warpui::{
 };
 
 use crate::{
-    ai::blocklist::block::view_impl::{
-        query::render_query, WithContentItemSpacing, CONTENT_VERTICAL_PADDING,
-    },
+    ai::blocklist::block::view_impl::{ query::render_query, WithContentItemSpacing, CONTENT_VERTICAL_PADDING, },
     auth::AuthStateProvider,
     terminal::view::ambient_agent::{AmbientAgentViewModel, AmbientAgentViewModelEvent},
     workspace::view::DEFAULT_USER_DISPLAY_NAME,

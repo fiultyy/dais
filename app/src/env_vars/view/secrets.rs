@@ -1,3 +1,4 @@
+use env_vars_ui::ExternalSecret;
 use pathfinder_geometry::vector::vec2f;
 use warp_core::{features::FeatureFlag, ui::appearance::Appearance};
 #[cfg(not(target_family = "wasm"))]
@@ -36,6 +37,23 @@ use crate::{
     workspace::{ToastStack, WorkspaceAction},
 };
 
+/// P-ARC R1: `EnvVarValue::Secret` 已下沉 crate(`env_vars_ui::ExternalSecret`),
+/// 而搜索对话框载荷仍是 app 侧 `external_secrets::ExternalSecret`(内部字段私有,
+/// 不可手搓构造)。两侧 serde 表示完全一致(变体/字段同形),按值往返即无损转换。
+fn convert_external_secret(secret: &crate::external_secrets::ExternalSecret) -> ExternalSecret {
+    serde_json::from_value(serde_json::to_value(secret).expect("ExternalSecret serializes"))
+        .expect("ExternalSecret serde shape is stable across app/env_vars_ui")
+}
+
+/// crate 侧 `ExternalSecret` 无 icon 方法(`ExternalSecretManager` impl 留 app
+/// 且只覆盖 app 侧类型);此处按变体给出同款图标。
+fn external_secret_icon(secret: &ExternalSecret) -> Icon {
+    match secret {
+        ExternalSecret::OnePassword(_) => Icon::OnePassword,
+        ExternalSecret::LastPass(_) => Icon::LastPass,
+    }
+}
+
 impl EnvVarCollectionView {
     pub(super) fn handle_external_secrets_dialog_event(
         &mut self,
@@ -47,7 +65,8 @@ impl EnvVarCollectionView {
                 let ExternalSecretSearchItemAction::AcceptSecret(secret) = payload.as_ref();
                 let row_index = self.pending_variable_row_index.take();
                 if let Some(VariableRowIndex(index)) = row_index {
-                    self.variable_rows[index].value = EnvVarValue::Secret(secret.clone());
+                    self.variable_rows[index].value =
+                        EnvVarValue::Secret(convert_external_secret(secret));
                 }
 
                 self.set_saving_status(SavingStatus::Unsaved, ctx)
@@ -151,7 +170,7 @@ impl EnvVarCollectionView {
                 sec.get_display_name(),
                 EnvVarCollectionAction::DisplayRenderedSecretMenu(VariableRowIndex(row_index)),
                 &self.menus.rendered_secret_menu,
-                sec.icon(),
+                external_secret_icon(sec),
             ),
             EnvVarValue::Command(cmd) => (
                 if !cmd.name.is_empty() {

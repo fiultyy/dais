@@ -1,16 +1,16 @@
+use terminal_grid_model::block::blocks::BlockList;
+use terminal_grid_model::ansi::{self, Handler};
 use crate::ai::blocklist::agent_view::AgentViewState;
 use crate::terminal::{
     event_listener::ChannelEventListener,
     model::{
-        ansi::{self, Handler},
-        blocks::BlockList,
         session::SessionInfo,
-        test_utils::TestBlockListBuilder,
-    },
+        test_utils::TestBlockListBuilder},
     shell::ShellType,
 };
 
-use super::TypeaheadMode;
+use terminal_grid_model::block::early_output::TypeaheadMode;
+use terminal_grid_model::block::early_output::*;
 
 /// Create a new bootstrapped block list that will use the set typeahead mode.
 fn new_block_list(event_proxy: ChannelEventListener, mode: TypeaheadMode) -> BlockList {
@@ -44,7 +44,7 @@ fn new_block_list(event_proxy: ChannelEventListener, mode: TypeaheadMode) -> Blo
     .merge_from_bootstrapped_value(bootstrapped_value.clone(), false);
 
     block_list.bootstrapped(bootstrapped_value);
-    block_list.early_output_mut().init_session(&session_info);
+    block_list.early_output_mut().init_session(session_info.shell.input_reporting_sequence().is_some());
     assert_eq!(block_list.early_output_mut().mode, mode);
 
     block_list.command_finished(Default::default());

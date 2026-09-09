@@ -144,25 +144,19 @@ impl TryFrom<PaneNodeSnapshot> for PaneTemplateType {
                     pane_mode: PaneMode::Terminal,
                     shell: None,
                 }),
-                // Currently, notebook panes cannot be saved in launch configurations.
-                LeafContents::Notebook(_)
-                | LeafContents::Image { .. }
+                // Dais Wave 7-3:Notebook/Workflow 臂随 pane 物理删。
+                LeafContents::Image { .. }
                 | LeafContents::EnvVarCollection(_)
                 | LeafContents::Code(_)
-                | LeafContents::Workflow(_)
                 | LeafContents::Settings(_)
-                | LeafContents::AIFact(_)
-                | LeafContents::CodeReview(_)
-                | LeafContents::ExecutionProfileEditor
-                | LeafContents::GetStarted
-                | LeafContents::Welcome { .. }
-                | LeafContents::AIDocument(_)
-                // Dais Wave 7-3:`EnvironmentManagement` arm 随 ambient-agent UI
-                // 子系统物理删。
                 | LeafContents::SshServer { .. }
                 | LeafContents::Sftp { .. }
                 | LeafContents::Observatory
                 | LeafContents::Cockpit
+                | LeafContents::Workflow(_)
+                | LeafContents::Notebook(_)
+                | LeafContents::AIDocument(_)
+                | LeafContents::ExecutionProfileEditor
                 | LeafContents::AmbientAgent(_) => {
                     // TODO: Handle AIDocument in launch config
                     Err(())

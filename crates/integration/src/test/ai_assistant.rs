@@ -1,5 +1,5 @@
 use crate::Builder;
-use warp::integration_testing::{
+use dais::integration_testing::{
     step::new_step_with_default_assertions,
     terminal::{
         assert_selected_block_index_is_last_renderable, execute_command_for_single_terminal_in_tab,

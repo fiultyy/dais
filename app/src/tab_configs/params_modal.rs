@@ -20,19 +20,10 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    editor::{
-        EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions,
-        TextOptions,
-    },
+    editor::{ EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, },
     modal::ModalAction,
-    tab_configs::{
-        branch_picker::BranchPicker,
-        repo_picker::{RepoPicker, RepoPickerEvent},
-        PickerStyle, TabConfig, TabConfigParam, TabConfigParamType,
-    },
-    view_components::action_button::{
-        ActionButton, DisabledTheme, KeystrokeSource, NakedTheme, PrimaryTheme,
-    },
+    tab_configs::{ branch_picker::BranchPicker, repo_picker::{RepoPicker, RepoPickerEvent}, PickerStyle, TabConfig, TabConfigParam, TabConfigParamType, },
+    view_components::action_button::{ ActionButton, DisabledTheme, KeystrokeSource, NakedTheme, PrimaryTheme, },
 };
 
 pub fn init(app: &mut AppContext) {

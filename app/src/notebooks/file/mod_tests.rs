@@ -13,7 +13,6 @@ use warpui::{platform::WindowStyle, App, SingletonEntity, View};
 use crate::terminal::keys::TerminalKeybindings;
 use crate::{
     auth::{AuthManager, AuthStateProvider},
-    cloud_object::model::persistence::ObjectStoreModel,
     notebooks::{editor::keys::NotebookKeybindings, file::is_markdown_file},
     search::files::model::FileSearchModel,
     settings_view::keybindings::KeybindingChangedNotifier,
@@ -21,8 +20,10 @@ use crate::{
     test_util::settings::initialize_settings_for_tests,
     workspace::ActiveSession,
     workspaces::user_workspaces::UserWorkspaces,
-    GlobalResourceHandles, GlobalResourceHandlesProvider,
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
 };
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use crate::notebooks::context_menu::MenuSource;
 
@@ -48,8 +49,6 @@ fn init_app(app: &mut App) {
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
     app.add_singleton_model(AuthManager::new_for_test);
     app.add_singleton_model(|ctx| UserWorkspaces::mock(vec![], ctx));
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
 }
 
 #[test]

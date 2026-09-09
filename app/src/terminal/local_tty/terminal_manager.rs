@@ -1,3 +1,4 @@
+use terminal_grid_model::block_index::BlockIndex;
 use crate::ai::aws_credentials::AwsCredentialRefresher as _;
 use crate::auth::AuthState;
 use crate::auth::AuthStateProvider;
@@ -67,7 +68,6 @@ use super::{event_loop::EventLoop, shell::ShellStarterSource};
 use {
     super::terminal_attributes::TerminalAttributesPoller,
     crate::terminal::local_tty::terminal_attributes::Event as TerminalAttributesPollerEvent,
-    crate::terminal::model::terminal_model::BlockIndex,
     crate::terminal::session_settings::NotificationsMode,
     nix::sys::termios::LocalFlags,
     std::{cell::RefCell, rc::Rc},

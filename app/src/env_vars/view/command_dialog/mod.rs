@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 use warpui::ViewContext;
 
 use super::env_var_collection::{EnvVarCollectionView, VariableRowIndex};
@@ -8,11 +6,10 @@ use crate::env_vars::{active_env_var_collection_data::SavingStatus, EnvVarValue}
 mod command_dialog_view;
 pub(super) use command_dialog_view::{EnvVarCommandDialog, EnvVarCommandDialogEvent};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct EnvVarSecretCommand {
-    pub name: String,
-    pub command: String,
-}
+// P-ARC R1: 定义上移 env_vars_ui::model(数据模型 serde 硬依赖);
+// re-export 保持 `crate::env_vars::view::command_dialog::EnvVarSecretCommand`
+// 既有路径(requested_command_attribution_test 消费)。
+pub use env_vars_ui::EnvVarSecretCommand;
 
 impl EnvVarCollectionView {
     pub(super) fn display_command_dialog(

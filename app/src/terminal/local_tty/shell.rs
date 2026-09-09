@@ -11,13 +11,7 @@ use warp_core::channel::{Channel, ChannelState};
 use warp_util::path::{canonicalize_git_bash_path, is_msys2_path, warp_shell_path};
 
 use crate::{
-    terminal::{
-        available_shells::AvailableShell,
-        bootstrap::init_shell_script_for_shell,
-        local_tty::docker_sandbox::DockerSandboxShellStarter,
-        shell::{ShellName, ShellType},
-        ShellLaunchData,
-    },
+    terminal::{ available_shells::AvailableShell, bootstrap::init_shell_script_for_shell, local_tty::docker_sandbox::DockerSandboxShellStarter, shell::{ShellName, ShellType}, ShellLaunchData, },
     util::path::resolve_executable,
 };
 

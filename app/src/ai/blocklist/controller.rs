@@ -51,7 +51,7 @@ use crate::network::NetworkStatus;
 use crate::notebooks::editor::model::FileLinkResolutionContext;
 use crate::persistence::ModelEvent;
 use crate::search::slash_command_menu::static_commands::commands;
-use crate::terminal::model::block::{
+use terminal_grid_model::block::{
     formatted_terminal_contents_for_input, BlockId, CURSOR_MARKER,
 };
 use crate::terminal::ssh::util::InteractiveSshCommand;
@@ -62,7 +62,10 @@ use crate::terminal::{
     shared_session::ParticipantId,
     ShellLaunchData,
 };
-use crate::{send_telemetry_from_ctx, server::telemetry::TelemetryEvent};
+use crate::{
+    send_telemetry_from_ctx,
+    server::telemetry::TelemetryEvent,
+};
 use anyhow::anyhow;
 use chrono::{DateTime, Local};
 use itertools::Itertools;

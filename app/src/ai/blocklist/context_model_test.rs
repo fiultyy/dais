@@ -4,7 +4,7 @@
 //! (which subscribes to several singletons) and instead use [`BlocklistAIContextModel::new_for_test`]
 //! together with [`super::agent_view::AgentViewController::new`]. That keeps the fixture small
 //! enough to focus on the lock logic without standing up `BlocklistAIHistoryModel`,
-//! `LLMPreferences`, `ObjectStoreModel`, `UpdateManager`, or `AppExecutionMode`.
+//! `LLMPreferences`, `ObjectStoreModel`, `ObjectStore`, or `AppExecutionMode`.
 
 use std::sync::Arc;
 
@@ -15,12 +15,13 @@ use warpui::{App, EntityId, ModelHandle};
 use super::{BlocklistAIContextModel, PendingAttachment, PendingFile};
 use crate::ai::agent::{AIAgentAttachment, ImageContext};
 use crate::ai::blocklist::agent_view::{AgentViewController, EphemeralMessageModel};
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::cloud_object::update_manager::UpdateManager;
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::object_store::ObjectStore;
 use crate::terminal::color::{self, Colors};
 use crate::terminal::event_listener::ChannelEventListener;
 use crate::terminal::model::test_utils::block_size;
-use crate::terminal::model::{BlockId, TerminalModel};
+use crate::terminal::model::TerminalModel;
+use terminal_grid_model::block_id::BlockId;
 use crate::terminal::view::ambient_agent::AmbientAgentViewModel;
 
 impl BlocklistAIContextModel {
@@ -47,7 +48,7 @@ fn build_test_context_model(app: &mut App) -> ModelHandle<BlocklistAIContextMode
         block_size(),
         color::List::from(&Colors::default()),
         ChannelEventListener::new_for_test(),
-        Arc::new(Background::default()),
+        std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
         false, /* should_show_bootstrap_block */
         None,  /* restored_blocks */
         false, /* honor_ps1 */
@@ -57,7 +58,7 @@ fn build_test_context_model(app: &mut App) -> ModelHandle<BlocklistAIContextMode
     let terminal_view_id = EntityId::new();
 
     app.add_singleton_model(ObjectStoreModel::mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
 
     let ambient_agent_view_model =
         app.add_model(|ctx| AmbientAgentViewModel::new(terminal_view_id, false, ctx));

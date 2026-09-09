@@ -3,14 +3,7 @@ use std::fmt::Debug;
 use crate::{
     appearance::Appearance,
     menu::{Menu, MenuItem},
-    pane_group::{
-        focus_state::{PaneFocusHandle, PaneGroupFocusEvent},
-        pane::{
-            view::StandardHeader, ActionOrigin, PaneConfiguration, PaneConfigurationEvent,
-            PaneStack, PaneStackEvent, ToolbeltButton,
-        },
-        BackingView, Direction, PaneDragDropLocation, PaneId, TabBarHoverIndex,
-    },
+    pane_group::{ focus_state::{PaneFocusHandle, PaneGroupFocusEvent}, pane::{ view::StandardHeader, ActionOrigin, PaneConfiguration, PaneConfigurationEvent, PaneStack, PaneStackEvent, ToolbeltButton, }, BackingView, Direction, PaneDragDropLocation, PaneId, TabBarHoverIndex, },
     send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
     settings::CodeSettings,
@@ -21,6 +14,7 @@ use crate::{
 };
 
 use crate::workspace::TabBarDropTargetData;
+use settings::Setting as _;
 
 use super::header_content::{HeaderContent, HeaderRenderContext, StandardHeaderOptions};
 
@@ -28,7 +22,6 @@ use pathfinder_geometry::{
     rect::RectF,
     vector::{vec2f, Vector2F},
 };
-use warp_core::{features::FeatureFlag, settings::Setting};
 use warpui::{
     elements::{
         AcceptedByDropTarget, Align, Border, ChildAnchor, Clipped, ConstrainedBox, Container,
@@ -128,10 +121,9 @@ pub struct PaneHeader<P: BackingView> {
     mouse_state_handles: MouseStateHandles,
     overflow_menu:
         ViewHandle<Menu<PaneHeaderAction<P::PaneHeaderOverflowMenuAction, P::CustomAction>>>,
-    toolbelt_buttons: Vec<ToolbeltButton>,
     open_overlay: OpenOverlay,
     is_visible_in_pane_group: bool, // If this pane header is being dragged along the tab bar, then it is not visible in the pane group
-    toolbelt_feature_popup: ViewHandle<FeaturePopup>,
+    toolbelt_buttons: Vec<ToolbeltButton>,
 }
 
 impl<P: BackingView> PaneHeader<P> {
@@ -145,15 +137,6 @@ impl<P: BackingView> PaneHeader<P> {
             me.handle_overflow_menu_action(event, ctx);
         });
 
-        let toolbelt_feature_popup = ctx.add_view(|_| {
-            FeaturePopup::new_feature(NewFeaturePopupLabel::FromString(
-                "Open files and review code diffs".to_string(),
-            ))
-        });
-        ctx.subscribe_to_view(&toolbelt_feature_popup, move |me, _, event, ctx| {
-            me.handle_toolbelt_feature_popup_event(event, ctx);
-        });
-
         ctx.subscribe_to_model(&pane_configuration, Self::handle_pane_state_event);
         ctx.subscribe_to_model(&pane_stack, Self::handle_pane_stack_event);
 
@@ -164,9 +147,8 @@ impl<P: BackingView> PaneHeader<P> {
             mouse_state_handles: Default::default(),
             overflow_menu,
             open_overlay: Default::default(),
-            toolbelt_buttons: Default::default(),
             is_visible_in_pane_group: true,
-            toolbelt_feature_popup,
+            toolbelt_buttons: Vec::new(),
         }
     }
 
@@ -392,40 +374,6 @@ impl<P: BackingView> PaneHeader<P> {
 
         // Create Stack with the container as the first child
         let mut stack = Stack::new().with_child(container);
-
-        // Check if tooltip has been dismissed already.
-        // We should only trigger this if we are in a git repository,
-        // but the pane header will only render if we are already in one.
-        let auth_state = crate::auth::AuthStateProvider::as_ref(app).get();
-        let should_show_tooltip = FeatureFlag::CodeLaunchModal.is_enabled()
-            && !auth_state.is_onboarded().unwrap_or_default() // We only want to show the tooltip for new users.
-            && !*CodeSettings::as_ref(app)
-                .dismissed_code_toolbelt_new_feature_popup
-                .value()
-                // We should not render the tooltip if no code toolbelt buttons are present.
-                && !self.toolbelt_buttons.is_empty();
-
-        if should_show_tooltip {
-            // Position the FeaturePopup tooltip below the header
-            stack.add_positioned_overlay_child(
-                Dismiss::new(ChildView::new(&self.toolbelt_feature_popup).finish())
-                    .on_dismiss(|ctx, _app| {
-                        ctx.dispatch_typed_action(
-                            PaneHeaderAction::<TerminalAction, TerminalAction>::CustomAction(
-                                TerminalAction::DismissCodeToolbeltTooltip,
-                            ),
-                        );
-                        ctx.notify();
-                    })
-                    .finish(),
-                OffsetPositioning::offset_from_parent(
-                    vec2f(0., 4.),
-                    ParentOffsetBounds::WindowByPosition,
-                    ParentAnchor::BottomLeft,
-                    ChildAnchor::TopLeft,
-                ),
-            );
-        }
 
         stack.finish()
     }

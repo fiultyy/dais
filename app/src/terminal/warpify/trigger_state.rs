@@ -1,3 +1,4 @@
+use terminal_grid_model::block::BlockId;
 use parking_lot::FairMutex;
 use warp_core::ui::appearance::Appearance;
 use warpui::{
@@ -5,13 +6,9 @@ use warpui::{
     ViewHandle,
 };
 
+use terminal_grid_model::ansi::SystemDetails;
 use crate::terminal::{
-    model::{
-        ansi::SystemDetails,
-        block::BlockId,
-        session::SessionId,
-        terminal_model::{SubshellInitializationInfo, TmuxInstallationState},
-    },
+    model::{session::SessionId,terminal_model::{SubshellInitializationInfo, TmuxInstallationState}},
     settings::TerminalSettings,
     shell::ShellType,
     ssh::{error::SshErrorBlock, install_tmux::SshInstallTmuxBlock, warpify::SshWarpifyBlock},

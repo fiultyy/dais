@@ -35,6 +35,7 @@ use super::generate_ai_input_suggestions::{
     GenerateAIInputSuggestionsRequest, GenerateAIInputSuggestionsResponseV2, NextCommandContext,
 };
 
+
 cfg_if::cfg_if! {
     if #[cfg(feature = "local_fs")] {
         use diesel::SqliteConnection;

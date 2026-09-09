@@ -20,14 +20,11 @@ use warp_multi_agent_api::{
 };
 
 use crate::{
-    ai::{
-        agent::comment::CodeReview,
-        document::ai_document_model::{AIDocumentId, AIDocumentVersion},
-    },
+    ai::{ agent::comment::CodeReview, document::ai_document_model::{AIDocumentId, AIDocumentVersion}, },
     server::datetime_ext::DateTimeExt,
-    terminal::model::block::BlockId,
     AIAgentTodoList,
 };
+use terminal_grid_model::block::BlockId;
 
 use super::{
     api::{
@@ -40,34 +37,8 @@ use super::{
     Shared,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TaskId(String);
-
-impl TaskId {
-    pub fn new(id: String) -> Self {
-        TaskId(id)
-    }
-}
-
-impl From<TaskId> for String {
-    fn from(id: TaskId) -> Self {
-        id.0
-    }
-}
-
-impl Deref for TaskId {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Display for TaskId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
+// R15: TaskId 单源化 agent_ids crate。
+pub use agent_ids::TaskId;
 
 #[derive(Debug, thiserror::Error)]
 pub enum UpdateTaskError {
@@ -128,7 +99,7 @@ struct ServerTask {
 }
 
 mod optimistic {
-    use crate::terminal::model::block::BlockId;
+    use terminal_grid_model::block::BlockId;
 
     #[derive(Debug, Clone)]
     pub(super) struct CLIAgentSubtask {
@@ -193,6 +164,7 @@ impl Task {
             exchanges: vec![],
         }
     }
+
 
     #[allow(clippy::unwrap_in_result)]
     pub(super) fn into_server_created_task(
@@ -266,7 +238,7 @@ impl Task {
         restored_exchanges.sort_by_key(|exchange| exchange.start_time);
 
         Self {
-            id: TaskId(task.id.clone()),
+            id: TaskId::new(task.id.clone()),
             data: TaskImpl::Server(ServerTask {
                 source: task,
                 subagent_params: None,
@@ -322,7 +294,7 @@ impl Task {
         let messages_clone = subtask.messages.clone();
         let new_exchange_id = new_exchange.id;
         let mut me = Self {
-            id: TaskId(subtask.id.clone()),
+            id: TaskId::new(subtask.id.clone()),
             exchanges: vec![new_exchange],
             data: TaskImpl::Server(ServerTask {
                 source: subtask,
@@ -354,7 +326,7 @@ impl Task {
         });
 
         Self {
-            id: TaskId(subtask.id.clone()),
+            id: TaskId::new(subtask.id.clone()),
             exchanges: restored_exchanges,
             data: TaskImpl::Server(ServerTask {
                 source: subtask,
@@ -379,7 +351,7 @@ impl Task {
         });
 
         Self {
-            id: TaskId(subtask.id.clone()),
+            id: TaskId::new(subtask.id.clone()),
             exchanges: vec![],
             data: TaskImpl::Server(ServerTask {
                 source: subtask,
@@ -463,7 +435,7 @@ impl Task {
     pub fn parent_id(&self) -> Option<TaskId> {
         self.source()
             .and_then(|source| source.dependencies.as_ref())
-            .map(|dependencies| TaskId(dependencies.parent_task_id.clone()))
+            .map(|dependencies| TaskId::new(dependencies.parent_task_id.clone()))
     }
 
     pub fn is_root_task(&self) -> bool {

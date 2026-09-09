@@ -1,4 +1,3 @@
-use warp_core::context_flag::ContextFlag;
 use warpui::{
     elements::{Container, Flex, MouseStateHandle, ParentElement},
     fonts::Weight,
@@ -8,14 +7,11 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    cloud_object::{
-        model::actions::{ObjectActionType, ObjectActions},
-        StoredObjectMetadata,
-    },
-    drive::{index::DriveIndexAction, DriveObjectType, ObjectTypeAndId},
+    drive::{DriveObjectType, ObjectTypeAndId},
     themes::theme::Fill,
-    workflows::{WorkflowObject, WorkflowViewMode},
+    workflows::WorkflowObject,
 };
+use objects::{StoredObjectMetadata, model::actions::{ObjectActionType, ObjectActions}};
 
 use super::{WarpDriveItem, WarpDriveItemId};
 
@@ -56,18 +52,6 @@ impl WarpDriveItem for WarpDriveWorkflow {
         None
     }
 
-    fn click_action(&self) -> Option<DriveIndexAction> {
-        if !ContextFlag::RunWorkflow.is_enabled() {
-            // If we are in a context where we can't run workflows, open it in view mode
-            // by default
-            Some(DriveIndexAction::OpenWorkflowInPane {
-                object_type_and_id: self.id,
-                open_mode: WorkflowViewMode::View,
-            })
-        } else {
-            Some(DriveIndexAction::RunObject(self.id))
-        }
-    }
 
     fn preview(&self, appearance: &Appearance) -> Option<Box<dyn Element>> {
         let mut modal =
@@ -117,15 +101,11 @@ impl WarpDriveItem for WarpDriveWorkflow {
 
     fn sync_status_icon(
         &self,
-        sync_queue_is_dequeueing: bool,
-        hover_state: MouseStateHandle,
-        appearance: &Appearance,
+        _sync_queue_is_dequeueing: bool,
+        _hover_state: MouseStateHandle,
+        _appearance: &Appearance,
     ) -> Option<Box<dyn Element>> {
-        self.workflow.metadata.pending_changes_statuses.render_icon(
-            sync_queue_is_dequeueing,
-            hover_state,
-            appearance,
-        )
+        None
     }
 
     fn action_summary(&self, app: &AppContext) -> Option<String> {

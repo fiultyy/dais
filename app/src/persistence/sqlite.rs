@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::ffi::OsString;
 use std::path::Path;
 use std::str::FromStr;
@@ -40,12 +39,11 @@ use super::block_list::{
     upsert_ai_query,
 };
 use super::model::{
-    self, ActiveMCPServer, CurrentUserInformation, MCPEnvironmentVariables, NewActiveMCPServer,
-    NewApp, NewCommand, NewFolder, NewNotebook, NewServerExperiment, NewTab, NewTeam, NewWindow,
-    NewWorkspace, NewWorkspaceTeam, ObjectMetadata, ObjectPermissions, Project, Tab, Window,
-    AI_DOCUMENT_PANE_KIND, AI_FACT_PANE_KIND, CODE_PANE_KIND, ENV_VAR_COLLECTION_PANE_KIND,
-    EXECUTION_PROFILE_EDITOR_PANE_KIND, MCP_SERVER_PANE_KIND, NOTEBOOK_PANE_KIND,
-    SETTINGS_PANE_KIND, TERMINAL_PANE_KIND, WELCOME_PANE_KIND, WORKFLOW_PANE_KIND,
+    self, ActiveMCPServer, MCPEnvironmentVariables, NewActiveMCPServer, NewApp, NewCommand,
+    NewFolder, NewNotebook, NewServerExperiment, NewTab, NewWindow, NewWorkspace, Tab, Window,
+    CODE_PANE_KIND, ENV_VAR_COLLECTION_PANE_KIND, MCP_SERVER_PANE_KIND, SETTINGS_PANE_KIND,
+    TERMINAL_PANE_KIND, AI_DOCUMENT_PANE_KIND, EXECUTION_PROFILE_EDITOR_PANE_KIND,
+    NOTEBOOK_PANE_KIND, WORKFLOW_PANE_KIND,
 };
 use super::schema;
 use super::{
@@ -54,73 +52,45 @@ use super::{
 };
 use crate::ai::agent::conversation::AIConversationId;
 use crate::ai::ambient_agents::AmbientAgentTaskId;
-use crate::ai::document::ai_document_model::AIDocumentId;
-use crate::ai::execution_profiles::{AIExecutionProfileObject, AIExecutionProfileObjectModel};
-use crate::ai::facts::{AIFactObject, AIFactObjectModel};
-use crate::ai::mcp::templatable::{TemplatableMCPServerObject, TemplatableMCPServerObjectModel};
 use crate::ai::mcp::templatable_installation::VariableValue;
-use crate::ai::mcp::{
-    MCPServerObject, MCPServerObjectModel, TemplatableMCPServer, TemplatableMCPServerInstallation,
-};
+use crate::ai::mcp::{TemplatableMCPServer, TemplatableMCPServerInstallation};
+use crate::auth::{user_uid::UserUid, AuthStateProvider};
+use objects::{GenericStringObjectId, StoredStringObject};
+use crate::drive::folders::FolderObject;
 use crate::app_state::{
-    AIFactPaneSnapshot, AmbientAgentPaneSnapshot, CodeReviewPaneSnapshot,
-    EnvVarCollectionPaneSnapshot, LeftPanelSnapshot, RightPanelSnapshot, SettingsPaneSnapshot,
-    WorkflowPaneSnapshot,
-};
-use crate::auth::AuthStateProvider;
-use crate::auth::PersistedCurrentUserInformation;
-use crate::auth::UserUid;
-use crate::cloud_object::model::actions::{ObjectAction, ObjectActionSubtype};
-use crate::cloud_object::model::generic_string_model::{GenericStringObjectId, StoredStringObject};
-use crate::cloud_object::{
-    JsonObjectType, ObjectIdType, ObjectType, Owner, StoredObject, GENERIC_STRING_OBJECT_PREFIX,
-    JSON_OBJECT_PREFIX,
+    AmbientAgentPaneSnapshot, EnvVarCollectionPaneSnapshot, LeftPanelSnapshot,
+    NotebookPaneSnapshot, RightPanelSnapshot, SettingsPaneSnapshot, WorkflowPaneSnapshot,
 };
 use crate::code::editor_management::CodeSource;
-use crate::drive::folders::{FolderId, FolderObject, FolderObjectModel};
 use crate::drive::DaisDriveObjectSettings;
-use crate::env_vars::{EnvVarCollectionObject, EnvVarCollectionObjectModel};
-use crate::features::FeatureFlag;
 use crate::notebooks::{NotebookId, NotebookObject};
 use crate::persistence::agent::read_agent_conversations;
 use crate::persistence::block_list::{get_all_restored_blocks, read_ai_queries};
-use crate::persistence::model::{
-    NewGenericStringObject, NewObjectStoreRefresh, NewPersistedObjectAction, NewTeamSettings,
-    ProjectRules, UserProfile, CODE_REVIEW_PANE_KIND, GET_STARTED_PANE_KIND,
-};
+use objects::{ObjectIdType, ObjectType};
+use crate::persistence::model::NewGenericStringObject;
+use crate::persistence::{NewProjectRules, Project, ProjectRules};
 use crate::server::experiments::ServerExperiment;
-use crate::server::ids::{ClientId, HashableId, ServerId, SyncId, ToServerId};
+use objects::ids::{ClientId, HashableId, SyncId};
 use crate::server::telemetry::TelemetryEvent;
-use crate::server_time::ServerTimestamp;
-use crate::settings::cloud_preferences::{PreferenceObject, PreferenceObjectModel};
 use crate::settings_view::SettingsSection;
 use crate::suggestions::ignored_suggestions_model::SuggestionType;
 use crate::tab::SelectedTabColor;
 use crate::terminal::history::PersistedCommand;
 use crate::terminal::ShellLaunchData;
 use crate::themes::theme::AnsiColorIdentifier;
-use crate::workflows::workflow_enum::{WorkflowEnumObject, WorkflowEnumObjectModel};
 use crate::workflows::{WorkflowId, WorkflowObject};
-use crate::workspaces::team::Team as TeamMetadata;
 use crate::workspaces::workspace::Workspace as WorkspaceMetadata;
 use crate::workspaces::workspace::WorkspaceUid;
 use crate::{
-    app_state::{
-        AppState, BranchSnapshot, CodePaneSnapShot, CodePaneTabSnapshot, LeafContents,
-        LeafSnapshot, NotebookPaneSnapshot, PaneFlex, PaneNodeSnapshot, SplitDirection,
-        TabSnapshot, TerminalPaneSnapshot, WindowSnapshot,
-    },
+    app_state::{ AppState, BranchSnapshot, CodePaneSnapShot, CodePaneTabSnapshot, LeafContents, LeafSnapshot, PaneFlex, PaneNodeSnapshot, SplitDirection, TabSnapshot, TerminalPaneSnapshot, WindowSnapshot, },
     workspaces::user_profiles::UserProfileWithUID,
 };
 use crate::{
-    cloud_object::{NumInFlightRequests, Revision, StoredObjectMetadata},
-    notebooks::NotebookObjectModel,
+    report_error,
+    report_if_error,
+    safe_info,
+    send_telemetry_from_app_ctx,
 };
-use crate::{
-    cloud_object::{StoredObjectPermissions, StoredObjectStatuses, StoredObjectSyncStatus},
-    workflows::WorkflowObjectModel,
-};
-use crate::{report_error, report_if_error, safe_info, send_telemetry_from_app_ctx};
 
 diesel::define_sql_function! {
     fn json_extract(target: diesel::sql_types::Text, path: diesel::sql_types::Text) -> diesel::sql_types::Text;
@@ -131,7 +101,6 @@ diesel::define_sql_function! {
 const CHANNEL_SIZE: usize = 1024;
 const COMMANDS_COUNT_LIMIT: i64 = 10000;
 
-use crate::persistence::cloud_objects::{upsert_stored_object, StoredObjectId};
 
 const WARP_SQLITE_FILE_NAME: &str = "warp.sqlite";
 // zap-purge: legacy key, kept for data compat — 已迁移的用户磁盘上存在此 marker 文件。
@@ -139,12 +108,6 @@ const ZAP_APP_GROUP_SQLITE_MIGRATION_MARKER: &str = ".zap-app-group-sqlite-migra
 #[cfg(target_os = "macos")]
 const WARP_APP_GROUP_ID: &str = "2BBY89MBSN.dev.warp";
 
-/// 删除本地 stored object 时使用的回调。入参是待删除对象的 id。
-/// 传入的 conn 已经启动 transaction。
-type DeleteCloudObjectFn =
-    Box<dyn FnOnce(&mut SqliteConnection, StoredObjectId) -> Result<(), Error>>;
-
-/// Runs any migrations and creates the Sqlite database if it doesn't exist.
 /// Reads from the sqlite database to get the app state for session restoration.
 /// Starts a writer thread that listens for ModelEvents and processes them.
 /// 后台预热出来的 SQLite 连接。在 `prewarm_db_in_background` 启动后,
@@ -813,9 +776,6 @@ fn handle_model_event(event: ModelEvent, connection: &mut SqliteConnection) -> a
         ModelEvent::UpsertFolder { folder } => {
             upsert_folders(connection, vec![folder]).context("error upserting folder")
         }
-        ModelEvent::IncrementRetryCount(id) => {
-            increment_retry_count(connection, id).context("error incrementing retry count")
-        }
         ModelEvent::DeleteObjects { ids } => {
             delete_objects(connection, ids).context("error deleting objects")
         }
@@ -825,42 +785,11 @@ fn handle_model_event(event: ModelEvent, connection: &mut SqliteConnection) -> a
         ModelEvent::DeleteProject { path } => {
             delete_project(connection, &path).context("error deleting project")
         }
-        ModelEvent::UpsertWorkspace { workspace } => {
-            save_workspace(connection, *workspace).context("error upserting workspace")
-        }
-        ModelEvent::UpsertWorkspaces { workspaces } => {
-            save_workspaces(connection, workspaces).context("error upserting workspaces")
-        }
-        ModelEvent::SetCurrentWorkspace { workspace_uid } => {
-            set_current_workspace(connection, workspace_uid)
-                .context("error setting current workspace")
-        }
-        ModelEvent::UpdateObjectMetadata { id, metadata } => {
-            update_object_metadata(connection, id, metadata).context("error updating metadata")
-        }
         ModelEvent::InsertCommand { metadata } => {
             insert_command(connection, metadata).context("error inserting command")
         }
         ModelEvent::UpdateFinishedCommand { metadata } => {
             update_finished_command(connection, metadata).context("error updating finished command")
-        }
-        ModelEvent::UpsertUserProfiles { profiles } => {
-            upsert_user_profiles(connection, profiles).context("error updating user profiles")
-        }
-        ModelEvent::ClearUserProfiles => {
-            clear_user_profiles(connection).context("error clearing user profiles")
-        }
-        ModelEvent::RecordTimeOfNextRefresh { timestamp } => {
-            record_time_of_next_refresh(connection, timestamp)
-                .context("error marking object refresh as completed")
-        }
-        ModelEvent::InsertObjectAction { object_action } => {
-            insert_object_action(connection, object_action).context("error inserting object action")
-        }
-        ModelEvent::SyncObjectActions {
-            actions_to_sync: objects_to_sync,
-        } => {
-            sync_object_actions(connection, objects_to_sync).context("error syncing object actions")
         }
         ModelEvent::SaveExperiments { experiments } => {
             save_experiments(connection, experiments).context("error saving experiments")
@@ -887,10 +816,6 @@ fn handle_model_event(event: ModelEvent, connection: &mut SqliteConnection) -> a
             delete_agent_conversations(connection, conversation_ids)
                 .map_err(anyhow::Error::from)
                 .context("error deleting multi-agent conversation")
-        }
-        ModelEvent::UpsertCurrentUserInformation { user_information } => {
-            upsert_current_user_information(connection, user_information)
-                .context("error upserting user information")
         }
         ModelEvent::UpsertMCPServerEnvironmentVariables {
             mcp_server_uuid,
@@ -1030,12 +955,8 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
             .execute(conn)?;
         diesel::delete(schema::workflow_panes::dsl::workflow_panes).execute(conn)?;
         diesel::delete(schema::settings_panes::dsl::settings_panes).execute(conn)?;
-        diesel::delete(schema::ai_memory_panes::dsl::ai_memory_panes).execute(conn)?;
         diesel::delete(schema::ai_document_panes::dsl::ai_document_panes).execute(conn)?;
         diesel::delete(schema::mcp_server_panes::dsl::mcp_server_panes).execute(conn)?;
-        diesel::delete(schema::code_review_panes::dsl::code_review_panes).execute(conn)?;
-        diesel::delete(schema::ambient_agent_panes::dsl::ambient_agent_panes).execute(conn)?;
-        diesel::delete(schema::welcome_panes::dsl::welcome_panes).execute(conn)?;
         diesel::delete(schema::pane_leaves::dsl::pane_leaves).execute(conn)?;
         diesel::delete(schema::pane_branches::dsl::pane_branches).execute(conn)?;
         diesel::delete(schema::pane_nodes::dsl::pane_nodes).execute(conn)?;
@@ -1081,8 +1002,8 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
                     .agent_management_filters
                     .as_ref()
                     .and_then(|f| serde_json::to_string(f).ok()),
-                // Serialize with serde (not Display) so the `ThemeKind::Custom`
-                // variant round-trips.
+                // Serialize with serde (not Display); unknown legacy values
+                // fall back to `ThemeKind::Dark` on deserialize.
                 theme_override: window
                     .theme_override
                     .as_ref()
@@ -1269,18 +1190,14 @@ fn save_pane_state(
     // kind-specific tables.
     let kind = match &snapshot.contents {
         LeafContents::Terminal(_) => TERMINAL_PANE_KIND,
-        LeafContents::Notebook(_) => NOTEBOOK_PANE_KIND,
-        LeafContents::EnvVarCollection(_) => ENV_VAR_COLLECTION_PANE_KIND,
         LeafContents::Code(_) => CODE_PANE_KIND,
+        LeafContents::Notebook(_) => NOTEBOOK_PANE_KIND,
         LeafContents::Workflow(_) => WORKFLOW_PANE_KIND,
-        LeafContents::Settings(_) => SETTINGS_PANE_KIND,
-        LeafContents::AIFact(_) => AI_FACT_PANE_KIND,
-        LeafContents::CodeReview(_) => CODE_REVIEW_PANE_KIND,
-        LeafContents::AmbientAgent(_) => AMBIENT_AGENT_PANE_KIND,
-        LeafContents::ExecutionProfileEditor => EXECUTION_PROFILE_EDITOR_PANE_KIND,
-        LeafContents::GetStarted => GET_STARTED_PANE_KIND,
-        LeafContents::Welcome { .. } => WELCOME_PANE_KIND,
         LeafContents::AIDocument(_) => AI_DOCUMENT_PANE_KIND,
+        LeafContents::ExecutionProfileEditor => EXECUTION_PROFILE_EDITOR_PANE_KIND,
+        LeafContents::Settings(_) => SETTINGS_PANE_KIND,
+        LeafContents::EnvVarCollection(_) => ENV_VAR_COLLECTION_PANE_KIND,
+        LeafContents::AmbientAgent(_) => AMBIENT_AGENT_PANE_KIND,
         // Dais Wave 7-3:`EnvironmentManagement` arm 随 variant 一同物理删。
         LeafContents::SshServer { .. } => {
             // These pane types are filtered out before this function is
@@ -1380,30 +1297,6 @@ fn save_pane_state(
                 .values(terminal)
                 .execute(conn)?;
         }
-        LeafContents::Notebook(notebook_snapshot) => {
-            let (notebook_id, local_path) = match notebook_snapshot {
-                NotebookPaneSnapshot::NotebookObject {
-                    notebook_id,
-                    settings: _,
-                } => (
-                    notebook_id.map(|id| id.sqlite_uid_hash(ObjectIdType::Notebook)),
-                    None,
-                ),
-                NotebookPaneSnapshot::LocalFileNotebook { path } => {
-                    (None, path.clone().map(encode_path))
-                }
-            };
-
-            let notebook = model::NewNotebookPane {
-                id,
-                notebook_id,
-                local_path,
-            };
-
-            diesel::insert_into(schema::notebook_panes::dsl::notebook_panes)
-                .values(notebook)
-                .execute(conn)?;
-        }
         LeafContents::Code(code_snapshot) => {
             let CodePaneSnapShot::Local {
                 tabs,
@@ -1452,6 +1345,31 @@ fn save_pane_state(
                 .values(env_var_collection)
                 .execute(conn)?;
         }
+        // Dais Wave 7-3:`EnvironmentManagement` LeafContents arm 随 variant 一同物理删。
+        LeafContents::Notebook(notebook_snapshot) => {
+            let (notebook_id, local_path) = match notebook_snapshot {
+                NotebookPaneSnapshot::NotebookObject {
+                    notebook_id,
+                    settings: _,
+                } => (
+                    notebook_id.map(|id| id.sqlite_uid_hash(ObjectIdType::Notebook)),
+                    None,
+                ),
+                NotebookPaneSnapshot::LocalFileNotebook { path } => {
+                    (None, path.clone().map(encode_path))
+                }
+            };
+
+            let notebook = model::NewNotebookPane {
+                id,
+                notebook_id,
+                local_path,
+            };
+
+            diesel::insert_into(schema::notebook_panes::dsl::notebook_panes)
+                .values(notebook)
+                .execute(conn)?;
+        }
         LeafContents::Workflow(workflow_pane_snapshot) => {
             let workflow_id = match workflow_pane_snapshot {
                 WorkflowPaneSnapshot::WorkflowObject {
@@ -1464,60 +1382,6 @@ fn save_pane_state(
 
             diesel::insert_into(schema::workflow_panes::dsl::workflow_panes)
                 .values(workflow)
-                .execute(conn)?;
-        }
-        // Dais Wave 7-3:`EnvironmentManagement` LeafContents arm 随 variant 一同物理删。
-        LeafContents::Settings(settings_pane_snapshot) => {
-            let current_page = match settings_pane_snapshot {
-                SettingsPaneSnapshot::Local { current_page, .. } => current_page,
-            };
-
-            let settings_pane = model::NewSettingsPane {
-                id,
-                current_page: current_page.to_string(),
-            };
-
-            diesel::insert_into(schema::settings_panes::dsl::settings_panes)
-                .values(settings_pane)
-                .execute(conn)?;
-        }
-        LeafContents::AIFact(_ai_fact_pane_snapshot) => {
-            let ai_fact = model::NewAIFactPane { id };
-
-            diesel::insert_into(schema::ai_memory_panes::dsl::ai_memory_panes)
-                .values(ai_fact)
-                .execute(conn)?;
-        }
-        LeafContents::CodeReview(code_review_pane_snapshot) => {
-            let CodeReviewPaneSnapshot::Local {
-                terminal_uuid,
-                repo_path,
-            } = code_review_pane_snapshot;
-            let code_review = model::NewCodeReviewPane {
-                id,
-                terminal_uuid: terminal_uuid.clone(),
-                repo_path: repo_path.to_string_lossy().into_owned(),
-            };
-
-            diesel::insert_into(schema::code_review_panes::dsl::code_review_panes)
-                .values(code_review)
-                .execute(conn)?;
-        }
-        LeafContents::ExecutionProfileEditor => {
-            // TODO: Implement execution profile editor pane saving.
-        }
-        LeafContents::GetStarted => {
-            // Stateless
-        }
-        LeafContents::Welcome { startup_directory } => {
-            let welcome_pane = model::NewWelcomePane {
-                id,
-                startup_directory: startup_directory
-                    .as_ref()
-                    .map(|path| path.to_string_lossy().into_owned()),
-            };
-            diesel::insert_into(schema::welcome_panes::dsl::welcome_panes)
-                .values(welcome_pane)
                 .execute(conn)?;
         }
         LeafContents::AIDocument(ai_document_snapshot) => match ai_document_snapshot {
@@ -1539,7 +1403,24 @@ fn save_pane_state(
                     .values(ai_document_pane)
                     .execute(conn)?;
             }
-        },
+        }
+        LeafContents::Settings(settings_pane_snapshot) => {
+            let current_page = match settings_pane_snapshot {
+                SettingsPaneSnapshot::Local { current_page, .. } => current_page,
+            };
+
+            let settings_pane = model::NewSettingsPane {
+                id,
+                current_page: current_page.to_string(),
+            };
+
+            diesel::insert_into(schema::settings_panes::dsl::settings_panes)
+                .values(settings_pane)
+                .execute(conn)?;
+        }
+        LeafContents::ExecutionProfileEditor => {
+            // TODO: Implement execution profile editor pane saving.
+        }
         LeafContents::AmbientAgent(snapshot) => {
             let ambient_agent_pane = model::NewAmbientAgentPane {
                 id,
@@ -1690,7 +1571,7 @@ fn upsert_project_rules(
 
     // SQLite doesn't support batch upserts, so we need to iterate
     for rule in new_project_rules {
-        let new_rule = model::NewProjectRules {
+        let new_rule = NewProjectRules {
             path: rule.path.to_string_lossy().to_string(),
             project_root: rule.project_root.to_string_lossy().to_string(),
         };
@@ -1908,6 +1789,31 @@ fn remove_ignored_suggestion(
     Ok(())
 }
 
+
+/// S2 轮误删后本地恢复:原 `save_experiments`(随 use 块误删一并丢失)。
+/// 覆盖式写入当前启用集合到 `server_experiments` 表。
+fn save_experiments(
+    conn: &mut SqliteConnection,
+    experiments: Vec<ServerExperiment>,
+) -> Result<()> {
+    conn.transaction::<(), diesel::result::Error, _>(|conn| {
+        diesel::delete(schema::server_experiments::dsl::server_experiments).execute(conn)?;
+
+        let new_experiments = experiments
+            .into_iter()
+            .map(|experiment| model::NewServerExperiment {
+                experiment: experiment.to_string(),
+            })
+            .collect_vec();
+
+        diesel::insert_into(schema::server_experiments::dsl::server_experiments)
+            .values(new_experiments)
+            .execute(conn)?;
+        Ok(())
+    })
+    .map_err(anyhow::Error::from)
+}
+
 fn save_workspace(conn: &mut SqliteConnection, workspace: WorkspaceMetadata) -> Result<()> {
     // Set all existing workspaces as not selected
     diesel::update(workspaces)
@@ -1930,58 +1836,6 @@ fn save_workspace(conn: &mut SqliteConnection, workspace: WorkspaceMetadata) -> 
         .set(&new_workspace)
         .execute(conn)?;
 
-    // Save teams for workspace
-    for team in workspace.teams {
-        use schema::teams::dsl::*;
-        use schema::workspace_teams::dsl::*;
-        let new_team = NewTeam {
-            name: team.name,
-            server_uid: team.uid.into(),
-            billing_metadata_json: serde_json::to_string(&team.billing_metadata).ok(),
-        };
-        diesel::insert_into(teams)
-            .values(&new_team)
-            .on_conflict(server_uid)
-            .do_update()
-            // If there's already a team with this server_uid, then lets just update the other values
-            .set(&new_team)
-            .execute(conn)?;
-
-        let team_db_id: i32 = schema::teams::dsl::teams
-            .filter(schema::teams::dsl::server_uid.eq::<String>(team.uid.into()))
-            .select(schema::teams::dsl::id)
-            .first(conn)?;
-
-        diesel::delete(
-            schema::team_members::dsl::team_members
-                .filter(schema::team_members::dsl::team_id.eq(team_db_id)),
-        )
-        .execute(conn)?;
-
-        for member in &team.members {
-            let new_member = model::NewTeamMember {
-                team_id: team_db_id,
-                user_uid: member.uid.as_string(),
-                email: member.email.clone(),
-                role: serde_json::to_string(&member.role).unwrap_or_default(),
-            };
-            diesel::insert_into(schema::team_members::dsl::team_members)
-                .values(&new_member)
-                .execute(conn)?;
-        }
-
-        let new_workspace_team = NewWorkspaceTeam {
-            workspace_server_uid: workspace.uid.into(),
-            team_server_uid: team.uid.into(),
-        };
-        diesel::insert_into(workspace_teams)
-            .values(&new_workspace_team)
-            .on_conflict((workspace_server_uid, team_server_uid))
-            .do_update()
-            .set(&new_workspace_team)
-            .execute(conn)?;
-    }
-
     Ok(())
 }
 
@@ -1989,9 +1843,6 @@ fn save_workspaces(
     conn: &mut SqliteConnection,
     workspaces_to_insert: Vec<WorkspaceMetadata>,
 ) -> Result<()> {
-    use schema::team_settings::dsl::*;
-    use schema::teams::dsl::*;
-    use schema::workspace_teams::dsl::*;
     use schema::workspaces::dsl::*;
 
     // Get currently selected workspace uid if there is one
@@ -2002,11 +1853,7 @@ fn save_workspaces(
         .optional()?
         .map(|uid| uid.into());
 
-    // Remove all team_members/team_settings/workspaces/teams/workspace_teams stored locally.
-    diesel::delete(schema::team_members::dsl::team_members).execute(conn)?;
-    diesel::delete(team_settings).execute(conn)?;
-    diesel::delete(workspace_teams).execute(conn)?;
-    diesel::delete(teams).execute(conn)?;
+    // Dais(云表裁剪): teams/team_members/team_settings 表已 DROP, 仅刷新 workspaces 本地缓存。
     diesel::delete(workspaces).execute(conn)?;
 
     // Insert workspaces returned by server (doing nothing on conflict), set is_selected
@@ -2025,100 +1872,6 @@ fn save_workspaces(
     diesel::insert_or_ignore_into(workspaces)
         .values(&new_workspace_values)
         .execute(conn)?;
-
-    // Insert teams returned by server (doing nothing on conflict)
-    let new_team_values: Vec<NewTeam> = workspaces_to_insert
-        .clone()
-        .into_iter()
-        .flat_map(|workspace| {
-            workspace
-                .teams
-                .into_iter()
-                .map(|team| NewTeam {
-                    server_uid: team.uid.into(),
-                    name: team.name.clone(),
-                    billing_metadata_json: serde_json::to_string(&team.billing_metadata).ok(),
-                })
-                .collect::<Vec<NewTeam>>()
-        })
-        .collect();
-    diesel::insert_or_ignore_into(teams)
-        .values(&new_team_values)
-        .execute(conn)?;
-
-    // We cannot directly return the id from the insert so perform
-    // a second query for the id https://github.com/diesel-rs/diesel/issues/771.
-    let teams_with_id: Vec<(i32, String)> = schema::teams::dsl::teams
-        .select((schema::teams::dsl::id, schema::teams::dsl::server_uid))
-        .load(conn)?;
-    let teams_by_server_uid: HashMap<&String, i32> = HashMap::from_iter(
-        teams_with_id
-            .iter()
-            .map(|(table_id, table_server_uid)| (table_server_uid, *table_id)),
-    );
-
-    // Insert workspace_teams returned by server (doing nothing on conflict)
-    let workspace_teams_values: Vec<NewWorkspaceTeam> = workspaces_to_insert
-        .clone()
-        .into_iter()
-        .flat_map(|workspace| {
-            workspace
-                .teams
-                .into_iter()
-                .map(|team| NewWorkspaceTeam {
-                    workspace_server_uid: workspace.uid.into(),
-                    team_server_uid: team.uid.into(),
-                })
-                .collect::<Vec<NewWorkspaceTeam>>()
-        })
-        .collect();
-    diesel::insert_or_ignore_into(workspace_teams)
-        .values(&workspace_teams_values)
-        .execute(conn)?;
-
-    // Cache workspace settings returned by the server (overwriting any existing settings)
-    let team_settings_values: Vec<NewTeamSettings> = workspaces_to_insert
-        .clone()
-        .into_iter()
-        .flat_map(|workspace| {
-            workspace.teams.into_iter().filter_map(|team| {
-                let serialized_settings_json =
-                    serde_json::to_string(&team.organization_settings).ok()?;
-                let team_id_match = teams_by_server_uid.get(&team.uid.uid())?;
-                Some(NewTeamSettings {
-                    team_id: *team_id_match,
-                    settings_json: serialized_settings_json,
-                })
-            })
-        })
-        .collect();
-    diesel::insert_into(schema::team_settings::dsl::team_settings)
-        .values(&team_settings_values)
-        .execute(conn)?;
-
-    // Cache team members
-    let team_member_values: Vec<model::NewTeamMember> = workspaces_to_insert
-        .clone()
-        .into_iter()
-        .flat_map(|workspace| {
-            workspace.teams.into_iter().flat_map(|team| {
-                let team_id_match = teams_by_server_uid.get(&team.uid.uid()).copied();
-                team.members.into_iter().filter_map(move |member| {
-                    Some(model::NewTeamMember {
-                        team_id: team_id_match?,
-                        user_uid: member.uid.as_string(),
-                        email: member.email,
-                        role: serde_json::to_string(&member.role).unwrap_or_default(),
-                    })
-                })
-            })
-        })
-        .collect();
-    if !team_member_values.is_empty() {
-        diesel::insert_into(schema::team_members::dsl::team_members)
-            .values(&team_member_values)
-            .execute(conn)?;
-    }
 
     if let Some(current_workspace_uid) = current_workspace_uid {
         if !workspaces_to_insert
@@ -2157,84 +1910,17 @@ fn set_current_workspace(conn: &mut SqliteConnection, workspace_uid: WorkspaceUi
     Ok(())
 }
 
-fn increment_retry_count(
-    conn: &mut SqliteConnection,
-    server_id_string: String,
-) -> Result<(), Error> {
-    use schema::object_metadata::dsl::*;
-    conn.transaction::<(), Error, _>(|conn| {
-        diesel::update(object_metadata.filter(server_id.eq(Some(server_id_string))))
-            .set(retry_count.eq(retry_count + 1))
-            .execute(conn)?;
-        Ok(())
-    })
-}
 
-/// 删除 `sync_id` 标识的本地 stored object 的 helper。如果找到有效 object metadata row,
-/// 就调用 `delete_object_fn` 删除实际对象。
-fn delete_cloud_object(
-    conn: &mut SqliteConnection,
-    sync_id: SyncId,
-    object_id_type: ObjectIdType,
-    delete_object_fn: DeleteCloudObjectFn,
-) -> Result<(), Error> {
-    use schema::object_metadata::dsl::*;
-
-    // Filter to find metadata row.
-    // The diesel types for `filter`s are dependent on the columns being filtered
-    // so while the `hashed_sync_id` will only match one of `client_id` and `server_id`,
-    // we filter on both here for ergonomics.
-    let hashed_sync_id = sync_id.sqlite_uid_hash(object_id_type);
-    let metadata_filter = object_metadata
-        .filter(client_id.eq(Some(hashed_sync_id.as_str())))
-        .or_filter(server_id.eq(Some(hashed_sync_id.as_str())));
-
-    let metadata: ObjectMetadata = metadata_filter.first(conn)?;
-    let object_id = metadata.shareable_object_id;
-    diesel::delete(object_metadata.filter(id.eq(metadata.id))).execute(conn)?;
-    diesel::delete(
-        schema::object_permissions::dsl::object_permissions
-            .filter(schema::object_permissions::object_metadata_id.eq(metadata.id)),
-    )
-    .execute(conn)?;
-    diesel::delete(
-        schema::object_actions::dsl::object_actions
-            .filter(schema::object_actions::hashed_object_id.eq(hashed_sync_id)),
-    )
-    .execute(conn)?;
-    delete_object_fn(conn, object_id)?;
-    Ok(())
-}
-
-/// SQLite endpoint for the ObjectMetadataUpdated RTC message that updates the metadata ts and other
-/// metadata like current team_id of the object.
-fn update_object_metadata(
-    conn: &mut SqliteConnection,
-    hashed_id: String,
-    metadata: StoredObjectMetadata,
-) -> Result<(), Error> {
-    use schema::object_metadata::dsl::*;
-    let metadata_last_updated_at = metadata
-        .metadata_last_updated_ts
-        .map(|ts| ts.timestamp_micros());
-
-    let trashed_timestamp = metadata.trashed_ts.map(|ts| ts.timestamp_micros());
-    let folder_id_str = metadata
-        .folder_id
-        .map(|folder_sync_id| folder_sync_id.sqlite_uid_hash(ObjectIdType::Folder));
-
-    conn.transaction::<(), Error, _>(|conn| {
-        diesel::update(object_metadata.filter(server_id.eq(Some(hashed_id.as_str()))))
-            .set((
-                metadata_last_updated_ts.eq(metadata_last_updated_at),
-                trashed_ts.eq(trashed_timestamp),
-                folder_id.eq(folder_id_str),
-                current_editor.eq(metadata.current_editor_uid),
-            ))
-            .execute(conn)?;
-
-        Ok(())
-    })
+/// Dais(云表裁剪): object_metadata/object_permissions 表已 DROP, stored object 的
+/// sqlite 行标识不再有外联表承载。改为由 hashed_sync_id 派生确定性 i32 行 id,
+/// `insert ... on conflict(id) do update` 完成 upsert。哈希截断有 ~2^31 空间,
+/// 本地对象量级下冲突概率可忽略; 真冲突时表现为两对象共用一行, 与旧行为
+/// (server_id/client_id 撞哈希)等价。
+fn deterministic_row_id(hashed_sync_id: &str) -> i32 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    hashed_sync_id.hash(&mut hasher);
+    (hasher.finish() & 0x7fff_ffff) as i32
 }
 
 fn upsert_generic_string_objects(
@@ -2242,42 +1928,23 @@ fn upsert_generic_string_objects(
     cloud_generic_string_objects: Vec<Box<dyn StoredStringObject>>,
 ) -> Result<(), Error> {
     use schema::generic_string_objects::dsl::*;
+    use diesel::expression_methods::ExpressionMethods;
     conn.transaction::<(), Error, _>(|conn| {
         for object in cloud_generic_string_objects {
             let serialized_data = Arc::new(object.serialized().take());
-            let serialized_data_clone = serialized_data.clone();
-            upsert_stored_object(
-                conn,
-                ObjectType::GenericStringObject(object.generic_string_object_format()),
-                object.id(),
-                object.metadata().clone(),
-                object.permissions().clone(),
-                Box::new(move |conn| {
-                    let new_object = NewGenericStringObject {
-                        data: serialized_data.as_ref(),
-                    };
-                    diesel::insert_into(
-                        schema::generic_string_objects::dsl::generic_string_objects,
-                    )
-                    .values(new_object)
-                    .execute(conn)?;
-                    let object_id: i32 =
-                        schema::generic_string_objects::dsl::generic_string_objects
-                            .select(schema::generic_string_objects::columns::id)
-                            .order(schema::generic_string_objects::columns::id.desc())
-                            .first(conn)?;
-                    Ok(object_id)
-                }),
-                Box::new(move |conn, object_id| {
-                    diesel::update(
-                        generic_string_objects
-                            .filter(schema::generic_string_objects::dsl::id.eq(object_id)),
-                    )
-                    .set((data.eq(serialized_data_clone.as_ref()),))
-                    .execute(conn)?;
-                    Ok(())
-                }),
-            )?
+            let row_id = deterministic_row_id(&object.id().sqlite_uid_hash(
+                ObjectType::GenericStringObject(object.generic_string_object_format()).into(),
+            ));
+            let new_object = NewGenericStringObject {
+                id: row_id,
+                data: serialized_data.as_ref(),
+            };
+            diesel::insert_into(schema::generic_string_objects::dsl::generic_string_objects)
+                .values(&new_object)
+                .on_conflict(schema::generic_string_objects::dsl::id)
+                .do_update()
+                .set(data.eq(new_object.data))
+                .execute(conn)?;
         }
         Ok(())
     })
@@ -2289,39 +1956,21 @@ fn upsert_workflows(
 ) -> Result<(), Error> {
     use schema::workflows::dsl::*;
     conn.transaction::<(), Error, _>(|conn| {
-        // todo: wrap in an arc to avoid unnecessary cloning.
         for workflow in cloud_workflows {
-            let workflow_id = workflow.id;
             if let Ok(serialized_workflow) = serde_json::to_string(&workflow.model().data) {
-                let serialized_workflow_clone = serialized_workflow.clone();
-                upsert_stored_object(
-                    conn,
-                    ObjectType::Workflow,
-                    workflow_id,
-                    workflow.metadata,
-                    workflow.permissions,
-                    Box::new(move |conn| {
-                        let workflow = model::NewWorkflow {
-                            data: serialized_workflow.clone(),
-                        };
-                        diesel::insert_into(schema::workflows::dsl::workflows)
-                            .values(workflow)
-                            .execute(conn)?;
-                        let workflow_id: i32 = schema::workflows::dsl::workflows
-                            .select(schema::workflows::columns::id)
-                            .order(schema::workflows::columns::id.desc())
-                            .first(conn)?;
-                        Ok(workflow_id)
-                    }),
-                    Box::new(move |conn, workflow_id| {
-                        diesel::update(
-                            workflows.filter(schema::workflows::dsl::id.eq(workflow_id)),
-                        )
-                        .set((data.eq(serialized_workflow_clone),))
-                        .execute(conn)?;
-                        Ok(())
-                    }),
-                )?
+                let row_id = deterministic_row_id(
+                    &workflow.id.sqlite_uid_hash(ObjectIdType::Workflow),
+                );
+                let new_workflow = model::NewWorkflow {
+                    id: row_id,
+                    data: serialized_workflow,
+                };
+                diesel::insert_into(schema::workflows::dsl::workflows)
+                    .values(&new_workflow)
+                    .on_conflict(schema::workflows::dsl::id)
+                    .do_update()
+                    .set(data.eq(&new_workflow.data))
+                    .execute(conn)?;
             }
         }
         Ok(())
@@ -2335,51 +1984,28 @@ fn upsert_notebooks(
     use schema::notebooks::dsl::*;
     conn.transaction::<(), Error, _>(|conn| {
         for notebook in cloud_notebooks {
-            // todo: wrap in an arc to avoid unnecessary cloning.
-            let notebook_clone = notebook.clone();
-            let title_clone = notebook.model().title.clone();
-            let data_clone = notebook.model().data.clone();
-            let ai_document_id_clone = notebook
-                .model()
-                .ai_document_id
-                .as_ref()
-                .map(|doc_id| doc_id.to_string());
-            upsert_stored_object(
-                conn,
-                ObjectType::Notebook,
-                notebook.id,
-                notebook.metadata,
-                notebook.permissions,
-                Box::new(move |conn| {
-                    let new_notebook = NewNotebook {
-                        title: Some(title_clone),
-                        data: Some(data_clone),
-                        ai_document_id: ai_document_id_clone,
-                    };
-                    diesel::insert_into(schema::notebooks::dsl::notebooks)
-                        .values(new_notebook)
-                        .execute(conn)?;
-                    let notebook_id: i32 = schema::notebooks::dsl::notebooks
-                        .select(schema::notebooks::columns::id)
-                        .order(schema::notebooks::columns::id.desc())
-                        .first(conn)?;
-                    Ok(notebook_id)
-                }),
-                Box::new(move |conn, notebook_id| {
-                    diesel::update(notebooks.filter(schema::notebooks::dsl::id.eq(notebook_id)))
-                        .set((
-                            title.eq(notebook_clone.model().title.clone()),
-                            data.eq(notebook_clone.model().data.clone()),
-                            ai_document_id.eq(notebook_clone
-                                .model()
-                                .ai_document_id
-                                .as_ref()
-                                .map(|doc_id| doc_id.to_string())),
-                        ))
-                        .execute(conn)?;
-                    Ok(())
-                }),
-            )?
+            let row_id =
+                deterministic_row_id(&notebook.id.sqlite_uid_hash(ObjectIdType::Notebook));
+            let new_notebook = NewNotebook {
+                id: row_id,
+                title: Some(notebook.model().title.clone()),
+                data: Some(notebook.model().data.clone()),
+                ai_document_id: notebook
+                    .model()
+                    .ai_document_id
+                    .as_ref()
+                    .map(|doc_id| doc_id.to_string()),
+            };
+            diesel::insert_into(schema::notebooks::dsl::notebooks)
+                .values(&new_notebook)
+                .on_conflict(schema::notebooks::dsl::id)
+                .do_update()
+                .set((
+                    title.eq(&new_notebook.title),
+                    data.eq(&new_notebook.data),
+                    ai_document_id.eq(&new_notebook.ai_document_id),
+                ))
+                .execute(conn)?;
         }
         Ok(())
     })
@@ -2392,46 +2018,29 @@ fn upsert_folders(
     use schema::folders::dsl::*;
     conn.transaction::<(), Error, _>(|conn| {
         for cloud_folder in cloud_folders {
-            let folder_clone = cloud_folder.clone();
-            let folder_name = cloud_folder.model().name.clone();
-            let folder_is_open = cloud_folder.model().is_open;
-            let folder_is_warp_pack = cloud_folder.model().is_warp_pack;
-            upsert_stored_object(
-                conn,
-                ObjectType::Folder,
-                cloud_folder.id,
-                cloud_folder.metadata,
-                cloud_folder.permissions,
-                Box::new(move |conn| {
-                    let new_folder = NewFolder {
-                        name: folder_name,
-                        is_open: folder_is_open,
-                        is_warp_pack: folder_is_warp_pack,
-                    };
-                    diesel::insert_into(schema::folders::dsl::folders)
-                        .values(new_folder)
-                        .execute(conn)?;
-                    let folder_id: i32 = schema::folders::dsl::folders
-                        .select(schema::folders::columns::id)
-                        .order(schema::folders::columns::id.desc())
-                        .first(conn)?;
-                    Ok(folder_id)
-                }),
-                Box::new(move |conn, folder_id| {
-                    diesel::update(folders.filter(schema::folders::dsl::id.eq(folder_id)))
-                        .set((
-                            name.eq(folder_clone.model().name.clone()),
-                            is_open.eq(folder_clone.model().is_open),
-                            is_warp_pack.eq(folder_clone.model().is_warp_pack),
-                        ))
-                        .execute(conn)?;
-                    Ok(())
-                }),
-            )?
+            let row_id =
+                deterministic_row_id(&cloud_folder.id.sqlite_uid_hash(ObjectIdType::Folder));
+            let new_folder = NewFolder {
+                id: row_id,
+                name: cloud_folder.model().name.clone(),
+                is_open: cloud_folder.model().is_open,
+                is_warp_pack: cloud_folder.model().is_warp_pack,
+            };
+            diesel::insert_into(schema::folders::dsl::folders)
+                .values(&new_folder)
+                .on_conflict(schema::folders::dsl::id)
+                .do_update()
+                .set((
+                    name.eq(&new_folder.name),
+                    is_open.eq(new_folder.is_open),
+                    is_warp_pack.eq(new_folder.is_warp_pack),
+                ))
+                .execute(conn)?;
         }
         Ok(())
     })
 }
+
 
 /// Parse conversation IDs from JSON string.
 fn parse_conversation_ids(ids_json: &Option<String>) -> Vec<AIConversationId> {
@@ -2510,6 +2119,39 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
                         active_conversation_id,
                     })
                 }
+                CODE_PANE_KIND => {
+                    let code_pane = schema::code_panes::dsl::code_panes
+                        .find(node.id)
+                        .select(model::CodePane::as_select())
+                        .first(conn)?;
+
+                    // Read child code_pane_tabs rows ordered by tab_index.
+                    let tab_rows: Vec<model::CodePaneTab> =
+                        schema::code_pane_tabs::dsl::code_pane_tabs
+                            .filter(schema::code_pane_tabs::columns::code_pane_id.eq(code_pane.id))
+                            .order(schema::code_pane_tabs::columns::tab_index.asc())
+                            .select(model::CodePaneTab::as_select())
+                            .load(conn)?;
+
+                    let tabs: Vec<CodePaneTabSnapshot> = tab_rows
+                        .into_iter()
+                        .map(|row| CodePaneTabSnapshot {
+                            path: row.local_path.map(decode_path),
+                        })
+                        .collect();
+                    let active_tab_index = code_pane.active_tab_index as usize;
+
+                    let source = code_pane
+                        .source_data
+                        .as_deref()
+                        .and_then(|data| serde_json::from_str::<CodeSource>(data).ok());
+
+                    LeafContents::Code(CodePaneSnapShot::Local {
+                        tabs,
+                        active_tab_index,
+                        source,
+                    })
+                }
                 NOTEBOOK_PANE_KIND => {
                     let notebook_pane = schema::notebook_panes::dsl::notebook_panes
                         .find(node.id)
@@ -2554,39 +2196,6 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
                         settings: DaisDriveObjectSettings::default(),
                     })
                 }
-                CODE_PANE_KIND => {
-                    let code_pane = schema::code_panes::dsl::code_panes
-                        .find(node.id)
-                        .select(model::CodePane::as_select())
-                        .first(conn)?;
-
-                    // Read child code_pane_tabs rows ordered by tab_index.
-                    let tab_rows: Vec<model::CodePaneTab> =
-                        schema::code_pane_tabs::dsl::code_pane_tabs
-                            .filter(schema::code_pane_tabs::columns::code_pane_id.eq(code_pane.id))
-                            .order(schema::code_pane_tabs::columns::tab_index.asc())
-                            .select(model::CodePaneTab::as_select())
-                            .load(conn)?;
-
-                    let tabs: Vec<CodePaneTabSnapshot> = tab_rows
-                        .into_iter()
-                        .map(|row| CodePaneTabSnapshot {
-                            path: row.local_path.map(decode_path),
-                        })
-                        .collect();
-                    let active_tab_index = code_pane.active_tab_index as usize;
-
-                    let source = code_pane
-                        .source_data
-                        .as_deref()
-                        .and_then(|data| serde_json::from_str::<CodeSource>(data).ok());
-
-                    LeafContents::Code(CodePaneSnapShot::Local {
-                        tabs,
-                        active_tab_index,
-                        source,
-                    })
-                }
                 ENV_VAR_COLLECTION_PANE_KIND => {
                     let env_var_collection_pane =
                         schema::env_var_collection_panes::dsl::env_var_collection_panes
@@ -2609,6 +2218,19 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
                         },
                     )
                 }
+                AI_DOCUMENT_PANE_KIND => {
+                    let ai_document_pane = schema::ai_document_panes::dsl::ai_document_panes
+                        .find(node.id)
+                        .select(model::AIDocumentPane::as_select())
+                        .first(conn)?;
+
+                    LeafContents::AIDocument(crate::app_state::AIDocumentPaneSnapshot::Local {
+                        document_id: ai_document_pane.document_id,
+                        version: ai_document_pane.version,
+                        content: ai_document_pane.content,
+                        title: ai_document_pane.title,
+                    })
+                }
                 SETTINGS_PANE_KIND => {
                     let settings_pane = schema::settings_panes::dsl::settings_panes
                         .find(node.id)
@@ -2621,55 +2243,6 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
                     LeafContents::Settings(SettingsPaneSnapshot::Local {
                         current_page,
                         search_query: None,
-                    })
-                }
-                AI_FACT_PANE_KIND => LeafContents::AIFact(AIFactPaneSnapshot::Personal),
-                MCP_SERVER_PANE_KIND => {
-                    // Legacy MCP server panes are no longer supported.
-                    bail!("Legacy MCP server panes are no longer supported")
-                }
-                CODE_REVIEW_PANE_KIND => {
-                    let code_review_pane = schema::code_review_panes::dsl::code_review_panes
-                        .find(node.id)
-                        .select(model::CodeReviewPane::as_select())
-                        .first(conn)
-                        .ok();
-
-                    match code_review_pane {
-                        Some(pane) => LeafContents::CodeReview(CodeReviewPaneSnapshot::Local {
-                            terminal_uuid: pane.terminal_uuid,
-                            repo_path: PathBuf::from(pane.repo_path),
-                        }),
-                        None => {
-                            // Return empty fields; will be skipped during restoration
-                            LeafContents::CodeReview(CodeReviewPaneSnapshot::Local {
-                                terminal_uuid: Vec::new(),
-                                repo_path: PathBuf::from(""),
-                            })
-                        }
-                    }
-                }
-                GET_STARTED_PANE_KIND => LeafContents::GetStarted,
-                WELCOME_PANE_KIND => {
-                    let welcome_pane = schema::welcome_panes::dsl::welcome_panes
-                        .find(node.id)
-                        .select(model::WelcomePane::as_select())
-                        .first(conn)?;
-                    LeafContents::Welcome {
-                        startup_directory: welcome_pane.startup_directory.map(PathBuf::from),
-                    }
-                }
-                AI_DOCUMENT_PANE_KIND => {
-                    let ai_document_pane = schema::ai_document_panes::dsl::ai_document_panes
-                        .find(node.id)
-                        .select(model::AIDocumentPane::as_select())
-                        .first(conn)?;
-
-                    LeafContents::AIDocument(crate::app_state::AIDocumentPaneSnapshot::Local {
-                        document_id: ai_document_pane.document_id,
-                        version: ai_document_pane.version,
-                        content: ai_document_pane.content,
-                        title: ai_document_pane.title,
                     })
                 }
                 AMBIENT_AGENT_PANE_KIND => {
@@ -2686,6 +2259,10 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
                         uuid: pane.uuid,
                         task_id,
                     })
+                }
+                MCP_SERVER_PANE_KIND => {
+                    // Legacy MCP server panes are no longer supported.
+                    bail!("Legacy MCP server panes are no longer supported")
                 }
                 other => bail!("Unrecognized pane kind: {other}"),
             };
@@ -2705,13 +2282,10 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
                 .filter(schema::pane_nodes::columns::parent_pane_node_id.eq(node.id))
                 .order(schema::pane_nodes::columns::id.asc())
                 .load::<model::PaneNode>(conn)?;
-
             let mut children = Vec::new();
             for child_node in child_nodes {
-                children.push((
-                    PaneFlex(child_node.flex.unwrap_or(1.)),
-                    read_node(conn, child_node)?,
-                ));
+                let flex = child_node.flex.unwrap_or(1.);
+                children.push((PaneFlex(flex), read_node(conn, child_node)?));
             }
 
             let direction = match pane_branch.horizontal {
@@ -2737,7 +2311,7 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
 /// In the future, the awkwardness of the transaction interface is resolved in diesel 2.0.0.
 fn read_sqlite_data(
     conn: &mut SqliteConnection,
-    current_user_id: Option<UserUid>,
+    _current_user_id: Option<UserUid>,
 ) -> Result<PersistedData, Error> {
     use schema::windows::dsl::*;
 
@@ -2769,6 +2343,8 @@ fn read_sqlite_data(
             let saved_tabs: Vec<_> = tabs_for_window
                 .into_iter()
                 .filter_map(|tab| {
+                    // `Err` = malformed row: the tab collapses silently,
+                    // same as before.
                     let root = read_root_node(conn, tab.id).ok()?;
                     let panel = db_panels.get(&tab.id);
 
@@ -2904,335 +2480,17 @@ fn read_sqlite_data(
         })
         .collect();
 
-    let object_metadata =
-        schema::object_metadata::dsl::object_metadata.load::<model::ObjectMetadata>(conn)?;
-    let object_permissions = schema::object_permissions::dsl::object_permissions
-        .load::<model::ObjectPermissions>(conn)?;
 
-    // Cache metadata and permissions by id so that we aren't doing an n^2 lookups for each object type.
-    let metadata_by_id = object_metadata
-        .into_iter()
-        .map(|metadata| {
-            let object_type = if metadata
-                .object_type
-                .starts_with(GENERIC_STRING_OBJECT_PREFIX)
-            {
-                GENERIC_STRING_OBJECT_PREFIX.to_owned()
-            } else {
-                metadata.object_type.to_owned()
-            };
-            // Shareable object ids aren't unique across object types, so the object type needs to be
-            // part of the hashmap key.  For generic objects, they are all in the same table,
-            // so it's safe to use the generic prefix as part of the key.
-            ((metadata.shareable_object_id, object_type), metadata)
-        })
-        .collect::<HashMap<_, _>>();
-    let permissions_by_id = object_permissions
-        .into_iter()
-        .map(|permissions| (permissions.object_metadata_id, permissions))
-        .collect::<HashMap<_, _>>();
-
-    let mut cloud_objects: Vec<Box<dyn StoredObject>> = Vec::new();
-    cloud_objects.extend(
-        schema::workflows::dsl::workflows
-            .load::<model::Workflow>(conn)?
-            .iter()
-            .filter_map(|workflow| {
-                metadata_by_id
-                    .get(&(
-                        workflow.id,
-                        ObjectType::Workflow.sqlite_object_type_as_str().to_string(),
-                    ))
-                    .and_then(|metadata| {
-                        let workflow_content = serde_json::from_str(workflow.data.as_str()).ok();
-                        let workflow_id = id_from_metadata::<WorkflowId>(metadata);
-                        let permissions = permissions_by_id.get(&metadata.id)?;
-                        let cloud_object_permissions =
-                            to_cloud_object_permissions(permissions, current_user_id)?;
-                        workflow_content
-                            .zip(workflow_id)
-                            .map(|(content, workflow_id)| {
-                                let boxed: Box<dyn StoredObject> = Box::new(WorkflowObject::new(
-                                    workflow_id,
-                                    WorkflowObjectModel::new(content),
-                                    to_cloud_object_metadata(metadata),
-                                    cloud_object_permissions,
-                                ));
-                                boxed
-                            })
-                    })
-            })
-            .collect::<Vec<_>>(),
-    );
-
-    cloud_objects.extend(
-        schema::notebooks::dsl::notebooks
-            .load::<model::Notebook>(conn)?
-            .iter()
-            .filter_map(|notebook| {
-                metadata_by_id
-                    .get(&(
-                        notebook.id,
-                        ObjectType::Notebook.sqlite_object_type_as_str().to_string(),
-                    ))
-                    .and_then(|metadata| {
-                        let notebook_id = id_from_metadata::<NotebookId>(metadata);
-                        let permissions = permissions_by_id.get(&metadata.id)?;
-                        let cloud_object_permissions =
-                            to_cloud_object_permissions(permissions, current_user_id)?;
-                        notebook_id.map(|server_id| {
-                            let ai_document_id =
-                                notebook.ai_document_id.as_ref().and_then(|doc_id_str| {
-                                    AIDocumentId::try_from(doc_id_str.as_str()).ok()
-                                });
-                            let boxed: Box<dyn StoredObject> = Box::new(NotebookObject::new(
-                                server_id,
-                                NotebookObjectModel {
-                                    title: notebook.title.clone().unwrap_or_default(),
-                                    data: notebook.data.clone().unwrap_or_default(),
-                                    ai_document_id,
-                                    conversation_id: None,
-                                },
-                                to_cloud_object_metadata(metadata),
-                                cloud_object_permissions,
-                            ));
-                            boxed
-                        })
-                    })
-            })
-            .collect::<Vec<_>>(),
-    );
-
-    cloud_objects.extend(
-        schema::folders::dsl::folders
-            .load::<model::Folder>(conn)?
-            .iter()
-            .filter_map(|folder| {
-                metadata_by_id
-                    .get(&(
-                        folder.id,
-                        ObjectType::Folder.sqlite_object_type_as_str().to_string(),
-                    ))
-                    .and_then(|metadata| {
-                        let folder_id = id_from_metadata::<FolderId>(metadata);
-                        let permissions = permissions_by_id.get(&metadata.id)?;
-                        let cloud_object_permissions =
-                            to_cloud_object_permissions(permissions, current_user_id)?;
-                        folder_id.map(|server_id| {
-                            let boxed: Box<dyn StoredObject> = Box::new(FolderObject::new(
-                                server_id,
-                                FolderObjectModel {
-                                    name: folder.name.clone(),
-                                    is_open: folder.is_open,
-                                    is_warp_pack: folder.is_warp_pack,
-                                },
-                                to_cloud_object_metadata(metadata),
-                                cloud_object_permissions,
-                            ));
-                            boxed
-                        })
-                    })
-            })
-            .collect::<Vec<_>>(),
-    );
-
-    cloud_objects.extend(
-        schema::generic_string_objects::dsl::generic_string_objects
-            .load::<model::GenericStringObject>(conn)?
-            .iter()
-            .filter_map(|object| {
-                metadata_by_id
-                    .get(&(object.id, GENERIC_STRING_OBJECT_PREFIX.to_owned()))
-                    .and_then(|metadata| {
-                        let object_id = id_from_metadata::<GenericStringObjectId>(metadata);
-                        let permissions = permissions_by_id.get(&metadata.id)?;
-                        let cloud_object_permissions =
-                            to_cloud_object_permissions(permissions, current_user_id)?;
-                        let json_object_type: JsonObjectType = metadata
-                            .object_type
-                            .strip_prefix(&format!(
-                                "{GENERIC_STRING_OBJECT_PREFIX}{JSON_OBJECT_PREFIX}"
-                            ))?
-                            .try_into()
-                            .ok()?;
-                        object_id.and_then(|server_id| match json_object_type {
-                            JsonObjectType::Preference => {
-                                let model = PreferenceObjectModel::deserialize_owned(&object.data);
-                                model.ok().map(|model| {
-                                    let boxed: Box<dyn StoredObject> =
-                                        Box::new(PreferenceObject::new(
-                                            server_id,
-                                            model,
-                                            to_cloud_object_metadata(metadata),
-                                            cloud_object_permissions,
-                                        ));
-                                    boxed
-                                })
-                            }
-                            JsonObjectType::EnvVarCollection => {
-                                let model =
-                                    EnvVarCollectionObjectModel::deserialize_owned(&object.data);
-                                model.ok().map(|model| {
-                                    let boxed: Box<dyn StoredObject> =
-                                        Box::new(EnvVarCollectionObject::new(
-                                            server_id,
-                                            model,
-                                            to_cloud_object_metadata(metadata),
-                                            cloud_object_permissions,
-                                        ));
-                                    boxed
-                                })
-                            }
-                            JsonObjectType::WorkflowEnum => {
-                                let model =
-                                    WorkflowEnumObjectModel::deserialize_owned(&object.data);
-                                model.ok().map(|model| {
-                                    let boxed: Box<dyn StoredObject> =
-                                        Box::new(WorkflowEnumObject::new(
-                                            server_id,
-                                            model,
-                                            to_cloud_object_metadata(metadata),
-                                            cloud_object_permissions,
-                                        ));
-                                    boxed
-                                })
-                            }
-                            JsonObjectType::AIFact => {
-                                let model = AIFactObjectModel::deserialize_owned(&object.data);
-                                model.ok().map(|model| {
-                                    let boxed: Box<dyn StoredObject> = Box::new(AIFactObject::new(
-                                        server_id,
-                                        model,
-                                        to_cloud_object_metadata(metadata),
-                                        cloud_object_permissions,
-                                    ));
-                                    boxed
-                                })
-                            }
-                            JsonObjectType::MCPServer => {
-                                let model = MCPServerObjectModel::deserialize_owned(&object.data);
-                                model.ok().map(|model| {
-                                    let boxed: Box<dyn StoredObject> =
-                                        Box::new(MCPServerObject::new(
-                                            server_id,
-                                            model,
-                                            to_cloud_object_metadata(metadata),
-                                            cloud_object_permissions,
-                                        ));
-                                    boxed
-                                })
-                            }
-                            JsonObjectType::TemplatableMCPServer => {
-                                let model = TemplatableMCPServerObjectModel::deserialize_owned(
-                                    &object.data,
-                                );
-                                model.ok().map(|model| {
-                                    let boxed: Box<dyn StoredObject> =
-                                        Box::new(TemplatableMCPServerObject::new(
-                                            server_id,
-                                            model,
-                                            to_cloud_object_metadata(metadata),
-                                            cloud_object_permissions,
-                                        ));
-                                    boxed
-                                })
-                            }
-                            JsonObjectType::AIExecutionProfile => {
-                                let model =
-                                    AIExecutionProfileObjectModel::deserialize_owned(&object.data);
-                                model.ok().map(|model| {
-                                    let boxed: Box<dyn StoredObject> =
-                                        Box::new(AIExecutionProfileObject::new(
-                                            server_id,
-                                            model,
-                                            to_cloud_object_metadata(metadata),
-                                            cloud_object_permissions,
-                                        ));
-                                    boxed
-                                })
-                            }
-                        })
-                    })
-            })
-            .collect::<Vec<_>>(),
-    );
-
-    let db_teams: Vec<model::Team> = schema::teams::dsl::teams.load(conn)?;
-
-    let team_member_rows: Vec<model::TeamMemberRow> =
-        schema::team_members::dsl::team_members.load(conn)?;
-    let members_by_team_id: HashMap<i32, Vec<crate::workspaces::team::TeamMember>> =
-        team_member_rows
-            .into_iter()
-            .fold(HashMap::new(), |mut acc, row| {
-                let member = crate::workspaces::team::TeamMember {
-                    uid: UserUid::new(&row.user_uid),
-                    email: row.email,
-                    role: serde_json::from_str(&row.role)
-                        .unwrap_or(crate::workspaces::team::MembershipRole::User),
-                };
-                acc.entry(row.team_id).or_default().push(member);
-                acc
-            });
-
-    let team_settings_rows: Vec<model::TeamSetting> =
-        schema::team_settings::dsl::team_settings.load(conn)?;
-    let settings_by_team_id: HashMap<i32, String> = team_settings_rows
-        .into_iter()
-        .map(|ts| (ts.team_id, ts.settings_json))
-        .collect();
-
-    let teams: Vec<TeamMetadata> = db_teams
-        .into_iter()
-        .map(|team| {
-            let team_settings = settings_by_team_id
-                .get(&team.id)
-                .and_then(|json| serde_json::from_str(json).ok());
-
-            let billing_metadata = team
-                .billing_metadata_json
-                .as_ref()
-                .and_then(|json| serde_json::from_str(json).ok());
-
-            let members = members_by_team_id.get(&team.id).cloned();
-
-            TeamMetadata::from_local_cache(
-                ServerId::from_string_lossy(team.server_uid),
-                team.name,
-                team_settings,
-                billing_metadata,
-                members,
-            )
-        })
-        .collect();
-
-    let workspace_teams: Vec<model::WorkspaceTeam> = schema::workspace_teams::dsl::workspace_teams
-        .load_iter::<model::WorkspaceTeam, DefaultLoadingMode>(conn)?
-        .filter_map(|workspace_team| workspace_team.ok())
-        .collect();
-
+    // Dais(云表裁剪): teams/team_members/team_settings 表已 DROP, workspace 本地缓存
+    // 不再携带 teams; workspace_teams 行保留但指向的团队缓存已不可恢复。
     let workspaces: Vec<WorkspaceMetadata> = schema::workspaces::dsl::workspaces
         .load_iter::<model::Workspace, DefaultLoadingMode>(conn)?
         .filter_map(|workspace| {
             workspace.ok().map(|workspace| {
-                let teams_for_workspace = workspace_teams
-                    .iter()
-                    .filter_map(|workspace_team| {
-                        if workspace_team.workspace_server_uid == workspace.server_uid {
-                            teams.iter().find(|team| {
-                                team.uid
-                                    == ServerId::from_string_lossy(&workspace_team.team_server_uid)
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                    .cloned()
-                    .collect();
                 WorkspaceMetadata::from_local_cache(
                     workspace.server_uid.into(),
                     workspace.name,
-                    Some(teams_for_workspace),
+                    None,
                 )
             })
         })
@@ -3259,11 +2517,6 @@ fn read_sqlite_data(
         .map(UserProfileWithUID::from)
         .collect();
 
-    let object_actions: Vec<ObjectAction> = schema::object_actions::dsl::object_actions
-        .load_iter::<model::PersistedObjectAction, DefaultLoadingMode>(conn)?
-        .filter_map(|object_action| object_action.ok()) // parse into PersistedObjectAction
-        .filter_map(|action| action.try_into().ok())
-        .collect();
 
     let server_experiments = schema::server_experiments::dsl::server_experiments
         .load_iter::<model::ServerExperiment, DefaultLoadingMode>(conn)?
@@ -3273,44 +2526,33 @@ fn read_sqlite_data(
         })
         .collect();
 
-    let restored_blocks = get_all_restored_blocks(conn)?;
-
-    // Load active MCP servers from database
-    let running_mcp_servers = load_active_mcp_servers(conn)?;
-
-    let app_state = AppState {
-        windows: saved_windows,
-        active_window_index,
-        block_lists: Arc::new(restored_blocks),
-        running_mcp_servers,
-    };
-
-    // Find the smallest refresh timestamp to pass into ObjectStoreModel.
-    let time_of_next_force_object_refresh: Option<DateTime<Utc>> =
-        schema::cloud_objects_refreshes::dsl::cloud_objects_refreshes
-            .load_iter::<model::ObjectStoreRefresh, DefaultLoadingMode>(conn)?
-            .filter_map(|refresh| refresh.ok())
-            .map(|refresh| refresh.time_of_next_refresh.and_utc())
-            .min();
-
+    let block_lists = get_all_restored_blocks(conn)?;
     let ai_queries = read_ai_queries(conn)?;
-
     let multi_agent_conversations = read_agent_conversations(conn)?;
     let projects = get_all_projects(conn)?;
     let project_rules = get_all_project_rules(conn)?;
     let ignored_suggestions = get_all_ignored_suggestions(conn)?;
     let mcp_server_installations = get_all_mcp_server_installations(conn)?;
     let mcp_servers_to_restore = get_mcp_servers_to_restore(conn)?;
+    let app_state = AppState {
+        windows: saved_windows,
+        active_window_index,
+        block_lists: Arc::new(block_lists),
+        running_mcp_servers: load_active_mcp_servers(conn)?,
+    };
+    // Dais(云表裁剪): object_metadata/object_actions/objectss_refreshes 已 DROP,
+    // 本地 stored object 不再经 sqlite 恢复与持久化, 启动时 ObjectStoreModel 为空。
+    // note: note/workflow 重启恢复断链由 sync-engine 轮重建本地持久化路径。
 
     Ok(PersistedData {
         app_state,
-        cloud_objects,
+        objectss: Vec::new(),
         workspaces,
         current_workspace_uid,
         command_history: commands,
         user_profiles,
-        time_of_next_force_object_refresh,
-        object_actions,
+        time_of_next_force_object_refresh: None,
+        object_actions: Vec::new(),
         experiments: server_experiments,
         ai_queries,
         multi_agent_conversations,
@@ -3322,122 +2564,6 @@ fn read_sqlite_data(
     })
 }
 
-fn id_from_metadata<K: HashableId + ToServerId>(metadata: &ObjectMetadata) -> Option<SyncId> {
-    match (&metadata.server_id, &metadata.client_id) {
-        (Some(server_id), _) => {
-            K::from_hash(server_id).map(|id| SyncId::ServerId(id.to_server_id()))
-        }
-        (None, Some(client_id)) => ClientId::from_hash(client_id).map(SyncId::ClientId),
-        _ => None,
-    }
-}
-
-fn to_cloud_object_metadata(metadata: &ObjectMetadata) -> StoredObjectMetadata {
-    StoredObjectMetadata {
-        current_editor_uid: metadata.current_editor.clone(),
-        metadata_last_updated_ts: metadata
-            .metadata_last_updated_ts
-            .and_then(|epoch| ServerTimestamp::from_unix_timestamp_micros(epoch).ok()),
-        revision: metadata
-            .revision_ts
-            .and_then(|epoch| Revision::from_unix_timestamp_micros(epoch).ok()),
-        pending_changes_statuses: StoredObjectStatuses {
-            pending_delete: false,
-            content_sync_status: if metadata.is_pending {
-                StoredObjectSyncStatus::InFlight(NumInFlightRequests(1))
-            } else {
-                StoredObjectSyncStatus::NoLocalChanges
-            },
-            has_pending_metadata_change: false,
-            has_pending_permissions_change: false,
-            pending_untrash: false,
-        },
-        trashed_ts: metadata
-            .trashed_ts
-            .and_then(|epoch| ServerTimestamp::from_unix_timestamp_micros(epoch).ok()),
-        folder_id: metadata.folder_id.as_ref().and_then(|folder_id_str| {
-            // First, attempt to convert the string into a server id.
-            let as_server_id =
-                FolderId::from_hash(folder_id_str).map(|id| SyncId::ServerId(id.into()));
-
-            // If the string cannot be converted to server id, it may be a client id.
-            if as_server_id.is_none() {
-                ClientId::from_hash(folder_id_str).map(SyncId::ClientId)
-            } else {
-                as_server_id
-            }
-        }),
-        is_welcome_object: metadata.is_welcome_object,
-        creator_uid: metadata.creator_uid.clone(),
-        last_editor_uid: metadata.last_editor_uid.clone(),
-        last_task_run_ts: None,
-    }
-}
-
-fn to_cloud_object_permissions(
-    permissions: &ObjectPermissions,
-    default_user_id: Option<UserUid>,
-) -> Option<StoredObjectPermissions> {
-    let owner = owner_for_permissions(permissions, default_user_id)?;
-    let permissions_last_updated_ts = permissions
-        .permissions_last_updated_at
-        .and_then(|ts| ServerTimestamp::from_unix_timestamp_micros(ts).ok());
-
-    let guests = if FeatureFlag::SharedWithMe.is_enabled() {
-        permissions
-            .object_guests
-            .as_deref()
-            // If deserializing guests fails, default to None and wait for an eventual refresh.
-            .and_then(|guests| super::cloud_objects::decode_guests(guests).ok())
-            .unwrap_or_default()
-    } else {
-        Default::default()
-    };
-
-    let anyone_with_link = if FeatureFlag::SharedWithMe.is_enabled() {
-        permissions
-            .anyone_with_link_access_level
-            .as_deref()
-            .and_then(|access_level| {
-                super::cloud_objects::decode_link_sharing(
-                    access_level,
-                    permissions.anyone_with_link_source.as_deref(),
-                )
-                // If deserializing link sharing fails, default to None and wait for an
-                // eventual refresh.
-                .ok()
-            })
-    } else {
-        None
-    };
-
-    Some(StoredObjectPermissions {
-        owner,
-        permissions_last_updated_ts,
-        guests,
-        anyone_with_link,
-    })
-}
-
-fn owner_for_permissions(
-    permissions: &ObjectPermissions,
-    default_user_id: Option<UserUid>,
-) -> Option<Owner> {
-    match permissions.subject_type.as_str() {
-        "USER" => {
-            let user_uid = permissions
-                .subject_id
-                .as_deref()
-                .map(UserUid::new)
-                .or(default_user_id)?;
-            Some(Owner::User { user_uid })
-        }
-        "TEAM" => Some(Owner::Team {
-            team_uid: ServerId::from_string_lossy(&permissions.subject_uid),
-        }),
-        _ => None,
-    }
-}
 
 impl From<StartedCommandMetadata> for model::NewCommand {
     fn from(metadata: StartedCommandMetadata) -> Self {
@@ -3515,98 +2641,6 @@ fn update_finished_command(
     })
 }
 
-fn upsert_user_profiles(
-    conn: &mut SqliteConnection,
-    profiles: Vec<UserProfileWithUID>,
-) -> Result<(), Error> {
-    use schema::user_profiles::dsl::*;
-
-    conn.transaction::<(), Error, _>(|conn| {
-        for profile in profiles {
-            // Delete any stale profile with that uid
-            diesel::delete(
-                schema::user_profiles::dsl::user_profiles
-                    .filter(firebase_uid.eq(profile.local_user_uid.to_string())),
-            )
-            .execute(conn)?;
-
-            // Insert a new user profile row
-            let new_user_profile = UserProfile {
-                firebase_uid: profile.local_user_uid.to_string(),
-                photo_url: profile.photo_url,
-                display_name: profile.display_name,
-                email: profile.email,
-            };
-            diesel::insert_into(schema::user_profiles::dsl::user_profiles)
-                .values(new_user_profile)
-                .execute(conn)?;
-        }
-        Ok(())
-    })
-}
-
-fn save_experiments(
-    conn: &mut SqliteConnection,
-    experiments: Vec<ServerExperiment>,
-) -> Result<(), Error> {
-    conn.transaction::<(), Error, _>(|conn| {
-        diesel::delete(schema::server_experiments::dsl::server_experiments).execute(conn)?;
-
-        let new_experiments = experiments
-            .into_iter()
-            .map(|experiment| NewServerExperiment {
-                experiment: experiment.to_string(),
-            })
-            .collect_vec();
-
-        diesel::insert_into(schema::server_experiments::dsl::server_experiments)
-            .values(new_experiments)
-            .execute(conn)?;
-        Ok(())
-    })
-}
-
-fn clear_user_profiles(conn: &mut SqliteConnection) -> Result<(), Error> {
-    conn.transaction::<(), Error, _>(|conn| {
-        diesel::delete(schema::user_profiles::dsl::user_profiles).execute(conn)?;
-
-        Ok(())
-    })
-}
-
-fn record_time_of_next_refresh(
-    conn: &mut SqliteConnection,
-    timestamp: DateTime<Utc>,
-) -> Result<(), Error> {
-    use schema::cloud_objects_refreshes::dsl::*;
-    let refresh = NewObjectStoreRefresh {
-        time_of_next_refresh: timestamp.naive_utc(),
-    };
-    conn.transaction::<(), Error, _>(|conn| {
-        diesel::delete(cloud_objects_refreshes).execute(conn)?;
-        diesel::insert_into(cloud_objects_refreshes)
-            .values(refresh)
-            .execute(conn)?;
-        Ok(())
-    })
-}
-
-fn upsert_current_user_information(
-    conn: &mut SqliteConnection,
-    user_information: PersistedCurrentUserInformation,
-) -> Result<(), Error> {
-    conn.transaction::<(), Error, _>(|conn| {
-        diesel::delete(schema::current_user_information::dsl::current_user_information)
-            .execute(conn)?;
-
-        diesel::insert_into(schema::current_user_information::dsl::current_user_information)
-            .values(CurrentUserInformation {
-                email: user_information.email,
-            })
-            .execute(conn)?;
-        Ok(())
-    })
-}
 
 fn upsert_mcp_server_environment_variables(
     conn: &mut SqliteConnection,
@@ -3638,139 +2672,39 @@ fn load_active_mcp_servers(conn: &mut SqliteConnection) -> Result<Vec<uuid::Uuid
         .collect())
 }
 
-/// Converts the ObjectAction type into a uniform type that can be inserted into
-/// the sqlite table.
-impl From<ObjectAction> for model::NewPersistedObjectAction {
-    fn from(action: ObjectAction) -> Self {
-        match action.action_subtype {
-            ObjectActionSubtype::SingleAction {
-                timestamp,
-                data,
-                pending,
-                processed_at_timestamp,
-            } => Self {
-                hashed_object_id: action.hashed_sqlite_id,
-                timestamp: Some(timestamp.naive_utc()),
-                action: action.action_type.to_string(),
-                data,
-                count: None,
-                oldest_timestamp: None,
-                latest_timestamp: None,
-                pending: Some(pending),
-                processed_at_timestamp: processed_at_timestamp.map(|t| t.naive_utc()),
-            },
-            ObjectActionSubtype::BundledActions {
-                count,
-                oldest_timestamp,
-                latest_timestamp,
-                latest_processed_at_timestamp,
-            } => Self {
-                hashed_object_id: action.hashed_sqlite_id,
-                timestamp: None,
-                action: action.action_type.to_string(),
-                data: None,
-                count: Some(count),
-                oldest_timestamp: Some(oldest_timestamp.naive_utc()),
-                latest_timestamp: Some(latest_timestamp.naive_utc()),
-                pending: None,
-                processed_at_timestamp: Some(latest_processed_at_timestamp.naive_utc()),
-            },
-        }
-    }
-}
 
-fn insert_object_action(
-    conn: &mut SqliteConnection,
-    object_action: ObjectAction,
-) -> Result<(), Error> {
-    let action: NewPersistedObjectAction = object_action.into();
-    conn.transaction::<(), Error, _>(|conn| {
-        diesel::insert_into(schema::object_actions::dsl::object_actions)
-            .values(action)
-            .execute(conn)?;
-        Ok(())
-    })
-}
-
-fn sync_object_actions(
-    conn: &mut SqliteConnection,
-    actions_to_sync: Vec<ObjectAction>,
-) -> Result<(), Error> {
-    use schema::object_actions::dsl::*;
-
-    let ids_to_delete: HashSet<String> =
-        HashSet::from_iter(actions_to_sync.iter().map(|a| a.hashed_sqlite_id.clone()));
-    // Insert the new ones
-    let new_actions: Vec<NewPersistedObjectAction> =
-        actions_to_sync.iter().map(|a| a.clone().into()).collect();
-    conn.transaction::<(), Error, _>(|conn| {
-        // Erase all the actions that currently have this object ID
-        for hashed_sqlite_id in ids_to_delete {
-            diesel::delete(object_actions.filter(hashed_object_id.eq(hashed_sqlite_id)))
-                .execute(conn)?;
-        }
-
-        // Insert the new ones
-        diesel::insert_into(schema::object_actions::dsl::object_actions)
-            .values(new_actions)
-            .execute(conn)?;
-        Ok(())
-    })
-}
-
+/// Dais(云表裁剪): 元数据外联表已删, 按 hashed_sync_id 派生的确定性行 id 直接删内容行。
 fn delete_objects(
     conn: &mut SqliteConnection,
     ids: Vec<(SyncId, ObjectIdType)>,
-) -> Result<(), Error> {
+) -> Result<(), diesel::result::Error> {
     conn.transaction::<(), Error, _>(|conn| {
         for (sync_id, object_id_type) in ids {
+            let row_id = deterministic_row_id(&sync_id.sqlite_uid_hash(object_id_type));
             match object_id_type {
-                ObjectIdType::Notebook => delete_cloud_object(
-                    conn,
-                    sync_id,
-                    object_id_type,
-                    Box::new(|conn, notebook_id| {
-                        use schema::notebooks::dsl::*;
-                        diesel::delete(notebooks.filter(id.eq(notebook_id))).execute(conn)?;
-                        Ok(())
-                    }),
-                )?,
-                ObjectIdType::Workflow => delete_cloud_object(
-                    conn,
-                    sync_id,
-                    object_id_type,
-                    Box::new(|conn, workflow_id| {
-                        use schema::workflows::dsl::*;
-                        diesel::delete(workflows.filter(id.eq(workflow_id))).execute(conn)?;
-                        Ok(())
-                    }),
-                )?,
-                ObjectIdType::Folder => delete_cloud_object(
-                    conn,
-                    sync_id,
-                    object_id_type,
-                    Box::new(|conn, folder_id| {
-                        use schema::folders::dsl::*;
-                        diesel::delete(folders.filter(id.eq(folder_id))).execute(conn)?;
-                        Ok(())
-                    }),
-                )?,
-                ObjectIdType::GenericStringObject => delete_cloud_object(
-                    conn,
-                    sync_id,
-                    object_id_type,
-                    Box::new(|conn, gso_id| {
-                        use schema::generic_string_objects::dsl::*;
-                        diesel::delete(generic_string_objects.filter(id.eq(gso_id)))
-                            .execute(conn)?;
-                        Ok(())
-                    }),
-                )?,
+                ObjectIdType::Notebook => {
+                    use schema::notebooks::dsl::*;
+                    diesel::delete(notebooks.filter(id.eq(row_id))).execute(conn)?;
+                }
+                ObjectIdType::Workflow => {
+                    use schema::workflows::dsl::*;
+                    diesel::delete(workflows.filter(id.eq(row_id))).execute(conn)?;
+                }
+                ObjectIdType::Folder => {
+                    use schema::folders::dsl::*;
+                    diesel::delete(folders.filter(id.eq(row_id))).execute(conn)?;
+                }
+                ObjectIdType::GenericStringObject => {
+                    use schema::generic_string_objects::dsl::*;
+                    diesel::delete(generic_string_objects.filter(id.eq(row_id)))
+                        .execute(conn)?;
+                }
             }
         }
         Ok(())
     })
 }
+
 
 #[cfg(test)]
 #[path = "sqlite_tests.rs"]

@@ -13,7 +13,10 @@ use warpui::{
     Entity, SingletonEntity as _, TypedActionView, View, ViewContext,
 };
 
-use crate::{terminal::model::terminal_model::ExitReason, ui_components};
+use crate::{
+    terminal::model::terminal_model::ExitReason,
+    ui_components,
+};
 
 /// A banner to display when the shell process terminates.
 ///

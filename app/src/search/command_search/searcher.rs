@@ -1,6 +1,6 @@
 use crate::env_vars::EnvVarCollectionObject;
 use crate::search::mixer::SearchMixer;
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 use crate::terminal::history::LinkedWorkflowData;
 use crate::workflows::{WorkflowSource, WorkflowType};
 
