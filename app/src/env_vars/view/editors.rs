@@ -1,3 +1,4 @@
+use env_vars_ui::data::EnvVarData;
 use warp_editor::editor::NavigationKey;
 use warpui::{
     elements::{
@@ -483,7 +484,7 @@ impl EnvVarCollectionView {
         let editability = self
             .active_env_var_collection_data
             .as_ref(ctx)
-            .editability(ctx);
+            .editability(ctx, &crate::env_vars::manager::host_env_var_data());
         let interaction_state = if editability.can_edit() {
             InteractionState::Editable
         } else {

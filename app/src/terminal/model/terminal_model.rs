@@ -1,3 +1,4 @@
+use terminal_grid_model::block_index::BlockIndex;
 use crate::ai::blocklist::SerializedBlockListItem;
 use crate::terminal::available_shells::AvailableShell;
 use crate::terminal::block_list_element::GridType;
@@ -6,60 +7,60 @@ use crate::terminal::event::{
     SourcedRcFileInSubshellEvent, SshLoginStatus, TerminalMode,
 };
 use crate::terminal::event_listener::ChannelEventListener;
-use crate::terminal::model::ansi;
-use crate::terminal::model::bootstrap::BootstrapStage;
-use crate::terminal::model::completions::{
+use terminal_grid_model::ansi;
+use terminal_grid_model::bootstrap::BootstrapStage;
+use terminal_model::completions::{
     ShellCompletion, ShellCompletionUpdate, ShellData as CompletionsShellData,
 };
-use crate::terminal::model::escape_sequences::ModeProvider;
-use crate::terminal::model::index::VisibleRow;
+use warp_terminal::model::escape_sequences::ModeProvider;
+use terminal_model::index::VisibleRow;
 use crate::terminal::model::iterm_image::{ITermImage, ITermImageMetadata};
 use crate::terminal::shared_session::{ai_agent::encode_agent_response_event, SharedSessionStatus};
 use crate::terminal::ssh::util::{InteractiveSshCommand, SshLoginState};
-use crate::terminal::{block_filter::BlockFilterQuery, model::ansi::Handler};
-use crate::terminal::{color, ssh, BlockPadding, ShellHost, SizeUpdate, SizeUpdateReason};
+use crate::terminal::block_filter::BlockFilterQuery;
+use terminal_grid_model::ansi::Handler;
+use crate::terminal::{color, ssh, BlockPadding, SizeUpdate, SizeUpdateReason};
 use crate::terminal::{ShellLaunchData, ShellLaunchState};
 use crate::util::AsciiDebug;
 
 pub use crate::terminal::history::HistoryEntry;
 
-use super::ansi::{
+use terminal_grid_model::ansi::{
     FinishUpdateValue, InputBufferValue, Mode, PendingHook, TmuxInstallFailedInfo,
     WarpificationUnavailableReason,
 };
-use super::block::{
+use terminal_grid_model::block::{
     AgentInteractionMetadata, Block, BlockId, BlockMetadata, BlockSize, BlocklistEnvVarMetadata,
     SerializedBlock,
 };
-use super::blockgrid::BlockGrid;
-use super::grid::grid_handler::{
+use terminal_grid_model::grid::blockgrid::BlockGrid;
+use terminal_grid_model::grid::grid_handler::{
     ContainsPoint, FragmentBoundary, GridHandler, Link, PossiblePath, TermMode,
 };
-use super::image_map::StoredImageMetadata;
-use super::index::Point;
-use super::kitty::{
+use terminal_grid_model::image_map::StoredImageMetadata;
+use terminal_model::index::Point;
+use terminal_model::kitty::{
     create_kitty_error_reply, create_kitty_ok_reply, DeletionType, KittyAction, KittyChunk,
     KittyMessage, KittyResponse, PendingKittyMessage,
 };
-use super::secrets::{RespectObfuscatedSecrets, SecretAndHandle};
-use super::selection::ScrollDelta;
-use super::session::{BootstrapSessionType, InBandCommandOutputReceiver, SessionId};
-use super::tmux::commands::TmuxCommand;
-use super::{
-    super::{AltScreen, BlockList},
-    ansi::BootstrappedValue,
-};
-use super::{tmux, Secret, SecretHandle};
-use crate::terminal::model::ansi::{
+use terminal_grid_model::secrets::{RespectObfuscatedSecrets, SecretAndHandle};
+use terminal_grid_model::grid::selection::ScrollDelta;
+use super::session::{InBandCommandOutputReceiver, SessionId};
+use terminal_model::tmux::commands::TmuxCommand;
+use super::super::{AltScreen, BlockList};
+use terminal_grid_model::ansi::BootstrappedValue;
+use terminal_model::tmux;
+use super::{Secret, SecretHandle};
+use terminal_grid_model::ansi::{
     ClearValue, CommandFinishedValue, ExitShellValue, InitShellValue, InitSshValue,
     InitSubshellValue, PreInteractiveSSHSessionValue, PrecmdValue, PreexecValue, SSHValue,
     SourcedRcFileForWarpValue,
 };
-use crate::terminal::model::grid::IndexRegion;
+use terminal_grid_model::grid::IndexRegion;
 use crate::terminal::model::session::SessionInfo;
 use crate::terminal::shell::{ShellName, ShellType};
 
-use crate::terminal::model::secrets::ObfuscateSecrets;
+use terminal_grid_model::secrets::ObfuscateSecrets;
 use crate::terminal::shared_session::protocol::SessionSourceType;
 use warp_core::report_error;
 #[cfg(not(target_family = "wasm"))]
@@ -83,7 +84,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use warp_core::features::FeatureFlag;
 use warp_core::semantic_selection::SemanticSelection;
-pub use warp_terminal::model::BlockIndex;
 use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
 use warpui::assets::asset_cache::Asset;
 use warpui::image_cache::ImageType;
@@ -103,51 +103,6 @@ pub enum ConversationTranscriptViewerStatus {
     ViewingLocalConversation,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct FindOptions {
-    pub query: Option<Arc<String>>,
-    pub is_case_sensitive: bool,
-    pub is_regex_enabled: bool,
-
-    /// If `Some()`, the find run only surfaces matches that are in blocks with the provided
-    /// indices. If `None`, the find run surfaces matches across the entire blocklist.
-    ///
-    /// This is ignored when the alt screen is active.
-    pub blocks_to_include_in_results: Option<Vec<BlockIndex>>,
-}
-
-impl FindOptions {
-    pub fn with_is_case_sensitive(mut self, is_case_sensitive: bool) -> Self {
-        self.is_case_sensitive = is_case_sensitive;
-        self
-    }
-
-    pub fn with_is_regex_enabled(mut self, is_regex_enabled: bool) -> Self {
-        self.is_regex_enabled = is_regex_enabled;
-        self
-    }
-
-    pub fn with_query(mut self, query: Option<impl Into<Arc<String>>>) -> Self {
-        self.query = query.map(Into::into);
-        self
-    }
-
-    pub fn with_blocks_to_include_in_results(
-        mut self,
-        block_indices: Option<impl IntoIterator<Item = BlockIndex>>,
-    ) -> Self {
-        self.blocks_to_include_in_results =
-            block_indices.map(|indices| indices.into_iter().collect());
-        self
-    }
-}
-
-pub enum FindOption {
-    ResetWithSameQuery,
-    Query(String),
-    IsCaseSensitive(bool),
-    IsRegexEnabled(bool),
-}
 
 /// A type that is either within the AltScreen or a specific part of the BlockList
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -156,9 +111,7 @@ pub enum WithinModel<T> {
     BlockList(WithinBlock<T>),
 }
 
-pub trait RangeInModel {
-    fn range(&self) -> RangeInclusive<Point>;
-}
+pub use terminal_model::RangeInModel;
 
 impl<T> WithinModel<T> {
     pub fn get_inner(&self) -> &T {
@@ -229,88 +182,9 @@ where
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
-pub struct WithinBlock<T> {
-    pub block_index: BlockIndex,
-    pub grid: GridType,
-    pub inner: T,
-}
+// R14: WithinBlock 定义下沉 terminal_grid_model。
+pub use terminal_grid_model::WithinBlock;
 
-impl<T> WithinBlock<T> {
-    pub fn new(inner: T, block_index: BlockIndex, grid: GridType) -> WithinBlock<T> {
-        Self {
-            inner,
-            block_index,
-            grid,
-        }
-    }
-
-    pub fn is_in_command_content(&self) -> bool {
-        self.grid == GridType::PromptAndCommand
-    }
-
-    pub fn is_output_grid(&self) -> bool {
-        self.grid == GridType::Output
-    }
-
-    pub fn in_same_block_and_grid<U>(&self, other: &WithinBlock<U>) -> bool {
-        self.block_index == other.block_index && self.grid == other.grid
-    }
-
-    pub fn get(&self) -> &T {
-        &self.inner
-    }
-
-    pub fn replace(&mut self, value: T) {
-        self.inner = value;
-    }
-
-    pub fn map<F, U>(self, f: F) -> WithinBlock<U>
-    where
-        F: FnOnce(T) -> U,
-    {
-        let new_val: U = f(self.inner);
-        WithinBlock {
-            inner: new_val,
-            block_index: self.block_index,
-            grid: self.grid,
-        }
-    }
-
-    pub fn is_within_this_block(&self, index: BlockIndex) -> bool {
-        self.block_index == index
-    }
-}
-
-impl<T: Copy> WithinBlock<RangeInclusive<T>> {
-    /// When you wrap a Range in a WithinBlock, this method gives you the ends of the range as
-    /// separately wrapped values
-    pub fn unfold_range(&self) -> (WithinBlock<T>, WithinBlock<T>) {
-        let start_val = WithinBlock::new(*self.inner.start(), self.block_index, self.grid);
-        let end_val = WithinBlock::new(*self.inner.end(), self.block_index, self.grid);
-        (start_val, end_val)
-    }
-}
-
-impl WithinBlock<Point> {
-    // Check if one point is visually before another in the blocklist.
-    pub fn is_visually_before(&self, other: &WithinBlock<Point>, inverted_blocklist: bool) -> bool {
-        // If two points are within the same block OR if the blocklist is NOT inverted
-        // the visual order should be the same as the points' logical order.
-        if self.block_index == other.block_index || !inverted_blocklist {
-            self < other
-        // Else. The visual order is reverse as the points' logical order.
-        } else {
-            self > other
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct HistoryItem {
-    pub command: String,
-    pub shell_host: Option<ShellHost>,
-}
 
 /// Represents whether or not bytes read from the PTY should be considered in-band command output.
 enum IsReceivingInBandCommandOutput {
@@ -359,61 +233,9 @@ enum IsReceivingHook {
     No,
 }
 
-/// Information needed to render a warpify "success" block upon successful subshell bootstrap.
-#[derive(Debug, Clone)]
-pub struct SubshellSuccessBlockInfo {
-    /// The ID of the newly bootstrapped subshell session.
-    ///
-    /// This ID is needed in order to associate the success block with the subshell session (and
-    /// include it in the subshell "context" UI, with the flag and block border).
-    pub subshell_session_id: SessionId,
 
-    /// The command which spawned the subshell.
-    pub spawning_command: String,
-
-    pub shell_type: ShellType,
-
-    pub session_type: BootstrapSessionType,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TmuxInstallationState {
-    /// This means tmux was installed by Dais in this session, successfully or unsuccessfully.
-    /// It also means we had root access and used a package manager to install tmux and all
-    /// dependencies.
-    InstalledByWarpRootInThisSession,
-    /// This means tmux was installed by Dais in this session, successfully or unsuccessfully.
-    InstalledByWarpInThisSession,
-    InstalledByWarpInPriorSession,
-    /// This means that warp did not install it locally. It was either installed by the user
-    /// or it was installed by warp in a prior session using the package manager.
-    InstalledByUser,
-    /// This means we never tried to install tmux in this session.
-    #[default]
-    NotInstalled,
-}
-
-impl FromStr for TmuxInstallationState {
-    type Err = anyhow::Error;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        match input {
-            "installed_by_warp_root_in_this_session" => {
-                Ok(TmuxInstallationState::InstalledByWarpRootInThisSession)
-            }
-            "installed_by_warp_in_this_session" => {
-                Ok(TmuxInstallationState::InstalledByWarpInThisSession)
-            }
-            "warp" | "installed_by_warp_in_prior_session" => {
-                Ok(TmuxInstallationState::InstalledByWarpInPriorSession)
-            }
-            "user" | "installed_by_user" => Ok(TmuxInstallationState::InstalledByUser),
-            "not_installed" => Ok(TmuxInstallationState::NotInstalled),
-            _ => Err(anyhow::anyhow!("Invalid TmuxInstallationState")),
-        }
-    }
-}
+// R11: TmuxInstallationState 提升 terminal_model crate(ansi/handler.rs 消费)。
+pub use terminal_model::TmuxInstallationState;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WarpInitiatedTmuxControlMode {
@@ -640,365 +462,11 @@ pub struct SubshellInitializationInfo {
     pub ssh_connection_info: Option<InteractiveSshCommand>,
 }
 
-/// Since a SelectedBlockRange is a range of blocks, it is possible that
-/// a debug/hidden block is within this range (even though it shouldn't be selected).
-/// Care must be taken to ensure that hidden blocks are not considered "selected"
-/// when performing actions like "copy".
-#[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
-pub struct SelectedBlockRange {
-    pivot: BlockIndex,
-    tail: BlockIndex,
-}
+// R16: SelectedBlocks 族提升 terminal_grid_model::selected_blocks。
+pub use terminal_grid_model::selected_blocks::{
+    BlockSelectionCardinality, BlockSortDirection, SelectedBlockRange, SelectedBlocks,
+};
 
-impl SelectedBlockRange {
-    pub fn start(&self) -> BlockIndex {
-        min(self.pivot, self.tail)
-    }
-
-    pub fn end(&self) -> BlockIndex {
-        max(self.pivot, self.tail)
-    }
-
-    /// Returns the range of the selected index, optionally sorted.
-    pub fn range(
-        &self,
-        sort_direction: Option<BlockSortDirection>,
-    ) -> impl Iterator<Item = BlockIndex> {
-        let range = self.start().0..=self.end().0;
-        // Note we need the heap allocation through the box because we
-        // can't return .rev() and not .rev() iterators without it.
-        let boxed: Box<dyn Iterator<Item = BlockIndex>> =
-            if matches!(sort_direction, Some(BlockSortDirection::MostRecentFirst)) {
-                Box::new(range.rev().map(BlockIndex::from))
-            } else {
-                Box::new(range.map(BlockIndex::from))
-            };
-        boxed
-    }
-
-    fn contains(&self, block_index: BlockIndex) -> bool {
-        self.range(None).any(|index| index == block_index)
-    }
-
-    fn reversed(&self) -> bool {
-        self.pivot > self.tail
-    }
-
-    pub fn intersection(
-        &self,
-        other: &RangeInclusive<BlockIndex>,
-    ) -> impl Iterator<Item = BlockIndex> {
-        (max(self.start().0, other.start().0)..=min(self.end().0, other.end().0))
-            .map(BlockIndex::from)
-    }
-
-    pub fn pivot(&self) -> BlockIndex {
-        self.pivot
-    }
-}
-
-#[derive(Copy, Clone, Serialize)]
-pub enum BlockSelectionCardinality {
-    None,
-    One,
-    Many,
-}
-
-impl BlockSelectionCardinality {
-    pub fn as_keymap_context_value(&self) -> &'static str {
-        match self {
-            BlockSelectionCardinality::None => "None",
-            BlockSelectionCardinality::One => "One",
-            BlockSelectionCardinality::Many => "Many",
-        }
-    }
-}
-
-/// Wrapper struct around a vector of ranges to provide easier API to use
-/// in the context of block selections.
-/// Note that although hidden blocks may be within a SelectedBlockRange, the
-/// pivot/tail of a SelectedBlockRange will never be a hidden index.
-#[derive(Default, Clone, Eq, PartialEq, Debug)]
-pub struct SelectedBlocks {
-    ranges: Vec<SelectedBlockRange>,
-}
-
-/// The direction to sort blocks in.
-#[derive(Clone, Copy, Debug)]
-pub enum BlockSortDirection {
-    // Most recently executed blocks are sorted first.  Matches the inverted
-    // block list.
-    MostRecentFirst,
-
-    // Most recently executed blocks are sorted last.  Matches the "normal"
-    // block list.
-    MostRecentLast,
-}
-
-impl SelectedBlocks {
-    /// Selects all blocks in range [last().pivot, new_tail]
-    pub fn range_select(&mut self, new_tail: BlockIndex) {
-        if let Some(last_selected_range) = self.ranges.last() {
-            // replacing the entire vector ensures we collapse into a single selection range
-            self.ranges = vec![SelectedBlockRange {
-                pivot: last_selected_range.pivot,
-                tail: new_tail,
-            }];
-        }
-    }
-
-    /// Toggles an arbitrary block with index=block_index.
-    /// next_index is the first index larger than block_index that is not hidden.
-    /// similarly, prior_index is the first index smaller than block_index that is not hidden.
-    pub fn toggle(
-        &mut self,
-        block_index: BlockIndex,
-        next_index: Option<BlockIndex>,
-        prior_index: Option<BlockIndex>,
-    ) {
-        let next_index = next_index.unwrap_or(block_index);
-        let prior_index = prior_index.unwrap_or(block_index);
-
-        let mut position_of_next_index_in_ranges: Option<usize> = None;
-        let mut position_of_prior_index_in_ranges: Option<usize> = None;
-
-        // Determine if block_index is already selected,
-        // and if so, which range is it part of
-        let mut range_idx: Option<BlockIndex> = None;
-        for (idx, block_range) in self.ranges.iter().enumerate() {
-            if block_range.contains(block_index) {
-                range_idx = Some(idx.into());
-            }
-            if block_range.contains(next_index) {
-                position_of_next_index_in_ranges = Some(idx);
-            }
-            if block_range.contains(prior_index) {
-                position_of_prior_index_in_ranges = Some(idx);
-            }
-        }
-
-        // If block_index is already selected, then toggling it should deselect it.
-        // There are a few cases to consider in the deselection case:
-        // 1. The range that block_index belongs to is entirely the block_index.
-        //    In this case, we should completely remove the selection range.
-        // 2. The block_index is either the pivot or tail of the range it belongs to.
-        //    In this case, we should adjust the pivot or tail, respectively,
-        //    based on the next_index and prior_index._
-        // 3. The block_index is somewhere in the middle of the range it belongs to.
-        //    In this case, we should split up the range at the block_index into
-        //    two ranges, using the next_index and prior_index accordingly.
-        if let Some(idx) = range_idx {
-            let idx = idx.0;
-            let block_range = self.ranges[idx];
-
-            let (new_pivot, new_tail) = if block_range.reversed() {
-                (prior_index, next_index)
-            } else {
-                (next_index, prior_index)
-            };
-
-            // if block_index is the pivot and the tail of the range it is part of
-            // then this is case 1: block_range is simply a singleton
-            // and should be completely removed since we are toggling it off
-            if block_index == block_range.pivot && block_index == block_range.tail {
-                self.ranges.remove(idx);
-            } else if block_index == block_range.pivot {
-                // if block_index is the pivot of the range it is part of (and not also the tail),
-                // this is case 2 (pivot): we just need to select a new pivot
-                self.ranges[idx].pivot = new_pivot;
-            } else if block_index == block_range.tail {
-                // if block_index is the tail of the range it is part of (and not also the pivot),
-                // this is case 2 (tail): we just need to select a new tail
-                self.ranges[idx].tail = new_tail;
-            } else {
-                // otherwise, this is case 3: if block_index is somewhere in the middle of the range it is part of,
-                // then we need to break up this range into two ranges (around block_index).
-                // the existing range will end at the new_tail and we'll add a new range
-                // right before the existing one with the new_pivot and the tail being the old tail
-                self.ranges[idx].tail = new_tail;
-                self.ranges.insert(
-                    idx,
-                    SelectedBlockRange {
-                        pivot: new_pivot,
-                        tail: block_range.tail,
-                    },
-                );
-            }
-        } else {
-            // Otherwise, we are in the toggling ON case.
-
-            // We should be able to merge selections as long as at least one of
-            // next_index and prior_index is already selected (and not the same selection)
-            let can_merge = position_of_next_index_in_ranges != position_of_prior_index_in_ranges;
-
-            // If block_index isn't already selected, then it's a new selection.
-            // First, try to merge this new selection with existing selections.
-            let new_selection = if can_merge {
-                // If this new selection sits directly in between two other
-                // selection ranges, merge them all into one selection range.
-                if let (
-                    Some(position_of_next_index_in_ranges),
-                    Some(position_of_prior_index_in_ranges),
-                ) = (
-                    position_of_next_index_in_ranges,
-                    position_of_prior_index_in_ranges,
-                ) {
-                    // important: remove in reverse order to prevent shifting
-                    // the index of the counterpart!
-                    let (prior_range_removed, next_range_removed) =
-                        if position_of_next_index_in_ranges > position_of_prior_index_in_ranges {
-                            let next_range = self.ranges.remove(position_of_next_index_in_ranges);
-                            (
-                                self.ranges.remove(position_of_prior_index_in_ranges),
-                                next_range,
-                            )
-                        } else {
-                            (
-                                self.ranges.remove(position_of_prior_index_in_ranges),
-                                self.ranges.remove(position_of_next_index_in_ranges),
-                            )
-                        };
-                    Some((prior_range_removed.start(), next_range_removed.end()))
-                } else if let Some(position_of_next_index_in_ranges) =
-                    position_of_next_index_in_ranges
-                {
-                    // Otherwise, if this new selection is right before another
-                    // selection range, then merge it together.
-                    let next_range_removed = self.ranges.remove(position_of_next_index_in_ranges);
-                    if next_range_removed.tail == next_index {
-                        Some((next_range_removed.pivot, block_index))
-                    } else {
-                        Some((block_index, next_range_removed.tail))
-                    }
-                } else if let Some(position_of_prior_index_in_ranges) =
-                    position_of_prior_index_in_ranges
-                {
-                    // Otherwise, this new selection must be right after another
-                    // selection range, so merge it together as well.
-                    let prior_range_removed = self.ranges.remove(position_of_prior_index_in_ranges);
-                    if prior_range_removed.tail == prior_index {
-                        Some((prior_range_removed.pivot, block_index))
-                    } else {
-                        Some((block_index, prior_range_removed.tail))
-                    }
-                } else {
-                    // At least one of next_index, prior_index should be set if
-                    // we can merge selections so this should be unreachable
-                    log::warn!(
-                        "Expected to merge block selections but 'position_of_next/prior_index_in_ranges' were both None."
-                    );
-                    None
-                }
-            } else {
-                // If we can't merge with an existing selection, then this is disjoint.
-                Some((block_index, block_index))
-            };
-            if let Some((new_pivot, new_tail)) = new_selection {
-                self.ranges.push(SelectedBlockRange {
-                    pivot: new_pivot,
-                    tail: new_tail,
-                });
-            }
-        }
-    }
-
-    /// Remove all block selections.
-    pub fn reset(&mut self) {
-        self.ranges = vec![];
-    }
-
-    /// Reset all block selections to unselected except block_index
-    pub fn reset_to_single(&mut self, block_index: BlockIndex) {
-        let singleton = SelectedBlockRange {
-            pivot: block_index,
-            tail: block_index,
-        };
-        self.ranges = vec![singleton];
-    }
-
-    /// Reset all block selections to a sequence of single block `SelectedBlockRange`s of the given
-    /// `block_indices`. Does not merge the `SelectedBlockRange`s.`
-    pub fn reset_to_block_indices(&mut self, block_indices: impl IntoIterator<Item = BlockIndex>) {
-        self.ranges = block_indices
-            .into_iter()
-            .map(|block_index| SelectedBlockRange {
-                pivot: block_index,
-                tail: block_index,
-            })
-            .collect::<Vec<_>>();
-    }
-
-    /// Returns true iff block_index is selected
-    pub fn is_selected(&self, block_index: BlockIndex) -> bool {
-        self.ranges
-            .iter()
-            .any(|block_range| block_range.contains(block_index))
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.ranges.is_empty()
-    }
-
-    // A "singleton" is a single selected block. That is, there is only
-    // one range R and R.pivot == R.tail
-    pub fn is_singleton(&self) -> bool {
-        match &self.ranges[..] {
-            [single] => single.pivot == single.tail,
-            _ => false,
-        }
-    }
-
-    /// The `tail` of all selected blocks is defined as the tail of the most
-    /// recent selected block range
-    pub fn tail(&self) -> Option<BlockIndex> {
-        self.ranges
-            .last()
-            .map(|most_recent_range| most_recent_range.tail)
-    }
-
-    pub fn ranges(&self) -> &[SelectedBlockRange] {
-        &self.ranges[..]
-    }
-
-    /// Returns an iterator whose items are all the selected block indices. Does not guarantee any
-    /// order.
-    pub fn block_indices(&self) -> impl Iterator<Item = BlockIndex> + '_ {
-        self.ranges
-            .iter()
-            .flat_map(|selected_block_range| selected_block_range.range(None))
-    }
-
-    /// Used to produce a consistent list of selected indices to take actions on
-    pub fn sorted_ranges(&self, sort_direction: BlockSortDirection) -> Vec<SelectedBlockRange> {
-        let mut sorted_ranges = self.ranges.clone();
-        sorted_ranges.sort_by_key(|a| a.start());
-        if matches!(sort_direction, BlockSortDirection::MostRecentFirst) {
-            sorted_ranges.reverse();
-        }
-        sorted_ranges
-    }
-
-    pub fn cardinality(&self) -> BlockSelectionCardinality {
-        if self.is_empty() {
-            BlockSelectionCardinality::None
-        } else if self.is_singleton() {
-            BlockSelectionCardinality::One
-        } else {
-            BlockSelectionCardinality::Many
-        }
-    }
-
-    pub fn to_block_ids<'a>(
-        &'a self,
-        block_list: &'a BlockList,
-    ) -> impl Iterator<Item = &'a BlockId> + 'a {
-        self.ranges.iter().flat_map(|range| {
-            range
-                .range(None)
-                .filter_map(|idx| block_list.block_at(idx).map(|b| b.id()))
-        })
-    }
-}
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum TerminalInputState {
@@ -1029,7 +497,7 @@ impl TerminalModel {
         sizes: BlockSize,
         colors: color::List,
         event_proxy: ChannelEventListener,
-        background_executor: Arc<Background>,
+        background_executor: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
         should_show_bootstrap_block: bool,
         restored_blocks: Option<&[SerializedBlockListItem]>,
         honor_ps1: bool,
@@ -1085,7 +553,7 @@ impl TerminalModel {
         sizes: BlockSize,
         colors: color::List,
         event_proxy: ChannelEventListener,
-        background_executor: Arc<Background>,
+        background_executor: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
         should_show_bootstrap_block: bool,
         should_show_in_band_command_blocks: bool,
         should_show_memory_stats: bool,
@@ -1100,13 +568,19 @@ impl TerminalModel {
         let alt_screen = AltScreen::new(
             sizes.size,
             0, /* max_scroll_limit */
-            event_proxy.clone(),
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                event_proxy.clone(),
+            )),
             obfuscate_secrets,
+            crate::terminal::event_listener::host_determine_secret_level,
         );
         let block_list = BlockList::new(
             restored_blocks,
             sizes,
-            event_proxy.clone(),
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                event_proxy.clone(),
+            )),
+            crate::terminal::event_listener::host_determine_secret_level,
             background_executor,
             should_show_bootstrap_block,
             should_show_in_band_command_blocks,
@@ -1170,7 +644,7 @@ impl TerminalModel {
         sizes: BlockSize,
         colors: color::List,
         event_proxy: ChannelEventListener,
-        background_executor: Arc<Background>,
+        background_executor: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
         should_show_bootstrap_block: bool,
         should_show_in_band_command_blocks: bool,
         should_show_memory_stats: bool,
@@ -1200,12 +674,13 @@ impl TerminalModel {
         )
     }
 
+
     #[allow(clippy::too_many_arguments)]
     fn new_for_shared_session_viewer_internal(
         sizes: BlockSize,
         colors: color::List,
         event_proxy: ChannelEventListener,
-        background_executor: Arc<Background>,
+        background_executor: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
         show_memory_stats: bool,
         honor_ps1: bool,
         is_inverted: bool,
@@ -1241,7 +716,7 @@ impl TerminalModel {
         sizes: BlockSize,
         colors: color::List,
         event_proxy: ChannelEventListener,
-        background_executor: Arc<Background>,
+        background_executor: std::sync::Arc<dyn terminal_grid_model::block_host::BlockTimerHost>,
         show_memory_stats: bool,
         honor_ps1: bool,
         is_inverted: bool,
@@ -2268,7 +1743,7 @@ impl TerminalModel {
     }
 }
 
-/// Used in the ansi::Handler implementation for TerminalModel below. Performs
+/// Used in the terminal_grid_model::ansi::Handler implementation for TerminalModel below. Performs
 /// the provided method call on the active handler, either the block_list or the
 /// alt_screen if it is active.
 macro_rules! delegate {
@@ -2341,7 +1816,7 @@ pub enum HandlerEvent {
     RunTmuxCommand(TmuxCommand),
 }
 
-impl ansi::Handler for TerminalModel {
+impl terminal_grid_model::ansi::Handler for TerminalModel {
     fn set_title(&mut self, title: Option<String>) {
         // Don't set the tab title if the title event is for a running in-band command.
         if self.block_list().is_writing_or_executing_in_band_command() {
@@ -2359,11 +1834,11 @@ impl ansi::Handler for TerminalModel {
         }
     }
 
-    fn set_cursor_style(&mut self, style: Option<ansi::CursorStyle>) {
+    fn set_cursor_style(&mut self, style: Option<terminal_grid_model::ansi::CursorStyle>) {
         delegate!(self.set_cursor_style(style));
     }
 
-    fn set_cursor_shape(&mut self, shape: ansi::CursorShape) {
+    fn set_cursor_shape(&mut self, shape: terminal_grid_model::ansi::CursorShape) {
         delegate!(self.set_cursor_shape(shape));
     }
 
@@ -2540,15 +2015,15 @@ impl ansi::Handler for TerminalModel {
         delegate!(self.restore_cursor_position());
     }
 
-    fn clear_line(&mut self, mode: ansi::LineClearMode) {
+    fn clear_line(&mut self, mode: terminal_grid_model::ansi::LineClearMode) {
         delegate!(self.clear_line(mode));
     }
 
-    fn clear_screen(&mut self, mode: ansi::ClearMode) {
+    fn clear_screen(&mut self, mode: terminal_grid_model::ansi::ClearMode) {
         delegate!(self.clear_screen(mode));
     }
 
-    fn clear_tabs(&mut self, mode: ansi::TabulationClearMode) {
+    fn clear_tabs(&mut self, mode: terminal_grid_model::ansi::TabulationClearMode) {
         delegate!(self.clear_tabs(mode));
     }
 
@@ -2564,13 +2039,13 @@ impl ansi::Handler for TerminalModel {
         delegate!(self.reverse_index())
     }
 
-    fn terminal_attribute(&mut self, attribute: ansi::Attr) {
+    fn terminal_attribute(&mut self, attribute: terminal_grid_model::ansi::Attr) {
         self.alt_screen.terminal_attribute(attribute);
         self.block_list.terminal_attribute(attribute);
     }
 
-    fn set_mode(&mut self, mode: ansi::Mode) {
-        if let ansi::Mode::SwapScreen {
+    fn set_mode(&mut self, mode: terminal_grid_model::ansi::Mode) {
+        if let terminal_grid_model::ansi::Mode::SwapScreen {
             save_cursor_and_clear_screen,
         } = mode
         {
@@ -2583,15 +2058,15 @@ impl ansi::Handler for TerminalModel {
         self.emit_handler_event(HandlerEvent::SetMode { mode });
     }
 
-    fn unset_mode(&mut self, mode: ansi::Mode) {
+    fn unset_mode(&mut self, mode: terminal_grid_model::ansi::Mode) {
         match mode {
-            ansi::Mode::SwapScreen {
+            terminal_grid_model::ansi::Mode::SwapScreen {
                 save_cursor_and_clear_screen,
             } => {
                 self.exit_alt_screen(save_cursor_and_clear_screen);
                 return;
             }
-            ansi::Mode::SyncOutput => {
+            terminal_grid_model::ansi::Mode::SyncOutput => {
                 // When synchronized output is turned off, we should redraw.
                 self.event_proxy.send_wakeup_event();
             }
@@ -2615,11 +2090,11 @@ impl ansi::Handler for TerminalModel {
         delegate!(self.unset_keypad_application_mode());
     }
 
-    fn set_active_charset(&mut self, index: ansi::CharsetIndex) {
+    fn set_active_charset(&mut self, index: terminal_grid_model::ansi::CharsetIndex) {
         delegate!(self.set_active_charset(index));
     }
 
-    fn configure_charset(&mut self, index: ansi::CharsetIndex, charset: ansi::StandardCharset) {
+    fn configure_charset(&mut self, index: terminal_grid_model::ansi::CharsetIndex, charset: terminal_grid_model::ansi::StandardCharset) {
         delegate!(self.configure_charset(index, charset));
     }
 
@@ -2681,21 +2156,21 @@ impl ansi::Handler for TerminalModel {
         delegate!(self.text_area_size_chars(writer));
     }
 
-    fn prompt_marker(&mut self, marker: ansi::PromptMarker) {
+    fn prompt_marker(&mut self, marker: terminal_grid_model::ansi::PromptMarker) {
         if matches!(
             self.is_receiving_completions_output,
             IsReceivingCompletionsOutput::Yes { .. }
-        ) && matches!(marker, ansi::PromptMarker::StartPrompt { .. })
+        ) && matches!(marker, terminal_grid_model::ansi::PromptMarker::StartPrompt { .. })
         {
             self.end_completions_output();
         }
 
         let event = match &marker {
-            ansi::PromptMarker::StartPrompt { kind } => match kind {
-                ansi::PromptKind::Initial => HandlerEvent::PromptStart,
-                ansi::PromptKind::Right => HandlerEvent::RPromptStart,
+            terminal_grid_model::ansi::PromptMarker::StartPrompt { kind } => match kind {
+                terminal_grid_model::ansi::PromptKind::Initial => HandlerEvent::PromptStart,
+                terminal_grid_model::ansi::PromptKind::Right => HandlerEvent::RPromptStart,
             },
-            ansi::PromptMarker::EndPrompt => HandlerEvent::PromptEnd,
+            terminal_grid_model::ansi::PromptMarker::EndPrompt => HandlerEvent::PromptEnd,
         };
         delegate!(self.prompt_marker(marker));
         self.emit_handler_event(event);
@@ -2785,7 +2260,12 @@ impl ansi::Handler for TerminalModel {
 
         self.block_list
             .early_output_mut()
-            .init_session(&fully_populated_session_info);
+            .init_session(
+                fully_populated_session_info
+                    .shell
+                    .input_reporting_sequence()
+                    .is_some(),
+            );
 
         let spawning_command = fully_populated_session_info
             .subshell_info
@@ -3030,7 +2510,7 @@ impl ansi::Handler for TerminalModel {
         }
     }
 
-    fn on_finish_byte_processing(&mut self, input: &ansi::ProcessorInput<'_>) {
+    fn on_finish_byte_processing(&mut self, input: &terminal_grid_model::ansi::ProcessorInput<'_>) {
         if let Some(SshLogin {
             notification_state, ..
         }) = &self.notify_on_end_of_ssh_login

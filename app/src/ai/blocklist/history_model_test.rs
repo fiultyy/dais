@@ -17,16 +17,11 @@ use crate::{
         llms::LLMId,
     },
     input_suggestions::HistoryInputSuggestion,
-    persistence::{
-        model::{
-            AgentConversation, AgentConversationData, AgentConversationRecord,
-            PersistedAutoexecuteMode,
-        },
-        ModelEvent,
-    },
+    persistence::{ model::{ AgentConversation, AgentConversationData, AgentConversationRecord, PersistedAutoexecuteMode, }, ModelEvent, },
     terminal::model::session::SessionId,
     test_util::settings::initialize_settings_for_tests,
-    GlobalResourceHandles, GlobalResourceHandlesProvider,
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
 };
 use warp_multi_agent_api as api;
 

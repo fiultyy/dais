@@ -3,11 +3,7 @@ use std::sync::Arc;
 use crate::{
     appearance::Appearance,
     settings::{AISettings, InputSettings},
-    terminal::{
-        input::{Input, InputAction, InputSuggestionsMode, MenuPositioning},
-        model::TerminalModel,
-        view::{TerminalAction, PADDING_LEFT},
-    },
+    terminal::{ input::{Input, InputAction, InputSuggestionsMode, MenuPositioning}, model::TerminalModel, view::{TerminalAction, PADDING_LEFT}, },
     ui_components::icons::Icon,
 };
 use pathfinder_geometry::vector::vec2f;

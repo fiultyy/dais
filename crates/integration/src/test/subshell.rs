@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use settings::Setting as _;
-use warp::integration_testing::terminal::util::current_shell_starter_and_version;
-use warp::integration_testing::view_getters::single_input_view_for_tab;
-use warp::root_view::SubshellCommandArg;
-use warp::terminal::shell::ShellType;
-use warp::{
+use dais::integration_testing::terminal::util::current_shell_starter_and_version;
+use dais::integration_testing::view_getters::single_input_view_for_tab;
+use dais::root_view::SubshellCommandArg;
+use dais::terminal::shell::ShellType;
+use dais::{
     integration_testing::{
         step::new_step_with_default_assertions,
         subshell::{

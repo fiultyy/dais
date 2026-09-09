@@ -10,9 +10,15 @@ pub(crate) mod logging;
 pub mod node_version_popup;
 pub mod prompt;
 pub mod prompt_snapshot;
+
+// R21: PromptSnapshot 数据族提升 terminal_grid_model::prompt_snapshot。
+pub use terminal_grid_model::prompt_snapshot::{ChipResult, ChipValue, ContextChipKind, GitLineChanges};
 pub mod prompt_type;
 pub mod renderer;
-pub mod spacing;
+// R5 路径兼容 shim:布局常量已下沉 crates/context_chips_ui。
+pub mod spacing {
+    pub use context_chips_ui::spacing::*;
+}
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -27,7 +33,11 @@ use warpui::{
 };
 
 use crate::ui_components::{blended_colors, icons::Icon};
-use crate::{appearance::Appearance, features::FeatureFlag, themes::theme::PromptColors};
+use crate::{
+    appearance::Appearance,
+    features::FeatureFlag,
+    themes::theme::PromptColors,
+};
 
 #[allow(unused_imports)]
 pub use self::context_chip::{
@@ -38,59 +48,8 @@ use self::{
     renderer::RendererStyles,
 };
 
-/// The value of a context chip. Most chips produce plain text, but some
-/// (like `GitDiffStats`) carry structured data to avoid string round-trips.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum ChipValue {
-    Text(String),
-    GitDiffStats(display_chip::GitLineChanges),
-}
 
-impl ChipValue {
-    /// Returns the text representation, or `None` for non-text variants.
-    pub fn as_text(&self) -> Option<&str> {
-        match self {
-            ChipValue::Text(s) => Some(s),
-            ChipValue::GitDiffStats(_) => None,
-        }
-    }
 
-    /// Returns the `GitLineChanges` payload, if this is the `GitDiffStats` variant.
-    pub fn as_git_diff_stats(&self) -> Option<&display_chip::GitLineChanges> {
-        match self {
-            ChipValue::GitDiffStats(g) => Some(g),
-            ChipValue::Text(_) => None,
-        }
-    }
-}
-
-impl Default for ChipValue {
-    fn default() -> Self {
-        ChipValue::Text(String::new())
-    }
-}
-
-impl std::fmt::Display for ChipValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ChipValue::Text(s) => f.write_str(s),
-            ChipValue::GitDiffStats(g) => {
-                write!(
-                    f,
-                    "{} • +{} -{}",
-                    g.files_changed, g.lines_added, g.lines_removed
-                )
-            }
-        }
-    }
-}
-
-impl From<String> for ChipValue {
-    fn from(s: String) -> Self {
-        ChipValue::Text(s)
-    }
-}
 
 pub(crate) fn github_pr_number_from_url(url: &str) -> Option<&str> {
     let (_, tail) = url.trim().rsplit_once("/pull/")?;
@@ -120,73 +79,23 @@ const GIT_REFRESH_CONFIG: RefreshConfig =
         interval: Duration::from_secs(30),
     };
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ChipResult {
-    kind: ContextChipKind,
-    value: Option<ChipValue>,
-    on_click_values: Vec<String>,
+
+
+
+/// R21: ContextChipKind 下沉后交互面以 app 扩展 trait 承载。
+pub trait ContextChipKindExt {
+    fn to_chip(&self) -> Option<ContextChip>;
+    fn should_render(&self, command: &str, aliases: &HashMap<SmolStr, String>) -> bool;
+    fn udi_icon(&self) -> Option<Icon>;
+    fn initial_value_generator(&self) -> Option<PromptGenerator>;
+    fn is_copyable(&self) -> bool;
+    fn placeholder_value(&self) -> ChipValue;
+    fn default_styles(&self, appearance: &Appearance, is_in_agent_view: bool) -> RendererStyles;
+    fn telemetry_name(&self) -> Option<String>;
 }
 
-impl ChipResult {
-    pub fn kind(&self) -> &ContextChipKind {
-        &self.kind
-    }
-
-    pub fn value(&self) -> Option<&ChipValue> {
-        self.value.as_ref()
-    }
-
-    pub fn on_click_values(&self) -> &[String] {
-        &self.on_click_values
-    }
-}
-
-#[derive(
-    Serialize,
-    Deserialize,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    schemars::JsonSchema,
-    settings_value::SettingsValue,
-)]
-#[schemars(
-    description = "Type of prompt context chip.",
-    rename_all = "snake_case"
-)]
-pub enum ContextChipKind {
-    WorkingDirectory,
-    Username,
-    Hostname,
-    Date,
-    Time12,
-    Time24,
-    VirtualEnvironment,
-    CondaEnvironment,
-    NodeVersion,
-    #[schemars(description = "A user-defined custom chip.")]
-    Custom {
-        title: String,
-    },
-    ShellGitBranch,
-    GitDiffStats,
-    GithubPullRequest,
-    KubernetesContext,
-    SvnBranch,
-    SvnDirtyItems,
-    // This is for backwards compatibility with the old "RemoteLogin" chip.
-    // We originally had two different chips for different input types, this has since been consolidated.
-    #[serde(alias = "RemoteLogin")]
-    Ssh,
-    Subshell,
-    /// A chip that shows the plan and todo list for the current conversation.
-    AgentPlanAndTodoList,
-}
-
-impl ContextChipKind {
-    pub fn to_chip(&self) -> Option<ContextChip> {
+impl ContextChipKindExt for ContextChipKind {
+    fn to_chip(&self) -> Option<ContextChip> {
         match self {
             Self::WorkingDirectory => Some(ContextChip::builtin_with_runtime_policy(
                 "Working Directory",
@@ -362,7 +271,7 @@ impl ContextChipKind {
     }
 
     /// Whether the context chip has a copyable value.
-    pub fn is_copyable(&self) -> bool {
+    fn is_copyable(&self) -> bool {
         !matches!(self, Self::AgentPlanAndTodoList)
     }
 
@@ -370,7 +279,7 @@ impl ContextChipKind {
     /// a periodic generator. Is mostly used to use the PreCmd value
     /// of git-branch for ShellGitBranch, while using a shell command
     /// for the periodic updates.
-    pub fn initial_value_generator(&self) -> Option<PromptGenerator> {
+    fn initial_value_generator(&self) -> Option<PromptGenerator> {
         match self {
             Self::ShellGitBranch => Some(PromptGenerator::Contextual {
                 from_context_fn: |context| {
@@ -385,7 +294,7 @@ impl ContextChipKind {
     }
 
     /// TODO: we might need to move this API to support custom chips.
-    pub fn placeholder_value(&self) -> ChipValue {
+    fn placeholder_value(&self) -> ChipValue {
         match self {
             Self::WorkingDirectory => ChipValue::Text("~/Desktop".to_string()),
             Self::Username => ChipValue::Text("alice".to_string()),
@@ -409,7 +318,7 @@ impl ContextChipKind {
         }
     }
 
-    pub fn default_styles(
+    fn default_styles(
         &self,
         appearance: &Appearance,
         is_in_agent_view: bool,
@@ -451,7 +360,7 @@ impl ContextChipKind {
     ///
     /// This lets us measure which chips are being used without reporting private
     /// user-created chips.
-    pub fn telemetry_name(&self) -> Option<String> {
+    fn telemetry_name(&self) -> Option<String> {
         match self {
             Self::Custom { .. } => None,
             chip => Some(format!("{chip:?}")),
@@ -462,21 +371,9 @@ impl ContextChipKind {
     ///
     /// This is temporary until chip prefixes/suffixes are user-configurable.
     /// Keep in sync with [`display::PromptDisplay`].
-    pub fn display_value(&self, value: &ChipValue) -> String {
-        let text = value.to_string();
-        match self {
-            Self::ShellGitBranch => format!("git:({text})"),
-            Self::GithubPullRequest => github_pr_display_text_from_url(&text).unwrap_or(text),
-            Self::KubernetesContext => format!("⎈ {text}"),
-            Self::SvnBranch => format!("svn:({text})"),
-            Self::SvnDirtyItems => format!("±{text}"),
-            _ => text,
-        }
-    }
-
     /// Whether or not a context chip should render given the current command
     /// in the input.
-    pub fn should_render(&self, command: &str, aliases: &HashMap<SmolStr, String>) -> bool {
+    fn should_render(&self, command: &str, aliases: &HashMap<SmolStr, String>) -> bool {
         match self {
             Self::KubernetesContext => {
                 const KUBERNETES_COMMANDS: [&str; 20] = [
@@ -515,7 +412,7 @@ impl ContextChipKind {
         }
     }
 
-    pub fn udi_icon(&self) -> Option<Icon> {
+    fn udi_icon(&self) -> Option<Icon> {
         match self {
             Self::WorkingDirectory => Some(Icon::Folder),
             Self::Username | Self::Ssh => Some(Icon::User),
@@ -570,20 +467,20 @@ pub fn available_chips() -> Vec<ContextChipKind> {
     chips
 }
 
-/// Parses [`display_chip::GitLineChanges`] from the raw shell command output stored in a
+/// Parses [`GitLineChanges`] from the raw shell command output stored in a
 /// [`GitDiffStats`](ContextChipKind::GitDiffStats) chip's value.
 ///
 /// Used as a fallback when `GitRepoStatusModel` is unavailable (e.g. remote sessions,
 /// local subshells).
-pub fn git_line_changes_from_chips(chips: &[ChipResult]) -> Option<display_chip::GitLineChanges> {
+pub fn git_line_changes_from_chips(chips: &[ChipResult]) -> Option<GitLineChanges> {
     chips.iter().find_map(|chip| {
         if matches!(chip.kind(), ContextChipKind::GitDiffStats) {
             chip.value().map(|value| match value {
                 // Structured data from GitRepoStatusModel — use directly.
                 ChipValue::GitDiffStats(g) => g.clone(),
                 // Raw shell command output (remote sessions) — parse.
-                ChipValue::Text(raw) => display_chip::GitLineChanges::parse_from_git_output(raw)
-                    .unwrap_or(display_chip::GitLineChanges {
+                ChipValue::Text(raw) => GitLineChanges::parse_from_git_output(raw)
+                    .unwrap_or(GitLineChanges {
                         files_changed: 0,
                         lines_added: 0,
                         lines_removed: 0,

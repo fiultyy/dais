@@ -9,7 +9,7 @@ use crate::code_review::CodeReviewTelemetryEvent;
 use crate::notebooks::NotebookId;
 use crate::persistence::model::{ConversationUsageMetadata, ModelTokenUsage, ToolUsageMetadata};
 use crate::terminal::general_settings::GeneralSettings;
-use crate::terminal::model::block::{
+use terminal_grid_model::block::{
     AgentInteractionMetadata, AgentViewVisibility, BlockId, SerializedAIMetadata, SerializedBlock,
 };
 
@@ -40,22 +40,11 @@ use warpui::{EntityId, ModelContext, SingletonEntity};
 
 use crate::ai::agent::{AIIdentifiers, CancellationReason};
 use crate::{
-    ai::{
-        agent::{
-            icons::{
-                failed_icon, gray_stop_icon, in_progress_icon, succeeded_icon, yellow_stop_icon,
-            },
-            todos::AIAgentTodoList,
-            AIAgentOutputMessage, AIAgentOutputMessageType, MessageToAIAgentOutputMessageError,
-        },
-        blocklist::BlocklistAIHistoryEvent,
-    },
-    persistence::{
-        model::{AgentConversationData, PersistedAutoexecuteMode},
-        ModelEvent,
-    },
+    ai::{ agent::{ icons::{ failed_icon, gray_stop_icon, in_progress_icon, succeeded_icon, yellow_stop_icon, }, todos::AIAgentTodoList, AIAgentOutputMessage, AIAgentOutputMessageType, MessageToAIAgentOutputMessageError, }, blocklist::BlocklistAIHistoryEvent, },
+    persistence::{ model::{AgentConversationData, PersistedAutoexecuteMode}, ModelEvent, },
     ui_components::icons::Icon,
-    BlocklistAIHistoryModel, GlobalResourceHandlesProvider,
+    BlocklistAIHistoryModel,
+    GlobalResourceHandlesProvider,
 };
 
 use super::task::{ExtractMessagesError, UpdateTaskError, UpgradeOptimisticTaskError};
@@ -565,7 +554,11 @@ impl AIConversation {
         };
 
         // Convert these from the persistence type to the runtime one.
-        let reverted_action_ids = reverted_action_ids.into_iter().map_into().collect();
+        // R15: agent_ids 单源化后经字符串构造(孤儿规则禁 From 反向)。
+        let reverted_action_ids = reverted_action_ids
+            .into_iter()
+            .map(|id| AIAgentActionId::from(id.0))
+            .collect();
 
         // Determine the correct status based on the exchanges before constructing
         let status = Self::derive_status_from_root_task(&tasks_by_id.get(&root_task_id));
@@ -3985,35 +3978,8 @@ pub enum UpdateConversationError {
     ByopPreflightPersistenceSend(String),
 }
 
-/// A globally unique ID for a conversation with an AI agent.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct AIConversationId(Uuid);
-
-impl Display for AIConversationId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl AIConversationId {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-}
-
-impl Default for AIConversationId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TryFrom<String> for AIConversationId {
-    type Error = anyhow::Error;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Ok(Self(Uuid::try_parse(&value)?))
-    }
-}
+// R15: AIConversationId 单源化 agent_ids crate。
+pub use agent_ids::AIConversationId;
 
 /// The harness that produced an agent conversation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,28 +1,13 @@
+use terminal_model::rich_content::RichContentType;
 use warp_core::{features::FeatureFlag, send_telemetry_from_ctx, ui::appearance::Appearance};
 use warpui::{keymap::Keystroke, EntityId, SingletonEntity, ViewContext};
 
 use crate::{
-    ai::{
-        agent::conversation::AIConversationId,
-        blocklist::{
-            agent_view::{
-                AgentViewEntryBlock, AgentViewEntryBlockEvent, AgentViewEntryBlockParams,
-                AgentViewEntryOrigin, AutoTriggerBehavior, DismissalStrategy, EnterAgentViewError,
-                EphemeralMessage, ENTER_OR_EXIT_CONFIRMATION_WINDOW,
-            },
-            history_model::LoadedConversationData,
-            BlocklistAIHistoryModel,
-        },
-    },
+    ai::{ agent::conversation::AIConversationId, blocklist::{ agent_view::{ AgentViewEntryBlock, AgentViewEntryBlockEvent, AgentViewEntryBlockParams, AgentViewEntryOrigin, AutoTriggerBehavior, DismissalStrategy, EnterAgentViewError, EphemeralMessage, ENTER_OR_EXIT_CONFIRMATION_WINDOW, }, history_model::LoadedConversationData, BlocklistAIHistoryModel, }, },
     global_resource_handles::GlobalResourceHandlesProvider,
     persistence::ModelEvent,
     server::telemetry::TelemetryAgentViewEntryOrigin,
-    terminal::{
-        input::message_bar::{Message, MessageItem},
-        model::rich_content::RichContentType,
-        view::{AgentViewEntryMetadata, RichContentInsertionPosition, RichContentMetadata},
-        TerminalView,
-    },
+    terminal::{ input::message_bar::{Message, MessageItem}, view::{AgentViewEntryMetadata, RichContentInsertionPosition, RichContentMetadata}, TerminalView, },
     view_components::DismissibleToast,
     workspace::ToastStack,
     TelemetryEvent,

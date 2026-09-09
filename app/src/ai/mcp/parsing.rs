@@ -10,10 +10,7 @@ use serde::Deserialize;
 use crate::ai::mcp::{JSONMCPServer, JSONTransportType};
 
 use crate::{
-    ai::mcp::{
-        templatable::{JsonTemplate, TemplatableMCPServer, TemplateVariable},
-        templatable_installation::{TemplatableMCPServerInstallation, VariableType, VariableValue},
-    },
+    ai::mcp::{ templatable::{JsonTemplate, TemplatableMCPServer, TemplateVariable}, templatable_installation::{TemplatableMCPServerInstallation, VariableType, VariableValue}, },
     server::datetime_ext::DateTimeExt,
 };
 

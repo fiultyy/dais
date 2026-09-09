@@ -31,15 +31,9 @@ use warpui::{
 use crate::terminal::local_shell::LocalShellState;
 use crate::{
     code::editor::{add_color, remove_color},
-    ui_components::{
-        dialog::{dialog_styles, Dialog},
-        icons::Icon,
-    },
+    ui_components::{ dialog::{dialog_styles, Dialog}, icons::Icon, },
     util::git::{Commit, FileChangeEntry},
-    view_components::{
-        action_button::{ActionButton, ButtonSize, NakedTheme, SecondaryTheme},
-        DismissibleToast,
-    },
+    view_components::{ action_button::{ActionButton, ButtonSize, NakedTheme, SecondaryTheme}, DismissibleToast, },
     workspace::ToastStack,
 };
 

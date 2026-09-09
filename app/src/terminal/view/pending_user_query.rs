@@ -2,10 +2,7 @@ use warp_core::features::FeatureFlag;
 use warpui::{SingletonEntity, ViewContext};
 
 use crate::{
-    ai::{
-        agent::{conversation::AIConversationId, CancellationReason},
-        blocklist::block::{FinishReason, PendingUserQueryBlock, PendingUserQueryBlockEvent},
-    },
+    ai::{ agent::{conversation::AIConversationId, CancellationReason}, blocklist::block::{FinishReason, PendingUserQueryBlock, PendingUserQueryBlockEvent}, },
     auth::AuthStateProvider,
     terminal::TerminalView,
 };

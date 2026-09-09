@@ -17,10 +17,7 @@ use warpui::{
 use crate::{
     ai::blocklist::inline_action::inline_action_icons::icon_size,
     ui_components::blended_colors,
-    view_components::compactible_action_button::{
-        render_compact_and_regular_button_rows, render_expansion_icon,
-        RenderCompactibleActionButton,
-    },
+    view_components::compactible_action_button::{ render_compact_and_regular_button_rows, render_expansion_icon, RenderCompactibleActionButton, },
 };
 
 /// Same padding constants as the original for consistency

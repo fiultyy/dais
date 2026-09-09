@@ -10,21 +10,23 @@ use crate::settings::{
     AISettings, DebugSettings, EnforceMinimumContrast, PrivacySettings, TerminalSpacing,
 };
 use crate::terminal::alt_screen::{should_intercept_mouse, should_intercept_scroll};
+use terminal_grid_model::block::blocks::BlockListPointExt as _;
+use crate::terminal::blockgrid_renderer::BlockGridRenderExt as _;
+use crate::terminal::shared_session::selections::WithinBlockSessionSharing as _;
 use crate::terminal::block_list_viewport::AutoscrollBehavior;
 use crate::terminal::input::inline_menu::InlineMenuPositioner;
-use crate::terminal::model::block::{Block, BlockSection};
-use crate::terminal::model::blocks::{
+use terminal_grid_model::block::{Block, BlockSection};
+use terminal_grid_model::block::blocks::{
     BlockHeight, BlockHeightItem, BlockHeightSummary, BlockList, BlockListPoint, TotalIndex,
 };
-use crate::terminal::model::index::Point as IndexPoint;
-use crate::terminal::model::selection::{SelectAction, SelectionPoint};
+use terminal_model::index::Point as IndexPoint;
+use terminal_grid_model::grid::selection::{SelectAction, SelectionPoint};
 use crate::terminal::safe_mode_settings::get_secret_obfuscation_mode;
 use crate::terminal::view::TerminalAction;
 use crate::terminal::{grid_renderer, SizeInfo};
 use crate::themes::theme::{Fill, WarpTheme};
 use crate::ui_components::{self, icons as UIIcon};
 use crate::util::color::Opacity;
-use enum_iterator::Sequence;
 use itertools::Itertools;
 use parking_lot::FairMutex;
 use vec1::Vec1;
@@ -70,11 +72,11 @@ use super::find::{BlockListFindRun, BlockListMatch, TerminalFindModel};
 use super::grid_renderer::CellGlyphCache;
 
 use super::meta_shortcuts::handle_keystroke_despite_composing;
-use super::model::block::BlockId;
-use super::model::blocks::{RichContentItem, SelectionRange};
-use super::model::grid::grid_handler::{Link, TermMode};
-use super::model::image_map::StoredImageMetadata;
-use super::model::mouse::{MouseAction, MouseButton, MouseState};
+use terminal_grid_model::block::BlockId;
+use terminal_grid_model::block::blocks::{RichContentItem, SelectionRange};
+use terminal_grid_model::grid::grid_handler::{Link, TermMode};
+use terminal_grid_model::image_map::StoredImageMetadata;
+use warp_terminal::model::mouse::{MouseAction, MouseButton, MouseState};
 use super::model::session::SessionId;
 use super::model::terminal_model::{SelectedBlocks, WithinBlock, WithinModel};
 use super::model::SecretHandle;
@@ -90,10 +92,10 @@ use super::warpify::render::{draw_flag_pole, render_subshell_flag};
 use super::TerminalModel;
 use super::{heights_approx_eq, HEIGHT_FUDGE_FACTOR_LINES};
 use crate::terminal::blockgrid_renderer::BlockGridParams;
-use crate::terminal::model::terminal_model::BlockIndex;
+use terminal_grid_model::block_index::BlockIndex;
 use crate::terminal::warpify::SubshellSource;
 
-use crate::terminal::model::escape_sequences::{
+use warp_terminal::model::escape_sequences::{
     maybe_kitty_keyboard_escape_sequence, KeystrokeWithDetails, ToEscapeSequence,
 };
 
@@ -237,13 +239,8 @@ pub type FilterBuilderFn = dyn Fn(
     &AppContext,
 ) -> Vec<Option<Box<dyn Element>>>;
 
-#[derive(Debug, PartialEq, Copy, Clone, Eq, PartialOrd, Sequence)]
-pub enum GridType {
-    Prompt,
-    Rprompt,          // Right side prompt
-    PromptAndCommand, // Combined prompt/command grid.
-    Output,
-}
+// R14: GridType 定义下沉 terminal_grid_model。
+pub use terminal_grid_model::GridType;
 
 #[derive(Debug, Default, Clone)]
 pub struct SnackbarHeaderState {
@@ -764,9 +761,6 @@ pub struct BlockListElement {
     /// If `Some()`, lays out and renders the element next to the cursor.
     cursor_hint_text_element: Option<Box<dyn Element>>,
 
-    /// Voice input toggle key code for CLI agent footer integration.
-    #[cfg(feature = "voice_input")]
-    voice_input_toggle_key_code: Option<KeyCode>,
 
     inline_menu_positioner: ModelHandle<InlineMenuPositioner>,
 }
@@ -1029,17 +1023,9 @@ impl BlockListElement {
             cursor_hint_text_element,
             cli_subagent_views,
             inline_menu_positioner,
-            #[cfg(feature = "voice_input")]
-            voice_input_toggle_key_code: None,
         }
     }
 
-    /// Sets the voice input toggle key code for CLI agent footer integration.
-    #[cfg(feature = "voice_input")]
-    pub fn with_voice_input_toggle_key(mut self, key_code: Option<KeyCode>) -> Self {
-        self.voice_input_toggle_key_code = key_code;
-        self
-    }
 
     pub fn with_ligature_rendering(mut self) -> Self {
         self.use_ligature_rendering = true;
@@ -3101,27 +3087,6 @@ impl BlockListElement {
         )
     }
 
-    #[cfg(feature = "voice_input")]
-    fn maybe_handle_voice_toggle(
-        &self,
-        key_code: &KeyCode,
-        state: &KeyState,
-        ctx: &mut EventContext,
-    ) -> bool {
-        use crate::terminal::view::TerminalAction;
-
-        if let Some(voice_input_toggle_key_code) = self.voice_input_toggle_key_code {
-            if *key_code == voice_input_toggle_key_code {
-                ctx.dispatch_typed_action(TerminalAction::ToggleCLIAgentVoiceInput(
-                    voice_input::VoiceInputToggledFrom::Key { state: *state },
-                ));
-                return true;
-            }
-        }
-        false
-    }
-
-    #[cfg(not(feature = "voice_input"))]
     fn maybe_handle_voice_toggle(
         &self,
         _key_code: &KeyCode,
@@ -3130,6 +3095,7 @@ impl BlockListElement {
     ) -> bool {
         false
     }
+
 }
 
 /// With a `WithinBlock<IndexPoint>`, the point will count rows with 0 starting with the beginning

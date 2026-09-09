@@ -53,10 +53,7 @@ use warpui::{AppContext, Entity, EntityId, ModelContext, ModelHandle, SingletonE
 
 use crate::{
     ai::agent::{AIAgentAction, AIAgentActionId, AIAgentActionResult},
-    terminal::{
-        model::session::active_session::ActiveSession, model_events::ModelEventDispatcher,
-        TerminalModel,
-    },
+    terminal::{ model::session::active_session::ActiveSession, model_events::ModelEventDispatcher, TerminalModel, },
 };
 
 use self::execute::{

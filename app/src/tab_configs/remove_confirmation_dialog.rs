@@ -15,9 +15,7 @@ use warpui::{
 use crate::{
     appearance::Appearance,
     ui_components::dialog::{dialog_styles, Dialog},
-    view_components::action_button::{
-        ActionButton, DangerPrimaryTheme, KeystrokeSource, NakedTheme,
-    },
+    view_components::action_button::{ ActionButton, DangerPrimaryTheme, KeystrokeSource, NakedTheme, },
 };
 
 pub(crate) fn init(app: &mut AppContext) {

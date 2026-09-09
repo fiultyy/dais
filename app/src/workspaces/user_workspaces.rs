@@ -9,13 +9,11 @@ use crate::{
     ai::llms::LLMModelHost,
     auth::{UserUid, TEST_USER_UID},
     channel::ChannelState,
-    cloud_object::{
-        model::persistence::ObjectStoreModel, ObjectType, Owner, Space, StoredObjectEventEntrypoint,
-    },
-    server::ids::ServerId,
     settings::{AISettings, PrivacySettings},
     workspaces::workspace::{AiAutonomySettings, SandboxedAgentSettings},
 };
+use objects::{ObjectType, Owner, Space, StoredObjectEventEntrypoint, ids::ServerId};
+use crate::objects::model::persistence::ObjectStoreModel;
 use regex::Regex;
 use warp_core::{
     features::FeatureFlag,
@@ -330,18 +328,15 @@ impl UserWorkspaces {
 
     /// Whether voice input should be toggleable for the current user, based on the active policies.
     /// Note that the value may be incorrect if called before the team's billing metadata has been fetched.
-    /// If voice input support is not compiled into this build, always returns `false`.
     pub fn is_voice_enabled(&self) -> bool {
-        cfg!(feature = "voice_input")
-            && self
-                .current_team()
-                // If the user has no team, they can toggle Voice (no restrictions).
-                .is_none_or(|team| {
-                    team.billing_metadata
-                        .tier
-                        .warp_ai_policy
-                        .is_some_and(|policy| policy.is_voice_enabled)
-                })
+        self.current_team()
+            // If the user has no team, they can toggle Voice (no restrictions).
+            .is_none_or(|team| {
+                team.billing_metadata
+                    .tier
+                    .warp_ai_policy
+                    .is_some_and(|policy| policy.is_voice_enabled)
+            })
     }
 
     /// Whether BYO API key is enabled for the current user, based on the active policies.

@@ -1,3 +1,4 @@
+use terminal_grid_model::block::blocks::BlockHeightItem;
 use itertools::Itertools as _;
 use markdown_parser::parse_markdown;
 use parking_lot::FairMutex;
@@ -17,17 +18,7 @@ use warpui::{
 };
 
 use crate::{
-    ai::{
-        agent::conversation::AIConversationId,
-        blocklist::{
-            agent_view::{
-                agent_view_bg_color, AgentViewController, AgentViewEntryOrigin,
-                ENTER_AGENT_VIEW_NEW_CONVERSATION_KEYSTROKE,
-            },
-            history_model::{BlocklistAIHistoryEvent, BlocklistAIHistoryModel},
-        },
-        conversation_navigation::ConversationNavigationData,
-    },
+    ai::{ agent::conversation::AIConversationId, blocklist::{ agent_view::{ agent_view_bg_color, AgentViewController, AgentViewEntryOrigin, ENTER_AGENT_VIEW_NEW_CONVERSATION_KEYSTROKE, }, history_model::{BlocklistAIHistoryEvent, BlocklistAIHistoryModel}, }, conversation_navigation::ConversationNavigationData, },
     appearance::Appearance,
     report_if_error,
     settings::{InputSettings, InputSettingsChangedEvent},
@@ -35,10 +26,7 @@ use crate::{
         self,
         event::BlockType,
         input::message_bar::{common::render_standard_message, Message, MessageItem},
-        model::{
-            blocks::BlockHeightItem,
-            session::{BootstrapSessionType, Session, SessionType, Sessions},
-        },
+        model::session::{BootstrapSessionType, Session, SessionType, Sessions},
         model_events::{AnsiHandlerEvent, ModelEvent, ModelEventDispatcher},
         prompt,
         view::TerminalAction,

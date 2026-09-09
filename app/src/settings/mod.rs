@@ -6,8 +6,6 @@ pub mod app_installation_detection;
 mod autoupdate;
 mod block_visibility;
 pub mod cloud_preferences;
-mod cloud_sync;
-mod cloud_sync_secrets;
 mod code;
 mod debug;
 mod editor;
@@ -47,8 +45,6 @@ pub use alias_expansion::*;
 pub use autoupdate::*;
 pub use block_visibility::*;
 pub use cloud_preferences::*;
-pub use cloud_sync::*;
-pub use cloud_sync_secrets::*;
 pub use code::*;
 pub use debug::*;
 pub use editor::*;
@@ -524,10 +520,7 @@ impl Settings {
     }
 
     pub fn theme_for_theme_kind(theme_kind: &ThemeKind, ctx: &mut AppContext) -> WarpTheme {
-        match theme_kind {
-            ThemeKind::InMemory(in_memory_theme) => in_memory_theme.theme(),
-            _ => WarpConfig::as_ref(ctx).theme_config().theme(theme_kind),
-        }
+        WarpConfig::as_ref(ctx).theme_config().theme(theme_kind)
     }
 }
 

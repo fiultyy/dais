@@ -17,14 +17,7 @@ use warpui::{
 use crate::{
     appearance::Appearance,
     external_secrets::ExternalSecret,
-    search::{
-        external_secrets::{
-            external_secret_data_source::ExternalSecretDataSource,
-            searcher::{ExternalSecretSearchItemAction, ExternalSecretSearchMixer},
-        },
-        result_renderer::{QueryResultRenderer, QueryResultRendererStyles},
-        search_bar::{SearchBar, SearchBarEvent, SearchBarState, SearchResultOrdering},
-    },
+    search::{ external_secrets::{ external_secret_data_source::ExternalSecretDataSource, searcher::{ExternalSecretSearchItemAction, ExternalSecretSearchMixer}, }, result_renderer::{QueryResultRenderer, QueryResultRendererStyles}, search_bar::{SearchBar, SearchBarEvent, SearchBarState, SearchResultOrdering}, },
 };
 
 lazy_static! {
@@ -369,7 +362,10 @@ pub mod styles {
     use pathfinder_color::ColorU;
     use warpui::elements::{Border, DropShadow, ScrollbarWidth};
 
-    use crate::{appearance::Appearance, themes::theme::Fill};
+    use crate::{
+    appearance::Appearance,
+    themes::theme::Fill,
+};
 
     pub const CORNER_RADIUS: f32 = 6.;
     pub const VIEW_WIDTH: f32 = 450.;

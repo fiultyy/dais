@@ -27,35 +27,19 @@ use warpui::{
 };
 
 use crate::{
-    ai::{
-        blocklist::secret_redaction::find_secrets_in_text,
-        mcp::{
-            parsing::{prettify_json, resolve_json, ParsedTemplatableMCPServerResult},
-            templatable::TemplatableMCPServerObject,
-            MCPServer, TemplatableMCPServer, TemplatableMCPServerInstallation,
-            TemplatableMCPServerManager, TransportType,
-        },
-    },
+    ai::{ blocklist::secret_redaction::find_secrets_in_text, mcp::{ parsing::{prettify_json, resolve_json, ParsedTemplatableMCPServerResult}, templatable::TemplatableMCPServerObject, MCPServer, TemplatableMCPServer, TemplatableMCPServerInstallation, TemplatableMCPServerManager, TransportType, }, },
     banner::{Banner, BannerTextContent},
-    cloud_object::{update_manager::InitiatedBy, Space, StoredObject},
     code::editor::view::{CodeEditorRenderOptions, CodeEditorView},
     persistence::ModelEvent,
     server::telemetry::{MCPTemplateCreationSource, TelemetryEvent},
-    settings_view::mcp_servers::{
-        destructive_mcp_confirmation_dialog::{
-            DestructiveMCPConfirmationDialog, DestructiveMCPConfirmationDialogEvent,
-            DestructiveMCPConfirmationDialogVariant,
-        },
-        style, ServerCardItemId,
-    },
+    settings_view::mcp_servers::{ destructive_mcp_confirmation_dialog::{ DestructiveMCPConfirmationDialog, DestructiveMCPConfirmationDialogEvent, DestructiveMCPConfirmationDialogVariant, }, style, ServerCardItemId, },
     ui_components::{buttons::icon_button, icons::Icon},
-    view_components::{
-        action_button::{ActionButton, DangerSecondaryTheme, PrimaryTheme},
-        DismissibleToast,
-    },
+    view_components::{ action_button::{ActionButton, DangerSecondaryTheme, PrimaryTheme}, DismissibleToast, },
     workspace::ToastStack,
     GlobalResourceHandlesProvider,
 };
+use objects::{Space, StoredObject};
+use crate::objects::object_store::InitiatedBy;
 
 const DEFAULT_JSON_TEXT: &str = r#"{
     "": {

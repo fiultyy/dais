@@ -1,4 +1,5 @@
-use crate::{auth::UserUid, server::ids::ServerId};
+use crate::auth::UserUid;
+use objects::ids::ServerId;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 

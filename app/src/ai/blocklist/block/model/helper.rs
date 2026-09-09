@@ -1,13 +1,7 @@
 use warpui::{AppContext, EntityId, ModelHandle, SingletonEntity};
 
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversation, AIAgentAction, AIAgentActionId, AIAgentActionType,
-            AIAgentInput, AIAgentOutputMessageType, SummarizationType,
-        },
-        blocklist::BlocklistAIActionModel,
-    },
+    ai::{ agent::{ conversation::AIConversation, AIAgentAction, AIAgentActionId, AIAgentActionType, AIAgentInput, AIAgentOutputMessageType, SummarizationType, }, blocklist::BlocklistAIActionModel, },
     BlocklistAIHistoryModel,
 };
 

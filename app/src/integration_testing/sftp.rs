@@ -12,7 +12,7 @@ use warpui::{App, ViewHandle, WindowId};
 use crate::sftp_manager::browser::SftpBrowserView;
 use crate::sftp_manager::sftp_backend::{InMemorySftpBackend, SftpBackend};
 
-// 重新导出，供集成测试通过 warp::integration_testing::sftp 使用
+// 重新导出，供集成测试通过 dais::integration_testing::sftp 使用
 pub use crate::sftp_manager::browser::SftpBrowserAction;
 pub use crate::sftp_manager::types::{ConnectionState, Dialog};
 

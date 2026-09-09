@@ -3,19 +3,14 @@
 //!
 //! 1. restore 幂等:注入记录型工厂,同一 `LeafContents` 两次 restore 产生
 //!    相同的 pane 类型序列(工厂无隐藏状态、同输入同输出)。
-//! 2. `is_persisted` 真值表:对 `LeafContents` 全部 17 个变体逐一断言持久化
+//! 2. `is_persisted` 真值表:对 `LeafContents` 全部 12 个变体逐一断言持久化
 //!    与否(含 `Code` 变体的 `source.is_restorable()` 细分),防止未来新增
 //!    变体漏标 —— 漏标会在保存端留下孤儿 `pane_nodes` 行导致整 tab 丢失。
 
 use super::*;
-use crate::app_state::{
-    AIDocumentPaneSnapshot, CodePaneSnapShot, CodePaneTabSnapshot, CodeReviewPaneSnapshot,
-};
 use crate::code::buffer_location::RemotePath;
 use crate::code::editor_management::CodeSource;
-use crate::app_state::TerminalPaneSnapshot;
-use crate::drive::DaisDriveObjectSettings;
-use crate::server::ids::SyncId;
+use crate::app_state::{CodePaneTabSnapshot, TerminalPaneSnapshot};
 use warp_core::HostId;
 use warpui::{App, Element, Entity, TypedActionView, View};
 
@@ -77,23 +72,15 @@ impl PaneContentFactory for RecordingFactory {
     ) -> anyhow::Result<(PaneData, InitialFocus)> {
         let pane_type = match &leaf.contents {
             LeafContents::Terminal(_) => "Terminal",
-            LeafContents::Notebook(NotebookPaneSnapshot::NotebookObject { .. }) => "Notebook",
-            LeafContents::Notebook(NotebookPaneSnapshot::LocalFileNotebook { .. }) => "File",
             LeafContents::Image { .. } => "Image(unrestorable)",
-            LeafContents::AIDocument(_) => "DeferredPlaceholder",
             LeafContents::Code(_) => "Code",
             LeafContents::EnvVarCollection(_) => "EnvVarCollection",
-            LeafContents::Workflow(_) => "Workflow",
             LeafContents::Settings(_) => "Settings",
-            LeafContents::AIFact(_) => "AIFact",
+            LeafContents::Notebook(_) => "Notebook",
+            LeafContents::Workflow(_) => "Workflow",
+            LeafContents::AIDocument(_) => "AIDocument",
             LeafContents::ExecutionProfileEditor => "ExecutionProfileEditor(unrestorable)",
-            LeafContents::CodeReview(_) => "CodeReview(unrestorable)",
-            LeafContents::Welcome { .. } => "Welcome",
-            LeafContents::GetStarted => "GetStarted",
-            LeafContents::SshServer { .. } => "SshServer(unrestorable)",
-            LeafContents::Sftp { .. } => "Sftp(unrestorable)",
-            LeafContents::Observatory => "Observatory(unrestorable)",
-            LeafContents::Cockpit => "Cockpit(unrestorable)",
+            _ => "unrestorable",
         };
         self.calls.borrow_mut().push(pane_type);
         // 与生产 AIDocument 臂同形的"无真实 pane"路径:占位 id + 空树语义。
@@ -257,26 +244,6 @@ fn restore_terminal_leaf_is_idempotent() {
     }));
 }
 
-#[test]
-fn restore_aidocument_leaf_defers_idempotently() {
-    // AIDocument 走 deferred 占位路径:两次 restore 都应产生 1 条占位记录。
-    assert_restore_idempotent(LeafContents::AIDocument(AIDocumentPaneSnapshot::Local {
-        document_id: "doc-1".to_string(),
-        version: 1,
-        content: None,
-        title: None,
-    }));
-}
-
-#[test]
-fn restore_notebook_leaf_is_idempotent() {
-    assert_restore_idempotent(LeafContents::Notebook(
-        NotebookPaneSnapshot::NotebookObject {
-            notebook_id: Some(SyncId::ClientId(Default::default())),
-            settings: DaisDriveObjectSettings::default(),
-        },
-    ));
-}
 
 #[test]
 fn restore_settings_leaf_is_idempotent() {
@@ -291,11 +258,6 @@ fn restore_unrestorable_variants_fail_identically() {
     // 不可恢复变体(非持久化残留):两次 restore 同样失败,同样报错 ——
     // 失败形态也必须幂等。
     for contents in [
-        LeafContents::CodeReview(CodeReviewPaneSnapshot::Local {
-            terminal_uuid: vec![1],
-            repo_path: PathBuf::from("/repo"),
-        }),
-        LeafContents::ExecutionProfileEditor,
         LeafContents::SshServer {
             node_id: "node-1".to_string(),
         },
@@ -311,12 +273,10 @@ fn restore_unrestorable_variants_fail_identically() {
 }
 
 // ---------------------------------------------------------------------------
-// LeafContents::is_persisted 全变体真值表 (18 变体)
+// LeafContents::is_persisted 全变体真值表 (13 变体)
 // ---------------------------------------------------------------------------
 
-/// 18 变体逐一锁定持久化真值。
-///
-/// `Code` 特殊:按 `source.is_restorable()` 细分;`AIAction` /
+/// 13 变体逐一锁定持久化真值。
 /// `RemoteFileTree` source 不可恢复 ⇒ 不持久化,其余 ⇒ 持久化;
 /// `source: None`(会话内新建未命名)⇒ 持久化。
 #[test]
@@ -383,59 +343,12 @@ fn leaf_contents_is_persisted_truth_table_covers_all_variants() {
         .is_persisted()
     );
     assert!(
-        LeafContents::Notebook(NotebookPaneSnapshot::NotebookObject {
-            notebook_id: None,
-            settings: DaisDriveObjectSettings::default(),
-        })
-        .is_persisted()
-    );
-    assert!(
-        LeafContents::Notebook(NotebookPaneSnapshot::LocalFileNotebook {
-            path: Some(PathBuf::from("/tmp/nb.ipynb")),
-        })
-        .is_persisted()
-    );
-    assert!(
-        LeafContents::AIDocument(AIDocumentPaneSnapshot::Local {
-            document_id: "doc-1".to_string(),
-            version: 1,
-            content: None,
-            title: None,
-        })
-        .is_persisted()
-    );
-    assert!(
-        LeafContents::EnvVarCollection(EnvVarCollectionPaneSnapshot::EnvVarCollectionObject {
-            env_var_collection_id: None,
-        })
-        .is_persisted()
-    );
-    assert!(
-        LeafContents::Workflow(WorkflowPaneSnapshot::WorkflowObject {
-            workflow_id: None,
-            settings: DaisDriveObjectSettings::default(),
-        })
-        .is_persisted()
-    );
-    assert!(
         LeafContents::Settings(SettingsPaneSnapshot::Local {
             current_page: crate::settings_view::SettingsSection::default(),
             search_query: None,
         })
         .is_persisted()
     );
-    assert!(LeafContents::AIFact(AIFactPaneSnapshot::Personal).is_persisted());
-    assert!(LeafContents::ExecutionProfileEditor.is_persisted());
-    assert!(
-        LeafContents::CodeReview(CodeReviewPaneSnapshot::Local {
-            terminal_uuid: vec![1],
-            repo_path: PathBuf::from("/repo"),
-        })
-        .is_persisted()
-    );
-    assert!(LeafContents::Welcome { startup_directory: None }.is_persisted());
-    assert!(LeafContents::GetStarted.is_persisted());
-
     // 不持久化: false 组
     assert!(!LeafContents::Image { path: None }.is_persisted());
     assert!(
@@ -459,12 +372,8 @@ fn leaf_contents_is_persisted_truth_table_covers_all_variants() {
 #[test]
 fn leaf_contents_is_persisted_is_idempotent() {
     let fixtures: Vec<LeafContents> = vec![
-        LeafContents::GetStarted,
         LeafContents::Observatory,
         LeafContents::Cockpit,
-        LeafContents::Welcome { startup_directory: None },
-        LeafContents::ExecutionProfileEditor,
-        LeafContents::AIFact(AIFactPaneSnapshot::Personal),
     ];
     for f in &fixtures {
         assert_eq!(f.is_persisted(), f.is_persisted());

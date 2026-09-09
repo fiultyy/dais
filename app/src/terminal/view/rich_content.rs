@@ -1,16 +1,13 @@
+use terminal_grid_model::block::blocks::RichContentItem;
+use terminal_grid_model::block_index::BlockIndex;
+use terminal_model::rich_content::RichContentType;
 use warpui::{prelude::ChildView, Element, EntityId, View, ViewContext, ViewHandle};
 
 use crate::{
-    ai::{
-        agent::{conversation::AIConversationId, AIAgentExchangeId},
-        blocklist::{agent_view::AgentViewEntryOrigin, AIBlock},
-    },
+    ai::{ agent::{conversation::AIConversationId, AIAgentExchangeId}, blocklist::{agent_view::AgentViewEntryOrigin, AIBlock}, },
     env_vars::env_var_collection_block::EnvVarCollectionBlock,
     terminal::{
         block_list_viewport::ScrollPositionUpdate,
-        model::{
-            blocks::RichContentItem, rich_content::RichContentType, terminal_model::BlockIndex,
-        },
         ssh::{error::SshErrorBlock, install_tmux::SshInstallTmuxBlock, warpify::SshWarpifyBlock},
         view::{
             block_onboarding::onboarding_agentic_suggestions_block::OnboardingAgenticSuggestionsBlock,

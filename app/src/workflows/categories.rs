@@ -11,14 +11,19 @@ use warpui::{
 };
 
 use crate::appearance::Appearance;
+use crate::objects::model::persistence::ObjectStoreModel;
+use objects::Space;
 use crate::util::bindings::CustomAction;
 use crate::voltron::{VoltronFeatureViewMeta, VoltronMetadata};
 use crate::workflows::WorkflowType;
 use crate::{
-    cloud_object::model::persistence::ObjectStoreModel, workspaces::user_workspaces::UserWorkspaces,
+    editor::Event as EditorEvent,
+    send_telemetry_from_ctx,
 };
-use crate::{editor::Event as EditorEvent, send_telemetry_from_ctx};
-use crate::{server::telemetry::TelemetryEvent, user_config::WarpConfig};
+use crate::{
+    server::telemetry::TelemetryEvent,
+    user_config::WarpConfig,
+};
 use crate::{
     themes::theme::{self, Blend, WarpTheme},
     user_config::WarpConfigUpdateEvent,
@@ -486,21 +491,19 @@ impl CategoriesView {
     }
 
     pub fn load_cloud_workflows(&mut self, ctx: &mut ViewContext<Self>) {
-        let user_workspaces = UserWorkspaces::as_ref(ctx);
+        // 本地化:对象只存在于本地 Personal space,不再遍历 team/shared 空间。
         let object_store_model = ObjectStoreModel::as_ref(ctx);
-
-        for space in user_workspaces.all_user_spaces(ctx) {
-            let workflows_in_space = object_store_model.active_workflows_in_space(space, ctx);
-            let new_workflows_in_space = Self::categorize_workflows(
-                // Don't include AI workflows in Voltron.
-                workflows_in_space
-                    .into_iter()
-                    .filter(|workflow| !workflow.model().data.is_agent_mode_workflow())
-                    .map(|w| Arc::new(WorkflowType::Cloud(Box::new(w.clone())))),
-            );
-            self.workflows_by_source
-                .insert(space.into(), new_workflows_in_space);
-        }
+        let workflows_in_space =
+            object_store_model.active_workflows_in_space(Space::Personal, ctx);
+        let new_workflows = Self::categorize_workflows(
+            // Don't include AI workflows in Voltron.
+            workflows_in_space
+                .into_iter()
+                .filter(|workflow| !workflow.model().data.is_agent_mode_workflow())
+                .map(|w| Arc::new(WorkflowType::Cloud(Box::new(w.clone())))),
+        );
+        self.workflows_by_source
+            .insert(WorkflowSource::PersonalCloud, new_workflows);
 
         self.selected_workflow_index = 0;
         self.compute_active_workflows(ctx);

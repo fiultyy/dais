@@ -8,10 +8,10 @@ use warpui::{
 use crate::{
     ai::facts::{AIFact, AIFactObject, AIMemory},
     appearance::Appearance,
-    cloud_object::StoredObjectMetadata,
-    drive::{index::DriveIndexAction, DriveObjectType, ObjectTypeAndId},
+    drive::{DriveObjectType, ObjectTypeAndId},
     themes::theme::Fill,
 };
+use objects::StoredObjectMetadata;
 
 use super::{WarpDriveItem, WarpDriveItemId};
 
@@ -55,9 +55,6 @@ impl WarpDriveItem for WarpDriveAIFact {
         None
     }
 
-    fn click_action(&self) -> Option<DriveIndexAction> {
-        Some(DriveIndexAction::OpenAIFactCollection)
-    }
 
     fn preview(&self, appearance: &Appearance) -> Option<Box<dyn Element>> {
         let title_to_render = match &self.ai_fact.model().string_model {
@@ -94,15 +91,11 @@ impl WarpDriveItem for WarpDriveAIFact {
 
     fn sync_status_icon(
         &self,
-        sync_queue_is_dequeueing: bool,
-        hover_state: MouseStateHandle,
-        appearance: &Appearance,
+        _sync_queue_is_dequeueing: bool,
+        _hover_state: MouseStateHandle,
+        _appearance: &Appearance,
     ) -> Option<Box<dyn Element>> {
-        self.ai_fact.metadata.pending_changes_statuses.render_icon(
-            sync_queue_is_dequeueing,
-            hover_state,
-            appearance,
-        )
+        None
     }
 
     fn action_summary(&self, _app: &AppContext) -> Option<String> {

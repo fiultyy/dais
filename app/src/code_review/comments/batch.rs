@@ -1,7 +1,10 @@
 use super::{
     AttachedReviewComment, AttachedReviewCommentTarget, CommentId, PendingImportedReviewComment,
 };
-use crate::{code::editor::EditorReviewComment, code_review::diff_state::DiffMode};
+use crate::{
+    code::editor::EditorReviewComment,
+    code_review::diff_state::DiffMode,
+};
 use std::{collections::HashMap, path::Path};
 use warp_core::features::FeatureFlag;
 use warp_editor::render::model::LineCount;

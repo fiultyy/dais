@@ -43,11 +43,7 @@ use crate::{
     code_review::comments::CommentId,
 };
 use crate::{
-    code::{
-        footer::{CodeFooterView, CodeFooterViewEvent},
-        global_buffer_model::{BufferState, GlobalBufferModel},
-        SaveOutcome,
-    },
+    code::{ footer::{CodeFooterView, CodeFooterViewEvent}, global_buffer_model::{BufferState, GlobalBufferModel}, SaveOutcome, },
     settings::AISettings,
     terminal::TerminalView,
     util::sync::Condition,

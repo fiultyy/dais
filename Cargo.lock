@@ -110,6 +110,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "agent_ids"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "uuid",
+]
+
+[[package]]
 name = "ahash"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -195,6 +204,7 @@ dependencies = [
  "strum_macros 0.27.2",
  "syntax_tree",
  "tempfile",
+ "terminal_grid_model",
  "thiserror 2.0.18",
  "tokio",
  "typed-path 0.10.0",
@@ -254,28 +264,6 @@ name = "allocator-api2"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
-
-[[package]]
-name = "alsa"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "812947049edcd670a82cd5c73c3661d2e58468577ba8489de58e1a73c04cbd5d"
-dependencies = [
- "alsa-sys",
- "bitflags 2.13.0",
- "cfg-if",
- "libc",
-]
-
-[[package]]
-name = "alsa-sys"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad7569085a265dd3f607ebecce7458eaab2132a84393534c95b18dcbc3f31e04"
-dependencies = [
- "libc",
- "pkg-config",
-]
 
 [[package]]
 name = "android-activity"
@@ -2996,6 +2984,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "code_model"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bimap",
+ "cfg-if",
+ "futures-util",
+ "instant",
+ "log",
+ "pathfinder_geometry",
+ "remote_server",
+ "serde",
+ "string-offset",
+ "sum_tree",
+ "thiserror 2.0.18",
+ "warp_core",
+ "warp_editor",
+ "warp_files",
+ "warp_util",
+ "warpui",
+]
+
+[[package]]
+name = "code_review_model"
+version = "0.1.0"
+dependencies = [
+ "ai",
+ "rangemap",
+ "warp_editor",
+]
+
+[[package]]
 name = "codesnake"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3252,6 +3272,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "context_chips_ui"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "warp_terminal",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3387,20 +3415,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "coreaudio-rs"
-version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d5d7dca3ebcf65a035582c9ad4385371a9d9ee6537474d2a278f4e1e475bb58"
-dependencies = [
- "bitflags 2.13.0",
- "libc",
- "objc2-audio-toolbox",
- "objc2-core-audio",
- "objc2-core-audio-types",
- "objc2-core-foundation",
-]
-
-[[package]]
 name = "cosmic-text"
 version = "0.12.0"
 source = "git+https://github.com/warpdotdev/cosmic-text.git?rev=15198beba692162201c0ea8b15222cf5643ea068#15198beba692162201c0ea8b15222cf5643ea068"
@@ -3429,36 +3443,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f009fcafa949dc1fc46a762dae84d0c2687d3b550906b633c4979d58d2c6ae52"
 dependencies = [
  "num-traits",
-]
-
-[[package]]
-name = "cpal"
-version = "0.17.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8942da362c0f0d895d7cac616263f2f9424edc5687364dfd1d25ef7eba506d7"
-dependencies = [
- "alsa",
- "coreaudio-rs",
- "dasp_sample",
- "jni 0.21.1",
- "js-sys",
- "libc",
- "mach2 0.5.0",
- "ndk",
- "ndk-context",
- "num-derive",
- "num-traits",
- "objc2 0.6.4",
- "objc2-audio-toolbox",
- "objc2-avf-audio",
- "objc2-core-audio",
- "objc2-core-audio-types",
- "objc2-core-foundation",
- "objc2-foundation 0.3.2",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "windows 0.62.2",
 ]
 
 [[package]]
@@ -3791,6 +3775,293 @@ dependencies = [
 ]
 
 [[package]]
+name = "dais"
+version = "0.1.0"
+dependencies = [
+ "addr",
+ "agent_ids",
+ "aho-corasick",
+ "ai",
+ "anyhow",
+ "app-installation-detection",
+ "arrayvec",
+ "asset_cache",
+ "asset_macro",
+ "async-broadcast",
+ "async-channel",
+ "async-compat",
+ "async-executor",
+ "async-fs",
+ "async-io",
+ "async-process",
+ "async-recursion",
+ "async-stream",
+ "async-trait",
+ "aws-config",
+ "aws-credential-types",
+ "aws-sdk-sts",
+ "aws-types",
+ "axum 0.8.9",
+ "base64 0.22.1",
+ "bimap",
+ "bincode",
+ "bitflags 2.13.0",
+ "block",
+ "blocking",
+ "bounded-vec-deque",
+ "byte-unit",
+ "bytecount",
+ "bytemuck",
+ "bytes",
+ "cc",
+ "cfg-if",
+ "cfg_aliases 0.2.1",
+ "channel_versions",
+ "chrono",
+ "clap",
+ "cockpit_model",
+ "cocoa 0.26.0",
+ "code_model",
+ "code_review_model",
+ "comfy-table",
+ "command",
+ "command-corrections",
+ "command-signatures-v2",
+ "computer_use",
+ "concat-idents",
+ "console_error_panic_hook",
+ "content_inspector",
+ "context_chips_ui",
+ "core-foundation 0.10.1",
+ "counter",
+ "crash-handler",
+ "csv",
+ "ctor",
+ "cvt",
+ "dais_sftp",
+ "dashmap",
+ "deltae",
+ "derivative",
+ "dhat",
+ "diesel",
+ "diesel_migrations",
+ "difflib 0.4.0 (git+https://github.com/warpdotdev/difflib.git?rev=114177e7d8e1f8017baca397f943e11644b14d63)",
+ "directories",
+ "dirs 6.0.0",
+ "drive_ui",
+ "dunce",
+ "embed-resource",
+ "embed_plist",
+ "enclose",
+ "enum-iterator",
+ "env_logger",
+ "env_vars_ui",
+ "event-listener",
+ "field_mask",
+ "flate2",
+ "float-cmp",
+ "fluent",
+ "freedesktop-desktop-entry",
+ "futures",
+ "futures-lite 1.13.0",
+ "futures-timer",
+ "futures-util",
+ "fuzzy_match",
+ "genai",
+ "gethostname",
+ "getrandom 0.2.17",
+ "git2",
+ "gloo",
+ "handlebars",
+ "harness_integration",
+ "hex",
+ "htmd",
+ "http 1.4.2",
+ "http_client",
+ "http_server",
+ "hyper 1.10.1",
+ "i18n",
+ "i18n-embed",
+ "i18n-embed-fl",
+ "image",
+ "indexmap 2.14.0",
+ "infer",
+ "input_classifier",
+ "inquire",
+ "instant",
+ "inventory",
+ "ipc",
+ "is_executable",
+ "itertools 0.14.0",
+ "jaq-all",
+ "jaq-json",
+ "jemalloc_pprof",
+ "js-sys",
+ "jsonschema",
+ "kmeans_colors",
+ "languages",
+ "lasso",
+ "lazy_static",
+ "libc",
+ "libsqlite3-sys",
+ "line-ending",
+ "log",
+ "mach2 0.5.0",
+ "markdown_parser",
+ "memchr",
+ "memo-map",
+ "mermaid_to_svg",
+ "mime_guess",
+ "minidumper",
+ "minijinja",
+ "mio",
+ "mockall",
+ "mockito",
+ "natural_language_detection",
+ "nav",
+ "nix 0.26.4",
+ "notebooks_model",
+ "notify-debouncer-full",
+ "num-traits",
+ "num_cpus",
+ "oauth2",
+ "objc",
+ "objc2-foundation 0.3.2",
+ "objects",
+ "onboarding",
+ "once_cell",
+ "ordered-float 3.9.2",
+ "os_info",
+ "palette",
+ "pane_tree",
+ "parking_lot",
+ "paste",
+ "pathfinder_color",
+ "pathfinder_geometry",
+ "permissions",
+ "persistence",
+ "pin-project",
+ "plist",
+ "pprof",
+ "prost",
+ "prost-build",
+ "prost-types",
+ "proxy_interceptor",
+ "rand 0.8.6",
+ "rangemap",
+ "rayon",
+ "regex",
+ "regex-automata",
+ "remote_server",
+ "repo_metadata",
+ "reqwest 0.12.28",
+ "reqwest-eventsource",
+ "rmcp",
+ "rquickjs",
+ "rusqlite",
+ "rust-embed 8.11.0",
+ "rustls 0.23.40",
+ "schemars 1.2.1",
+ "search_ui",
+ "security-framework-sys",
+ "serde",
+ "serde-bytes-repr",
+ "serde-wasm-bindgen",
+ "serde_bytes",
+ "serde_json",
+ "serde_regex",
+ "serde_urlencoded",
+ "serde_with 2.3.3",
+ "serde_yaml",
+ "serial_test",
+ "settings",
+ "settings_value",
+ "sftp_manager_ui",
+ "sha2 0.10.9",
+ "shell-escape",
+ "shell-words",
+ "shellexpand",
+ "signal-hook",
+ "signal-hook-mio",
+ "similar",
+ "simple_logger",
+ "siphasher 0.3.11",
+ "smallvec",
+ "smol_str",
+ "ssh_manager_ui",
+ "static_assertions",
+ "string-offset",
+ "strum 0.27.2",
+ "strum_macros 0.27.2",
+ "sum_tree",
+ "syntax_tree",
+ "syntect",
+ "sysinfo",
+ "tabwriter",
+ "tantivy",
+ "tempfile",
+ "terminal_grid_model",
+ "terminal_model",
+ "thiserror 2.0.18",
+ "tikv-jemallocator",
+ "tokio",
+ "tokio-util",
+ "toml 0.8.23",
+ "tracing",
+ "typed-path 0.10.0",
+ "ui_components",
+ "unicase",
+ "unicode-width 0.1.14",
+ "unindent 0.1.11",
+ "url",
+ "urlencoding",
+ "urlocator",
+ "uuid",
+ "validator",
+ "variant_count",
+ "vec1",
+ "version-compare",
+ "vim",
+ "virtual-fs",
+ "vte",
+ "walkdir",
+ "warp-command-signatures",
+ "warp-workflows",
+ "warp_cli",
+ "warp_completer",
+ "warp_core",
+ "warp_editor",
+ "warp_files",
+ "warp_isolation_platform",
+ "warp_js",
+ "warp_logging",
+ "warp_managed_secrets",
+ "warp_multi_agent_api",
+ "warp_ripgrep",
+ "warp_ssh_manager",
+ "warp_terminal",
+ "warp_util",
+ "warp_web_event_bus",
+ "warpui",
+ "warpui_extras",
+ "wasm-bindgen",
+ "watcher",
+ "web-sys",
+ "websocket",
+ "wgpu",
+ "windows 0.62.2",
+ "windows-registry 0.2.0",
+ "windows-result 0.2.0",
+ "winit",
+ "winreg",
+ "workflows_ui",
+ "workspace_model",
+ "x11rb",
+ "zbus 5.16.0",
+ "zeroize",
+]
+
+[[package]]
 name = "dais_sftp"
 version = "0.1.0"
 dependencies = [
@@ -3799,24 +4070,6 @@ dependencies = [
  "ssh2",
  "tempfile",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "dais_sync"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "anyhow",
- "base64 0.22.1",
- "chrono",
- "log",
- "reqwest 0.12.28",
- "rustls 0.23.40",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "thiserror 2.0.18",
- "tokio",
 ]
 
 [[package]]
@@ -3945,12 +4198,6 @@ dependencies = [
  "once_cell",
  "parking_lot_core",
 ]
-
-[[package]]
-name = "dasp_sample"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c87e182de0887fd5361989c677c4e8f5000cd9491d6d563161a8f3a5519fc7f"
 
 [[package]]
 name = "data-encoding"
@@ -4415,6 +4662,22 @@ version = "0.1.1"
 source = "git+https://github.com/chenx-dust/winit.git?rev=7ef914a440ad203da05355e6c3f8c482766987ec#7ef914a440ad203da05355e6c3f8c482766987ec"
 
 [[package]]
+name = "drive_ui"
+version = "0.1.0"
+dependencies = [
+ "env_vars_ui",
+ "i18n",
+ "i18n-embed",
+ "i18n-embed-fl",
+ "itertools 0.14.0",
+ "log",
+ "objects",
+ "pathfinder_color",
+ "warp_core",
+ "warpui",
+]
+
+[[package]]
 name = "dsl_auto_type"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4506,14 +4769,6 @@ dependencies = [
  "sec1",
  "subtle",
  "zeroize",
-]
-
-[[package]]
-name = "email_address"
-version = "0.2.3"
-source = "git+https://github.com/warpdotdev/rust-email_address?branch=main#b3e5205b4efdc83832f230d8eb6894fd00a9ec32"
-dependencies = [
- "serde",
 ]
 
 [[package]]
@@ -4645,6 +4900,23 @@ dependencies = [
  "log",
  "regex",
  "termcolor",
+]
+
+[[package]]
+name = "env_vars_ui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "i18n",
+ "i18n-embed-fl",
+ "itertools 0.14.0",
+ "log",
+ "objects",
+ "serde",
+ "serde_json",
+ "warp_terminal",
+ "warp_util",
+ "warpui",
 ]
 
 [[package]]
@@ -5068,8 +5340,6 @@ dependencies = [
 [[package]]
 name = "fontconfig"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9b79b619a4ae048ea79e927376b1d10294979bda195b0c052fc958be96c62d9"
 dependencies = [
  "yeslogic-fontconfig-sys",
 ]
@@ -6266,12 +6536,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hound"
-version = "3.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62adaabb884c94955b19907d60019f4e145d091c75345379e70d1ee696f7854f"
-
-[[package]]
 name = "hpke"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7014,6 +7278,7 @@ dependencies = [
  "chrono",
  "clap",
  "command",
+ "dais",
  "diesel",
  "directories",
  "float-cmp",
@@ -7036,8 +7301,9 @@ dependencies = [
  "strum_macros 0.27.2",
  "sum_tree",
  "sysinfo",
+ "terminal_grid_model",
+ "terminal_model",
  "version-compare",
- "warp",
  "warp-command-signatures",
  "warp-workflows",
  "warp_cli",
@@ -7502,7 +7768,7 @@ dependencies = [
  "ahash 0.8.12",
  "bytecount",
  "data-encoding",
- "email_address 0.2.9",
+ "email_address",
  "fancy-regex 0.17.0",
  "fraction",
  "getrandom 0.3.4",
@@ -7881,15 +8147,6 @@ name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
-
-[[package]]
-name = "lz4_flex"
-version = "0.11.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "373f5eceeeab7925e0c1098212f2fbc4d416adec9d35051a6ab251e824c1854a"
-dependencies = [
- "twox-hash",
-]
 
 [[package]]
 name = "lz4_flex"
@@ -8712,6 +8969,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0676bb32a98c1a483ce53e500a81ad9c3d5b3f7c920c28c24e9cb0980d0b5bc8"
 
 [[package]]
+name = "notebooks_model"
+version = "0.1.0"
+dependencies = [
+ "objects",
+ "serde",
+ "warpui",
+ "workflows_ui",
+]
+
+[[package]]
 name = "notify"
 version = "8.0.0"
 source = "git+https://github.com/warpdotdev/notify?rev=f3afcda3058941e17e09689afea40e2a2db057e0#f3afcda3058941e17e09689afea40e2a2db057e0"
@@ -9017,31 +9284,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "objc2-audio-toolbox"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6948501a91121d6399b79abaa33a8aa4ea7857fe019f341b8c23ad6e81b79b08"
-dependencies = [
- "bitflags 2.13.0",
- "libc",
- "objc2 0.6.4",
- "objc2-core-audio",
- "objc2-core-audio-types",
- "objc2-core-foundation",
- "objc2-foundation 0.3.2",
-]
-
-[[package]]
-name = "objc2-avf-audio"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13a380031deed8e99db00065c45937da434ca987c034e13b87e4441f9e4090be"
-dependencies = [
- "objc2 0.6.4",
- "objc2-foundation 0.3.2",
-]
-
-[[package]]
 name = "objc2-cloud-kit"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9074,29 +9316,6 @@ dependencies = [
  "block2 0.5.1",
  "objc2 0.5.2",
  "objc2-foundation 0.2.2",
-]
-
-[[package]]
-name = "objc2-core-audio"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1eebcea8b0dbff5f7c8504f3107c68fc061a3eb44932051c8cf8a68d969c3b2"
-dependencies = [
- "dispatch2",
- "objc2 0.6.4",
- "objc2-core-audio-types",
- "objc2-core-foundation",
- "objc2-foundation 0.3.2",
-]
-
-[[package]]
-name = "objc2-core-audio-types"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a89f2ec274a0cf4a32642b2991e8b351a404d290da87bb6a9a9d8632490bd1c"
-dependencies = [
- "bitflags 2.13.0",
- "objc2 0.6.4",
 ]
 
 [[package]]
@@ -9426,6 +9645,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "objects"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "derivative",
+ "instant",
+ "itertools 0.14.0",
+ "lasso",
+ "lazy_static",
+ "regex",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "settings_value",
+ "thiserror 2.0.18",
+ "uuid",
+ "warpui",
+]
+
+[[package]]
 name = "onboarding"
 version = "0.1.0"
 dependencies = [
@@ -9749,8 +9989,11 @@ dependencies = [
 name = "pane_tree"
 version = "0.1.0"
 dependencies = [
+ "log",
+ "pathfinder_geometry",
  "serde",
  "serde_json",
+ "warp_core",
  "warpui",
 ]
 
@@ -9882,6 +10125,7 @@ dependencies = [
 name = "persistence"
 version = "0.0.0"
 dependencies = [
+ "agent_ids",
  "chrono",
  "diesel",
  "diesel_migrations",
@@ -10270,15 +10514,6 @@ dependencies = [
  "parking_lot",
  "pin-project",
  "windows 0.62.2",
-]
-
-[[package]]
-name = "primal-check"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc0d895b311e3af9902528fbb8f928688abbd95872819320517cc24ca6b2bd08"
-dependencies = [
- "num-integer",
 ]
 
 [[package]]
@@ -11027,15 +11262,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "realfft"
-version = "3.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f821338fddb99d089116342c46e9f1fbf3828dba077674613e734e01d6ea8677"
-dependencies = [
- "rustfft",
-]
-
-[[package]]
 name = "reborrow"
 version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11531,18 +11757,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rubato"
-version = "0.16.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5258099699851cfd0082aeb645feb9c084d9a5e1f1b8d5372086b989fc5e56a1"
-dependencies = [
- "num-complex",
- "num-integer",
- "num-traits",
- "realfft",
-]
-
-[[package]]
 name = "rusqlite"
 version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11678,20 +11892,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
 dependencies = [
  "semver",
-]
-
-[[package]]
-name = "rustfft"
-version = "6.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21db5f9893e91f41798c88680037dba611ca6674703c1a18601b01a72c8adb89"
-dependencies = [
- "num-complex",
- "num-integer",
- "num-traits",
- "primal-check",
- "strength_reduce",
- "transpose",
 ]
 
 [[package]]
@@ -12026,6 +12226,37 @@ name = "seahash"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b"
+
+[[package]]
+name = "search_ui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-channel",
+ "bitflags 2.13.0",
+ "concat-idents",
+ "env_vars_ui",
+ "futures",
+ "fuzzy_match",
+ "i18n",
+ "i18n-embed-fl",
+ "instant",
+ "itertools 0.14.0",
+ "log",
+ "num-traits",
+ "ordered-float 3.9.2",
+ "parking_lot",
+ "regex",
+ "serde_json",
+ "settings",
+ "sha2 0.10.9",
+ "string-offset",
+ "strum_macros 0.27.2",
+ "tantivy",
+ "warp_ripgrep",
+ "warpui",
+ "workflows_ui",
+]
 
 [[package]]
 name = "sec1"
@@ -12450,6 +12681,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sftp_manager_ui"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "dais_sftp",
+ "dirs 6.0.0",
+ "dunce",
+ "warp_ssh_manager",
+]
+
+[[package]]
 name = "sha-1"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12868,6 +13110,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ssh_manager_ui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "lazy_static",
+ "log",
+ "regex",
+ "warp_ssh_manager",
+ "warpui",
+ "zeroize",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12884,12 +13139,6 @@ name = "streaming-iterator"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b2231b7c3057d5e4ad0156fb3dc807d900806020c5ffa3ee6ff2c8c76fb8520"
-
-[[package]]
-name = "strength_reduce"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe895eb47f22e2ddd4dabc02bce419d2e643c8e3b585c78158b349195bc24d82"
 
 [[package]]
 name = "strict-num"
@@ -13220,7 +13469,7 @@ dependencies = [
  "levenshtein_automata",
  "log",
  "lru",
- "lz4_flex 0.13.1",
+ "lz4_flex",
  "measure_time",
  "memmap2",
  "once_cell",
@@ -13409,6 +13658,85 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "terminal_grid_model"
+version = "0.1.0"
+dependencies = [
+ "agent_ids",
+ "anyhow",
+ "base64 0.22.1",
+ "bimap",
+ "bounded-vec-deque",
+ "byte-unit",
+ "chrono",
+ "dirs 6.0.0",
+ "enum-iterator",
+ "float-cmp",
+ "hex",
+ "instant",
+ "itertools 0.14.0",
+ "lazy_static",
+ "log",
+ "num-traits",
+ "objects",
+ "once_cell",
+ "ordered-float 3.9.2",
+ "parking_lot",
+ "pathfinder_color",
+ "pathfinder_geometry",
+ "rand 0.8.6",
+ "rangemap",
+ "regex",
+ "regex-automata",
+ "schemars 1.2.1",
+ "serde",
+ "serde-bytes-repr",
+ "serde_bytes",
+ "serde_json",
+ "settings_value",
+ "shellexpand",
+ "string-offset",
+ "sum_tree",
+ "terminal_model",
+ "thiserror 2.0.18",
+ "unicode-width 0.1.14",
+ "urlocator",
+ "uuid",
+ "vec1",
+ "vte",
+ "warp_completer",
+ "warp_core",
+ "warp_features",
+ "warp_terminal",
+ "warp_util",
+ "warpui",
+]
+
+[[package]]
+name = "terminal_model"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "byte-unit",
+ "cfg-if",
+ "flate2",
+ "hex",
+ "itertools 0.14.0",
+ "lazy_static",
+ "log",
+ "pathfinder_geometry",
+ "rand 0.8.6",
+ "regex",
+ "regex-automata",
+ "serde",
+ "thiserror 2.0.18",
+ "warp_completer",
+ "warp_terminal",
+ "warp_util",
+ "warpui",
 ]
 
 [[package]]
@@ -14146,16 +14474,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "transpose"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ad61aed86bc3faea4300c7aee358b4c6d0c8d6ccc36524c96e4c92ccf26e77e"
-dependencies = [
- "num-integer",
- "strength_reduce",
-]
-
-[[package]]
 name = "tree-sitter-language"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14206,12 +14524,6 @@ dependencies = [
  "thiserror 1.0.69",
  "utf-8",
 ]
-
-[[package]]
-name = "twox-hash"
-version = "2.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ea3136b675547379c4bd395ca6b938e5ad3c3d20fad76e7fe85f9e0d011419c"
 
 [[package]]
 name = "type-map"
@@ -14715,24 +15027,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "voice_input"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-channel",
- "base64 0.22.1",
- "cpal",
- "futures",
- "hound",
- "instant",
- "log",
- "parking_lot",
- "rubato",
- "thiserror 2.0.18",
- "warpui",
-]
-
-[[package]]
 name = "vsimd"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14799,290 +15093,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa7760aed19e106de2c7c0b581b509f2f25d3dacaf737cb82ac61bc6d760b0e"
 dependencies = [
  "try-lock",
-]
-
-[[package]]
-name = "warp"
-version = "0.1.0"
-dependencies = [
- "addr",
- "aho-corasick",
- "ai",
- "anyhow",
- "app-installation-detection",
- "arrayvec",
- "asset_cache",
- "asset_macro",
- "async-broadcast",
- "async-channel",
- "async-compat",
- "async-executor",
- "async-fs",
- "async-io",
- "async-process",
- "async-recursion",
- "async-stream",
- "async-trait",
- "aws-config",
- "aws-credential-types",
- "aws-sdk-sts",
- "aws-types",
- "axum 0.8.9",
- "base64 0.22.1",
- "bimap",
- "bincode",
- "bitflags 2.13.0",
- "bitflags-serde-legacy",
- "block",
- "blocking",
- "bounded-vec-deque",
- "byte-unit",
- "bytecount",
- "bytemuck",
- "bytes",
- "cc",
- "cfg-if",
- "cfg_aliases 0.2.1",
- "channel_versions",
- "chrono",
- "clap",
- "cockpit_model",
- "cocoa 0.26.0",
- "comfy-table",
- "command",
- "command-corrections",
- "command-signatures-v2",
- "computer_use",
- "concat-idents",
- "console_error_panic_hook",
- "content_inspector",
- "core-foundation 0.10.1",
- "counter",
- "crash-handler",
- "crc",
- "csv",
- "ctor",
- "cvt",
- "dais_sftp",
- "dais_sync",
- "dashmap",
- "deltae",
- "derivative",
- "dhat",
- "diesel",
- "diesel_migrations",
- "difflib 0.4.0 (git+https://github.com/warpdotdev/difflib.git?rev=114177e7d8e1f8017baca397f943e11644b14d63)",
- "directories",
- "dirs 6.0.0",
- "dunce",
- "email_address 0.2.3",
- "embed-resource",
- "embed_plist",
- "enclose",
- "enum-iterator",
- "env_logger",
- "event-listener",
- "field_mask",
- "flate2",
- "float-cmp",
- "fluent",
- "freedesktop-desktop-entry",
- "futures",
- "futures-lite 1.13.0",
- "futures-timer",
- "futures-util",
- "fuzzy_match",
- "genai",
- "gethostname",
- "getrandom 0.2.17",
- "getset",
- "git2",
- "gloo",
- "handlebars",
- "harness_integration",
- "hex",
- "htmd",
- "http 1.4.2",
- "http_client",
- "http_server",
- "hyper 1.10.1",
- "i18n",
- "i18n-embed",
- "i18n-embed-fl",
- "image",
- "indexmap 2.14.0",
- "infer",
- "input_classifier",
- "inquire",
- "instant",
- "inventory",
- "ipc",
- "is_executable",
- "itertools 0.14.0",
- "jaq-all",
- "jaq-json",
- "jemalloc_pprof",
- "js-sys",
- "jsonschema",
- "kmeans_colors",
- "languages",
- "lasso",
- "lazy_static",
- "libc",
- "libsqlite3-sys",
- "line-ending",
- "log",
- "log-panics",
- "lz4_flex 0.11.6",
- "mach2 0.5.0",
- "markdown_parser",
- "memchr",
- "memo-map",
- "mermaid_to_svg",
- "mime_guess",
- "minidumper",
- "minijinja",
- "mio",
- "mockall",
- "mockito",
- "natural_language_detection",
- "nav",
- "nix 0.26.4",
- "notify-debouncer-full",
- "num-traits",
- "num_cpus",
- "oauth2",
- "objc",
- "objc2-foundation 0.3.2",
- "onboarding",
- "once_cell",
- "ordered-float 3.9.2",
- "os_info",
- "palette",
- "pane_tree",
- "parking_lot",
- "paste",
- "pathfinder_color",
- "pathfinder_geometry",
- "permissions",
- "persistence",
- "pin-project",
- "plist",
- "pprof",
- "prost",
- "prost-build",
- "prost-types",
- "proxy_interceptor",
- "rand 0.8.6",
- "rangemap",
- "rayon",
- "regex",
- "regex-automata",
- "remote_server",
- "repo_metadata",
- "reqwest 0.12.28",
- "reqwest-eventsource",
- "rmcp",
- "rquickjs",
- "rusqlite",
- "rust-embed 8.11.0",
- "rustls 0.23.40",
- "schemars 1.2.1",
- "security-framework-sys",
- "serde",
- "serde-bytes-repr",
- "serde-wasm-bindgen",
- "serde_bytes",
- "serde_json",
- "serde_regex",
- "serde_urlencoded",
- "serde_with 2.3.3",
- "serde_yaml",
- "serial_test",
- "settings",
- "settings_value",
- "sha2 0.10.9",
- "shell-escape",
- "shell-words",
- "shellexpand",
- "shlex 1.3.0",
- "signal-hook",
- "signal-hook-mio",
- "similar",
- "simple_logger",
- "siphasher 0.3.11",
- "smallvec",
- "smol_str",
- "static_assertions",
- "string-offset",
- "strum 0.27.2",
- "strum_macros 0.27.2",
- "sum_tree",
- "syntax_tree",
- "syntect",
- "sys-locale",
- "sysinfo",
- "tabwriter",
- "tantivy",
- "tempfile",
- "thiserror 2.0.18",
- "thousands",
- "tikv-jemallocator",
- "tokio",
- "tokio-util",
- "toml 0.8.23",
- "tracing",
- "typed-path 0.10.0",
- "ui_components",
- "unic-langid",
- "unicase",
- "unicode-width 0.1.14",
- "unindent 0.1.11",
- "url",
- "urlencoding",
- "urlocator",
- "uuid",
- "validator",
- "variant_count",
- "vec1",
- "version-compare",
- "vim",
- "virtual-fs",
- "voice_input",
- "vte",
- "walkdir",
- "warp-command-signatures",
- "warp-workflows",
- "warp_cli",
- "warp_completer",
- "warp_core",
- "warp_editor",
- "warp_files",
- "warp_isolation_platform",
- "warp_js",
- "warp_logging",
- "warp_managed_secrets",
- "warp_multi_agent_api",
- "warp_ripgrep",
- "warp_ssh_manager",
- "warp_terminal",
- "warp_util",
- "warp_web_event_bus",
- "warpui",
- "warpui_extras",
- "wasm-bindgen",
- "watcher",
- "web-sys",
- "websocket",
- "wgpu",
- "windows 0.62.2",
- "windows-registry 0.2.0",
- "windows-result 0.2.0",
- "winit",
- "winreg",
- "x11rb",
- "zbus 5.16.0",
- "zeroize",
 ]
 
 [[package]]
@@ -15193,6 +15203,7 @@ dependencies = [
  "warp_cli",
  "warp_completer",
  "warp_core",
+ "warp_features",
  "warp_js",
  "warp_util",
  "warpui",
@@ -15437,7 +15448,6 @@ dependencies = [
  "anyhow",
  "chrono",
  "command",
- "dais_sync",
  "diesel",
  "diesel_migrations",
  "dirs 6.0.0",
@@ -15545,6 +15555,7 @@ dependencies = [
  "cfg-if",
  "cfg_aliases 0.2.1",
  "chrono",
+ "cockpit_model",
  "cocoa 0.26.0",
  "command",
  "core-foundation 0.10.1",
@@ -15580,6 +15591,7 @@ dependencies = [
  "memmap2",
  "metal",
  "native-dialog",
+ "nav",
  "nix 0.26.4",
  "notify-rust",
  "num-traits",
@@ -15603,6 +15615,7 @@ dependencies = [
  "vec1",
  "version-compare",
  "virtual-fs",
+ "warp_core",
  "warpui",
  "warpui_core",
  "wasm-bindgen",
@@ -17037,6 +17050,46 @@ checksum = "896174c6a4779d4d7d4523dd27aef7d46609eda2497e370f6c998325c6bf6971"
 dependencies = [
  "lazy_static",
  "regex",
+]
+
+[[package]]
+name = "workflows_ui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "itertools 0.14.0",
+ "lazy_static",
+ "log",
+ "objects",
+ "regex",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "settings_value",
+ "string-offset",
+ "strum 0.27.2",
+ "strum_macros 0.27.2",
+ "warp-workflows",
+]
+
+[[package]]
+name = "workspace_model"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "concat-idents",
+ "log",
+ "nav",
+ "pane_tree",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "settings",
+ "settings_value",
+ "warp_core",
+ "warpui",
 ]
 
 [[package]]

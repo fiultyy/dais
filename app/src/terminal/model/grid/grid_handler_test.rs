@@ -1,14 +1,107 @@
+use terminal_grid_model::grid::blockgrid::BlockGrid;
 use std::ops::BitOrAssign;
 
 use warp_terminal::model::char_or_str::CharOrStr;
 use warp_util::path::LineAndColumnArg;
 use warpui::text::words::is_default_word_boundary;
 
-use crate::terminal::model::secrets::{ObfuscateSecrets, SecretLevel};
-use crate::terminal::model::{blockgrid::BlockGrid, secrets::IsObfuscated};
+use terminal_grid_model::secrets::{ObfuscateSecrets, SecretLevel};
+use terminal_grid_model::secrets::IsObfuscated;
+use crate::terminal::event_listener::ChannelEventListener;
+use terminal_grid_model::ansi::{self, Handler};
 use crate::test_util::mock_blockgrid;
+use terminal_grid_model::ansi::{Color, NamedColor};
 
 use super::*;
+use terminal_grid_model::grid::*;
+use terminal_grid_model::grid::grid_handler::Fragment;
+
+// R10: 原父模块的可见 use 集,随模块下沉后显式补齐。
+#[allow(unused_imports)]
+use terminal_grid_model::grid::ansi_state::State;
+#[allow(unused_imports)]
+use std::borrow::Cow;
+#[allow(unused_imports)]
+use std::cmp::max;
+#[allow(unused_imports)]
+use std::collections::{HashMap, HashSet};
+#[allow(unused_imports)]
+use std::num::NonZeroUsize;
+#[allow(unused_imports)]
+use std::ops::{Range, RangeInclusive};
+#[allow(unused_imports)]
+use std::{ cmp::{min, Ordering}, mem, };
+#[allow(unused_imports)]
+use bounded_vec_deque::BoundedVecDeque;
+#[allow(unused_imports)]
+use itertools::Itertools;
+#[allow(unused_imports)]
+use lazy_static::lazy_static;
+#[allow(unused_imports)]
+use unicode_width::UnicodeWidthChar;
+#[allow(unused_imports)]
+use urlocator::{UrlLocation, UrlLocator};
+#[allow(unused_imports)]
+use warp_core::features::FeatureFlag;
+#[allow(unused_imports)]
+use warp_core::semantic_selection::{SemanticSelection, SMART_SELECT_MATCH_WINDOW_LIMIT};
+#[allow(unused_imports)]
+use warp_core::{safe_assert, safe_assert_eq};
+#[allow(unused_imports)]
+use warp_terminal::model::grid::CellType;
+#[allow(unused_imports)]
+use warp_terminal::model::grid::FlatStorage;
+#[allow(unused_imports)]
+use warp_terminal::model::{KeyboardModes, KeyboardModesApplyBehavior};
+#[allow(unused_imports)]
+use warp_util::path::CleanPathResult;
+#[allow(unused_imports)]
+use warpui::color::ColorU;
+#[allow(unused_imports)]
+use warp_terminal::model::grid::cell::{Cell, Flags, LineLength, DEFAULT_CHAR};
+#[allow(unused_imports)]
+use warp_terminal::model::char_or_str::PushCharOrStr;
+#[allow(unused_imports)]
+use terminal_grid_model::grid::GridStorage;
+#[allow(unused_imports)]
+use warp_terminal::model::grid::Dimensions;
+#[allow(unused_imports)]
+use terminal_grid_model::image_map::ImageMap;
+#[allow(unused_imports)]
+use terminal_model::index::{IndexRange, Point, VisibleRow};
+#[allow(unused_imports)]
+use terminal_grid_model::secrets::SecretMap;
+#[allow(unused_imports)]
+use crate::terminal::SizeInfo;
+#[allow(unused_imports)]
+use warp_util::TrimStringExt;
+#[allow(unused_imports)]
+use terminal_grid_model::grid::RespectDisplayedOutput;
+#[allow(unused_imports)]
+use terminal_grid_model::secrets::RespectObfuscatedSecrets;
+#[allow(unused_imports)]
+use terminal_model::RangeInModel;
+#[allow(unused_imports)]
+use crate::terminal::model::find::{Match, RegexDFAs};
+#[allow(unused_imports)]
+use terminal_model::index::Direction;
+#[allow(unused_imports)]
+use terminal_grid_model::secrets::{Secret, SecretHandle};
+#[allow(unused_imports)]
+use terminal_grid_model::grid::displayed_output::DisplayedOutput;
+#[allow(unused_imports)]
+use terminal_grid_model::grid::grapheme_cursor::{self, GraphemeCursor};
+#[allow(unused_imports)]
+use terminal_grid_model::grid::row::Row;
+#[allow(unused_imports)]
+use terminal_grid_model::grid::indexing::ConvertToAbsolute as _;
+use terminal_grid_model::grid::{Cursor, SelectionCursor};
+#[allow(unused_imports)]
+
+#[allow(unused_imports)]
+use terminal_grid_model::grid::{GridEventSink, NoopEventSink};
+#[allow(unused_imports)]
+use string_offset::ByteOffset;
 
 const MAX_SCROLL_LIMIT: usize = 1000;
 
@@ -82,9 +175,9 @@ fn regex_right() {
     #[rustfmt::skip]
     let blockgrid = mock_blockgrid("\
         testing66\r\n\
-        Dais\n\
+        Warp\n\
         123\r\n\
-        Dais\r\n\
+        Warp\r\n\
         123\
     ");
 
@@ -107,9 +200,9 @@ fn regex_left() {
     #[rustfmt::skip]
     let blockgrid = mock_blockgrid("\
         testing66\r\n\
-        Dais\n\
+        Warp\n\
         123\r\n\
-        Dais\r\n\
+        Warp\r\n\
         123\
     ");
 
@@ -131,7 +224,7 @@ fn regex_left() {
 fn nested_regex() {
     #[rustfmt::skip]
     let blockgrid = mock_blockgrid("\
-        Wa -> Dais -> rp\r\n\
+        Wa -> Warp -> rp\r\n\
         rp\
     ");
 
@@ -411,10 +504,13 @@ fn test_basic_input_and_newline() {
     let mut grid = GridHandler::new(
         size,
         MAX_SCROLL_LIMIT,
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+            ChannelEventListener::new_for_test(),
+        )),
         false,
         ObfuscateSecrets::No,
         PerformResetGridChecks::default(),
+        crate::terminal::event_listener::host_determine_secret_level,
     );
     grid.input('a');
     grid.linefeed();
@@ -441,10 +537,13 @@ fn test_empty_grid_bounds_to_string() {
     let grid_handler = GridHandler::new(
         size,
         MAX_SCROLL_LIMIT,
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+            ChannelEventListener::new_for_test(),
+        )),
         false,
         ObfuscateSecrets::No,
         PerformResetGridChecks::No,
+        crate::terminal::event_listener::host_determine_secret_level,
     );
     assert_eq!(
         grid_handler.bounds_to_string(
@@ -723,6 +822,8 @@ fn test_find_url_wide_characters() {
 
 #[test]
 fn test_find_url_omits_trailing_periods() {
+    // 期望 span 按当前 fixture URL 长度校准(39 字符,6..=44);
+    // 尾点剔除行为本身经几何验证正确。
     // Test that it omits a single trailing period.
     let blockgrid = mock_blockgrid("Visit https://github.com/zerx-lab/warp/issues.");
     assert_eq!(
@@ -730,14 +831,14 @@ fn test_find_url_omits_trailing_periods() {
             .grid_handler
             .url_at_point(Point { row: 0, col: 10 }),
         Some(Link {
-            range: Point { row: 0, col: 6 }..=Point { row: 0, col: 46 },
+            range: Point { row: 0, col: 6 }..=Point { row: 0, col: 44 },
             is_empty: false
         })
     );
     assert_eq!(
         blockgrid
             .grid_handler
-            .url_at_point(Point { row: 0, col: 47 }),
+            .url_at_point(Point { row: 0, col: 45 }),
         None
     );
 
@@ -748,14 +849,14 @@ fn test_find_url_omits_trailing_periods() {
             .grid_handler
             .url_at_point(Point { row: 0, col: 10 }),
         Some(Link {
-            range: Point { row: 0, col: 6 }..=Point { row: 0, col: 46 },
+            range: Point { row: 0, col: 6 }..=Point { row: 0, col: 44 },
             is_empty: false
         })
     );
     assert_eq!(
         blockgrid
             .grid_handler
-            .url_at_point(Point { row: 0, col: 48 }),
+            .url_at_point(Point { row: 0, col: 46 }),
         None
     );
 
@@ -1270,9 +1371,12 @@ fn test_emoji_variation_selector() {
     let mut blockgrid = BlockGrid::new(
         size,
         MAX_SCROLL_LIMIT,
-        ChannelEventListener::new_for_test(),
+        std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+            ChannelEventListener::new_for_test(),
+        )),
         ObfuscateSecrets::No,
         PerformResetGridChecks::default(),
+        crate::terminal::event_listener::host_determine_secret_level,
     );
 
     blockgrid.start();
@@ -1632,7 +1736,7 @@ fn test_clear_line_right_at_wide_char_spacer() {
     grid.input('\u{1F600}');
     grid.input('a');
     grid.goto(VisibleRow(0), 1);
-    grid.clear_line(ansi::LineClearMode::Right);
+    grid.clear_line(terminal_grid_model::ansi::LineClearMode::Right);
 
     assert_no_orphaned_wide_chars(&grid, VisibleRow(0));
     assert!(!grid.grid_storage()[VisibleRow(0)][0]
@@ -1651,7 +1755,7 @@ fn test_clear_line_left_at_wide_char() {
     grid.input('\u{1F600}'); // Cols 2 (WIDE_CHAR), 3 (SPACER).
     grid.input('c');
     grid.goto(VisibleRow(0), 2);
-    grid.clear_line(ansi::LineClearMode::Left);
+    grid.clear_line(terminal_grid_model::ansi::LineClearMode::Left);
 
     assert_no_orphaned_wide_chars(&grid, VisibleRow(0));
     assert!(!grid.grid_storage()[VisibleRow(0)][3]
@@ -1667,7 +1771,7 @@ fn test_clear_screen_below_at_wide_char_spacer() {
     grid.input('\u{1F600}');
     grid.input('a');
     grid.goto(VisibleRow(0), 1);
-    grid.clear_screen(ansi::ClearMode::Below);
+    grid.clear_screen(terminal_grid_model::ansi::ClearMode::Below);
 
     assert_no_orphaned_wide_chars(&grid, VisibleRow(0));
     assert!(!grid.grid_storage()[VisibleRow(0)][0]
@@ -1686,7 +1790,7 @@ fn test_clear_screen_above_at_wide_char() {
     grid.input('\u{1F600}'); // Cols 2 (WIDE_CHAR), 3 (SPACER).
     grid.input('c');
     grid.goto(VisibleRow(0), 2);
-    grid.clear_screen(ansi::ClearMode::Above);
+    grid.clear_screen(terminal_grid_model::ansi::ClearMode::Above);
 
     assert_no_orphaned_wide_chars(&grid, VisibleRow(0));
     assert!(!grid.grid_storage()[VisibleRow(0)][3]
@@ -1704,7 +1808,7 @@ fn test_clear_line_left_preserves_adjacent_wide_char() {
     grid.input('\u{1F600}'); // Cols 2 (WIDE_CHAR), 3 (SPACER).
     grid.input('c');
     grid.goto(VisibleRow(0), 1);
-    grid.clear_line(ansi::LineClearMode::Left);
+    grid.clear_line(terminal_grid_model::ansi::LineClearMode::Left);
 
     assert_no_orphaned_wide_chars(&grid, VisibleRow(0));
     // The wide char at cols 2-3 must be preserved.
@@ -1788,7 +1892,7 @@ fn test_clear_screen_above_preserves_adjacent_wide_char() {
     grid.input('\u{1F600}'); // Cols 2 (WIDE_CHAR), 3 (SPACER).
     grid.input('c');
     grid.goto(VisibleRow(0), 1);
-    grid.clear_screen(ansi::ClearMode::Above);
+    grid.clear_screen(terminal_grid_model::ansi::ClearMode::Above);
 
     assert_no_orphaned_wide_chars(&grid, VisibleRow(0));
     // The wide char at cols 2-3 must be preserved.
@@ -1815,7 +1919,7 @@ fn test_insert_mode_at_spacer_resets_wide_char() {
     grid.input('\u{1F600}'); // Cols 0 (WIDE_CHAR), 1 (SPACER).
     grid.input('a');
     grid.goto(VisibleRow(0), 1);
-    grid.set_mode(ansi::Mode::Insert);
+    grid.set_mode(terminal_grid_model::ansi::Mode::Insert);
     grid.input('x');
 
     assert_no_orphaned_wide_chars(&grid, VisibleRow(0));
@@ -1837,7 +1941,7 @@ fn test_insert_mode_pushes_wide_char_off_end() {
     grid.input('h');
     grid.input('\u{1F600}'); // Cols 8 (WIDE_CHAR), 9 (SPACER).
     grid.goto(VisibleRow(0), 0);
-    grid.set_mode(ansi::Mode::Insert);
+    grid.set_mode(terminal_grid_model::ansi::Mode::Insert);
     grid.input('x');
 
     assert_no_orphaned_wide_chars(&grid, VisibleRow(0));
@@ -1996,7 +2100,7 @@ fn content_len_trailing_blanks_trimmed() {
     grid.input_at_cursor("line2");
     // Move cursor below content via CUP (as real TUI apps do)
     grid.goto(VisibleRow(4), 0);
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
     assert_eq!(grid.content_len(), 2);
 }
 
@@ -2008,7 +2112,7 @@ fn visible_content_len_for_trimming_ignores_whitespace_rows() {
     grid.goto(VisibleRow(4), 0);
     grid.input_at_cursor("   ");
     grid.goto(VisibleRow(6), 0);
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     assert_eq!(grid.visible_content_len_for_trimming(), Some(1));
     assert_eq!(grid.content_len(), 1);
@@ -2024,7 +2128,7 @@ fn visible_content_len_for_trimming_ignores_style_only_rows() {
         .flags
         .bitor_assign(Flags::UNDERLINE);
     grid.goto(VisibleRow(6), 0);
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     assert_eq!(grid.visible_content_len_for_trimming(), Some(1));
     assert_eq!(grid.content_len(), 1);
@@ -2042,7 +2146,7 @@ fn visible_content_len_for_trimming_visible_glyph_after_blanks_restores_height()
         .flags
         .bitor_assign(Flags::UNDERLINE);
     grid.goto(VisibleRow(6), 0);
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     assert_eq!(grid.visible_content_len_for_trimming(), Some(1));
 
@@ -2066,7 +2170,7 @@ fn content_len_cursor_below_content() {
     grid.input_at_cursor("row2");
     // Move cursor below content via CUP (as real TUI apps do)
     grid.goto(VisibleRow(5), 0);
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
     assert_eq!(grid.content_len(), 3);
 }
 
@@ -2081,7 +2185,7 @@ fn content_len_new_output_restores_height() {
     grid.input_at_cursor("row1");
     // Move cursor below content via CUP
     grid.goto(VisibleRow(4), 0);
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
     assert_eq!(grid.content_len(), 2);
     // Write on row 2
     grid.goto(VisibleRow(2), 0);
@@ -2096,7 +2200,7 @@ fn content_len_single_trailing_newline() {
     grid.set_track_content_length(true);
     grid.input_at_cursor("line1");
     grid.goto(VisibleRow(1), 0);
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
     assert_eq!(grid.content_len(), 1);
 }
 
@@ -2106,7 +2210,7 @@ fn content_len_all_blank_grid() {
     // max_cursor_point-based length (no trimming to 0).
     let mut grid = GridHandler::new_for_test(10, 10);
     grid.set_track_content_length(true);
-    grid.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    grid.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
     let expected = grid.grid_storage().max_cursor_point.row.0 + grid.history_size() + 1;
     assert_eq!(grid.visible_content_len_for_trimming(), None);
     assert_eq!(grid.content_len(), expected);

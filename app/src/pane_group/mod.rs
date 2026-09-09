@@ -3,15 +3,13 @@ use crate::ai::ai_document_view::AIDocumentView;
 use crate::ai::blocklist::agent_view::AgentViewEntryOrigin;
 use crate::ai::blocklist::history_model::LoadedConversationData;
 use crate::ai::blocklist::inline_action::code_diff_view::CodeDiffView;
-use crate::ai::blocklist::suggested_agent_mode_workflow_modal::SuggestedAgentModeWorkflowAndId;
-use crate::ai::blocklist::suggested_rule_modal::SuggestedRuleAndId;
 use crate::ai::blocklist::{BlocklistAIHistoryModel, InputConfig};
 use crate::ai::document::ai_document_model::{AIDocumentId, AIDocumentModel, AIDocumentVersion};
 use crate::ai::execution_profiles::profiles::ClientProfileId;
 use crate::ai::restored_conversations::RestoredAgentConversations;
 #[cfg(target_family = "wasm")]
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::cloud_object::Space;
+use crate::objects::model::persistence::ObjectStoreModel;
+use objects::Space;
 #[cfg(feature = "local_fs")]
 use crate::code::editor_management::CodeSource;
 use crate::code::view::CodeViewAction;
@@ -20,8 +18,6 @@ use crate::code_review::diff_state::DiffMode;
 use crate::env_vars::EnvVarCollectionType;
 use crate::notebooks::file::FileNotebookView;
 use crate::pane_group::focus_state::PaneGroupFocusEvent;
-use crate::pane_group::pane::get_started_pane::GetStartedPane;
-use crate::pane_group::pane::welcome_pane::WelcomePane;
 use crate::pane_group::pane::ActionOrigin;
 pub use crate::pane_group::pane::PaneIdConstruct;
 use crate::quit_warning::UnsavedStateSummary;
@@ -58,7 +54,7 @@ use parking_lot::FairMutex;
 use pathfinder_geometry::rect::RectF;
 use pathfinder_geometry::vector::{vec2f, Vector2F};
 use serde::{Deserialize, Serialize};
-use tree::DEFAULT_FLEX_VALUE;
+use tree::{DEFAULT_FLEX_VALUE, PaneBranchHost, PaneDataHost, PaneNodeHost};
 use typed_path::TypedPath;
 use url::Url;
 use uuid::Uuid;
@@ -100,7 +96,7 @@ use crate::report_if_error;
 use crate::resource_center::{
     mark_feature_used_and_write_to_user_defaults, Tip, TipAction, TipsCompleted,
 };
-use crate::server::ids::{ObjectUid, SyncId};
+use objects::ids::{ObjectUid, SyncId};
 use crate::server::telemetry::{PaletteSource, TelemetryEvent};
 use crate::session_management::SessionNavigationData;
 use crate::settings_view::mcp_servers_page::MCPServersSettingsPage;
@@ -118,7 +114,10 @@ use crate::terminal::view::{
     LeftPanelTargetView, SyncEvent, TerminalViewState,
 };
 use crate::terminal::{MockTerminalManager, ShellLaunchData, ShellLaunchState};
-use crate::{cmd_or_ctrl_shift, send_telemetry_from_ctx};
+use crate::{
+    cmd_or_ctrl_shift,
+    send_telemetry_from_ctx,
+};
 use settings::Setting as _;
 
 use crate::code::active_file::ActiveFileModel;
@@ -133,7 +132,7 @@ use crate::workspace::{
 };
 
 pub mod pane_content_factory;
-pub mod focus_state;
+pub use pane_tree::focus_state;
 pub mod pane;
 pub mod tree;
 pub mod working_directories;
@@ -141,18 +140,17 @@ pub mod working_directories;
 use focus_state::PaneGroupFocusState;
 
 pub use crate::code_review::CodeReviewPanelArg;
-pub use pane::ai_document_pane::AIDocumentPane;
-pub use pane::ai_fact_pane::AIFactPane;
-pub use pane::code_diff_pane::CodeDiffPane;
 pub use pane::code_pane::CodePane;
+pub use pane::code_diff_pane::CodeDiffPane;
 pub use pane::env_var_collection_pane::EnvVarCollectionPane;
 // Dais Wave 7-3:`EnvironmentManagementPane` 随 ambient-agent UI 子系统物理删。
 pub use pane::execution_profile_editor_pane::ExecutionProfileEditorPane;
 pub use pane::file_pane::FilePane;
 pub use pane::image_pane::ImagePane;
-pub use pane::notebook_pane::NotebookPane;
 pub use pane::settings_pane::SettingsPane;
 pub use pane::terminal_pane::TerminalPane;
+pub use pane::notebook_pane::NotebookPane;
+pub use pane::ai_document_pane::AIDocumentPane;
 pub use pane::workflow_pane::WorkflowPane;
 pub use pane::PaneHeaderAction;
 pub use pane::PaneHeaderCustomAction;
@@ -160,6 +158,9 @@ pub use pane::{
     AnyPaneContent, BackingView, PaneConfiguration, PaneConfigurationEvent, PaneContent, PaneEvent,
     PaneId, PaneView, TerminalPaneId,
 };
+// 树类型真身已下沉 pane_tree::tree (v2), 此处透传 re-export 保持
+// crate::pane_group::* 兼容; DraggedBorder 虽仍在 mod.rs 本体, 一并列入
+// pane_group 公共面。
 pub use tree::{Direction, PaneData, PaneFlex, PaneNode, SplitDirection};
 pub use working_directories::{WorkingDirectoriesEvent, WorkingDirectoriesModel};
 
@@ -549,16 +550,6 @@ pub enum Event {
     /// Clears the hovered tab index so it no longer appears as highlighted drop target
     ClearHoveredTabIndex,
     DaisDriveObjectInPane(ObjectUid),
-    OpenSuggestedAgentModeWorkflowModal {
-        workflow_and_id: SuggestedAgentModeWorkflowAndId,
-    },
-    OpenSuggestedRuleModal {
-        rule_and_id: SuggestedRuleAndId,
-    },
-    OpenAIFactCollection {
-        /// If set, open the fact collection to the specific rule.
-        sync_id: Option<SyncId>,
-    },
     /// Request that the workspace open the command palette.
     OpenPalette {
         mode: PaletteMode,
@@ -709,7 +700,7 @@ pub struct NewTerminalOptions {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum DefaultSessionModeBehavior {
+pub(crate) enum DefaultSessionModeBehavior {
     Apply,
     Ignore,
 }
@@ -825,21 +816,7 @@ pub struct PaneGroup {
     custom_title: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum PaneState {
-    /// This pane is currently focused.
-    Focused,
-    /// This pane is not focused.
-    Unfocused,
-    // In split pane with one pane maximized.
-    Maximized,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum SplitPaneState {
-    InSplitPane(PaneState),
-    NotInSplitPane,
-}
+pub use pane_tree::{PaneState, SplitPaneState};
 
 // Helper to group together certain structs necessary to instantiate a new terminal view.
 #[derive(Clone)]
@@ -848,40 +825,6 @@ pub struct TerminalViewResources {
     pub model_event_sender: Option<SyncSender<ModelEvent>>,
 }
 
-impl SplitPaneState {
-    pub fn is_in_split_pane(&self) -> bool {
-        match self {
-            SplitPaneState::InSplitPane(_) => true,
-            SplitPaneState::NotInSplitPane => false,
-        }
-    }
-
-    /// Is the focused pane.
-    pub fn is_focused(&self) -> bool {
-        match self {
-            SplitPaneState::InSplitPane(state) => match state {
-                PaneState::Focused | PaneState::Maximized => true,
-                PaneState::Unfocused => false,
-            },
-            SplitPaneState::NotInSplitPane => true,
-        }
-    }
-
-    /// Is in split pane and is the focused pane.
-    pub fn is_focused_pane(&self) -> bool {
-        match self {
-            SplitPaneState::InSplitPane(state) => match state {
-                PaneState::Focused | PaneState::Maximized => true,
-                PaneState::Unfocused => false,
-            },
-            SplitPaneState::NotInSplitPane => false,
-        }
-    }
-
-    pub fn is_maximized(&self) -> bool {
-        matches!(self, SplitPaneState::InSplitPane(PaneState::Maximized))
-    }
-}
 
 /// Helper for reconstructing focus state when restoring a pane tree.
 /// Focus/active state is stored per-leaf, and must be bubbled up the tree.
@@ -936,6 +879,7 @@ type InitialLayoutCallback = Box<
         &mut ViewContext<PaneGroup>,
     ) -> (PaneData, InitialFocus),
 >;
+
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AIDocumentPaneVisibilityAction {
@@ -1572,6 +1516,7 @@ impl PaneGroup {
 
         result
     }
+
 
     pub fn snapshot_for_node(&self, app: &AppContext, node: &PaneNode) -> PaneNodeSnapshot {
         match node {
@@ -2963,9 +2908,6 @@ impl PaneGroup {
         self.downcast_pane_by_id(pane_id?)
     }
 
-    pub fn ai_fact_pane_by_pane_id(&self, pane_id: Option<PaneId>) -> Option<&AIFactPane> {
-        self.downcast_pane_by_id(pane_id?)
-    }
 
     pub fn code_pane_by_id(&self, pane_id: PaneId) -> Option<&CodePane> {
         self.downcast_pane_by_id(pane_id)
@@ -5246,6 +5188,7 @@ impl PaneGroup {
             .map(|p| p.diff_view(ctx))
             .collect()
     }
+
 
     pub fn file_notebook_views(&self, ctx: &AppContext) -> Vec<ViewHandle<FileNotebookView>> {
         self.panes_of::<FilePane>()

@@ -4,13 +4,7 @@ use std::{
 };
 
 use crate::{
-    ai::{
-        agent::conversation::AIConversationId,
-        execution_profiles::{
-            profiles::{AIExecutionProfilesModel, ClientProfileId},
-            AIExecutionProfile, ActionPermission, AskUserQuestionPermission, WriteToPtyPermission,
-        },
-    },
+    ai::{ agent::conversation::AIConversationId, execution_profiles::{ profiles::{AIExecutionProfilesModel, ClientProfileId}, AIExecutionProfile, ActionPermission, AskUserQuestionPermission, WriteToPtyPermission, }, },
     report_if_error,
     settings::{AISettings, AgentModeCodingPermissionsType, AgentModeCommandExecutionPredicate},
     workspaces::{user_workspaces::UserWorkspaces, workspace::AiAutonomySettings},

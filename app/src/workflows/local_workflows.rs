@@ -12,7 +12,10 @@ use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
 
 #[cfg(feature = "local_fs")]
 use crate::user_config::load_workflows;
-use crate::{terminal::model::session::Session, user_config::WarpConfig};
+use crate::{
+    terminal::model::session::Session,
+    user_config::WarpConfig,
+};
 
 use super::{workflow::Workflow, WorkflowSource};
 

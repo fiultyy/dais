@@ -1,3 +1,4 @@
+use env_vars_ui::data::EnvVarData;
 use pathfinder_color::ColorU;
 use pathfinder_geometry::vector::Vector2F;
 use warp_core::features::FeatureFlag;
@@ -20,7 +21,7 @@ use crate::{
         active_env_var_collection_data::TrashStatus,
         view::env_var_collection::{EnvVarCollectionAction, EnvVarCollectionView},
     },
-    ui_components::{breadcrumb::BreadcrumbState, buttons::icon_button, icons::Icon},
+    ui_components::{buttons::icon_button, icons::Icon},
     AppContext, Appearance, SingletonEntity,
 };
 
@@ -30,16 +31,6 @@ const BUTTON_HEIGHT: f32 = 32.;
 /// This file contains components that fixed in the view,
 /// i.e. the trash banner, breadcrumbs, and variables section header
 impl EnvVarCollectionView {
-    pub(super) fn update_breadcrumbs(&mut self, ctx: &mut ViewContext<Self>) {
-        self.breadcrumbs = self
-            .active_env_var_collection_data
-            .update(ctx, |data, ctx| {
-                data.breadcrumbs(ctx)
-                    .map(|breadcrumbs| breadcrumbs.into_iter().map(BreadcrumbState::new).collect())
-                    .unwrap_or_default()
-            })
-    }
-
     pub(super) fn render_trash_banner(
         &self,
         access_level: SharingAccessLevel,
@@ -48,7 +39,7 @@ impl EnvVarCollectionView {
         let deleted = match self
             .active_env_var_collection_data
             .as_ref(app)
-            .trash_status(app)
+            .trash_status(app, &crate::env_vars::manager::host_env_var_data())
         {
             TrashStatus::Active => return None,
             TrashStatus::Trashed => false,

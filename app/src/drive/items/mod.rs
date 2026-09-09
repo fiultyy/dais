@@ -1,89 +1,26 @@
-use warpui::{elements::MouseStateHandle, AppContext, Element};
+//! 留守 re-export 层 (P-ARC R2-a): `WarpDriveItem` trait 契约与纯展示 item
+//! 已下沉 crates/drive_ui, 本模块保旧路径继续可解析 (复刻 R1 auth::user_uid 模式)。
+//!
+//! 留守文件 (持有 app 侧 `*Object`, 物理依赖约束, 详见 drive_ui crate 文档):
+//! folder / notebook / workflow / ai_fact / mcp_server — 在 app 侧 impl
+//! drive_ui::WarpDriveItem。
 
-use crate::{
-    appearance::Appearance,
-    cloud_object::{Space, StoredObjectMetadata},
-    themes::theme::Fill,
-    ui_components::icons::Icon,
-};
-
-use super::{
-    cloud_object_styling::warp_drive_icon_color,
-    index::{warp_drive_section_header_position_id, DriveIndexAction, DriveIndexSection},
-    DriveObjectType, ObjectTypeAndId,
-};
+pub use drive_ui::items::{WarpDriveItem, WarpDriveItemId};
 
 pub mod ai_fact;
-pub mod ai_fact_collection;
-pub mod env_var_collection;
+pub mod ai_fact_collection {
+    pub use drive_ui::items::ai_fact_collection::*;
+}
+pub mod env_var_collection {
+    pub use drive_ui::items::env_var_collection::*;
+}
 pub mod folder;
-pub mod item;
 pub mod mcp_server;
-pub mod mcp_server_collection;
+pub mod mcp_server_collection {
+    pub use drive_ui::items::mcp_server_collection::*;
+}
 pub mod notebook;
-pub mod space;
+pub mod space {
+    pub use drive_ui::items::space::*;
+}
 pub mod workflow;
-
-pub trait WarpDriveItem {
-    /// The display name of the item. If the item is unnamed, this may return `None` - implementations
-    /// should prefer this over `Some("")`, as it lets the index view use alternate styling.
-    fn display_name(&self) -> Option<String>;
-    fn metadata(&self) -> Option<&StoredObjectMetadata>;
-    fn object_type(&self) -> Option<DriveObjectType>;
-    fn secondary_icon(&self, color: Option<Fill>) -> Option<Box<dyn Element>>; // The optional icon to the right of the name
-    fn click_action(&self) -> Option<DriveIndexAction>;
-    fn preview(&self, appearance: &Appearance) -> Option<Box<dyn Element>>;
-    fn warp_drive_id(&self) -> WarpDriveItemId;
-    fn sync_status_icon(
-        &self,
-        sync_queue_is_dequeueing: bool,
-        hover_state: MouseStateHandle,
-        appearance: &Appearance,
-    ) -> Option<Box<dyn Element>>;
-
-    fn icon(&self, appearance: &Appearance, color: Option<Fill>) -> Option<Box<dyn Element>> {
-        let object_type = self.object_type()?;
-        let icon_fill = color.unwrap_or(warp_drive_icon_color(appearance, object_type).into());
-        Some(Icon::from(object_type).to_warpui_icon(icon_fill).finish())
-    }
-
-    /// If implemented, returns a string that summarizes the primary action history. For example, "Run 2 times in the last week"
-    fn action_summary(&self, app: &AppContext) -> Option<String>;
-
-    /// Returns Some(true) if this is an open folder, Some(false) if closed folder, None if not a folder
-    fn is_folder_open(&self) -> Option<bool> {
-        None
-    }
-
-    fn clone_box(&self) -> Box<dyn WarpDriveItem>;
-}
-
-impl WarpDriveItemId {
-    pub fn drive_row_position_id(&self) -> String {
-        match self {
-            Self::AIFactCollection => "AI_fact_collection".to_string(),
-            Self::MCPServerCollection => "MCP_server_collection".to_string(),
-            Self::Object(object_id) => object_id.drive_row_position_id(),
-            Self::Space(space) => {
-                warp_drive_section_header_position_id(&DriveIndexSection::Space(*space))
-            }
-            Self::Trash => "Trash".to_string(),
-        }
-    }
-}
-/// This uniquely identifies an item in Dais Drive index
-/// Includes spaces (which ObjectTypeAndId does not entail)
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub enum WarpDriveItemId {
-    AIFactCollection,
-    MCPServerCollection,
-    Object(ObjectTypeAndId),
-    Space(Space),
-    Trash,
-}
-
-impl Clone for Box<dyn WarpDriveItem> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
-}

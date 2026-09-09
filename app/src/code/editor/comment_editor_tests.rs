@@ -11,18 +11,17 @@ use repo_metadata::RepoMetadataModel;
 use crate::{
     appearance::Appearance,
     auth::AuthStateProvider,
-    cloud_object::model::persistence::ObjectStoreModel,
-    notebooks::{
-        editor::keys::NotebookKeybindings,
-        link::{NotebookLinks, SessionSource},
-    },
+    notebooks::{ editor::keys::NotebookKeybindings, link::{NotebookLinks, SessionSource}, },
     search::files::model::FileSearchModel,
     settings_view::keybindings::KeybindingChangedNotifier,
     terminal::keys::TerminalKeybindings,
     test_util::settings::initialize_settings_for_tests,
     workspace::ActiveSession,
-    GlobalResourceHandles, GlobalResourceHandlesProvider, UserWorkspaces,
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
+    UserWorkspaces,
 };
+use crate::objects::model::persistence::ObjectStoreModel;
 
 struct TestView {
     editor: ViewHandle<RichTextEditorView>,

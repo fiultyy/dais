@@ -7,10 +7,7 @@ use crate::view_components::action_button::AdjoinedSide;
 use crate::view_components::compactible_action_button::RenderCompactibleActionButton;
 use crate::{
     ui_components::icons::Icon,
-    view_components::action_button::{
-        ActionButton, ButtonSize, KeystrokeSource, NakedTheme, PrimaryRightBiasedTheme,
-        PrimaryTheme,
-    },
+    view_components::action_button::{ ActionButton, ButtonSize, KeystrokeSource, NakedTheme, PrimaryRightBiasedTheme, PrimaryTheme, },
     view_components::compactible_action_button::CompactibleActionButton,
 };
 

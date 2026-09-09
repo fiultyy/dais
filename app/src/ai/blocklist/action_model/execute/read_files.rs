@@ -4,14 +4,7 @@ use futures::{future::BoxFuture, FutureExt};
 use warpui::{Entity, EntityId, ModelContext, ModelHandle, SingletonEntity};
 
 use crate::{
-    ai::{
-        agent::{
-            AIAgentAction, AIAgentActionResultType, AIAgentActionType, ReadFilesRequest,
-            ReadFilesResult,
-        },
-        blocklist::BlocklistAIPermissions,
-        paths::host_native_absolute_path,
-    },
+    ai::{ agent::{ AIAgentAction, AIAgentActionResultType, AIAgentActionType, ReadFilesRequest, ReadFilesResult, }, blocklist::BlocklistAIPermissions, paths::host_native_absolute_path, },
     terminal::model::session::{active_session::ActiveSession, SessionType},
 };
 

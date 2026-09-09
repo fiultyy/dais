@@ -1,8 +1,5 @@
 use crate::{
-    settings::{
-        AISettings, AISettingsChangedEvent, InputSettings, InputSettingsChangedEvent,
-        WarpPromptSeparator,
-    },
+    settings::{ AISettings, AISettingsChangedEvent, InputSettings, InputSettingsChangedEvent, WarpPromptSeparator, },
     terminal::session_settings::{SessionSettings, SessionSettingsChangedEvent},
 };
 

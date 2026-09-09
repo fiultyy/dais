@@ -2,10 +2,10 @@ use super::{WarpDriveItem, WarpDriveItemId};
 use crate::{
     ai::mcp::MCPServerObject,
     appearance::Appearance,
-    cloud_object::StoredObjectMetadata,
-    drive::{index::DriveIndexAction, DriveObjectType, ObjectTypeAndId},
+    drive::{DriveObjectType, ObjectTypeAndId},
     themes::theme::Fill,
 };
+use objects::StoredObjectMetadata;
 use warpui::{elements::MouseStateHandle, AppContext, Element};
 
 #[derive(Clone)]
@@ -36,9 +36,6 @@ impl WarpDriveItem for WarpDriveMCPServer {
         None
     }
 
-    fn click_action(&self) -> Option<DriveIndexAction> {
-        Some(DriveIndexAction::OpenMCPServerCollection)
-    }
 
     fn preview(&self, _appearance: &Appearance) -> Option<Box<dyn Element>> {
         // TODO
@@ -51,14 +48,11 @@ impl WarpDriveItem for WarpDriveMCPServer {
 
     fn sync_status_icon(
         &self,
-        sync_queue_is_dequeueing: bool,
-        hover_state: MouseStateHandle,
-        appearance: &Appearance,
+        _sync_queue_is_dequeueing: bool,
+        _hover_state: MouseStateHandle,
+        _appearance: &Appearance,
     ) -> Option<Box<dyn Element>> {
-        self.mcp_server
-            .metadata
-            .pending_changes_statuses
-            .render_icon(sync_queue_is_dequeueing, hover_state, appearance)
+        None
     }
 
     fn action_summary(&self, _app: &AppContext) -> Option<String> {

@@ -1,27 +1,26 @@
 use std::fmt;
 use std::fmt::{Debug, Formatter};
-use std::num::ParseIntError;
-use std::string::FromUtf8Error;
 use std::sync::Arc;
-use std::time::Duration;
 
-use instant::Instant;
 
-use crate::server::ids::SyncId;
 use crate::server::telemetry::ImageProtocol;
-use crate::terminal::model::block::BlockMetadata;
-use crate::terminal::model::block::SerializedBlock;
-use crate::terminal::model::completions::ShellCompletion;
+// R16: 载荷提升 terminal_grid_model::block_events。
+pub use terminal_grid_model::block_events::{
+    AfterBlockCompletedEvent, BlockCompletedEvent, BlockLatencyData, BlockMetadataReceivedEvent,
+    BlockType, UserBlockCompleted,
+};
+use terminal_model::completions::ShellCompletion;
 use crate::terminal::model::terminal_model::HandlerEvent;
 use crate::terminal::shell::ShellType;
 use crate::terminal::ClipboardType;
-use crate::util::AsciiDebug;
 
 use super::history::HistoryEntry;
-use super::model::ansi::{FinishUpdateValue, WarpificationUnavailableReason};
-use super::model::block::BlockId;
-use super::model::session::{SessionId, SessionInfo};
-use super::model::terminal_model::{BlockIndex, ExitReason, TmuxInstallationState};
+use terminal_grid_model::ansi::{FinishUpdateValue, WarpificationUnavailableReason};
+use terminal_grid_model::block::BlockId;
+use super::model::session::SessionInfo;
+use warp_core::SessionId;
+use super::model::terminal_model::ExitReason;
+use terminal_model::TmuxInstallationState;
 
 pub use remote_server::setup::RemoteServerSetupState;
 
@@ -202,205 +201,12 @@ pub struct BootstrappedEvent {
     pub rcfiles_duration_seconds: Option<f64>,
 }
 
-#[derive(Clone)]
-pub struct BlockCompletedEvent {
-    /// This will be None when we don't want to collect telemetry
-    /// for this block's latency.
-    pub block_latency_data: Option<BlockLatencyData>,
-    pub block_type: BlockType,
-    pub num_secrets_obfuscated: usize,
-    pub block_index: BlockIndex,
-    pub block_id: BlockId,
-    pub session_id: Option<SessionId>,
-    pub restored_block_was_local: Option<bool>,
-}
 
-#[derive(Clone)]
-pub struct AfterBlockCompletedEvent {
-    /// The delay from the CommandFinished ansi hook to the Precmd hook.
-    /// This value is only provided for the blocks that the user directly
-    /// executes (so it's not provided if this is a restored block from session
-    /// restoration or a bootstrapping block).
-    pub command_finished_to_precmd_delay: Option<Duration>,
-    pub block_type: BlockType,
-    pub num_secrets_obfuscated: usize,
 
-    /// The exit code of the completed command. 0 = success.
-    pub exit_code: i32,
 
-    /// If the completed block was a workflow, this is its id.
-    pub cloud_workflow_id: Option<SyncId>,
 
-    /// If the completed block had an env var object associated.
-    pub cloud_env_var_collection_id: Option<SyncId>,
-}
 
-#[derive(Clone)]
-pub struct BlockLatencyData {
-    pub command: &'static str,
-    /// When the block's command grid was started (i.e. when the user hit enter).
-    pub started_at: Instant,
-}
-
-#[derive(Clone, Debug)]
-/// Different types of blocks. `User` is for normal execution.
-/// Everything else is earlier in the bootstrapping sequence.
-pub enum BlockType {
-    /// When there are blocks that finish in the bootstrap sequence,
-    /// we don't want to propagate the event around our app.
-    BootstrapHidden,
-    /// This is a special case where the user's rcfiles resulted in outputs. We
-    /// will want some of the view logic to execute, and not all of it.
-    BootstrapVisible(Arc<SerializedBlock>),
-    /// This was a block we restored through session restoration.
-    Restored,
-    /// This was a block created for execution of an in-band command.
-    InBandCommand,
-    /// This is a normal block that the user executed.
-    User(UserBlockCompleted),
-
-    /// This is a block containing background process output.
-    Background(Arc<SerializedBlock>),
-
-    /// This is a block containing static/hardcoded content (e.g. the subshell Warpification
-    /// welcome block).
-    Static,
-}
-
-impl BlockType {
-    pub fn is_bootstrap_block(&self) -> bool {
-        matches!(self, Self::BootstrapHidden | Self::BootstrapVisible(_))
-    }
-}
-
-#[derive(Clone, Debug)]
-/// A notification that the metadata for the active block & prompt is now
-/// available.
-pub struct BlockMetadataReceivedEvent {
-    pub block_metadata: BlockMetadata,
-    pub block_index: BlockIndex,
-    /// Whether the previous block was an in-band command.
-    pub is_after_in_band_command: bool,
-    /// Whether the session has fully completed the bootstrapping process.
-    pub is_done_bootstrapping: bool,
-}
-
-#[derive(Clone, Debug)]
-/// Contents of a normal block that a user executed.
-pub struct UserBlockCompleted {
-    pub index: BlockIndex,
-
-    pub serialized_block: Arc<SerializedBlock>,
-
-    /// The input lines for a block without any escape sequences.
-    pub command: String,
-
-    /// The command with secrets obfuscated.
-    pub command_with_obfuscated_secrets: String,
-
-    /// The output lines for a block without any escape sequences.
-    /// They are truncated to the number of lines specificed by the caller.
-    pub output_truncated: String,
-
-    /// The output lines for a block without any escape sequences.
-    /// They are truncated to the number of lines specificed by the caller.
-    /// Forced secrets to be obfuscated as well.
-    pub output_truncated_with_obfuscated_secrets: String,
-
-    /// `true` if the block was run as a requested command or was part of a CLI subagent interaction.
-    pub was_part_of_agent_interaction: bool,
-
-    /// Time that we started the command grid (i.e. immediately after the user
-    /// hit enter).
-    pub started_at: Option<Instant>,
-
-    /// The number of lines in the output grid when it was finished.
-    pub num_output_lines: u64,
-
-    /// The number of lines of output that were truncated while the block
-    /// was active and receiving output.
-    pub num_output_lines_truncated: u64,
-}
-
-/// Emitted upon completion of an executor command that goes through the pty, such as the
-/// InBandCommandExecutor or the TmuxCommandExecutor.
-#[derive(Clone)]
-pub struct ExecutedExecutorCommandEvent {
-    pub command_id: String,
-    pub exit_code: usize,
-    pub output: Vec<u8>,
-}
-
-impl ExecutedExecutorCommandEvent {
-    /// Parses the given `payload` (expected to be the payload of a generator output OSC) into a
-    /// `ExecutedGeneratorCommandValue`.
-    ///
-    /// The given `string` is expected to follow the following format:
-    ///     <commmand_id>;<output>;<exit_code>
-    ///
-    /// Returns a `ParseGeneratorCommandValueError` if payload cannot be successfully parsed.
-    ///
-    pub fn parse_generator_payload(payload: Vec<u8>) -> Result<Self, ParseGeneratorOutputError> {
-        // Break the payload apart at the first and last semicolons.
-        let mut payload_initial_split = payload.splitn(2, |&byte| byte == b';');
-
-        let Some(before_first_semicolon) = payload_initial_split.next() else {
-            return Err(ParseGeneratorOutputError::Corrupted);
-        };
-
-        let Some(after_first_semicolon) = payload_initial_split.next() else {
-            return Err(ParseGeneratorOutputError::Corrupted);
-        };
-
-        let mut payload_final_split = after_first_semicolon.rsplitn(2, |&byte| byte == b';');
-        let Some(after_final_semicolon) = payload_final_split.next() else {
-            return Err(ParseGeneratorOutputError::Corrupted);
-        };
-
-        let Some(payload_middle) = payload_final_split.next() else {
-            return Err(ParseGeneratorOutputError::Corrupted);
-        };
-
-        let command_id = String::from_utf8(before_first_semicolon.to_vec())
-            .map_err(ParseGeneratorOutputError::Utf8DecodingFailure)?;
-
-        let exit_code = String::from_utf8(after_final_semicolon.to_vec())
-            .map_err(ParseGeneratorOutputError::Utf8DecodingFailure)?
-            .parse::<usize>()
-            .map_err(ParseGeneratorOutputError::ExitCodeParseFailure)?;
-
-        // The output of the command remains as bytes. This is so we can operate on the bytes higher in
-        // the stack if we need to, such as in the case of parsing out the zsh history file where we want to
-        // transform the byte array before converting to a string.
-        let output = payload_middle.to_vec();
-
-        Ok(Self {
-            command_id,
-            exit_code,
-            output,
-        })
-    }
-}
-
-impl Debug for ExecutedExecutorCommandEvent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ExecutedExecutorCommandEvent")
-            .field("command_id", &self.command_id)
-            .field("exit_code", &self.exit_code)
-            .field("output", &AsciiDebug(&self.output))
-            .finish()
-    }
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum ParseGeneratorOutputError {
-    #[error("Failed to parse exit code: {0:?}")]
-    ExitCodeParseFailure(ParseIntError),
-    #[error("Corrupted DCS. Should be of the format <command_id>;<exit_code>;<output>. ")]
-    Corrupted,
-    #[error("Failed to convert to Utf8: {0:?}")]
-    Utf8DecodingFailure(FromUtf8Error),
-}
+pub use ::terminal_model::{ExecutedExecutorCommandEvent, ParseGeneratorOutputError};
 
 impl Debug for Event {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

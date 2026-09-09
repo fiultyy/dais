@@ -1,4 +1,4 @@
-pub mod telemetry;
+pub use workspace_model::telemetry;
 
 use crate::ai::agent::conversation::ConversationStatus;
 use crate::code::editor::{add_color, remove_color};
@@ -23,7 +23,7 @@ use std::sync::{Arc, Mutex};
 use crate::appearance::Appearance;
 use crate::context_chips::display_chip::GitLineChanges;
 use crate::context_chips::github_pr_display_text_from_url;
-use crate::drive::{cloud_object_styling::warp_drive_icon_color, DriveObjectType};
+use crate::drive::{objects_styling::warp_drive_icon_color, DriveObjectType};
 use crate::editor::EditorView;
 use crate::pane_group::pane::IPaneType;
 use crate::pane_group::TerminalPane;
@@ -43,7 +43,6 @@ use crate::util::bindings::keybinding_name_to_display_string;
 use crate::util::color::Opacity;
 use crate::workspace::action::WorkspaceAction;
 use crate::workspace::cross_window_tab_drag::CrossWindowTabDrag;
-use crate::workspace::hoa_onboarding::HoaOnboardingStep;
 use crate::workspace::tab_settings::{
     TabSettings, VerticalTabsCompactSubtitle, VerticalTabsDisplayGranularity,
     VerticalTabsPrimaryInfo, VerticalTabsTabItemMode, VerticalTabsViewMode,
@@ -790,14 +789,12 @@ enum SummaryPaneKind {
     OzAgent,
     CLIAgent { agent: CLIAgent },
     Code { title: String },
-    CodeDiff,
     File,
     Notebook { is_plan: bool },
     Workflow { is_ai_prompt: bool },
     Settings,
     EnvVarCollection,
     // Dais Wave 7-3:`EnvironmentManagement` variant 随 ambient-agent UI 子系统物理删。
-    AIFact,
     AIDocument,
     ExecutionProfileEditor,
     Other,
@@ -1415,11 +1412,7 @@ fn render_new_tab_button(
     let ui_builder = appearance.ui_builder().clone();
     let tab_configs_keybinding =
         keybinding_name_to_display_string(super::TOGGLE_TAB_CONFIGS_MENU_BINDING_NAME, app);
-    let is_active = workspace.show_new_session_dropdown_menu.is_some()
-        || workspace
-            .hoa_onboarding_flow
-            .as_ref()
-            .is_some_and(|flow| flow.as_ref(app).step() == HoaOnboardingStep::TabConfig);
+    let is_active = workspace.show_new_session_dropdown_menu.is_some();
 
     Hoverable::new(state.new_tab_hover_state.clone(), move |hover_state| {
         let plus_button = combo_inner_button(
@@ -2280,23 +2273,19 @@ fn render_rail_footer_tools_panel_button(
 
     let appearance = Appearance::as_ref(app);
     let tooltip_text = if workspace.left_panel_views.len() <= 1 {
-        match workspace
-            .left_panel_views
-            .first()
-            .copied()
-            .unwrap_or(ToolPanelView::DaisDrive)
-        {
-            ToolPanelView::ProjectExplorer => crate::t!("workspace-left-panel-project-explorer"),
-            ToolPanelView::GlobalSearch { .. } => crate::t!("workspace-left-panel-global-search"),
-            ToolPanelView::DaisDrive => crate::t!("workspace-left-panel-warp-drive"),
-            ToolPanelView::ConversationListView => {
+        match workspace.left_panel_views.first().copied() {
+            Some(ToolPanelView::ProjectExplorer) => crate::t!("workspace-left-panel-project-explorer"),
+            Some(ToolPanelView::GlobalSearch { .. }) => crate::t!("workspace-left-panel-global-search"),
+            Some(ToolPanelView::ConversationListView) => {
                 crate::t!("workspace-left-panel-agent-conversations")
             }
-            ToolPanelView::SshManager => crate::t!("workspace-left-panel-ssh-manager"),
-            ToolPanelView::ServerFileBrowser => {
+            Some(ToolPanelView::SshManager) => crate::t!("workspace-left-panel-ssh-manager"),
+            Some(ToolPanelView::ServerFileBrowser) => {
                 crate::t!("workspace-left-panel-server-file-browser")
             }
-            ToolPanelView::SkillManager => crate::t!("workspace-left-panel-skill-manager"),
+            Some(ToolPanelView::SkillManager) => crate::t!("workspace-left-panel-skill-manager"),
+            // 空列表时理论上不进此分支(len<=1 且 first()==None),兜底走通用 tooltip。
+            None => crate::t!("workspace-tools-panel-tooltip"),
         }
     } else {
         crate::t!("workspace-tools-panel-tooltip")
@@ -3416,10 +3405,6 @@ fn resolve_icon_with_status_variant(
             icon: typed.icon(),
             icon_color: drive_color(DriveObjectType::EnvVarCollection),
         },
-        TypedPane::AIFact => IconWithStatusVariant::Neutral {
-            icon: typed.icon(),
-            icon_color: drive_color(DriveObjectType::AIFact),
-        },
         // Other pane types use sub-text color
         other => IconWithStatusVariant::Neutral {
             icon: other.icon(),
@@ -3724,14 +3709,11 @@ fn render_pane_row(props: PaneProps<'_>, app: &AppContext) -> Box<dyn Element> {
 enum TypedPane<'a> {
     Terminal(&'a TerminalPane),
     Code(&'a CodePane),
-    CodeDiff,
     File,
     Notebook { is_plan: bool },
     Workflow { is_ai_prompt: bool },
     Settings,
     EnvVarCollection,
-    // Dais Wave 7-3:`EnvironmentManagement` variant 随 ambient-agent UI 子系统物理删。
-    AIFact,
     AIDocument,
     ExecutionProfileEditor,
     Other,
@@ -3762,7 +3744,6 @@ impl TypedPane<'_> {
             TypedPane::Code(_) => SummaryPaneKind::Code {
                 title: title.to_string(),
             },
-            TypedPane::CodeDiff => SummaryPaneKind::CodeDiff,
             TypedPane::File => SummaryPaneKind::File,
             TypedPane::Notebook { is_plan } => SummaryPaneKind::Notebook { is_plan: *is_plan },
             TypedPane::Workflow { is_ai_prompt } => SummaryPaneKind::Workflow {
@@ -3770,8 +3751,6 @@ impl TypedPane<'_> {
             },
             TypedPane::Settings => SummaryPaneKind::Settings,
             TypedPane::EnvVarCollection => SummaryPaneKind::EnvVarCollection,
-            // Dais Wave 7-3:`TypedPane::EnvironmentManagement` arm 随 variant 物理删。
-            TypedPane::AIFact => SummaryPaneKind::AIFact,
             TypedPane::AIDocument => SummaryPaneKind::AIDocument,
             TypedPane::ExecutionProfileEditor => SummaryPaneKind::ExecutionProfileEditor,
             TypedPane::Other => SummaryPaneKind::Other,
@@ -3790,7 +3769,6 @@ impl TypedPane<'_> {
         match self {
             TypedPane::Terminal(_) => crate::t!("vertical-tabs-pane-kind-terminal"),
             TypedPane::Code(_) => crate::t!("vertical-tabs-pane-kind-code"),
-            TypedPane::CodeDiff => crate::t!("vertical-tabs-pane-kind-code-diff"),
             TypedPane::File => crate::t!("vertical-tabs-pane-kind-file"),
             TypedPane::Notebook { .. } => crate::t!("vertical-tabs-pane-kind-notebook"),
             TypedPane::Workflow { .. } => crate::t!("vertical-tabs-pane-kind-workflow"),
@@ -3798,9 +3776,6 @@ impl TypedPane<'_> {
             TypedPane::EnvVarCollection => {
                 crate::t!("vertical-tabs-pane-kind-environment-variables")
             }
-            // Dais Wave 7-3:`TypedPane::EnvironmentManagement` kind_label arm 随 variant
-            // 物理删。
-            TypedPane::AIFact => crate::t!("vertical-tabs-pane-kind-rules"),
             TypedPane::AIDocument => crate::t!("vertical-tabs-pane-kind-plan"),
             TypedPane::ExecutionProfileEditor => {
                 crate::t!("vertical-tabs-pane-kind-execution-profile")
@@ -3817,14 +3792,12 @@ impl TypedPane<'_> {
                 .contains_unsaved_changes(app)
                 .then(|| "Unsaved".to_string()),
             TypedPane::Terminal(_)
-            | TypedPane::CodeDiff
             | TypedPane::File
             | TypedPane::Notebook { .. }
             | TypedPane::Workflow { .. }
             | TypedPane::Settings
             | TypedPane::EnvVarCollection
             // Dais Wave 7-3:`TypedPane::EnvironmentManagement` arm 随 variant 物理删。
-            | TypedPane::AIFact
             | TypedPane::AIDocument
             | TypedPane::ExecutionProfileEditor
             | TypedPane::Other => None,
@@ -3835,7 +3808,6 @@ impl TypedPane<'_> {
         match self {
             TypedPane::Terminal(_) => WarpIcon::Terminal,
             TypedPane::Code(_) => WarpIcon::Code2,
-            TypedPane::CodeDiff => WarpIcon::Diff,
             TypedPane::File => WarpIcon::File,
             TypedPane::Notebook { is_plan: true } => WarpIcon::Compass,
             TypedPane::Notebook { is_plan: false } => WarpIcon::Notebook,
@@ -3846,7 +3818,6 @@ impl TypedPane<'_> {
             TypedPane::Settings => WarpIcon::Gear,
             // Dais Wave 7-3:`TypedPane::EnvironmentManagement` icon arm 随 variant 物理删。
             TypedPane::EnvVarCollection => WarpIcon::EnvVarCollection,
-            TypedPane::AIFact => WarpIcon::BookOpen,
             TypedPane::AIDocument => WarpIcon::Compass,
             TypedPane::ExecutionProfileEditor => WarpIcon::Lightning,
             TypedPane::Other => WarpIcon::File,
@@ -3976,14 +3947,12 @@ fn build_vertical_tabs_summary_data(
                     &pane_subtitle,
                 );
             }
-            TypedPane::CodeDiff
-            | TypedPane::File
+            TypedPane::File
             | TypedPane::Notebook { .. }
             | TypedPane::Workflow { .. }
             | TypedPane::Settings
             | TypedPane::EnvVarCollection
             // Dais Wave 7-3:`TypedPane::EnvironmentManagement` arm 随 variant 物理删。
-            | TypedPane::AIFact
             | TypedPane::AIDocument
             | TypedPane::ExecutionProfileEditor
             | TypedPane::Other => {
@@ -4099,14 +4068,12 @@ impl<'a> PaneProps<'a> {
                 app,
             ),
             TypedPane::Code(_)
-            | TypedPane::CodeDiff
             | TypedPane::File
             | TypedPane::Notebook { .. }
             | TypedPane::Workflow { .. }
             | TypedPane::Settings
             | TypedPane::EnvVarCollection
             // Dais Wave 7-3:`TypedPane::EnvironmentManagement` arm 随 variant 物理删。
-            | TypedPane::AIFact
             | TypedPane::AIDocument
             | TypedPane::ExecutionProfileEditor
             | TypedPane::Other => {
@@ -4394,7 +4361,6 @@ impl PaneGroup {
                 self.downcast_pane_by_id::<CodePane>(pane_id)
                     .expect("IPaneType::Code must correspond to a CodePane"),
             ),
-            IPaneType::CodeDiff => TypedPane::CodeDiff,
             IPaneType::File => TypedPane::File,
             IPaneType::Notebook => {
                 let is_plan = self
@@ -4416,16 +4382,14 @@ impl PaneGroup {
             IPaneType::Settings => TypedPane::Settings,
             IPaneType::EnvVarCollection => TypedPane::EnvVarCollection,
             // Dais Wave 7-3:`EnvironmentManagement` arm 随 variant 一同物理删。
-            IPaneType::AIFact => TypedPane::AIFact,
             IPaneType::AIDocument => TypedPane::AIDocument,
             IPaneType::ExecutionProfileEditor => TypedPane::ExecutionProfileEditor,
             IPaneType::ImageViewer
-            | IPaneType::GetStarted
+            | IPaneType::CodeDiff
             | IPaneType::SshServer
             | IPaneType::Sftp
             | IPaneType::Observatory
             | IPaneType::Cockpit
-            | IPaneType::Welcome
             | IPaneType::DeferredPlaceholder
             | IPaneType::Dummy => TypedPane::Other,
         }
@@ -4938,14 +4902,12 @@ fn render_summary_pane_kind_icon_circle(
             internal_colors::fg_overlay_2(theme).into(),
         ),
         SummaryPaneKind::Terminal
-        | SummaryPaneKind::CodeDiff
         | SummaryPaneKind::File
         | SummaryPaneKind::Notebook { .. }
         | SummaryPaneKind::Workflow { .. }
         | SummaryPaneKind::Settings
         | SummaryPaneKind::EnvVarCollection
         // Dais Wave 7-3:`SummaryPaneKind::EnvironmentManagement` arm 随 variant 物理删。
-        | SummaryPaneKind::AIFact
         | SummaryPaneKind::AIDocument
         | SummaryPaneKind::ExecutionProfileEditor
         | SummaryPaneKind::Other => {
@@ -4989,7 +4951,6 @@ fn summary_pane_kind_icon(
             WarpThemeFill::Solid(agent.brand_icon_color()),
         ),
         SummaryPaneKind::Code { .. } => (WarpIcon::Code2, sub_text),
-        SummaryPaneKind::CodeDiff => (WarpIcon::Diff, sub_text),
         SummaryPaneKind::File => (WarpIcon::File, sub_text),
         SummaryPaneKind::Notebook { is_plan } => (
             if is_plan {
@@ -5019,7 +4980,6 @@ fn summary_pane_kind_icon(
             WarpIcon::EnvVarCollection,
             drive_color(DriveObjectType::EnvVarCollection),
         ),
-        SummaryPaneKind::AIFact => (WarpIcon::BookOpen, drive_color(DriveObjectType::AIFact)),
         SummaryPaneKind::AIDocument => (WarpIcon::Compass, sub_text),
         SummaryPaneKind::ExecutionProfileEditor => (WarpIcon::Lightning, sub_text),
         SummaryPaneKind::Other => (WarpIcon::File, sub_text),
@@ -6825,13 +6785,11 @@ fn typed_pane_warp_drive_object_type(typed: &TypedPane<'_>) -> Option<DriveObjec
             is_ai_prompt: false,
         } => Some(DriveObjectType::Workflow),
         TypedPane::EnvVarCollection => Some(DriveObjectType::EnvVarCollection),
-        TypedPane::AIFact => Some(DriveObjectType::AIFact),
         TypedPane::AIDocument => Some(DriveObjectType::Notebook {
             is_ai_document: true,
         }),
         TypedPane::Terminal(_)
         | TypedPane::Code(_)
-        | TypedPane::CodeDiff
         | TypedPane::File
         | TypedPane::Settings
         // Dais Wave 7-3:`TypedPane::EnvironmentManagement` arm 随 variant 物理删。
@@ -6856,10 +6814,8 @@ fn render_detail_section(
         TypedPane::Notebook { .. }
         | TypedPane::Workflow { .. }
         | TypedPane::EnvVarCollection
-        | TypedPane::AIFact
         | TypedPane::AIDocument => render_warp_drive_object_detail_section(props, appearance, app),
-        TypedPane::CodeDiff
-        | TypedPane::File
+        TypedPane::File
         | TypedPane::Settings
         // Dais Wave 7-3:`TypedPane::EnvironmentManagement` arm 随 variant 物理删。
         | TypedPane::ExecutionProfileEditor

@@ -1,3 +1,5 @@
+use crate::terminal::view::WARP_PROMPT_HEIGHT_LINES;
+use terminal_grid_model::block::Block;
 use warpui::{
     elements::{Border, ConstrainedBox, Container, CornerRadius, Flex, ParentElement, Radius},
     fonts::Weight,
@@ -6,7 +8,6 @@ use warpui::{
 };
 
 use crate::appearance::Appearance;
-use crate::terminal::{model::block::Block, view::WARP_PROMPT_HEIGHT_LINES};
 
 pub(super) fn render_floating_block_snapshot(
     block: &Block,

@@ -8,13 +8,10 @@ use warpui::{
 use crate::{
     appearance::Appearance,
     editor::{EditorView, Event, SingleLineEditorOptions, TextOptions},
-    report_if_error, send_telemetry_from_ctx,
+    report_if_error,
+    send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
-    terminal::{
-        available_shells::{AvailableShell, AvailableShells},
-        local_tty::shell::is_valid_path_or_command_for_supported_shell,
-        session_settings::{SessionSettings, SessionSettingsChangedEvent},
-    },
+    terminal::{ available_shells::{AvailableShell, AvailableShells}, local_tty::shell::is_valid_path_or_command_for_supported_shell, session_settings::{SessionSettings, SessionSettingsChangedEvent}, },
     view_components::{Dropdown, DropdownItem},
 };
 

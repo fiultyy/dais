@@ -1,43 +1,38 @@
+use terminal_grid_model::grid::header_grid::PromptEndPoint;
+use warp_terminal::model::grid::cell::Flags;
+use terminal_grid_model::ansi::{Attr, Handler};
 use std::{collections::HashMap, pin::pin, time::Duration};
 
 use super::*;
+use terminal_grid_model::block::*;
+// R24: Block 迁移后 super::* 显式化补引。
+use agent_ids::AIConversationId;
+use terminal_grid_model::block_index::BlockIndex;
+use terminal_grid_model::block_events::BlockType;
+use terminal_grid_model::bootstrap::BootstrapStage;
+use crate::terminal::event::Event;
+use crate::terminal::event_listener::ChannelEventListener;
+use terminal_model::index::Point;
+use terminal_grid_model::grid::RespectDisplayedOutput;
+use terminal_grid_model::secrets::RespectObfuscatedSecrets;
+use terminal_grid_model::SizeInfo;
+use terminal_grid_model::block::calculate_optimal_row_counts;
+
+use terminal_grid_model::ansi::{self, PrecmdValue, PreexecValue};
+use terminal_grid_model::ansi::Handler as _;
+use warpui::units::{Lines, IntoLines as _};
+use terminal_grid_model::block::BlockState;
+use terminal_grid_model::block_serialized::SerializedBlock;
+use super::super::session::Sessions;
 use crate::{
     ai::blocklist::agent_view::AgentViewState,
-    terminal::model::{
-        ansi::{Attr, Handler},
-        cell::Flags,
-        header_grid::PromptEndPoint,
-        session::SessionInfo,
-        test_utils::{create_test_block_with_grids, TestBlockBuilder},
-    },
+    terminal::model::{ session::SessionInfo, test_utils::{create_test_block_with_grids, TestBlockBuilder}, },
     test_util::mock_blockgrid,
 };
 use float_cmp::assert_approx_eq;
 use futures_lite::stream::StreamExt;
 
-impl float_cmp::ApproxEq for BlockSection {
-    type Margin = float_cmp::F64Margin;
-
-    fn approx_eq<M: Into<Self::Margin>>(self, other: Self, margin: M) -> bool {
-        // Use a minimum epsilon value of 3 * the smallest value that can be
-        // represented in an f64.  This allows for a very small (but non-zero)
-        // amount of _accumulated_ floating-point error.
-        let mut margin: Self::Margin = margin.into();
-        if margin.epsilon < f64::EPSILON * 3. {
-            margin = margin.epsilon(f64::EPSILON * 3.);
-        }
-
-        match (self, other) {
-            (BlockSection::PromptAndCommandGrid(r1), BlockSection::PromptAndCommandGrid(r2)) => {
-                r1.approx_eq(r2, margin)
-            }
-            (BlockSection::OutputGrid(r1), BlockSection::OutputGrid(r2)) => {
-                r1.approx_eq(r2, margin)
-            }
-            (a, b) => std::mem::discriminant(&a) == std::mem::discriminant(&b),
-        }
-    }
-}
+// R24: ApproxEq for BlockSection(现为 crate 类型)随 Block 迁 crate test-support。
 
 #[test]
 pub fn test_find() {
@@ -144,7 +139,7 @@ pub fn test_find() {
     block.output_grid.linefeed();
     block
         .output_grid
-        .on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+        .on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     assert_eq!(block.header_grid.prompt_and_command_number_of_rows(), 3);
     assert_eq!(block.output_grid.len(), 3);
@@ -245,7 +240,7 @@ pub fn test_find() {
     block.output_grid.linefeed();
     block
         .output_grid
-        .on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+        .on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     assert_eq!(block.header_grid.prompt_and_command_number_of_rows(), 2);
     assert_eq!(block.output_grid.len(), 3);
@@ -416,7 +411,7 @@ pub fn test_block_height_non_bootstrapped_block() {
     // Add a few lines to the grid.
     block.linefeed();
     block.linefeed();
-    block.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    block.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // The block is empty since it was never started.
     assert!(block.is_empty(&AgentViewState::Inactive));
@@ -884,7 +879,7 @@ fn test_clone_command_from_blockgrid() {
     block
         .header_grid
         .prompt_and_command_grid_mut()
-        .set_mode(ansi::Mode::LineFeedNewLine);
+        .set_mode(terminal_grid_model::ansi::Mode::LineFeedNewLine);
 
     block.copy_command_grid(&grid_to_clone);
 
@@ -946,7 +941,7 @@ fn test_clone_command_from_blockgrid_long() {
     block
         .header_grid
         .prompt_and_command_grid_mut()
-        .set_mode(ansi::Mode::LineFeedNewLine);
+        .set_mode(terminal_grid_model::ansi::Mode::LineFeedNewLine);
 
     block.copy_command_grid(&grid_to_clone);
 
@@ -1002,7 +997,7 @@ fn test_clone_command_from_blockgrid_from_empty() {
     block
         .header_grid
         .prompt_and_command_grid_mut()
-        .set_mode(ansi::Mode::LineFeedNewLine);
+        .set_mode(terminal_grid_model::ansi::Mode::LineFeedNewLine);
 
     block.copy_command_grid(&grid_to_clone);
 
@@ -1057,7 +1052,7 @@ fn test_clone_command_from_blockgrid_to_empty() {
     block
         .header_grid
         .prompt_and_command_grid_mut()
-        .set_mode(ansi::Mode::LineFeedNewLine);
+        .set_mode(terminal_grid_model::ansi::Mode::LineFeedNewLine);
 
     block.copy_command_grid(&grid_to_clone);
 
@@ -1236,7 +1231,7 @@ fn test_top_level_command() {
         block.input(c);
     }
 
-    assert_eq!(block.top_level_command(&sessions), Some("git".to_string()));
+    assert_eq!(crate::terminal::model::session::top_level_command(&block, &sessions), Some("git".to_string()));
 
     let mut block = TestBlockBuilder::new()
         .with_size_info(SizeInfo::new_without_font_metrics(1, 20))
@@ -1250,7 +1245,7 @@ fn test_top_level_command() {
         block.input(c);
     }
 
-    assert_eq!(block.top_level_command(&sessions), Some("git".to_string()));
+    assert_eq!(crate::terminal::model::session::top_level_command(&block, &sessions), Some("git".to_string()));
 }
 
 #[test]
@@ -1275,7 +1270,7 @@ fn test_top_level_command_with_aliases() {
     for c in "git status".chars() {
         block.input(c);
     }
-    assert_eq!(block.top_level_command(&sessions), Some("git2".to_string()));
+    assert_eq!(crate::terminal::model::session::top_level_command(&block, &sessions), Some("git2".to_string()));
 
     let mut block = TestBlockBuilder::new()
         .with_size_info(SizeInfo::new_without_font_metrics(1, 20))
@@ -1288,7 +1283,7 @@ fn test_top_level_command_with_aliases() {
     for c in "gs --ignored".chars() {
         block.input(c);
     }
-    assert_eq!(block.top_level_command(&sessions), Some("git".to_string()));
+    assert_eq!(crate::terminal::model::session::top_level_command(&block, &sessions), Some("git".to_string()));
 
     let mut block = TestBlockBuilder::new()
         .with_size_info(SizeInfo::new_without_font_metrics(1, 20))
@@ -1301,7 +1296,7 @@ fn test_top_level_command_with_aliases() {
     for c in "PAGER= gl --flag".chars() {
         block.input(c);
     }
-    assert_eq!(block.top_level_command(&sessions), Some("git".to_string()));
+    assert_eq!(crate::terminal::model::session::top_level_command(&block, &sessions), Some("git".to_string()));
 }
 
 #[test]

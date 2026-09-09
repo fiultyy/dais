@@ -13,8 +13,11 @@ use warpui::{
 };
 
 use crate::{
-    appearance::Appearance, settings::ai::DefaultSessionMode, tab_configs::TabConfig,
-    terminal::available_shells::AvailableShell, workspace::WorkspaceAction,
+    appearance::Appearance,
+    settings::ai::DefaultSessionMode,
+    tab_configs::TabConfig,
+    terminal::available_shells::AvailableShell,
+    workspace::WorkspaceAction,
 };
 
 pub(crate) const SIDECAR_WIDTH: f32 = 260.;

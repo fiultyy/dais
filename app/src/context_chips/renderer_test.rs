@@ -2,6 +2,7 @@ use pathfinder_color::ColorU;
 use warpui::fonts::Properties;
 
 use crate::context_chips::{ChipAvailability, ChipDisabledReason, ContextChipKind};
+use crate::context_chips::ContextChipKindExt as _;
 
 use super::{Renderer, RendererStyles};
 

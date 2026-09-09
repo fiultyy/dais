@@ -43,7 +43,7 @@ fn create_test_task_with_exchanges(exchange_count: usize) -> Task {
 }
 
 fn create_test_subtask_with_exchanges(exchange_count: usize) -> Task {
-    use crate::terminal::model::block::BlockId;
+    use terminal_grid_model::block::BlockId;
     let mut task = Task::new_optimistic_cli_agent_subtask(BlockId::new());
     for _ in 0..exchange_count {
         task.append_exchange(create_test_exchange());
@@ -485,7 +485,7 @@ fn test_linearization_nested_subtasks() {
     let grandchild_exchange_id = grandchild_subtask.exchanges().next().unwrap().id;
 
     // Create child subtask with a call to grandchild
-    use crate::terminal::model::block::BlockId;
+    use terminal_grid_model::block::BlockId;
     let mut child_subtask = Task::new_optimistic_cli_agent_subtask(BlockId::new());
     let child_id = child_subtask.id().clone();
 

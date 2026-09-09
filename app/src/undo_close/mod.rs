@@ -3,7 +3,10 @@ mod stack;
 
 use warpui::{keymap::EditableBinding, AppContext};
 
-use crate::{util::bindings::CustomAction, workspace::WorkspaceAction};
+use crate::{
+    util::bindings::CustomAction,
+    workspace::WorkspaceAction,
+};
 
 pub use self::{settings::UndoCloseSettings, stack::UndoCloseStack, stack::UndoCloseStackEvent};
 

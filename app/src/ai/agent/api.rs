@@ -3,6 +3,8 @@ mod convert_from;
 mod convert_to;
 
 pub use ai::agent::convert::ConvertToAPITypeError;
+use crate::objects_display::StoredObjectHostExt;
+use objects::StoredObject as _;
 use ai::api_keys::ApiKeyManager;
 pub use convert_from::{
     user_inputs_from_messages, ConversionParams, ConvertAPIMessageToClientOutputMessage,
@@ -30,9 +32,9 @@ use crate::ai::execution_profiles::profiles::AIExecutionProfilesModel;
 use crate::ai::facts::{AIFact, AIFactObjectModel};
 use crate::ai::mcp::templatable_manager::TemplatableMCPServerInfo;
 use crate::ai::mcp::TemplatableMCPServerManager;
-use crate::cloud_object::model::generic_string_model::GenericStringObjectId;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::cloud_object::StoredObject;
+use objects::GenericStringObjectId;
+use crate::objects::model::persistence::ObjectStoreModel;
+use objects::StoredObject;
 use crate::settings::AISettings;
 use crate::terminal::safe_mode_settings::get_secret_obfuscation_mode;
 use crate::workspaces::user_workspaces::UserWorkspaces;

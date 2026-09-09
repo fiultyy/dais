@@ -1,5 +1,6 @@
 use crate::{
-    appearance, test_util::settings::initialize_settings_for_tests,
+    appearance,
+    test_util::settings::initialize_settings_for_tests,
     workspaces::user_workspaces::UserWorkspaces,
 };
 

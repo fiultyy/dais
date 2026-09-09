@@ -1,3 +1,4 @@
+use crate::objects_display::StoredObjectHostExt;
 use url::Url;
 
 const DEFAULT_TITLE: &str = "Dais";

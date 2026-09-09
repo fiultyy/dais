@@ -1,10 +1,8 @@
+use terminal_model::tmux::commands::TmuxCommand;
 use async_channel::Sender;
 
 use crate::terminal::{
-    model::{
-        session::command_executor::{InBandCommand, InBandCommandCancelledEvent},
-        tmux::commands::TmuxCommand,
-    },
+    model::session::command_executor::{InBandCommand, InBandCommandCancelledEvent},
     shell::ShellType,
 };
 

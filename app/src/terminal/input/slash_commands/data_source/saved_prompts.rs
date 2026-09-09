@@ -6,13 +6,14 @@ use warp_core::ui::appearance::Appearance;
 use warpui::fonts::FamilyId;
 use warpui::{AppContext, SingletonEntity};
 
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::cloud_object::StoredObject;
+use crate::objects::model::persistence::ObjectStoreModel;
+use objects::StoredObject;
+use crate::objects_display::StoredObjectHostExt;
 use crate::search::async_snapshot_data_source::AsyncSnapshotDataSource;
 use crate::search::data_source::{Query, QueryResult};
 use crate::search::mixer::{BoxFuture, DataSourceRunErrorWrapper};
 use crate::search::FuzzyMatchWorkflowResult;
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 use crate::settings::AISettings;
 use crate::workflows::WorkflowObjectModel;
 

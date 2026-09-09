@@ -1,6 +1,6 @@
 use super::*;
 use crate::persistence::model::Command;
-use crate::terminal::model::terminal_model::BlockIndex;
+use terminal_grid_model::block_index::BlockIndex;
 use crate::terminal::model::test_utils::create_test_block_with_grids;
 use crate::test_util::mock_blockgrid;
 

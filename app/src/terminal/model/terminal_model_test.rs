@@ -1,14 +1,16 @@
 use super::*;
-use crate::terminal::model::ansi::{Handler, Processor};
-use crate::terminal::model::block::BlockId;
-use crate::terminal::model::bootstrap::BootstrapStage;
-use crate::terminal::model::grid::Dimensions as _;
-use crate::terminal::model::index::Side;
-use crate::terminal::model::selection::ExpandedSelectionRange;
+use crate::terminal::model::terminal_model::TerminalModel;
+use crate::terminal::ShellHost;
+use terminal_grid_model::ansi::{Handler, Processor};
+use terminal_grid_model::block::BlockId;
+use terminal_grid_model::bootstrap::BootstrapStage;
+use warp_terminal::model::grid::Dimensions as _;
+use terminal_model::index::Side;
+use terminal_grid_model::grid::selection::ExpandedSelectionRange;
 use chrono::{DateTime, Local};
 use vec1::vec1;
 use warp_core::command::ExitCode;
-use warp_terminal::model::ansi::ClearMode;
+use terminal_grid_model::ansi::ClearMode;
 use warpui::text::str_to_byte_vec;
 use warpui::text::SelectionType;
 
@@ -304,256 +306,6 @@ fn test_restored_blocks_on_different_host() {
     assert_eq!(blocks[3].output_to_string(), "secrets",);
 }
 
-#[test]
-fn test_selected_block_range_contains() {
-    let range = SelectedBlockRange {
-        pivot: 10.into(),
-        tail: 2.into(),
-    };
-    assert!(range.contains(4.into()));
-    assert!(!range.contains(1.into()));
-}
-
-#[test]
-fn test_selected_blocks_is_selected() {
-    let selected_blocks = SelectedBlocks {
-        ranges: vec![
-            SelectedBlockRange {
-                pivot: 3.into(),
-                tail: 4.into(),
-            },
-            SelectedBlockRange {
-                pivot: 0.into(),
-                tail: 1.into(),
-            },
-        ],
-    };
-
-    assert!(selected_blocks.is_selected(0.into()));
-    assert!(!selected_blocks.is_selected(2.into()));
-}
-
-#[test]
-fn test_selected_blocks_tail() {
-    let selected_blocks = SelectedBlocks {
-        ranges: vec![
-            SelectedBlockRange {
-                pivot: 3.into(),
-                tail: 4.into(),
-            },
-            SelectedBlockRange {
-                pivot: 0.into(),
-                tail: 1.into(),
-            },
-        ],
-    };
-
-    assert_eq!(selected_blocks.tail(), Some(1.into()));
-}
-
-#[test]
-fn test_selected_blocks_reset() {
-    let mut selected_blocks = SelectedBlocks {
-        ranges: vec![
-            SelectedBlockRange {
-                pivot: 3.into(),
-                tail: 4.into(),
-            },
-            SelectedBlockRange {
-                pivot: 0.into(),
-                tail: 1.into(),
-            },
-        ],
-    };
-
-    // Reset to nothing.
-    selected_blocks.reset();
-    assert!(selected_blocks.is_empty());
-    assert!(selected_blocks.tail().is_none());
-
-    // Reset to single.
-    selected_blocks.reset_to_single(5.into());
-    assert!(!selected_blocks.is_empty());
-    assert_eq!(selected_blocks.tail(), Some(5.into()));
-}
-
-#[test]
-fn test_selected_blocks_range_select() {
-    let mut selected_blocks = SelectedBlocks {
-        ranges: vec![
-            SelectedBlockRange {
-                pivot: 0.into(),
-                tail: 1.into(),
-            },
-            SelectedBlockRange {
-                pivot: 3.into(),
-                tail: 5.into(),
-            },
-        ],
-    };
-
-    // Range select should reset to a single selection with
-    // same pivot as most recent selection, and new tail.
-    selected_blocks.range_select(6.into());
-    assert_eq!(selected_blocks.ranges().len(), 1);
-    assert_eq!(selected_blocks.ranges().last().unwrap().pivot, 3.into());
-    assert_eq!(selected_blocks.tail(), Some(6.into()));
-
-    // Range select reversed should work similarly.
-    selected_blocks.ranges = vec![
-        SelectedBlockRange {
-            pivot: 0.into(),
-            tail: 1.into(),
-        },
-        SelectedBlockRange {
-            pivot: 3.into(),
-            tail: 5.into(),
-        },
-    ];
-    selected_blocks.range_select(0.into());
-    assert_eq!(selected_blocks.ranges().len(), 1);
-    assert_eq!(selected_blocks.ranges().last().unwrap().pivot, 3.into());
-    assert_eq!(selected_blocks.tail(), Some(0.into()));
-}
-
-#[test]
-fn test_selected_blocks_sorted_ranges() {
-    let selected_blocks = SelectedBlocks {
-        ranges: vec![
-            SelectedBlockRange {
-                pivot: 0.into(),
-                tail: 1.into(),
-            },
-            SelectedBlockRange {
-                pivot: 3.into(),
-                tail: 5.into(),
-            },
-        ],
-    };
-
-    let sorted_ranges = selected_blocks.sorted_ranges(BlockSortDirection::MostRecentLast);
-    assert_eq!(2, sorted_ranges.len());
-    assert_eq!(sorted_ranges.first().unwrap().start(), 0.into());
-    assert_eq!(sorted_ranges.first().unwrap().end(), 1.into());
-    assert_eq!(sorted_ranges.last().unwrap().start(), 3.into());
-    assert_eq!(sorted_ranges.last().unwrap().end(), 5.into());
-
-    let reverse_sorted = selected_blocks.sorted_ranges(BlockSortDirection::MostRecentFirst);
-    assert_eq!(2, sorted_ranges.len());
-    assert_eq!(
-        reverse_sorted
-            .first()
-            .unwrap()
-            .range(Some(BlockSortDirection::MostRecentFirst))
-            .next()
-            .unwrap(),
-        5.into()
-    );
-    assert_eq!(
-        reverse_sorted
-            .last()
-            .unwrap()
-            .range(Some(BlockSortDirection::MostRecentFirst))
-            .last()
-            .unwrap(),
-        0.into()
-    );
-}
-
-#[test]
-fn test_selected_blocks_toggle_on() {
-    let mut selected_blocks = SelectedBlocks {
-        ranges: vec![SelectedBlockRange {
-            pivot: 0.into(),
-            tail: 3.into(),
-        }],
-    };
-
-    // Toggle a disjoint selection - should toggle ON
-    selected_blocks.toggle(6.into(), Some(7.into()), Some(5.into()));
-    assert_eq!(selected_blocks.ranges().len(), 2);
-    assert_eq!(selected_blocks.ranges().last().unwrap().pivot, 6.into());
-    assert_eq!(selected_blocks.ranges().last().unwrap().tail, 6.into());
-    assert!(selected_blocks.is_selected(6.into()));
-
-    // Toggle a selection before another, should merge
-    selected_blocks.toggle(5.into(), Some(6.into()), Some(4.into()));
-    assert_eq!(selected_blocks.ranges().len(), 2);
-    assert_eq!(selected_blocks.ranges().last().unwrap().pivot, 6.into());
-    assert_eq!(selected_blocks.ranges().last().unwrap().tail, 5.into());
-    assert!(selected_blocks.is_selected(5.into()));
-
-    // Toggle a selection at the end of another, should merge
-    selected_blocks.toggle(7.into(), Some(8.into()), Some(6.into()));
-    assert_eq!(selected_blocks.ranges().len(), 2);
-    assert_eq!(selected_blocks.ranges().last().unwrap().pivot, 7.into());
-    assert_eq!(selected_blocks.ranges().last().unwrap().tail, 5.into());
-    assert!(selected_blocks.is_selected(7.into()));
-
-    // Toggle a selection between two existing selections, should merge
-    selected_blocks.toggle(4.into(), Some(5.into()), Some(3.into()));
-    assert_eq!(selected_blocks.ranges().len(), 1);
-    assert_eq!(selected_blocks.ranges().last().unwrap().pivot, 0.into());
-    assert_eq!(selected_blocks.ranges().last().unwrap().tail, 7.into());
-    assert!(selected_blocks.is_selected(4.into()));
-}
-
-#[test]
-fn test_selected_blocks_toggle_off() {
-    let mut selected_blocks = SelectedBlocks {
-        ranges: vec![
-            SelectedBlockRange {
-                pivot: 2.into(),
-                tail: 2.into(),
-            },
-            SelectedBlockRange {
-                pivot: 0.into(),
-                tail: 1.into(),
-            },
-            SelectedBlockRange {
-                pivot: 25.into(),
-                tail: 20.into(),
-            },
-            SelectedBlockRange {
-                pivot: 3.into(),
-                tail: 10.into(),
-            },
-        ],
-    };
-
-    // Case 1: deselect the entire selection range
-    selected_blocks.toggle(2.into(), Some(3.into()), Some(1.into()));
-    assert_eq!(selected_blocks.ranges().len(), 3);
-    assert!(!selected_blocks.is_selected(2.into()));
-
-    // Case 2: deselect the pivot and tail for non-reversed range
-    selected_blocks.toggle(25.into(), Some(26.into()), Some(24.into())); // deselect pivot
-    selected_blocks.toggle(20.into(), Some(21.into()), Some(19.into())); // deselect tail
-    assert_eq!(selected_blocks.ranges().len(), 3);
-    assert_eq!(selected_blocks.ranges()[1].pivot, 24.into());
-    assert_eq!(selected_blocks.ranges()[1].tail, 21.into());
-    assert!(!selected_blocks.is_selected(25.into()));
-    assert!(!selected_blocks.is_selected(20.into()));
-
-    // Case 2: deselect the pivot and tail for reversed range
-    selected_blocks.toggle(3.into(), Some(4.into()), Some(2.into())); // deselect pivot
-    selected_blocks.toggle(10.into(), Some(11.into()), Some(9.into())); // deselect tail
-    assert_eq!(selected_blocks.ranges().len(), 3);
-    assert_eq!(selected_blocks.ranges()[2].pivot, 4.into());
-    assert_eq!(selected_blocks.ranges()[2].tail, 9.into());
-    assert!(!selected_blocks.is_selected(3.into()));
-    assert!(!selected_blocks.is_selected(10.into()));
-
-    // Case 3: deselect in the middle of range
-    selected_blocks.toggle(6.into(), Some(7.into()), Some(5.into()));
-    assert_eq!(selected_blocks.ranges().len(), 4);
-    assert_eq!(selected_blocks.ranges()[2].pivot, 7.into());
-    assert_eq!(selected_blocks.ranges()[2].tail, 9.into());
-    assert_eq!(selected_blocks.ranges()[3].pivot, 4.into());
-    assert_eq!(selected_blocks.ranges()[3].tail, 5.into());
-    assert!(!selected_blocks.is_selected(6.into()));
-}
-
 fn validate_title_event(event: Result<Event, async_channel::TryRecvError>, expected_title: String) {
     match event {
         Ok(Event::Title(title)) => assert_eq!(expected_title, title),
@@ -626,7 +378,7 @@ fn compare_within_block_points() {
 fn test_alt_screen_toggle() {
     let mut terminal = TerminalModel::mock(None, None);
 
-    terminal.set_mode(ansi::Mode::SwapScreen {
+    terminal.set_mode(terminal_grid_model::ansi::Mode::SwapScreen {
         save_cursor_and_clear_screen: true,
     });
     assert!(terminal.alt_screen_active);
@@ -634,17 +386,17 @@ fn test_alt_screen_toggle() {
     // Some programs send the control codes to enter/exit the alternate
     // screen multiple times (such as `info`). This should still leave the
     // screen in the expected state (instead of flipping back and forth).
-    terminal.set_mode(ansi::Mode::SwapScreen {
+    terminal.set_mode(terminal_grid_model::ansi::Mode::SwapScreen {
         save_cursor_and_clear_screen: true,
     });
     assert!(terminal.alt_screen_active);
 
-    terminal.unset_mode(ansi::Mode::SwapScreen {
+    terminal.unset_mode(terminal_grid_model::ansi::Mode::SwapScreen {
         save_cursor_and_clear_screen: true,
     });
     assert!(!terminal.alt_screen_active);
 
-    terminal.unset_mode(ansi::Mode::SwapScreen {
+    terminal.unset_mode(terminal_grid_model::ansi::Mode::SwapScreen {
         save_cursor_and_clear_screen: true,
     });
     assert!(!terminal.alt_screen_active);

@@ -5,14 +5,15 @@ use crate::terminal::blockgrid_renderer::GridRenderParams;
 use crate::terminal::find::TerminalFindModel;
 use crate::terminal::grid_renderer::CellGlyphCache;
 use crate::terminal::meta_shortcuts::handle_keystroke_despite_composing;
-use crate::terminal::model::escape_sequences::{
+use warp_terminal::model::escape_sequences::{
     maybe_kitty_keyboard_escape_sequence, KeystrokeWithDetails, ToEscapeSequence,
 };
-use crate::terminal::model::grid::grid_handler::{Link, TermMode};
-use crate::terminal::model::grid::{Dimensions, RespectDisplayedOutput};
-use crate::terminal::model::index::Point;
-use crate::terminal::model::mouse::{MouseAction, MouseButton, MouseState};
-use crate::terminal::model::selection::{SelectAction, SelectionPoint};
+use terminal_grid_model::grid::grid_handler::{Link, TermMode};
+use terminal_grid_model::grid::RespectDisplayedOutput;
+use warp_terminal::model::grid::Dimensions;
+use terminal_model::index::Point;
+use warp_terminal::model::mouse::{MouseAction, MouseButton, MouseState};
+use terminal_grid_model::grid::selection::{SelectAction, SelectionPoint};
 use crate::terminal::model::terminal_model::WithinModel;
 use crate::terminal::model::SecretHandle;
 use crate::terminal::safe_mode_settings::get_secret_obfuscation_mode;
@@ -87,9 +88,6 @@ pub struct AltScreenElement {
 
     cli_subagent_view: Option<Box<dyn Element>>,
 
-    /// Voice input toggle key code for CLI agent footer integration.
-    #[cfg_attr(not(feature = "voice_input"), allow(unused))]
-    voice_input_toggle_key_code: Option<KeyCode>,
 }
 
 impl AltScreenElement {
@@ -158,7 +156,6 @@ impl AltScreenElement {
             max_scroll_top: None,
             cursor_hint_text,
             cli_subagent_view,
-            voice_input_toggle_key_code: None,
         }
     }
 
@@ -180,12 +177,6 @@ impl AltScreenElement {
         self
     }
 
-    /// Sets the voice input toggle key code for CLI agent footer integration.
-    #[cfg(feature = "voice_input")]
-    pub fn with_voice_input_toggle_key(mut self, key_code: Option<KeyCode>) -> Self {
-        self.voice_input_toggle_key_code = key_code;
-        self
-    }
 
     fn key_down(&mut self, chars: &str, ctx: &mut EventContext) -> bool {
         if self.is_terminal_focused && !chars.is_empty() && chars.chars().all(|c| c.is_control()) {
@@ -610,25 +601,6 @@ impl AltScreenElement {
         self.grid_render_params.size_info.cell_height_px()
     }
 
-    #[cfg(feature = "voice_input")]
-    fn maybe_handle_voice_toggle(
-        &self,
-        key_code: &KeyCode,
-        state: &KeyState,
-        ctx: &mut EventContext,
-    ) -> bool {
-        if let Some(voice_input_toggle_key_code) = self.voice_input_toggle_key_code {
-            if *key_code == voice_input_toggle_key_code {
-                ctx.dispatch_typed_action(TerminalAction::ToggleCLIAgentVoiceInput(
-                    voice_input::VoiceInputToggledFrom::Key { state: *state },
-                ));
-                return true;
-            }
-        }
-        false
-    }
-
-    #[cfg(not(feature = "voice_input"))]
     fn maybe_handle_voice_toggle(
         &self,
         _key_code: &KeyCode,
@@ -637,6 +609,7 @@ impl AltScreenElement {
     ) -> bool {
         false
     }
+
 }
 
 impl Element for AltScreenElement {

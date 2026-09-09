@@ -1,4 +1,4 @@
-use crate::terminal::model::ansi::color_index;
+use terminal_grid_model::ansi::color_index;
 use crate::themes::theme::{AnsiColors, WarpTheme};
 use std::fmt;
 use std::ops::{Index, IndexMut};

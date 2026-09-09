@@ -20,7 +20,7 @@ use crate::workflows::workflow::Workflow;
 
 use super::util::{
     for_each_dir_entry, has_name, is_config_file, parse_multi_launch_config_dir_entry,
-    parse_multi_workflow_dir_entry, parse_single_theme_dir_entry, parse_tab_config_dir_entry,
+    parse_multi_workflow_dir_entry, parse_tab_config_dir_entry,
 };
 use super::{
     launch_configs_dir, tab_configs_dir, themes_dir, workflows_dir, WarpConfigUpdateEvent,
@@ -165,12 +165,10 @@ impl super::WarpConfig {
     }
 }
 
-pub fn load_theme_configs(theme_path: &Path) -> WarpThemeConfig {
-    let mut theme_configs = WarpThemeConfig::new();
-    for_each_dir_entry(theme_path, parse_single_theme_dir_entry)
-        .into_iter()
-        .for_each(|(theme_name, theme)| theme_configs.add_new_theme(theme_name, theme));
-    theme_configs
+pub fn load_theme_configs(_theme_path: &Path) -> WarpThemeConfig {
+    // 自定义主题体系已删: 内置 Dark/Light 由 WarpThemeConfig::new() 提供,
+    // 旧 themes/ 目录里的 yaml 不再加载。
+    WarpThemeConfig::new()
 }
 
 /// Loads all workflows relative to the `workflow_path`.  A YAML file might

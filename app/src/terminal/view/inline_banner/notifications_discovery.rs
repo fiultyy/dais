@@ -3,10 +3,7 @@ use warpui::{elements::MouseStateHandle, notification::RequestPermissionsOutcome
 
 use crate::{
     appearance::Appearance,
-    terminal::{
-        session_settings::NotificationsMode,
-        view::{InlineBannerId, NotificationsTrigger, TerminalAction},
-    },
+    terminal::{ session_settings::NotificationsMode, view::{InlineBannerId, NotificationsTrigger, TerminalAction}, },
 };
 
 use super::{

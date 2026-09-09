@@ -1,17 +1,9 @@
+use std::collections::HashSet;
 use warpui::{text_layout::TextStyle, App};
 
 use crate::{
     appearance::Appearance,
-    terminal::{
-        input::{
-            decorations::InputBackgroundJobOptions,
-            tests::{
-                add_window_with_bootstrapped_terminal, initialize_app,
-                simulate_directory_for_completion,
-            },
-        },
-        model::session::SessionInfo,
-    },
+    terminal::{ input::{ decorations::InputBackgroundJobOptions, tests::{ add_window_with_bootstrapped_terminal, initialize_app, simulate_directory_for_completion, }, }, model::session::SessionInfo, },
     themes::theme::AnsiColorIdentifier,
 };
 use warp_completer::completer::SuggestionTypeName;
@@ -31,7 +23,13 @@ fn test_decorations_with_multibyte_chars() {
             .to_ansi_color(&terminal_colors_normal)
             .into();
 
-        let session_info = SessionInfo::new_for_test();
+        // R9 装配: 测试环境 executable 生成器不可用(bundled shell 集成缺失),
+        // 显式注入 builtins 使 echo 被识别为命令(生产由 shell bootstrap 填充)。
+        let session_info = SessionInfo::new_for_test().with_builtins(HashSet::from([
+            "echo".into(),
+            "cd".into(),
+            "ls".into(),
+        ]));
         let session_id = session_info.session_id;
 
         let terminal =

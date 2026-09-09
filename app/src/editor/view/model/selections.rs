@@ -13,10 +13,7 @@ use super::{
     DisplayPoint, ReplicaId,
 };
 use crate::{
-    editor::{
-        soft_wrap::{ClampDirection, DisplayPointAndClampDirection},
-        CursorColors, RangeExt,
-    },
+    editor::{ soft_wrap::{ClampDirection, DisplayPointAndClampDirection}, CursorColors, RangeExt, },
     ui_components::avatar::Avatar,
 };
 

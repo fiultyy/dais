@@ -1,6 +1,5 @@
 use crate::palette::PaletteMode;
 use crate::server::telemetry::PaletteSource;
-use crate::settings::AISettings;
 use crate::terminal::input::SET_INPUT_MODE_AGENT_ACTION_NAME;
 use crate::terminal::view::init::{
     CANCEL_COMMAND_KEYBINDING, SELECT_PREVIOUS_BLOCK_ACTION_NAME,
@@ -11,7 +10,6 @@ use crate::workspace::view::{
     TOGGLE_COMMAND_PALETTE_KEYBINDING_NAME, TOGGLE_RIGHT_PANEL_BINDING_NAME,
 };
 use crate::workspace::WorkspaceAction;
-use crate::workspaces::user_workspaces::UserWorkspaces;
 
 use markdown_parser::FormattedTextFragment;
 
@@ -111,13 +109,6 @@ static DEFAULT_TIPS: LazyLock<Vec<AgentTip>> = LazyLock::new(|| {
                 query: None,
             }),
             kind: AgentTipKind::General,
-        },
-        AgentTip {
-            description: crate::t!("agent-tip-warp-drive"),
-            link: Some("".to_string()),
-            binding_name: None,
-            action: Some(WorkspaceAction::DaisDrive),
-            kind: AgentTipKind::DaisDrive,
         },
         AgentTip {
             description: crate::t!("agent-tip-redirect-running-agent"),
@@ -330,11 +321,6 @@ impl AITip for AgentTip {
     fn keystroke(&self, app: &AppContext) -> Option<Keystroke> {
         let binding_name = self.binding_name?;
 
-        // Special case: voice input uses settings, not editable bindings
-        if binding_name == "FN" {
-            return AISettings::as_ref(app).voice_input_toggle_key.keystroke();
-        }
-
         if let Some(binding) = app.editable_bindings().find(|b| b.name == binding_name) {
             return trigger_to_keystroke(binding.trigger);
         }
@@ -387,34 +373,15 @@ impl WorkspaceAction {
     pub fn display_text(&self) -> Option<String> {
         match self {
             WorkspaceAction::OpenPalette { .. } => Some(crate::t!("agent-tip-action-open-palette")),
-            WorkspaceAction::DaisDrive => Some(crate::t!("agent-tip-action-warp-drive")),
             WorkspaceAction::ToggleRightPanel => Some(crate::t!("agent-tip-action-show-diff-view")),
             _ => None,
         }
     }
 }
 
-/// Helper function to build the list of agent tips, including the voice tip if enabled.
-pub fn get_agent_tips(ctx: &AppContext) -> Vec<AgentTip> {
-    let mut tips = DEFAULT_TIPS.clone();
-
-    if cfg!(feature = "voice_input")
-        && UserWorkspaces::as_ref(ctx).is_voice_enabled()
-        && AISettings::as_ref(ctx).is_voice_input_enabled(ctx)
-    {
-        tips.push(AgentTip {
-            description: crate::t!("agent-tip-voice-input"),
-            link: Some(
-                ""
-                    .to_string(),
-            ),
-            binding_name: Some("FN"),
-            action: None,
-            kind: AgentTipKind::General,
-        });
-    }
-
-    tips
+/// Helper function to build the list of agent tips.
+pub fn get_agent_tips(_ctx: &AppContext) -> Vec<AgentTip> {
+    DEFAULT_TIPS.clone()
 }
 
 /// A model for managing tips with cooldown logic.

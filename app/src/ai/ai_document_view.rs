@@ -27,20 +27,10 @@ use crate::view_components::DismissibleToast;
 use crate::workspace::ToastStack;
 use crate::BlocklistAIHistoryModel;
 use crate::{
-    ai::document::ai_document_model::{
-        AIDocumentId, AIDocumentInstance, AIDocumentModel, AIDocumentModelEvent,
-        AIDocumentUpdateSource, AIDocumentVersion,
-    },
+    ai::document::ai_document_model::{ AIDocumentId, AIDocumentInstance, AIDocumentModel, AIDocumentModelEvent, AIDocumentUpdateSource, AIDocumentVersion, },
     editor::InteractionState,
     menu::{Menu, MenuItem, MenuItemFields},
-    notebooks::{
-        editor::{
-            model::NotebooksEditorModel,
-            rich_text_styles,
-            view::{EditorViewEvent, RichTextEditorView},
-        },
-        link::{NotebookLinks, SessionSource},
-    },
+    notebooks::{ editor::{ model::NotebooksEditorModel, rich_text_styles, view::{EditorViewEvent, RichTextEditorView}, }, link::{NotebookLinks, SessionSource}, },
     pane_group::{pane::view, BackingView, PaneConfiguration, PaneEvent},
     server::telemetry::TelemetryEvent,
     ui_components::icons::Icon,

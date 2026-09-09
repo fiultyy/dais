@@ -12,7 +12,10 @@ use crate::themes::theme::Fill;
 use crate::ui_components::{blended_colors, icons::Icon};
 use crate::view_components::action_button::{ActionButton, DisabledSecondaryTheme, SecondaryTheme};
 use crate::view_components::find::FindDirection;
-use crate::{features::FeatureFlag, settings::AppEditorSettings};
+use crate::{
+    features::FeatureFlag,
+    settings::AppEditorSettings,
+};
 use pathfinder_color::ColorU;
 use warp_editor::editor::NavigationKey;
 use warp_editor::search::{SearchEvent, Searcher};

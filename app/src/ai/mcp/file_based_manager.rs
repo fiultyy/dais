@@ -9,10 +9,7 @@ use warp_core::features::FeatureFlag;
 use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
 
 use crate::{
-    ai::mcp::{
-        templatable_installation::TemplatableMCPServerInstallation,
-        ParsedTemplatableMCPServerResult,
-    },
+    ai::mcp::{ templatable_installation::TemplatableMCPServerInstallation, ParsedTemplatableMCPServerResult, },
     settings::{ai::AISettings, AISettingsChangedEvent},
     warp_managed_paths_watcher::warp_managed_mcp_config_path,
 };

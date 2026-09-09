@@ -8,16 +8,13 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::{
-        model::persistence::ObjectStoreModel, update_manager::UpdateManager, Space,
-        StoredObjectEventEntrypoint,
-    },
-    drive::DaisDriveObjectSettings,
     integration_testing::view_getters::{notebook_view, workspace_view},
     notebooks::manager::NotebookSource,
-    server::ids::{ClientId, SyncId},
     workspaces::user_workspaces::UserWorkspaces,
 };
+use objects::{Space, StoredObjectEventEntrypoint, ids::{ClientId, SyncId}};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::object_store::ObjectStore;
 
 fn notebook_editor(
     app: &App,
@@ -37,8 +34,8 @@ pub fn create_a_personal_notebook(key: impl Into<String>, title: impl Into<Strin
         .with_action(move |app, _, data| {
             let client_id = ClientId::new();
             let sync_id = SyncId::ClientId(client_id);
-            UpdateManager::handle(app).update(app, |update_manager, ctx| {
-                update_manager.create_notebook(
+            ObjectStore::handle(app).update(app, |object_store, ctx| {
+                object_store.create_notebook(
                     client_id,
                     UserWorkspaces::as_ref(ctx)
                         .personal_drive(ctx)
@@ -51,7 +48,7 @@ pub fn create_a_personal_notebook(key: impl Into<String>, title: impl Into<Strin
                 );
 
                 // Set a title so that the notebook is not considered empty.
-                update_manager.update_notebook_title(title.clone(), sync_id, ctx);
+                object_store.update_notebook_title(title.clone(), sync_id, ctx);
             });
 
             data.insert(key.clone(), sync_id);
@@ -60,7 +57,7 @@ pub fn create_a_personal_notebook(key: impl Into<String>, title: impl Into<Strin
             ObjectStoreModel::handle(app).read(app, |object_store_model, ctx| {
                 async_assert!(
                     object_store_model
-                        .active_cloud_objects_in_space(Space::Personal, ctx)
+                        .active_objectss_in_space(Space::Personal, ctx)
                         .count()
                         > 0,
                     "Notebook exists"
@@ -81,12 +78,7 @@ pub fn open_notebook(window_key: impl Into<String>, notebook_key: impl Into<Stri
             // focus if switching to an already-open window). Since the user wouldn't be able to
             // open a notebook in an unfocused window, switch focus explicitly here.
             WindowManager::as_ref(ctx).show_window_and_focus_app(*window_id);
-            workspace.open_notebook(
-                &NotebookSource::Existing(*notebook_id),
-                &DaisDriveObjectSettings::default(),
-                ctx,
-                true,
-            );
+            workspace.open_notebook(&NotebookSource::Existing(*notebook_id), ctx, true);
         })
     })
 }

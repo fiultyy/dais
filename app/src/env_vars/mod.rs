@@ -1,275 +1,41 @@
-use itertools::Itertools;
-use serde::{Deserialize, Serialize};
-use view::command_dialog::EnvVarSecretCommand;
-use warp_util::path::ShellFamily;
+//! env_vars 域 app 残根(P-ARC R1 低危子集)。
+//!
+//! 数据模型与状态机已下沉 `env_vars_ui` crate:
+//! - 模型符号自 `crate::env_vars::` re-export(`env_vars_ui::model`),维持
+//!   terminal/search/ai/drive/workspace 等既有调用点路径不变;
+//! - 视图主体(G3)本轮留 app:`EnvVarCollectionView` 硬依赖 app::editor
+//!   (EditorView 41.9k,scout 判定为环依赖死结,待 editor 视图层先行下沉)、
+//!   pane_group(BackingView/PaneConfiguration/PaneEvent)、menu、
+//!   search::external_secrets、view_components 等 app 模块。
+//!
+//! command_dialog 的 `EnvVarSecretCommand` 定义已上移 crate,本模块
+//! re-export 保持 `crate::env_vars::view::command_dialog::EnvVarSecretCommand`
+//! 路径(requested_command_attribution_test 消费)。
 
-pub mod active_env_var_collection_data;
 pub mod env_var_collection_block;
 pub mod manager;
 pub mod view;
 
-use crate::{
-    cloud_object::{
-        model::{
-            generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel},
-            json_model::{JsonModel, JsonSerializer},
-        },
-        GenericStoredObject, GenericStringObjectFormat, GenericStringObjectUniqueKey,
-        JsonObjectType,
-    },
-    drive::items::{env_var_collection::WarpDriveEnvVarCollection, WarpDriveItem},
-    external_secrets::ExternalSecret,
-    server::ids::SyncId,
-    terminal::shell::ShellType,
-    Appearance, ObjectTypeAndId,
+/// 历史路径兼容(原 app::env_vars::command_dialog 等,现居 view:: 下)。
+pub mod command_dialog {
+    pub use crate::env_vars::view::command_dialog::*;
+}
+pub use view::{
+    editors, env_var_collection, fixed_view_components, menus, secrets, unsaved_changes_dialog,
 };
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum EnvVarCollectionType {
-    /// Saved env vars backed by the local object store.
-    Object(Box<EnvVarCollectionObject>),
+pub use env_vars_ui::data::{
+    ActiveEnvVarCollection, ActiveEnvVarCollectionData, ActiveEnvVarCollectionDataEvent,
+    SavingStatus,
+};
+pub mod active_env_var_collection_data {
+    pub use env_vars_ui::data::{
+        ActiveEnvVarCollection, ActiveEnvVarCollectionData, ActiveEnvVarCollectionDataEvent,
+        SavingStatus, TrashStatus,
+    };
 }
 
-impl EnvVarCollectionType {
-    pub fn as_env_var_collection_object(&self) -> &EnvVarCollectionObject {
-        match self {
-            EnvVarCollectionType::Object(env_var_object) => env_var_object,
-        }
-    }
-}
-
-pub type EnvVarCollectionObject =
-    GenericStoredObject<GenericStringObjectId, EnvVarCollectionObjectModel>;
-pub type EnvVarCollectionObjectModel = GenericStringModel<EnvVarCollection, JsonSerializer>;
-
-/// Defines the data model for a single environment variable
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
-pub struct EnvVar {
-    // Variable name
-    pub name: String,
-    // Variable value
-    pub value: EnvVarValue,
-    // Description of variable
-    pub description: Option<String>,
-}
-
-/// Defines the various forms a value can take
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum EnvVarValue {
-    // Represents a string variable, i.e. PORT=4000
-    Constant(String),
-    // Represents a computed secret, i.e. gcloud print auth token
-    Command(EnvVarSecretCommand),
-    // Represents a secret from an external secret manager
-    Secret(ExternalSecret),
-}
-
-impl Default for EnvVarValue {
-    fn default() -> Self {
-        EnvVarValue::Constant(String::new())
-    }
-}
-
-impl EnvVar {
-    pub fn new(name: String, value: String, description: Option<String>) -> Self {
-        Self {
-            name,
-            value: EnvVarValue::Constant(value),
-            description,
-        }
-    }
-
-    pub fn get_initialization_string(&self, shell_type: ShellType) -> String {
-        let shell_family = ShellFamily::from(shell_type);
-        let name = shell_family.escape(&self.name);
-        let value = get_init_command_for_env_var(&self.value, shell_family);
-
-        match shell_type {
-            ShellType::Bash | ShellType::Zsh => {
-                format!("export {name}={value};")
-            }
-            ShellType::Fish => {
-                format!("set -x {name} {value};")
-            }
-            ShellType::PowerShell => {
-                format!("$env:{name} = {value};")
-            }
-        }
-    }
-}
-
-fn get_init_command_for_env_var(value: &EnvVarValue, shell_family: ShellFamily) -> String {
-    match value {
-        EnvVarValue::Constant(val) => match shell_family {
-            ShellFamily::Posix => shell_family.escape(val).into_owned(),
-            ShellFamily::PowerShell => format!("'{}'", val.replace("'", "''")),
-        },
-        EnvVarValue::Command(cmd) => format!("$({})", cmd.command),
-        EnvVarValue::Secret(secret) => {
-            format!("$({})", secret.get_secret_extraction_command(shell_family))
-        }
-    }
-}
-
-/// Defines the data model for a saved collection of environment variables.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
-pub struct EnvVarCollection {
-    // Collection title
-    pub title: Option<String>,
-    // Description of collection
-    pub description: Option<String>,
-    // Environment variables associated with this collection
-    pub vars: Vec<EnvVar>,
-}
-
-impl EnvVarCollection {
-    #[allow(dead_code)]
-    pub fn new(title: Option<String>, description: Option<String>, vars: Vec<EnvVar>) -> Self {
-        Self {
-            title,
-            description,
-            vars,
-        }
-    }
-
-    fn key_value_iter(&self) -> impl Iterator<Item = (&str, &EnvVarValue)> {
-        self.vars.iter().map(|var| (var.name.as_str(), &var.value))
-    }
-
-    pub fn export_variables(&self, delimiter: &str, shell_family: ShellFamily) -> String {
-        serialize_variables_internal(self.key_value_iter(), "", "=", "", delimiter, shell_family)
-    }
-
-    pub fn export_variables_for_shell(&self, shell_type: ShellType) -> String {
-        serialize_variables_for_shell(self.key_value_iter(), shell_type)
-    }
-}
-
-impl StringModel for EnvVarCollection {
-    type StoredObjectType = EnvVarCollectionObject;
-
-    fn model_type_name(&self) -> &'static str {
-        "Environment variables"
-    }
-
-    fn should_enforce_revisions() -> bool {
-        true
-    }
-
-    fn model_format() -> GenericStringObjectFormat {
-        GenericStringObjectFormat::Json(Self::json_object_type())
-    }
-
-    fn display_name(&self) -> String {
-        self.title.clone().unwrap_or_default()
-    }
-
-    fn set_display_name(&mut self, name: &str) {
-        self.title = if name.is_empty() {
-            None
-        } else {
-            Some(name.to_owned())
-        }
-    }
-
-    fn uniqueness_key(&self) -> Option<GenericStringObjectUniqueKey> {
-        None
-    }
-
-    fn should_show_activity_toasts() -> bool {
-        true
-    }
-
-    fn warn_if_unsaved_at_quit() -> bool {
-        true
-    }
-
-    fn renders_in_warp_drive(&self) -> bool {
-        true
-    }
-
-    fn can_export(&self) -> bool {
-        true
-    }
-
-    fn supports_linking(&self) -> bool {
-        true
-    }
-
-    fn to_warp_drive_item(
-        &self,
-        id: SyncId,
-        _appearance: &Appearance,
-        env_var_collection: &EnvVarCollectionObject,
-    ) -> Option<Box<dyn WarpDriveItem>> {
-        Some(Box::new(WarpDriveEnvVarCollection::new(
-            ObjectTypeAndId::GenericStringObject {
-                object_type: GenericStringObjectFormat::Json(JsonObjectType::EnvVarCollection),
-                id,
-            },
-            env_var_collection.clone(),
-        )))
-    }
-}
-
-impl JsonModel for EnvVarCollection {
-    fn json_object_type() -> JsonObjectType {
-        JsonObjectType::EnvVarCollection
-    }
-}
-
-impl PartialEq<EnvVarCollectionObject> for EnvVarCollectionObject {
-    fn eq(&self, other: &EnvVarCollectionObject) -> bool {
-        self.model().string_model == other.model().string_model && self.id == other.id
-    }
-}
-
-pub fn serialize_variables_for_shell<'s, I: IntoIterator<Item = (&'s str, &'s EnvVarValue)>>(
-    pairs: I,
-    shell_type: ShellType,
-) -> String {
-    match shell_type {
-        // Dais doesn't support newlines in fish so we can't use env syntax
-        ShellType::Fish => {
-            serialize_variables_internal(pairs, "set -x ", " ", ";", " ", shell_type.into())
-        }
-        ShellType::Bash | ShellType::Zsh => {
-            serialize_variables_internal(pairs, "", "=", "", " ", shell_type.into())
-        }
-        ShellType::PowerShell => {
-            serialize_variables_internal(pairs, "$env:", " = ", ";", " ", shell_type.into())
-        }
-    }
-}
-
-// Prefix — what's prepended to each variable
-// Separator — what separates the variable name from the value
-// Postfix — what's appended to the end of each variable
-// Delimiter — what separates one variable from the next one
-// set -x var_name var_value;   set -x name2 value2;
-// ------     -             -   -
-//   ^        ^             ^   ^
-// prefix  separator   postfix  delimiter (in this case 4 spaces, usually one space or newline)
-fn serialize_variables_internal<'s, I: IntoIterator<Item = (&'s str, &'s EnvVarValue)>>(
-    pairs: I,
-    prefix: &str,
-    separator: &str,
-    postfix: &str,
-    delimiter: &str,
-    shell_family: ShellFamily,
-) -> String {
-    pairs
-        .into_iter()
-        .map(|(name, value)| {
-            format!(
-                "{}{}{}{}{}",
-                prefix,
-                shell_family.escape(name),
-                separator,
-                get_init_command_for_env_var(value, shell_family),
-                postfix
-            )
-        })
-        .collect_vec()
-        .join(delimiter)
-}
+pub use env_vars_ui::{
+    EnvVar, EnvVarCollection, EnvVarCollectionObject, EnvVarCollectionObjectModel,
+    EnvVarCollectionType, EnvVarValue, serialize_variables_for_shell,
+};

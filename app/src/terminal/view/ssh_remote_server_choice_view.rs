@@ -30,10 +30,7 @@ use warpui::{
 };
 
 use crate::{
-    ai::blocklist::{
-        block::keyboard_navigable_buttons::{rich_navigation_button, KeyboardNavigableButtons},
-        inline_action::inline_action_header::{HeaderConfig, INLINE_ACTION_HORIZONTAL_PADDING},
-    },
+    ai::blocklist::{ block::keyboard_navigable_buttons::{rich_navigation_button, KeyboardNavigableButtons}, inline_action::inline_action_header::{HeaderConfig, INLINE_ACTION_HORIZONTAL_PADDING}, },
     send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
     terminal::model::session::SessionId,

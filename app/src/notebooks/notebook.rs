@@ -1,3 +1,4 @@
+use crate::objects_display::StoredObjectHostExt;
 use anyhow::Context;
 use async_channel::Sender;
 use futures_util::stream::AbortHandle;
@@ -35,55 +36,20 @@ use warpui::{
 };
 
 use crate::{
-    ai::{
-        blocklist::secret_redaction::find_secrets_in_text,
-        document::ai_document_model::AIDocumentId,
-    },
+    ai::{ blocklist::secret_redaction::find_secrets_in_text, document::ai_document_model::AIDocumentId, },
     appearance::Appearance,
-    cloud_object::{
-        grab_edit_access_modal::{GrabEditAccessModal, GrabEditAccessModalEvent},
-        model::{
-            persistence::{ObjectStoreEvent, ObjectStoreModel, UpdateSource},
-            view::{Editor, EditorState},
-        },
-        update_manager::{FetchSingleObjectOption, UpdateManager},
-        ObjectType, Owner, Space, StoredObject, StoredObjectEventEntrypoint,
-    },
     cmd_or_ctrl_shift,
-    drive::{
-        drive_helpers::has_feature_gated_anonymous_user_reached_notebook_limit,
-        export::ExportManager, items::WarpDriveItemId, ObjectTypeAndId,
-        DaisDriveObjectSettings,
-    },
-    editor::{
-        EditOrigin, EditorView, Event as EditorEvent, InteractionState,
-        PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextColors, TextOptions,
-    },
+    drive::{ drive_helpers::has_feature_gated_anonymous_user_reached_notebook_limit, export::ExportManager, items::WarpDriveItemId, ObjectTypeAndId, DaisDriveObjectSettings, },
+    editor::{ EditOrigin, EditorView, Event as EditorEvent, InteractionState, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextColors, TextOptions, },
     features::FeatureFlag,
     menu::{MenuItem, MenuItemFields},
-    network::{NetworkStatus, NetworkStatusEvent},
-    notebooks::{
-        editor::{model::NotebooksEditorModel, rich_text_styles},
-        NotebookObject,
-    },
-    pane_group::{
-        focus_state::{PaneFocusHandle, PaneGroupFocusEvent},
-        pane::view,
-        BackingView, PaneConfiguration, PaneEvent,
-    },
-    report_if_error, safe_info, send_telemetry_from_ctx,
-    server::{
-        ids::{ClientId, ServerId, SyncId},
-        telemetry::{
-            NotebookActionEvent, NotebookTelemetryMetadata, ObjectTelemetryMetadata,
-            TelemetryEvent, TelemetryObjectType,
-        },
-    },
-    settings::{
-        app_installation_detection::{UserAppInstallDetectionSettings, UserAppInstallStatus},
-        decrease_notebook_font_size, increase_notebook_font_size, FontSettings,
-        FontSettingsChangedEvent, NotebookFontSize,
-    },
+    notebooks::{ editor::{model::NotebooksEditorModel, rich_text_styles}, NotebookObject, },
+    pane_group::{ focus_state::{PaneFocusHandle, PaneGroupFocusEvent}, pane::view, BackingView, PaneConfiguration, PaneEvent, },
+    report_if_error,
+    safe_info,
+    send_telemetry_from_ctx,
+    server::{telemetry::{ NotebookActionEvent, NotebookTelemetryMetadata, ObjectTelemetryMetadata, TelemetryEvent, TelemetryObjectType, }},
+    settings::{ app_installation_detection::{UserAppInstallDetectionSettings, UserAppInstallStatus}, decrease_notebook_font_size, increase_notebook_font_size, FontSettings, FontSettingsChangedEvent, NotebookFontSize, },
     terminal::safe_mode_settings::get_secret_obfuscation_mode,
     throttle::throttle,
     ui_components::icons::{self, Icon},
@@ -93,6 +59,7 @@ use crate::{
     workspace::ToastStack,
     workspaces::user_workspaces::UserWorkspaces,
 };
+use crate::objects::{ObjectType, Owner, Space, StoredObject, StoredObjectEventEntrypoint, ids::{ClientId, SyncId}, model::{persistence::{ObjectStoreEvent, ObjectStoreModel, UpdateSource}, view::EditorState}, object_store::ObjectStore};
 
 use self::details_bar::DetailsBar;
 
@@ -227,12 +194,11 @@ enum NotebookSyncError {
 /// A view that allows viewing/execution and editing of a Dais notebook.
 /// We don't currently persist any data.
 pub struct NotebookView {
-    /// This is a stateful component that shows information about the notebook like its location
-    /// breadcrumbs and the current editor. It's shown immediately above the title editor.
+    /// This is a stateful component that shows information about the notebook
+    /// like the current editor. It's shown immediately above the title editor.
     details_bar: DetailsBar,
     title: ViewHandle<EditorView>,
     input: ViewHandle<RichTextEditorView>,
-    grab_edit_access_modal: ViewHandle<GrabEditAccessModal>,
     focused: bool,
     last_focused_component: FocusedComponent,
     active_notebook_data: ModelHandle<ActiveNotebookData>,
@@ -340,11 +306,6 @@ impl NotebookView {
             }
         });
 
-        ctx.subscribe_to_model(
-            &NetworkStatus::handle(ctx),
-            Self::handle_network_status_event,
-        );
-
         let active_notebook_data = ctx.add_model(ActiveNotebookData::new);
         ctx.subscribe_to_model(&active_notebook_data, Self::handle_active_notebook_event);
         ctx.observe(&active_notebook_data, Self::handle_active_notebook_change);
@@ -398,11 +359,6 @@ impl NotebookView {
             notebook.handle_input_editor_event(event, ctx);
         });
 
-        let grab_edit_access_modal = ctx.add_typed_action_view(|_| GrabEditAccessModal::new());
-        ctx.subscribe_to_view(&grab_edit_access_modal, |notebook, _, event, ctx| {
-            notebook.handle_grab_edit_access_modal_event(event, ctx);
-        });
-
         let user_workspaces = UserWorkspaces::handle(ctx);
         ctx.observe(&user_workspaces, Self::on_user_workspaces_update);
 
@@ -423,7 +379,6 @@ impl NotebookView {
             details_bar: DetailsBar::new(),
             title,
             input,
-            grab_edit_access_modal,
             focused: false,
             last_focused_component: FocusedComponent::Input,
             active_notebook_data,
@@ -577,34 +532,6 @@ impl NotebookView {
         ctx: &mut ViewContext<Self>,
     ) {
         match event {
-            ActiveNotebookDataEvent::ModeChangedFromServer => {
-                log::info!("Edit mode stolen");
-                self.switch_to_view(ctx);
-            }
-            ActiveNotebookDataEvent::SwitchedToEditMode => {
-                log::info!("Edit mode confirmed from server");
-                self.set_editor_interaction_state(InteractionState::Editable, ctx);
-            }
-            ActiveNotebookDataEvent::EditRejected => {
-                log::info!("Edit rejected, switching to view mode");
-                self.switch_to_view(ctx);
-            }
-            ActiveNotebookDataEvent::BreadcrumbsChanged => {
-                self.update_breadcrumbs(ctx);
-            }
-            ActiveNotebookDataEvent::CreatedOnServer => {
-                ctx.emit(NotebookEvent::Pane(PaneEvent::AppStateChanged));
-                if let Some(id) = self
-                    .active_notebook_data
-                    .as_ref(ctx)
-                    .id()
-                    .and_then(SyncId::into_server)
-                {
-                    // TODO(zap-cloud-removal Phase 5): 同上,sharing UI 已退役,
-                    // notebook 的 ShareableObject 注入移除;cloud_object 退役时清理 id 流程。
-                    let _ = id;
-                }
-            }
             ActiveNotebookDataEvent::TrashStatusChanged | ActiveNotebookDataEvent::MovedToSpace => {
                 self.pane_configuration.update(ctx, |pane_config, ctx| {
                     pane_config.refresh_pane_header_overflow_menu_items(ctx)
@@ -678,36 +605,6 @@ impl NotebookView {
         }
     }
 
-    /// Handle an event from the [`GrabEditAccessModal`]. This lets users steal edit access from
-    /// other users.
-    fn handle_grab_edit_access_modal_event(
-        &mut self,
-        event: &GrabEditAccessModalEvent,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        match event {
-            GrabEditAccessModalEvent::Close => {
-                self.active_notebook_data
-                    .update(ctx, |active_notebook_data, ctx| {
-                        active_notebook_data.show_grab_edit_access_modal = false;
-                        ctx.notify();
-                    });
-            }
-            GrabEditAccessModalEvent::GrabEditAccess => {
-                self.active_notebook_data
-                    .update(ctx, |active_notebook_data, ctx| {
-                        active_notebook_data.show_grab_edit_access_modal = false;
-                        ctx.notify();
-                    });
-                log::info!("Explicitly grabbing edit access, stealing from active editor");
-                self.grab_edit_access(false, ctx);
-                self.send_telemetry_action(NotebookTelemetryAction::GrabEditingBaton, ctx);
-            }
-        }
-        ctx.notify();
-    }
-
-    /// Reload an updated notebook.
     fn handle_notebook_updated(&mut self, notebook: &NotebookObject, ctx: &mut ViewContext<Self>) {
         self.set_title(&notebook.model().title, ctx);
         self.input.update(ctx, |input_editor, ctx| {
@@ -773,14 +670,6 @@ impl NotebookView {
                     ctx.notify();
                 }
             }
-            ObjectStoreEvent::ObjectMoved { type_and_id, .. } => {
-                if self.as_active_notebook_id(type_and_id, ctx).is_some() {
-                    if let Some(space) = self.active_notebook_data.as_ref(ctx).space(ctx) {
-                        self.input
-                            .update(ctx, |editor, ctx| editor.set_space(space, ctx));
-                    }
-                }
-            }
             ObjectStoreEvent::ObjectCreated { type_and_id, .. } => {
                 if self.as_active_notebook_id(type_and_id, ctx).is_some() {
                     // Re-render to update the status bar.
@@ -796,7 +685,7 @@ impl NotebookView {
         self.input.as_ref(ctx).markdown(ctx)
     }
 
-    /// Saves the notebook's current Markdown content, via the [`UpdateManager`].
+    /// Saves the notebook's current Markdown content, via the [`ObjectStore`].
     fn save_content(&mut self, ctx: &mut ViewContext<Self>) {
         self.send_edit_telemetry = true;
         let content = Arc::new(self.content(ctx));
@@ -828,16 +717,16 @@ impl NotebookView {
         match active_notebook {
             // If the notebook has already been committed, then update the local
             // memory and server data via update manager
-            ActiveNotebook::CommittedNotebook(id) => UpdateManager::handle(ctx)
-                .update(ctx, move |update_manager, ctx| {
-                    update_manager.update_notebook_data(content, id, ctx)
+            ActiveNotebook::CommittedNotebook(id) => ObjectStore::handle(ctx)
+                .update(ctx, move |object_store, ctx| {
+                    object_store.update_notebook_data(content, id, ctx)
                 }),
             // If the notebook hasn't been committed yet, create the notebook through update
             // manager, and update the active notebook
             ActiveNotebook::NewNotebook(notebook) => {
                 if let Some(client_id) = notebook.id.into_client() {
-                    UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                        update_manager.create_notebook(
+                    ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                        object_store.create_notebook(
                             client_id,
                             notebook.permissions.owner,
                             notebook.metadata.folder_id,
@@ -910,9 +799,9 @@ impl NotebookView {
     /// are, then sets the current editor to be None both locally and on the server
     fn try_give_up_edit_access(&self, ctx: &mut ViewContext<Self>) {
         let id = self.active_notebook_data.as_ref(ctx).id();
-        UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
+        ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
             if let Some(id) = id {
-                update_manager.give_up_notebook_edit_access(id, ctx);
+                object_store.give_up_notebook_edit_access(id, ctx);
             }
         });
         ctx.notify();
@@ -1127,9 +1016,9 @@ impl NotebookView {
         }
 
         let id = active_notebook.id();
-        UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
+        ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
             if let Some(id) = id {
-                update_manager.grab_notebook_edit_access(id, optimistically_grant_access, ctx);
+                object_store.grab_notebook_edit_access(id, optimistically_grant_access, ctx);
             }
         });
 
@@ -1142,10 +1031,8 @@ impl NotebookView {
         ctx.notify();
     }
 
-    /// Called when a user hits the edit button from within a notebook view.
-    /// If there's not another editor, grabs notebook edit access and directly switches it
-    /// into edit mode. If there is another editor currently, displays the grab edit access
-    /// dialog.
+    /// Called when a user hits the edit button from within a notebook view. Grabs notebook
+    /// edit access and directly switches it into edit mode.
     pub fn grab_edit_access_or_display_access_dialog(&mut self, ctx: &mut ViewContext<Self>) {
         let active_notebook_data = self.active_notebook_data.as_ref(ctx);
         if active_notebook_data.has_conflicts(ctx) {
@@ -1153,18 +1040,8 @@ impl NotebookView {
             return;
         }
 
-        let current_editor = active_notebook_data
-            .current_editor(ctx)
-            .unwrap_or(Editor::no_editor());
-        if current_editor.state == EditorState::OtherUserActive {
-            self.active_notebook_data.update(ctx, |data, ctx| {
-                data.show_grab_edit_access_modal = true;
-                ctx.notify();
-            });
-        } else {
-            log::info!("Explicitly grabbing edit access, no active editor");
-            self.grab_edit_access(true, ctx);
-        }
+        log::info!("Explicitly grabbing edit access, no active editor");
+        self.grab_edit_access(true, ctx);
 
         self.focus_input(ctx);
         ctx.notify();
@@ -1221,8 +1098,8 @@ impl NotebookView {
 
     fn duplicate_object(&mut self, ctx: &mut ViewContext<Self>) {
         if let Some(notebook_id) = self.notebook_id(ctx) {
-            UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                update_manager.duplicate_object(
+            ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                object_store.duplicate_object(
                     &ObjectTypeAndId::from_id_and_type(notebook_id, ObjectType::Notebook),
                     ctx,
                 );
@@ -1235,8 +1112,8 @@ impl NotebookView {
         if let Some(notebook_id) = self.notebook_id(ctx) {
             self.close(ctx);
 
-            UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                update_manager.trash_object(
+            ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                object_store.trash_object(
                     ObjectTypeAndId::from_id_and_type(notebook_id, ObjectType::Notebook),
                     ctx,
                 );
@@ -1250,8 +1127,8 @@ impl NotebookView {
                 return;
             }
 
-            UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                update_manager.untrash_object(
+            ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                object_store.untrash_object(
                     ObjectTypeAndId::from_id_and_type(notebook_id, ObjectType::Notebook),
                     ctx,
                 );
@@ -1307,8 +1184,8 @@ impl NotebookView {
             return;
         };
 
-        UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-            update_manager.create_notebook(
+        ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+            object_store.create_notebook(
                 copy_client_id,
                 personal_drive,
                 None,
@@ -1349,25 +1226,11 @@ impl NotebookView {
         });
     }
 
-    fn online_only_operation_allowed(
-        &self,
-        object_type_and_id: ObjectTypeAndId,
-        app: &AppContext,
-    ) -> bool {
-        if let Some(object) = ObjectStoreModel::as_ref(app).get_by_uid(&object_type_and_id.uid()) {
-            return self.is_online(app)
-                && object_type_and_id.has_server_id()
-                && !object.metadata().has_pending_online_only_change();
-        }
-
-        false
-    }
-
     pub fn notebook_link(&self, ctx: &AppContext) -> Option<String> {
         let id = self.notebook_id(ctx)?;
 
         if let Some(notebook) = ObjectStoreModel::as_ref(ctx).get_notebook(&id) {
-            return notebook.object_link();
+            return Some(crate::objects_display::object_link());
         }
 
         None
@@ -1376,45 +1239,10 @@ impl NotebookView {
     /// Items to show in the pane header overflow menu.
     fn overflow_menu_items(&self, ctx: &AppContext) -> Vec<MenuItem<NotebookAction>> {
         let active_notebook_data = self.active_notebook_data.as_ref(ctx);
-        let access_level = active_notebook_data.access_level(ctx);
         let mut menu_items = Vec::new();
 
-        if !active_notebook_data.is_on_server()
-            || active_notebook_data.trash_status(ctx) != TrashStatus::Active
-        {
+        if active_notebook_data.trash_status(ctx) != TrashStatus::Active {
             return menu_items;
-        }
-
-        // Add "Move to <team> space" to menu
-        let team_spaces = UserWorkspaces::as_ref(ctx).team_spaces();
-
-        if let (Some(space), Some(cloud_id)) =
-            (active_notebook_data.space(ctx), active_notebook_data.id())
-        {
-            let cloud_object_type =
-                ObjectTypeAndId::from_id_and_type(cloud_id, ObjectType::Notebook);
-            let can_move = self.online_only_operation_allowed(cloud_object_type, ctx);
-
-            if can_move {
-                match space {
-                    Space::Personal => {
-                        menu_items.extend(team_spaces.iter().map(|space| {
-                            MenuItemFields::new(crate::t!(
-                                "drive-move-to-space",
-                                space = space.name(ctx)
-                            ))
-                            .with_on_select_action(NotebookAction::MoveToSpace {
-                                object_type_and_id: cloud_object_type,
-                                new_space: *space,
-                            })
-                            .with_icon(Icon::Move)
-                            .into_item()
-                        }));
-                    }
-                    Space::Shared => {} // TODO: Revisit these menu items with sharing in mind
-                    Space::Team { .. } => {} // TODO: When we do team -> personal sharing
-                }
-            }
         }
 
         if let Some(ai_document_id) = self.active_notebook_data.as_ref(ctx).ai_document_id(ctx) {
@@ -1475,43 +1303,21 @@ impl NotebookView {
             );
         }
 
-        // Add "Trash" to menu
-        if self.is_online(ctx)
-            && (!FeatureFlag::SharedWithMe.is_enabled() || access_level.can_trash())
-        {
-            menu_items.push(
-                MenuItemFields::new(crate::t!("common-trash"))
-                    .with_on_select_action(NotebookAction::Trash)
-                    .with_icon(icons::Icon::Trash)
-                    .into_item(),
-            );
-        }
+        // Add "Trash" to menu. Dais(本地化):无在线状态/共享权限门控。
+        menu_items.push(
+            MenuItemFields::new(crate::t!("common-trash"))
+                .with_on_select_action(NotebookAction::Trash)
+                .with_icon(icons::Icon::Trash)
+                .into_item(),
+        );
 
         menu_items
     }
 
-    fn handle_network_status_event(
-        &mut self,
-        _handle: ModelHandle<NetworkStatus>,
-        event: &NetworkStatusEvent,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        let NetworkStatusEvent::NetworkStatusChanged { new_status: _ } = event;
-        self.pane_configuration.update(ctx, |pane_config, ctx| {
-            pane_config.refresh_pane_header_overflow_menu_items(ctx)
-        });
-    }
-
-    fn is_online(&self, app: &AppContext) -> bool {
-        NetworkStatus::as_ref(app).is_online()
-    }
 
     /// Takes a given `notebook_id`, and tries to load it into view after initial load completes.
-    /// If the notebook still does not exist in memory after initial load, displaces an error message in
-    /// the given window.
-    ///
-    /// Used for code paths such as link opening, where we are often trying to open notebooks before
-    /// the initial response from the server has completed.
+    /// If the notebook still does not exist in local storage after initial load, displays an error
+    /// message in the given window.
     pub fn wait_for_initial_load_then_load(
         &mut self,
         notebook_id: SyncId,
@@ -1520,78 +1326,25 @@ impl NotebookView {
         ctx: &mut ViewContext<Self>,
     ) {
         let initial_load_complete =
-            crate::cloud_object::model::persistence::ObjectStoreModel::as_ref(ctx)
+            crate::objects::model::persistence::ObjectStoreModel::as_ref(ctx)
                 .initial_load_complete();
-        // TODO @ianhodge CLD-2002: it could be nice to have a loading screen here while we wait for the load
         let settings = settings.clone();
         ctx.spawn(initial_load_complete, move |me, _, ctx| {
-            let notebook = ObjectStoreModel::as_ref(ctx)
-                .get_notebook(&notebook_id)
-                .cloned();
-            let fetch_needed = notebook.is_none()
-                || settings
-                    .focused_folder_id
-                    .map(SyncId::ServerId)
-                    .map(|folder_id| {
-                        ObjectStoreModel::as_ref(ctx)
-                            .get_folder(&folder_id)
-                            .is_none()
-                    })
-                    .unwrap_or(false);
-            if fetch_needed {
-                if let Some(server_id) = notebook_id.into_server() {
-                    me.fetch_and_load_notebook(server_id, &settings, window_id, ctx);
-                } else {
-                    log::warn!("Tried to load notebook without server id {notebook_id:?}");
+            // Dais(本地化):无云端单对象拉取,object store 仅从本地 SQLite 恢复。
+            match ObjectStoreModel::as_ref(ctx).get_notebook(&notebook_id).cloned() {
+                Some(notebook) => {
+                    me.load(notebook, &settings, ctx);
                 }
-            } else if let Some(notebook) = notebook {
-                me.load(notebook, &settings, ctx);
-            } else {
-                ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-                    toast_stack.add_ephemeral_toast_by_type(
-                        ToastType::StoredObjectNotFound,
-                        window_id,
-                        ctx,
-                    );
-                });
-                log::warn!("Tried to open unknown notebook {notebook_id:?}");
-            }
-        });
-    }
-
-    fn fetch_and_load_notebook(
-        &mut self,
-        notebook_id: ServerId,
-        settings: &DaisDriveObjectSettings,
-        window_id: WindowId,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        // If we have a parent folder we are trying to load as a part of this notebook, fetch that instead
-        let id_to_fetch = settings.focused_folder_id.unwrap_or(notebook_id);
-        let fetch_cloud_object_rx =
-            UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                update_manager.fetch_single_cloud_object(
-                    &id_to_fetch,
-                    FetchSingleObjectOption::None,
-                    ctx,
-                )
-            });
-        let settings = settings.clone();
-        ctx.spawn(fetch_cloud_object_rx, move |me, _, ctx| {
-            if let Some(notebook) = ObjectStoreModel::as_ref(ctx)
-                .get_notebook(&SyncId::ServerId(notebook_id))
-                .cloned()
-            {
-                me.load(notebook, &settings, ctx);
-            } else {
-                ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-                    toast_stack.add_ephemeral_toast_by_type(
-                        ToastType::StoredObjectNotFound,
-                        window_id,
-                        ctx,
-                    );
-                });
-                log::warn!("Tried to open unknown notebook {notebook_id:?} after fetching");
+                None => {
+                    ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
+                        toast_stack.add_ephemeral_toast_by_type(
+                            ToastType::StoredObjectNotFound,
+                            window_id,
+                            ctx,
+                        );
+                    });
+                    log::warn!("Tried to open unknown notebook {notebook_id:?}");
+                }
             }
         });
     }
@@ -1613,32 +1366,24 @@ impl NotebookView {
         self.set_content(&notebook, ctx);
 
         // TODO(zap-cloud-removal Phase 5): sharing UI 已退役,notebook
-        // ShareableObject 注入移除;cloud_object server_id 路径保留待 Phase 5。
+        // ShareableObject 注入移除;objects server_id 路径保留待 Phase 5。
         let _ = notebook.id;
 
         self.active_notebook_data.update(ctx, |data, ctx| {
             data.open_existing(notebook.id, ctx);
         });
-        self.input.update(ctx, |editor, ctx| {
-            // TODO(ben): This is used for filtering in the embed UI, and should also probably be
-            // owner-based.
-            editor.set_space(notebook.space(ctx), ctx);
-        });
-
         send_telemetry_from_ctx!(
             TelemetryEvent::OpenNotebook(self.open_telemetry_metadata(ctx)),
             ctx
         );
 
         // Once we've received metadata from the server, check if we can eagerly edit the notebook.
-        let has_metadata = crate::cloud_object::model::persistence::ObjectStoreModel::as_ref(ctx)
+        let has_metadata = crate::objects::model::persistence::ObjectStoreModel::as_ref(ctx)
             .initial_load_complete();
         let baton_future = ctx.spawn(has_metadata, |me, _, ctx| {
             let active_notebook_data = me.active_notebook_data.as_ref(ctx);
 
-            if FeatureFlag::SharedWithMe.is_enabled() && !active_notebook_data.editability(ctx).can_edit() {
-                log::debug!("Notebook is view-only, opening in view mode");
-            } else if active_notebook_data.has_conflicts(ctx) {
+            if active_notebook_data.has_conflicts(ctx) {
                 log::debug!("Notebook has conflicts, opening in view mode");
             } else {
                 let current_editor = active_notebook_data.current_editor(ctx);
@@ -1678,15 +1423,6 @@ impl NotebookView {
                 }
             }
         });
-        self.update_breadcrumbs(ctx);
-        // Dais Phase 2a: invitee-driven sharing dialog removed.
-        if let Some(focused_folder_id) = settings.focused_folder_id.map(SyncId::ServerId) {
-            self.view_in_warp_drive(
-                WarpDriveItemId::Object(ObjectTypeAndId::Folder(focused_folder_id)),
-                ctx,
-            );
-        }
-
         ctx.notify();
         baton_future
     }
@@ -1704,8 +1440,6 @@ impl NotebookView {
         });
         self.input.update(ctx, |input_editor, ctx| {
             input_editor.system_clear_buffer(ctx);
-            let space = UserWorkspaces::as_ref(ctx).owner_to_space(owner, ctx);
-            input_editor.set_space(space, ctx);
         });
 
         if let Some(title) = title {
@@ -1716,8 +1450,6 @@ impl NotebookView {
                 title_editor.system_clear_buffer(true, ctx);
             });
         }
-
-        self.update_breadcrumbs(ctx);
 
         self.switch_to_edit(ctx);
     }
@@ -1753,16 +1485,16 @@ impl NotebookView {
         match active_notebook {
             // If the notebook has already been committed, then update the local
             // memory and server data via update manager
-            ActiveNotebook::CommittedNotebook(id) => UpdateManager::handle(ctx)
-                .update(ctx, |update_manager, ctx| {
-                    update_manager.update_notebook_title(title.clone(), id, ctx)
+            ActiveNotebook::CommittedNotebook(id) => ObjectStore::handle(ctx)
+                .update(ctx, |object_store, ctx| {
+                    object_store.update_notebook_title(title.clone(), id, ctx)
                 }),
             // If the notebook hasn't been committed yet, create the notebook through update
             // manager, and update the active notebook
             ActiveNotebook::NewNotebook(notebook) => {
                 if let Some(client_id) = notebook.id.into_client() {
-                    UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                        update_manager.create_notebook(
+                    ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                        object_store.create_notebook(
                             client_id,
                             notebook.permissions.owner,
                             notebook.metadata.folder_id,
@@ -1785,13 +1517,6 @@ impl NotebookView {
             }
             ActiveNotebook::None => log::error!("Tried to save notebook, but none were active"),
         }
-    }
-
-    /// Update the breadcrumbs for this notebook.
-    fn update_breadcrumbs(&mut self, ctx: &mut ViewContext<Self>) {
-        self.details_bar
-            .update_breadcrumbs(self.active_notebook_data.as_ref(ctx), ctx);
-        ctx.notify();
     }
 
     /// Save this notebook and give up edit access before detaching it from a pane.
@@ -1846,8 +1571,8 @@ impl NotebookView {
             return;
         };
 
-        UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-            update_manager.replace_object_with_conflict(&id.uid(), ctx);
+        ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+            object_store.replace_object_with_conflict(&id.uid(), ctx);
         });
 
         // Load the server's version of the notebook now that the object store has been updated.
@@ -2215,14 +1940,6 @@ impl View for NotebookView {
                     .finish(),
             ),
         };
-
-        if self
-            .active_notebook_data
-            .as_ref(app)
-            .show_grab_edit_access_modal
-        {
-            stack.add_child(ChildView::new(&self.grab_edit_access_modal).finish());
-        }
 
         if self
             .active_notebook_data

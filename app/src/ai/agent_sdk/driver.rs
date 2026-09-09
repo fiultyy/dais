@@ -46,8 +46,8 @@ use crate::{
         },
     },
     auth::AuthStateProvider,
-    server::ids::{ServerId, SyncId},
 };
+use objects::ids::{ServerId, SyncId};
 use anyhow::Context as _;
 use futures::{
     channel::oneshot,

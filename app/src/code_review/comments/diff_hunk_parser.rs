@@ -6,10 +6,7 @@ use warp_editor::render::model::LineCount;
 
 use crate::{
     code::editor::line::EditorLineLocation,
-    code_review::{
-        comments::LineDiffContent,
-        diff_state::{DiffLineType, DiffStateModel},
-    },
+    code_review::{ comments::LineDiffContent, diff_state::{DiffLineType, DiffStateModel}, },
 };
 
 #[derive(Debug)]

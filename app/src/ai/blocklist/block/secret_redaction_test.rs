@@ -1,10 +1,11 @@
 use regex::Regex;
+use terminal_grid_model::secrets::merge_sorted_ranges_with_levels;
 use serial_test::serial;
 use warpui::elements::Text;
 use warpui::fonts::FamilyId;
 
 use crate::ai::agent::{AIAgentOutputMessage, AIAgentText, MessageId};
-use crate::terminal::model::secrets::{self, SecretLevel};
+use terminal_grid_model::secrets::{self, SecretLevel};
 
 use super::*;
 

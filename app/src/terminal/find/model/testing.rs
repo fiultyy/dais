@@ -1,7 +1,7 @@
 //! Exports helper test-only methods for use in unit and integration tests.
 use itertools::Itertools;
 
-use crate::terminal::model::terminal_model::BlockIndex;
+use terminal_grid_model::block_index::BlockIndex;
 
 use super::{block_list::BlockListMatch, BlockListFindRun, TerminalFindModel};
 

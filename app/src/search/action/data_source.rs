@@ -1,6 +1,7 @@
-use fuzzy_match::{match_indices_case_insensitive, FuzzyMatchResult};
+use fuzzy_match::FuzzyMatchResult;
 use std::collections::HashMap;
 use std::sync::Arc;
+use warpui::keymap::BindingId;
 use warpui::{AppContext, Entity, ModelContext, ModelHandle};
 
 use crate::search::action::search_item::MatchedBinding;
@@ -11,7 +12,6 @@ use crate::search::mixer::{DataSourceRunErrorWrapper, SyncDataSource};
 use crate::util::bindings::CommandBinding;
 
 use crate::search::binding_source::BindingSource;
-use warpui::keymap::{BindingId, DescriptionContext};
 
 /// Data source for [`CommandBinding`]s. Produces a list of in-app actions a user can currently
 /// perform.
@@ -20,41 +20,12 @@ pub struct CommandBindingDataSource {
 }
 
 impl CommandBindingDataSource {
-    #[cfg(not(target_family = "wasm"))]
     pub fn new(binding_source: ModelHandle<BindingSource>, ctx: &mut ModelContext<Self>) -> Self {
-        // Dais:命令面板 actions 始终走字符级 fuzzy(SkimMatcherV2),
-        // Tantivy 默认 tokenizer 不切 CJK,会把整段中文描述当成单 token 做前缀匹配,
-        // 导致 zh-CN 下搜"主题"无法命中"打开主题选择器"。
-        // 同时 fuzzy 还能让英文 keyword 经子序列匹配命中 binding.name(见下方 search 实现)。
-        // (feature 缺省时 UseTantivySearch flag 无消费方, 该探针引用同步 cfg 掉)
-        #[cfg(feature = "use_tantivy_search")]
-        let _ = warp_core::features::FeatureFlag::UseTantivySearch.is_enabled();
-        Self::new_fuzzy(binding_source, ctx)
-    }
-
-    #[cfg(target_family = "wasm")]
-    pub fn new(binding_source: ModelHandle<BindingSource>, ctx: &mut ModelContext<Self>) -> Self {
-        Self::new_fuzzy(binding_source, ctx)
-    }
-
-    // gate 与 full_text_searcher mod 一致: feature 缺省时本函数与 mod 一同不存在
-    #[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
-    fn new_full_text(
-        binding_source: ModelHandle<BindingSource>,
-        ctx: &mut ModelContext<Self>,
-    ) -> Self {
+        // wasm 下 tantivy 不支持: searcher.rs 顶行 cfg 已保证该模块仅在非 wasm 编译。
+        // Dais 为桌面专属目标, wasm 构建路径不存在。
         ctx.observe(&binding_source, Self::on_binding_source_changed);
 
         let searcher = Box::new(full_text_searcher::FullTextActionSearcher::new());
-        Self { searcher }
-    }
-
-    fn new_fuzzy(binding_source: ModelHandle<BindingSource>, ctx: &mut ModelContext<Self>) -> Self {
-        ctx.observe(&binding_source, Self::on_binding_source_changed);
-
-        let searcher = Box::new(FuzzyActionSearcher {
-            all_bindings: Default::default(),
-        });
         Self { searcher }
     }
 
@@ -139,75 +110,8 @@ trait ActionSearcher {
     fn bindings_mut(&mut self) -> &mut HashMap<BindingId, Arc<CommandBinding>>;
 }
 
-struct FuzzyActionSearcher {
-    all_bindings: HashMap<BindingId, Arc<CommandBinding>>,
-}
-
-impl ActionSearcher for FuzzyActionSearcher {
-    fn search(&self, search_term: &str) -> anyhow::Result<Vec<QueryResult<SearcherAction>>> {
-        Ok(self
-            .all_bindings
-            .values()
-            .filter_map(move |binding| {
-                if is_excluded_binding(binding) {
-                    return None;
-                }
-
-                // Binding descriptions are almost always upper case. If a user searches with
-                // lowercase text, the fuzzy matcher will weight this match lower because the case
-                // between the search term and the description differ. As a result, we lowercase
-                // both the search term and the description to ensure that we are matching the two
-                // with the same casing.
-                //
-                // Dais:把 binding.name(action 标识符,如 `workspace:show_theme_chooser`)
-                // 一并拼进可搜索串,`:` `_` 替换为空格,便于子序列匹配。
-                // 这样 zh-CN 下用户输入 "theme" 也能命中"打开主题选择器"。
-                let mut searchable = binding
-                    .description
-                    .in_context(DescriptionContext::Default)
-                    .to_lowercase();
-                let name_tokens = binding.name.replace([':', '_'], " ").to_lowercase();
-                if !name_tokens.is_empty() {
-                    searchable.push(' ');
-                    searchable.push_str(&name_tokens);
-                }
-                let description_char_len = binding
-                    .description
-                    .in_context(DescriptionContext::Default)
-                    .chars()
-                    .count();
-                match_indices_case_insensitive(
-                    searchable.as_str(),
-                    search_term.to_lowercase().as_str(),
-                )
-                .map(|mut result| {
-                    // 高亮渲染针对 description,落到拼接的 binding.name 区段的索引
-                    // 越界会画错位置,这里裁剪掉。
-                    result
-                        .matched_indices
-                        .retain(|&idx| idx < description_char_len);
-                    (result, binding)
-                })
-            })
-            .map(|(match_result, binding)| {
-                MatchedBinding::new(match_result, binding.clone()).into()
-            })
-            .collect())
-    }
-
-    fn build_index(&mut self) {}
-
-    fn bindings(&self) -> &HashMap<BindingId, Arc<CommandBinding>> {
-        &self.all_bindings
-    }
-
-    fn bindings_mut(&mut self) -> &mut HashMap<BindingId, Arc<CommandBinding>> {
-        &mut self.all_bindings
-    }
-}
-
-// tantivy 为 optional dep: 该全文搜索 mod 仅在 use_tantivy_search feature 下编译
-#[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
+// wasm 下 tantivy 不支持: 本 crate 为桌面专属, 不构建 wasm 目标
+#[cfg(not(target_family = "wasm"))]
 mod full_text_searcher {
     use crate::define_search_schema;
     use crate::search::action::{

@@ -4,6 +4,7 @@ mod local_minidump;
 #[cfg(target_os = "linux")]
 mod linux;
 
+use crate::objects_display::StoredObjectHostExt;
 use std::borrow::Cow;
 
 use lazy_static::lazy_static;

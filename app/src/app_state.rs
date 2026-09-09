@@ -12,9 +12,9 @@ use crate::ai::agent_conversations_model::AgentManagementFilters;
 use crate::ai::blocklist::InputConfig;
 use crate::ai::blocklist::SerializedBlockListItem;
 use crate::code::editor_management::CodeSource;
+use objects::ids::SyncId;
 use crate::drive::DaisDriveObjectSettings;
 use crate::root_view::quake_mode_window_id;
-use crate::server::ids::SyncId;
 use crate::settings_view::SettingsSection;
 use crate::tab::SelectedTabColor;
 use crate::terminal::ShellLaunchData;
@@ -97,28 +97,20 @@ pub type LeafSnapshot = pane_tree::snapshot::LeafSnapshot<LeafContents>;
 #[derive(Clone, Debug, PartialEq)]
 pub enum LeafContents {
     Terminal(TerminalPaneSnapshot),
-    Notebook(NotebookPaneSnapshot),
     /// A read-only image viewer pane backed by a local file.
     Image {
         path: Option<PathBuf>,
     },
-    AIDocument(AIDocumentPaneSnapshot),
     Code(CodePaneSnapShot),
     EnvVarCollection(EnvVarCollectionPaneSnapshot),
+    Workflow(WorkflowPaneSnapshot),
+    Notebook(NotebookPaneSnapshot),
+    AIDocument(AIDocumentPaneSnapshot),
+    ExecutionProfileEditor,
     // Dais Wave 7-3:`EnvironmentManagement` LeafContents variant 随 Ambient Agent UI
     // 子系统物理删。
-    Workflow(WorkflowPaneSnapshot),
     Settings(SettingsPaneSnapshot),
-    AIFact(AIFactPaneSnapshot),
-    ExecutionProfileEditor,
-    CodeReview(CodeReviewPaneSnapshot),
-    /// An entrypoint pane type to launch other pane types from a search palette. The default view
-    /// when creating a tab.
-    Welcome {
-        startup_directory: Option<PathBuf>,
-    },
-    /// A new first-time user experience which prioritizes choosing a coding repository.
-    GetStarted,
+
     /// SSH 服务器编辑器 pane(openWarp 独有)。引用 `ssh_servers.node_id` 主键
     /// 加载/保存。**不持久化** — 重启后用户从左侧 SSH 管理器树重新打开。
     SshServer {
@@ -166,21 +158,16 @@ impl LeafContents {
             // 远端文件代码 pane:远端 buffer 依赖活跃 SSH 连接,`RemoteFileTree`
             // source 不可恢复(`is_restorable() == false`)。若写入持久化会留下
             // 一条 restore 阶段被跳过的孤儿 `Code` 行,导致整个 tab 丢失 ——
-            // 因此带远端 source 的代码 pane 整体不持久化。
             LeafContents::Code(CodePaneSnapShot::Local { source, .. }) => {
                 source.as_ref().map(|s| s.is_restorable()).unwrap_or(true)
             }
             LeafContents::Terminal(_)
-            | LeafContents::Notebook(_)
-            | LeafContents::AIDocument(_)
             | LeafContents::EnvVarCollection(_)
-            | LeafContents::Workflow(_)
             | LeafContents::Settings(_)
-            | LeafContents::AIFact(_)
+            | LeafContents::Workflow(_)
+            | LeafContents::Notebook(_)
             | LeafContents::ExecutionProfileEditor
-            | LeafContents::CodeReview(_)
-            | LeafContents::Welcome { .. }
-            | LeafContents::GetStarted => true,
+            | LeafContents::AIDocument(_) => true,
         }
     }
 }
@@ -202,36 +189,6 @@ pub struct TerminalPaneSnapshot {
     pub active_conversation_id: Option<AIConversationId>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum NotebookPaneSnapshot {
-    NotebookObject {
-        /// The ID of the notebook that was open in this pane. There are 3 possibilities:
-        /// 1. The pane contains a newly-created notebook that has not been edited yet. It might not
-        ///    have an ID yet (client or server), so this will be `None`.
-        /// 2. The pane contains a notebook that hasn't been synced to the server yet, so this will
-        ///    contain a client ID that should exist in SQLite.
-        /// 3. The pane contains a notebook that's known to the server, so this will contain the
-        ///    server ID.
-        notebook_id: Option<SyncId>,
-        // Settings for the notebook pane when it's opened (such as a folder to focus upon opening)
-        settings: DaisDriveObjectSettings,
-    },
-    LocalFileNotebook {
-        /// The path to the local file that was open in this pane. This may be `None` if
-        /// the pane contained an unreadable file.
-        path: Option<PathBuf>,
-    },
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum AIDocumentPaneSnapshot {
-    Local {
-        document_id: String,
-        version: i32,
-        content: Option<String>,
-        title: Option<String>,
-    },
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CodePaneTabSnapshot {
@@ -248,6 +205,39 @@ pub enum CodePaneSnapShot {
     },
 }
 
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum EnvVarCollectionPaneSnapshot {
+    // EnvVarCollectionObject snapshots operate under the same heuristics
+    // as the removed NotebookPaneSnapshot::NotebookObject (Dais Wave 7-3)
+    EnvVarCollectionObject {
+        env_var_collection_id: Option<SyncId>,
+    },
+}
+
+/// Snapshot of a notebook pane.
+#[derive(Clone, Debug, PartialEq)]
+pub enum NotebookPaneSnapshot {
+    LocalFileNotebook {
+        path: Option<PathBuf>,
+    },
+    NotebookObject {
+        notebook_id: Option<SyncId>,
+        settings: DaisDriveObjectSettings,
+    },
+}
+
+/// Snapshot of an AI document pane.
+#[derive(Clone, Debug, PartialEq)]
+pub enum AIDocumentPaneSnapshot {
+    Local {
+        document_id: String,
+        version: i32,
+        content: Option<String>,
+        title: Option<String>,
+    },
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum WorkflowPaneSnapshot {
     WorkflowObject {
@@ -258,34 +248,10 @@ pub enum WorkflowPaneSnapshot {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum EnvVarCollectionPaneSnapshot {
-    // EnvVarCollectionObject snapshots operate under the same heuristics
-    // as NotebookPaneSnapshot::NotebookObject
-    EnvVarCollectionObject {
-        env_var_collection_id: Option<SyncId>,
-    },
-}
-
-// Dais Wave 7-3:`EnvironmentManagementPaneSnapshot` 随 LeafContents variant 一同物理删。
-
-#[derive(Clone, Debug, PartialEq)]
 pub enum SettingsPaneSnapshot {
     Local {
         current_page: SettingsSection,
         search_query: Option<String>,
-    },
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum AIFactPaneSnapshot {
-    Personal,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum CodeReviewPaneSnapshot {
-    Local {
-        terminal_uuid: Vec<u8>,
-        repo_path: PathBuf,
     },
 }
 
@@ -305,7 +271,6 @@ impl From<ToolPanelView> for LeftPanelDisplayedTab {
         match view {
             ToolPanelView::ProjectExplorer => LeftPanelDisplayedTab::FileTree,
             ToolPanelView::GlobalSearch { .. } => LeftPanelDisplayedTab::GlobalSearch,
-            ToolPanelView::DaisDrive => LeftPanelDisplayedTab::DaisDrive,
             ToolPanelView::ConversationListView => LeftPanelDisplayedTab::ConversationListView,
             ToolPanelView::SshManager => LeftPanelDisplayedTab::SshManager,
             ToolPanelView::ServerFileBrowser => LeftPanelDisplayedTab::ServerFileBrowser,

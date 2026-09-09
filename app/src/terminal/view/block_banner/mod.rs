@@ -24,8 +24,10 @@ const BANNER_TOP_MARGIN: f32 = 16.;
 const BANNER_SIDE_MARGIN: f32 = 20.;
 const BANNER_V_PADDING: f32 = 4.;
 const BANNER_H_PADDING: f32 = 8.;
-pub const BLOCK_BANNER_HEIGHT: f32 = CONSTRAINED_BANNER_HEIGHT + BANNER_TOP_MARGIN;
-pub const BLOCK_BANNER_DESCRIPTION_MAX_HEIGHT: f32 = 24.;
+// R17: pub 高度常量提升 terminal_grid_model::banner_types(值等价)。
+pub use terminal_grid_model::banner_types::{
+    BLOCK_BANNER_DESCRIPTION_MAX_HEIGHT, BLOCK_BANNER_HEIGHT,
+};
 
 pub enum WithinBlockBanner {
     WarpifyBanner(WarpifyBannerState),

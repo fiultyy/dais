@@ -3,7 +3,10 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use warpui::{Entity, ModelContext, SingletonEntity};
 
-use crate::{persistence::ModelEvent, GlobalResourceHandlesProvider};
+use crate::{
+    persistence::ModelEvent,
+    GlobalResourceHandlesProvider,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum SuggestionType {
