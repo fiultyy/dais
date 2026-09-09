@@ -1,4 +1,3 @@
-use crate::terminal::shared_session::protocol::SessionSourceType;
 use pathfinder_geometry::vector::vec2f;
 
 use warpui::App;
@@ -382,54 +381,4 @@ fn test_on_session_share_ended_restores_size_after_viewer_driven_resize() {
             assert_eq!(*view.model.lock().block_list().size(), original_size);
         });
     })
-}
-
-#[test]
-fn test_on_session_share_ended_inserts_tombstone_for_ambient_session_under_ambient_agent_setup_v2()
-{
-    App::test((), |mut app| async move {
-        let terminal = terminal_view_for_viewer(&mut app);
-        let initial_block_height_items = terminal.read(&app, |view, _| {
-            view.model.lock().block_list().block_heights().items().len()
-        });
-
-        terminal.update(&mut app, |view, ctx| {
-            view.model
-                .lock()
-                .set_shared_session_source_type(SessionSourceType::AmbientAgent { task_id: None });
-            view.on_session_share_ended(ctx);
-        });
-
-        terminal.read(&app, |view, _| {
-            let final_block_height_items =
-                view.model.lock().block_list().block_heights().items().len();
-            // Shared session ended banner + conversation ended tombstone.
-            assert_eq!(final_block_height_items, initial_block_height_items + 2);
-        });
-    });
-}
-
-#[test]
-fn test_on_session_share_ended_does_not_insert_tombstone_for_non_ambient_session_under_ambient_agent_setup_v2(
-) {
-    App::test((), |mut app| async move {
-        let terminal = terminal_view_for_viewer(&mut app);
-        let initial_block_height_items = terminal.read(&app, |view, _| {
-            view.model.lock().block_list().block_heights().items().len()
-        });
-
-        terminal.update(&mut app, |view, ctx| {
-            view.model
-                .lock()
-                .set_shared_session_source_type(SessionSourceType::default());
-            view.on_session_share_ended(ctx);
-        });
-
-        terminal.read(&app, |view, _| {
-            let final_block_height_items =
-                view.model.lock().block_list().block_heights().items().len();
-            // Only shared session ended banner.
-            assert_eq!(final_block_height_items, initial_block_height_items + 1);
-        });
-    });
 }

@@ -9,7 +9,6 @@ use warpui::AppContext;
 
 use crate::ai::agent::conversation::AIConversationId;
 use crate::ai::agent_conversations_model::AgentManagementFilters;
-use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::blocklist::InputConfig;
 use crate::ai::blocklist::SerializedBlockListItem;
 use crate::code::editor_management::CodeSource;
@@ -110,7 +109,7 @@ pub enum LeafContents {
     // Dais Wave 7-3:`EnvironmentManagement` LeafContents variant 随 Ambient Agent UI
     // 子系统物理删。
     Settings(SettingsPaneSnapshot),
-    AmbientAgent(AmbientAgentPaneSnapshot),
+
     /// SSH 服务器编辑器 pane(openWarp 独有)。引用 `ssh_servers.node_id` 主键
     /// 加载/保存。**不持久化** — 重启后用户从左侧 SSH 管理器树重新打开。
     SshServer {
@@ -166,19 +165,9 @@ impl LeafContents {
             | LeafContents::Settings(_)
             | LeafContents::Notebook(_)
             | LeafContents::ExecutionProfileEditor
-            | LeafContents::AIDocument(_)
-            | LeafContents::AmbientAgent(_) => true,
+            | LeafContents::AIDocument(_) => true,
         }
     }
-}
-
-/// Snapshot of an ambient agent pane.
-#[derive(Clone, Debug, PartialEq)]
-pub struct AmbientAgentPaneSnapshot {
-    pub uuid: Vec<u8>,
-    // `task_id` is purposefully optional,
-    // as you can have a valid state (i.e. an empty ambient-agent pane) where it is None.
-    pub task_id: Option<AmbientAgentTaskId>,
 }
 
 /// Snapshot of the contents of a terminal pane.

@@ -15,7 +15,20 @@ use crate::{
     server::telemetry::{PluginChipTelemetryKind, TelemetryEvent},
     settings::{AISettings, AISettingsChangedEvent},
     settings_view::SettingsSection,
-    terminal::{ cli_agent_sessions::{ listener::session_supports_rich_status, CLIAgentInputState, CLIAgentSessionsModel, CLIAgentSessionsModelEvent, }, input::{models::InlineModelSelectorTab, MenuPositioningProvider}, model_events::ModelEvent, profile_model_selector::{ProfileModelSelector, ProfileModelSelectorEvent}, session_settings::{SessionSettings, SessionSettingsChangedEvent, ToolbarChipSelection}, shared_session::SharedSessionStatus, view::ambient_agent::{AmbientAgentViewModel, ModelSelector}, view::init::OPEN_CLI_AGENT_RICH_INPUT_KEYBINDING, view::TerminalAction, CLIAgent, TerminalModel, },
+    terminal::{
+        cli_agent_sessions::{
+            listener::session_supports_rich_status, CLIAgentInputState, CLIAgentSessionsModel,
+            CLIAgentSessionsModelEvent,
+        },
+        input::{models::InlineModelSelectorTab, MenuPositioningProvider},
+        model_events::ModelEvent,
+        profile_model_selector::{ProfileModelSelector, ProfileModelSelectorEvent},
+        session_settings::{SessionSettings, SessionSettingsChangedEvent, ToolbarChipSelection},
+        shared_session::SharedSessionStatus,
+        view::init::OPEN_CLI_AGENT_RICH_INPUT_KEYBINDING,
+        view::TerminalAction,
+        CLIAgent, TerminalModel,
+    },
     ui_components::{icon_with_status::render_cli_agent_logo, icons::Icon},
     view_components::{ action_button::{ ActionButton, ActionButtonTheme, AdjoinedSide, ButtonSize, KeystrokeSource, NakedTheme, TooltipAlignment, }, DismissibleToast, },
     workspace::{view::TOGGLE_PROJECT_EXPLORER_BINDING_NAME, ToastStack},
@@ -138,7 +151,6 @@ pub struct AgentInputFooter {
     // Dais Wave 7-3:`environment_selector` field was removed with the hosted-mode footer.
     reasoning_depth_selector: ViewHandle<ReasoningDepthSelector>,
     prompt_alert: ViewHandle<PromptAlertView>,
-    ambient_agent_view_model: ModelHandle<AmbientAgentViewModel>,
     left_display_chips: Vec<ViewHandle<DisplayChip>>,
     right_display_chips: Vec<ViewHandle<DisplayChip>>,
     // Separate set of display chips for the CLI agent footer.
@@ -168,7 +180,7 @@ pub struct AgentInputFooter {
     // Fast-forward (auto-approve) toggle button shown in the agent view footer.
     fast_forward_button: ViewHandle<ActionButton>,
 
-    v2_model_selector: Option<ViewHandle<ModelSelector>>,
+
 }
 
 impl AgentInputFooter {
@@ -178,7 +190,6 @@ impl AgentInputFooter {
         terminal_view_id: EntityId,
         ai_input_model: ModelHandle<BlocklistAIInputModel>,
         terminal_model: Arc<FairMutex<TerminalModel>>,
-        ambient_agent_view_model: ModelHandle<AmbientAgentViewModel>,
         prompt: ModelHandle<PromptType>,
         display_chip_config: DisplayChipConfig,
         ctx: &mut ViewContext<Self>,
@@ -474,7 +485,6 @@ impl AgentInputFooter {
                 menu_positioning_provider.clone(),
                 terminal_view_id,
                 ai_input_model,
-                ambient_agent_view_model.clone(),
                 terminal_model.clone(),
                 None,
                 ctx,
@@ -487,8 +497,6 @@ impl AgentInputFooter {
             me.handle_profile_model_selector_event(event, ctx);
         });
 
-        // Dais Wave 7-3:`EnvironmentSelector` 初始化 + 订阅 + ambient_agent
-        // Status rerender subscription was removed with the hosted-mode footer.
 
         let reasoning_depth_selector = ctx.add_typed_action_view(|ctx| {
             ReasoningDepthSelector::new(menu_positioning_provider.clone(), terminal_view_id, ctx)
@@ -581,17 +589,9 @@ impl AgentInputFooter {
             me.update_display_chips(&model, ctx);
         });
 
-        let v2_model_selector = if false {
-            Some(ctx.add_typed_action_view(|ctx| {
-                ModelSelector::new(menu_positioning_provider.clone(), terminal_view_id, ctx)
-            }))
-        } else {
-            None
-        };
 
         let mut me = Self {
             terminal_view_id,
-            ambient_agent_view_model,
             nld_button,
             mic_button,
             file_button,
@@ -626,7 +626,6 @@ impl AgentInputFooter {
                         ctx.dispatch_typed_action(AgentInputFooterAction::DismissFtuModelCallout);
                     })
             }),
-            v2_model_selector,
         };
         me.sync_fast_forward_button(ctx);
         me.update_context_window_button(ctx);
@@ -644,12 +643,6 @@ impl AgentInputFooter {
         // Chips will be rebuilt on the next GitRepoStatusEvent::MetadataChanged.
         // Notify to ensure any existing chips reflect the change.
         ctx.notify();
-    }
-
-    pub fn is_v2_model_selector_open(&self, app: &AppContext) -> bool {
-        self.v2_model_selector
-            .as_ref()
-            .is_some_and(|s| s.as_ref(app).is_menu_open())
     }
 
     // Dais Wave 7-3: hosted-mode footer rendering was removed.
@@ -1087,7 +1080,7 @@ impl AgentInputFooter {
         app: &AppContext,
     ) -> Option<Box<dyn Element>> {
         if !item.available_in().is_available_for_cli()
-            || !item.available_to_session_viewer(shared_status, false)
+            || !item.available_to_session_viewer(shared_status)
         {
             return None;
         }
@@ -1377,7 +1370,7 @@ impl AgentInputFooter {
         app: &AppContext,
     ) -> Option<Box<dyn Element>> {
         if !item.available_in().is_available_for_agent_view()
-            || !item.available_to_session_viewer(shared_status, false)
+            || !item.available_to_session_viewer(shared_status)
         {
             return None;
         }

@@ -5,12 +5,9 @@ use uuid::Uuid;
 use warp_cli::agent::Harness;
 use warp_managed_secrets::ManagedSecretValue;
 
-use crate::ai::{
-    agent_sdk::{
-        driver::AgentDriverError, task_env_vars, validate_cli_installed, ClaudeHarness,
-        ThirdPartyHarness,
-    },
-    ambient_agents::{task::HarnessConfig, AgentConfigSnapshot, AmbientAgentTaskId},
+use crate::ai::agent_sdk::{
+    driver::AgentDriverError, task_env_vars, validate_cli_installed, AgentConfigSnapshot,
+    ClaudeHarness, HarnessConfig, LocalChildTaskId, ThirdPartyHarness,
 };
 use crate::terminal::cli_agent_sessions::plugin_manager::plugin_manager_for;
 use crate::terminal::shell::ShellType;
@@ -20,7 +17,7 @@ pub(super) struct PreparedLocalHarnessLaunch {
     pub command: String,
     pub env_vars: HashMap<OsString, OsString>,
     pub run_id: String,
-    pub task_id: AmbientAgentTaskId,
+    pub task_id: LocalChildTaskId,
 }
 
 pub(super) fn normalize_local_child_harness(harness_type: &str) -> Option<Harness> {
@@ -123,7 +120,7 @@ pub(super) async fn prepare_local_harness_child_launch(
     // `create_agent_task` mutation,直接本地生成 UUID v4 作为 task_id。
     // `local_child_task_config(harness)` 参数不再使用。
     let _ = local_child_task_config(harness);
-    let task_id = AmbientAgentTaskId::new_local();
+    let task_id = LocalChildTaskId::new_local();
 
     Ok(PreparedLocalHarnessLaunch {
         command,

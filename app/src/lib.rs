@@ -193,7 +193,6 @@ use warpui::modals::{AlertDialogWithCallbacks, AppModalCallback};
 use warpui::platform::app::ApproveTerminateResult;
 use window_settings::WindowSettings;
 
-use crate::ai::ambient_agents::github_auth_notifier::GitHubAuthNotifier;
 use crate::ai::document::ai_document_model::AIDocumentModel;
 use crate::ai::llms::LLMPreferences;
 use crate::ai::mcp::MCPGalleryManager;
@@ -1654,7 +1653,6 @@ fn initialize_app(
 
     ctx.add_singleton_model(|_| RelaunchModel::new());
     ctx.add_singleton_model(|_| ChangelogModel::new(update_http_client.clone()));
-    ctx.add_singleton_model(|_| GitHubAuthNotifier::new());
     ctx.add_singleton_model(|_| NetworkStatus::new());
     ctx.add_singleton_model(|_| SystemStats::new());
     ctx.add_singleton_model(|_| KeybindingChangedNotifier::new());

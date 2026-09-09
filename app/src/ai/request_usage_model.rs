@@ -9,12 +9,11 @@
 //!   保留,只是事件不再被任何路径触发 → 订阅回调成为永远静默的 no-op。
 //! * 外溢使用 `RequestLimitInfo` / `RequestUsageInfo` / `BonusGrant` /
 //!   `BonusGrantScope` / `RequestLimitRefreshDuration` /
-//!   `BuyCreditsBannerDisplayState` / `AIRequestUsageModelEvent` /
-//!   `AMBIENT_AGENT_TRIAL_CREDIT_THRESHOLD` 的文件(`workspaces/gql_convert.rs`、
-//!   `ai_assistant/requests.rs`、`ai_assistant/mod.rs`、
-//!   `settings/ai.rs`、`settings/ai_tests.rs`、`workspace/bonus_grant_notification_model.rs`、
-//!   `settings_view/ai_page.rs`、
-//!   `terminal/view/ambient_agent/first_time_setup.rs`、`agent_view/agent_message_bar.rs`)
+//!   `BuyCreditsBannerDisplayState` / `AIRequestUsageModelEvent`
+//!   的文件(`workspaces/gql_convert.rs`、`ai_assistant/requests.rs`、
+//!   `ai_assistant/mod.rs`、`settings/ai.rs`、`settings/ai_tests.rs`、
+//!   `workspace/bonus_grant_notification_model.rs`、`settings_view/ai_page.rs`、
+//!   `agent_view/agent_message_bar.rs`)
 //!   不在本任务写入域内 → 必须在 stub 内继续保留这些类型定义与等价构造能力,
 //!   只剥离 RPC / 缓存 / 计量等业务逻辑。
 
@@ -26,18 +25,6 @@ use chrono::{DateTime, Utc};
 use instant::Instant;
 use serde::{Deserialize, Serialize};
 use warpui::{AppContext, Entity, ModelContext, SingletonEntity};
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum BonusGrantType {
-    AmbientOnly,
-    Any,
-}
-
-/// Threshold of ambient-only credits at which we surface upgrade/CTA UI。
-///
-/// Dais:本地化场景下永远不会触达(因 `ambient_only_credits_remaining` 恒为 `None`),
-/// 仍保留常量定义以兼容外部 import。
-pub const AMBIENT_AGENT_TRIAL_CREDIT_THRESHOLD: i32 = 20;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BonusGrantScope {
@@ -58,7 +45,6 @@ pub struct BonusGrant {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub cost_cents: i32,
     pub expiration: Option<chrono::DateTime<chrono::Utc>>,
-    pub grant_type: BonusGrantType,
     pub reason: String,
     pub user_facing_message: Option<String>,
     pub request_credits_granted: i32,
@@ -214,11 +200,6 @@ impl AIRequestUsageModel {
     /// Dais(本地化):本地用户不存在 bonus grants。
     pub fn bonus_grants(&self) -> &[BonusGrant] {
         &[]
-    }
-
-    /// Dais(本地化):本地用户没有 ambient-only credits 概念。
-    pub fn ambient_only_credits_remaining(&self) -> Option<i32> {
-        None
     }
 
     /// Dais(本地化):本地用户没有 workspace bonus credits 概念。

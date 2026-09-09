@@ -6,13 +6,18 @@ use super::{
     Input, InputAction, InputDropTargetData,
 };
 use crate::{
-    ai::blocklist::{ agent_view::{ agent_view_bg_fill, shortcuts::{render_agent_shortcuts_view, AgentShortcutsViewContext}, AgentViewState, }, InputType, },
+    ai::blocklist::{
+        agent_view::{
+            agent_view_bg_fill,
+            shortcuts::{render_agent_shortcuts_view, AgentShortcutsViewContext},
+        },
+        InputType,
+    },
     appearance::Appearance,
     context_chips::spacing::{self},
     features::FeatureFlag,
     settings::InputModeSettings,
     terminal::{settings::TerminalSettings, view::TerminalAction},
-    BlocklistAIHistoryModel,
 };
 use warp_core::settings::Setting;
 use warpui::{
@@ -51,16 +56,6 @@ impl Input {
             );
         }
 
-        // 拦截配置栏 (issue #13):紧邻现有 harness 配置 UI(输入框上方),
-        // 仅在 AgentHarness feature 开启且非 wasm 时显示。
-        #[cfg(not(target_family = "wasm"))]
-        if crate::features::FeatureFlag::AgentHarness.is_enabled() {
-            column.add_child(
-                Container::new(ChildView::new(&self.intercept_bar).finish())
-                    .with_margin_top(spacing::UDI_CHIP_MARGIN)
-                    .finish(),
-            );
-        }
 
         let ai_input_model = self.ai_input_model.as_ref(app);
 
@@ -202,33 +197,8 @@ impl Input {
             .as_ref(app)
             .is_shortcut_view_open()
         {
-            let agent_view_controller = self.agent_view_controller.as_ref(app);
-            let (is_ambient_agent, has_submitted_first_prompt) =
-                match agent_view_controller.agent_view_state() {
-                    AgentViewState::Active {
-                        conversation_id,
-                        origin,
-                        ..
-                    } => {
-                        let is_ambient_agent = origin.is_ambient_agent();
-                        let has_submitted_first_prompt = if is_ambient_agent {
-                            BlocklistAIHistoryModel::as_ref(app)
-                                .conversation(conversation_id)
-                                .is_some_and(|c| c.initial_user_query().is_some())
-                        } else {
-                            true
-                        };
-                        (is_ambient_agent, has_submitted_first_prompt)
-                    }
-                    // When inactive, show all shortcuts (treat as not-cloud and not in the zero-state).
-                    AgentViewState::Inactive => (false, true),
-                };
-
             column.add_child(render_agent_shortcuts_view(
-                AgentShortcutsViewContext {
-                    is_ambient_agent,
-                    has_submitted_first_prompt,
-                },
+                AgentShortcutsViewContext::default(),
                 app,
             ));
         }

@@ -13,7 +13,7 @@ use warpui::{
 
 use crate::{
     ai::{blocklist::BlocklistAIHistoryModel, llms::LLMPreferences, skills::SkillManager},
-    app_state::{AmbientAgentPaneSnapshot, LeafContents, TerminalPaneSnapshot},
+    app_state::{LeafContents, TerminalPaneSnapshot},
     pane_group::{self, Direction, Event::OpenConversationHistory, PaneGroup},
     persistence::{BlockCompleted, ModelEvent},
     session_management::SessionNavigationData,
@@ -234,22 +234,11 @@ impl PaneContent for TerminalPane {
                         return;
                     };
 
-                    let is_shared_ambient_agent_session = group
-                        .terminal_view_from_pane_id(terminal_pane_id, ctx)
-                        .map(|view| {
-                            view.as_ref(ctx)
-                                .model
-                                .lock()
-                                .is_shared_ambient_agent_session()
-                        })
-                        .unwrap_or(false);
-
                     handle_ai_history_event(
                         event,
                         terminal_view_id,
                         terminal_pane_id,
                         model_event_sender,
-                        is_shared_ambient_agent_session,
                         ctx,
                     );
                 },
@@ -323,19 +312,12 @@ impl PaneContent for TerminalPane {
         // Capture the current input_config from the AI input model
         let current_input_config = view.input_config(app.as_ref());
 
-        if view.model.lock().shared_session_status().is_viewer() {
-            // We save and restore ambient agent sessions
-            // (restoring the shared session if it's still open and the conversation transcript otherwise).
-            let ambient_model = view.ambient_agent_view_model().as_ref(app);
-            if ambient_model.is_ambient_agent() {
-                let task_id = ambient_model.task_id();
-
-                return LeafContents::AmbientAgent(AmbientAgentPaneSnapshot {
-                    uuid: self.uuid.clone(),
-                    task_id,
-                });
-            }
-
+        // Shared-session viewers and conversation transcript viewers are not
+        // agent sessions; both restore as plain terminal panes without
+        // conversation state.
+        if view.model.lock().shared_session_status().is_viewer()
+            || view.model.lock().is_conversation_transcript_viewer()
+        {
             LeafContents::Terminal(TerminalPaneSnapshot {
                 uuid: self.uuid.clone(),
                 cwd: None,
@@ -348,29 +330,6 @@ impl PaneContent for TerminalPane {
                 conversation_ids_to_restore: vec![],
                 active_conversation_id: None,
             })
-        } else if view.model.lock().is_conversation_transcript_viewer() {
-            // Conversation transcript viewers (opened from the conversation list)
-            // can be restored via the ambient agent task if one exists.
-            let task_id = view.model.lock().ambient_agent_task_id();
-            if task_id.is_some() {
-                LeafContents::AmbientAgent(AmbientAgentPaneSnapshot {
-                    uuid: self.uuid.clone(),
-                    task_id,
-                })
-            } else {
-                LeafContents::Terminal(TerminalPaneSnapshot {
-                    uuid: self.uuid.clone(),
-                    cwd: None,
-                    is_active,
-                    is_read_only: false,
-                    shell_launch_data: None,
-                    input_config: None,
-                    llm_model_override: None,
-                    active_profile_id: None,
-                    conversation_ids_to_restore: vec![],
-                    active_conversation_id: None,
-                })
-            }
         } else {
             let llm_model_override =
                 LLMPreferences::as_ref(app).get_base_llm_override(self.terminal_view(app).id());
@@ -930,7 +889,6 @@ fn handle_ai_history_event(
     terminal_view_id: EntityId,
     terminal_pane_id: TerminalPaneId,
     model_event_sender: SyncSender<ModelEvent>,
-    is_shared_ambient_agent_session: bool,
     ctx: &mut ViewContext<PaneGroup>,
 ) {
     use std::sync::Arc;
@@ -981,12 +939,6 @@ fn handle_ai_history_event(
             // Hidden blocks and passive-only conversations should not be restored, so we skip
             // them.
             if *is_hidden || conversation.is_entirely_passive() {
-                return;
-            }
-
-            // Do not persist AI queries from shared ambient agent sessions that we've viewed,
-            // as these were sent as part of an ambient agent run and shouldn't pollute the up arrow history.
-            if is_shared_ambient_agent_session {
                 return;
             }
 

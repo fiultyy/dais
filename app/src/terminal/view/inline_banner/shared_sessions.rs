@@ -95,14 +95,11 @@ fn render_inline_shared_session_banner(
 
 pub fn render_inline_shared_session_started_banner(
     is_active: bool,
-    is_shared_ambient_agent_session: bool,
     is_remote_control: bool,
     started_at: DateTime<Local>,
     appearance: &Appearance,
 ) -> Box<dyn Element> {
-    let label = if is_shared_ambient_agent_session {
-        "Environment started"
-    } else if is_remote_control {
+    let label = if is_remote_control {
         "Remote control active"
     } else {
         "Sharing started"
@@ -111,14 +108,11 @@ pub fn render_inline_shared_session_started_banner(
 }
 
 pub fn render_inline_shared_session_ended_banner(
-    is_shared_ambient_agent_session: bool,
     is_remote_control: bool,
     ended_at: DateTime<Local>,
     appearance: &Appearance,
 ) -> Box<dyn Element> {
-    let label = if is_shared_ambient_agent_session {
-        "Environment ended"
-    } else if is_remote_control {
+    let label = if is_remote_control {
         "Remote control stopped"
     } else {
         "Sharing ended"

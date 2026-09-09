@@ -786,7 +786,7 @@ enum VerticalTabsResolvedMode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum SummaryPaneKind {
     Terminal,
-    OzAgent { is_ambient: bool },
+    OzAgent,
     CLIAgent { agent: CLIAgent },
     Code { title: String },
     File,
@@ -1300,9 +1300,7 @@ fn render_detail_kind_badge_icon(
                 return render_cli_agent_logo(session.agent, color, disabled_text);
             }
 
-            let icon = if terminal_view.is_ambient_agent_session(app) {
-                WarpIcon::OzCloud
-            } else if terminal_view
+            let icon = if terminal_view
                 .selected_conversation_display_title(app)
                 .is_some()
             {
@@ -1311,7 +1309,7 @@ fn render_detail_kind_badge_icon(
                 WarpIcon::Terminal
             };
             let color = match icon {
-                WarpIcon::Oz | WarpIcon::OzCloud => oz_icon_fill(theme),
+                WarpIcon::Oz => oz_icon_fill(theme),
                 WarpIcon::Terminal => disabled_text,
                 _ => sub_text,
             };
@@ -3331,11 +3329,10 @@ fn resolve_icon_with_status_variant(
             let terminal_view = terminal_view.as_ref(app);
             let cli_agent_session = CLIAgentSessionsModel::as_ref(app).session(terminal_view.id());
             let is_plugin_backed = cli_agent_session.is_some_and(|s| s.listener.is_some());
-            let is_ambient = terminal_view.is_ambient_agent_session(app);
             let has_conversation = terminal_view
                 .selected_conversation_display_title(app)
                 .is_some();
-            let is_oz_agent = has_conversation || is_ambient;
+            let is_oz_agent = has_conversation;
 
             if let Some(session) = cli_agent_session
                 .filter(|s| s.listener.is_some())
@@ -3360,7 +3357,7 @@ fn resolve_icon_with_status_variant(
             } else if is_oz_agent {
                 IconWithStatusVariant::OzAgent {
                     status: terminal_view.selected_conversation_status_for_display(app),
-                    is_ambient,
+                    is_ambient: false,
                 }
             } else {
                 // Plain terminal: use foreground color per design spec
@@ -3723,13 +3720,11 @@ impl TypedPane<'_> {
                         agent: session.agent,
                     };
                 }
-                let is_ambient = terminal_view.is_ambient_agent_session(app);
                 if terminal_view
                     .selected_conversation_display_title(app)
                     .is_some()
-                    || is_ambient
                 {
-                    SummaryPaneKind::OzAgent { is_ambient }
+                    SummaryPaneKind::OzAgent
                 } else {
                     SummaryPaneKind::Terminal
                 }
@@ -4285,10 +4280,8 @@ fn preferred_agent_tab_titles(
 fn terminal_agent_text(terminal_view: &TerminalView, app: &AppContext) -> TerminalAgentText {
     let cli_agent_session = CLIAgentSessionsModel::as_ref(app).session(terminal_view.id());
     let is_plugin_backed = cli_agent_session.is_some_and(|session| session.listener.is_some());
-    let is_ambient_agent = terminal_view.is_ambient_agent_session(app);
 
     let mut agent_text = TerminalAgentText {
-        is_oz_agent: is_ambient_agent,
         cli_agent: cli_agent_session.map(|session| session.agent),
         ..Default::default()
     };
@@ -4300,8 +4293,7 @@ fn terminal_agent_text(terminal_view: &TerminalView, app: &AppContext) -> Termin
     agent_text.conversation_display_title = terminal_view.selected_conversation_display_title(app);
     agent_text.conversation_latest_user_prompt =
         terminal_view.selected_conversation_latest_user_prompt_for_tab_name(app);
-    agent_text.is_oz_agent =
-        agent_text.conversation_display_title.is_some() || agent_text.is_oz_agent;
+    agent_text.is_oz_agent = agent_text.conversation_display_title.is_some();
 
     if let Some(session) = cli_agent_session {
         agent_text.cli_agent_title = session.session_context.title_like_text();
@@ -4843,17 +4835,10 @@ fn render_summary_pane_kind_icon_circle(
 ) -> Box<dyn Element> {
     let theme = appearance.theme();
     let (icon_element, background): (Box<dyn Element>, ElementFill) = match kind {
-        SummaryPaneKind::OzAgent { is_ambient } => {
-            let icon = if is_ambient {
-                WarpIcon::OzCloud
-            } else {
-                WarpIcon::Oz
-            };
-            (
-                icon.to_warpui_icon(oz_icon_fill(theme)).finish(),
-                theme.background().into(),
-            )
-        }
+        SummaryPaneKind::OzAgent => (
+            WarpIcon::Oz.to_warpui_icon(oz_icon_fill(theme)).finish(),
+            theme.background().into(),
+        ),
         SummaryPaneKind::CLIAgent { agent } => {
             let icon_color = agent.brand_icon_color();
             let icon_element = render_cli_agent_logo(
@@ -4926,14 +4911,7 @@ fn summary_pane_kind_icon(
 
     match kind {
         SummaryPaneKind::Terminal => (WarpIcon::Terminal, main_text),
-        SummaryPaneKind::OzAgent { is_ambient } => (
-            if is_ambient {
-                WarpIcon::OzCloud
-            } else {
-                WarpIcon::Oz
-            },
-            main_text,
-        ),
+        SummaryPaneKind::OzAgent => (WarpIcon::Oz, main_text),
         SummaryPaneKind::CLIAgent { agent } => (
             agent.icon().unwrap_or(WarpIcon::Terminal),
             WarpThemeFill::Solid(agent.brand_icon_color()),

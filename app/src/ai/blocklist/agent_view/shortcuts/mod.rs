@@ -24,7 +24,6 @@ use crate::{
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct AgentShortcutsViewContext {
-    pub is_ambient_agent: bool,
     /// True once the user has submitted the first prompt.
     pub has_submitted_first_prompt: bool,
 }
@@ -104,29 +103,24 @@ pub fn render_keystroke_with_color_overrides(
 }
 
 pub fn render_agent_shortcuts_view(
-    context: AgentShortcutsViewContext,
+    _context: AgentShortcutsViewContext,
     app: &AppContext,
 ) -> Box<dyn Element> {
     let appearance = Appearance::as_ref(app);
 
-    let hide_ambient_zero_state_items =
-        context.is_ambient_agent && !context.has_submitted_first_prompt;
-
     let mut shortcuts = vec![];
 
-    if !hide_ambient_zero_state_items {
-        shortcuts.push(render_shortcut(
-            ShortcutProps {
-                keystroke: Keystroke {
-                    key: "!".to_owned(),
-                    ..Default::default()
-                },
-                text: crate::t!("agent-shortcuts-input-shell-command").into(),
+    shortcuts.push(render_shortcut(
+        ShortcutProps {
+            keystroke: Keystroke {
+                key: "!".to_owned(),
                 ..Default::default()
             },
-            app,
-        ));
-    }
+            text: crate::t!("agent-shortcuts-input-shell-command").into(),
+            ..Default::default()
+        },
+        app,
+    ));
 
     shortcuts.push(render_shortcut(
         ShortcutProps {
@@ -152,19 +146,15 @@ pub fn render_agent_shortcuts_view(
         app,
     ));
 
-    // Code review is not available for ambient agent panes.
-    if !context.is_ambient_agent {
-        if let Some(keystroke) = keybinding_name_to_keystroke(TOGGLE_RIGHT_PANEL_BINDING_NAME, app)
-        {
-            shortcuts.push(render_shortcut(
-                ShortcutProps {
-                    keystroke,
-                    text: crate::t!("agent-shortcuts-open-code-review").into(),
-                    ..Default::default()
-                },
-                app,
-            ));
-        }
+    if let Some(keystroke) = keybinding_name_to_keystroke(TOGGLE_RIGHT_PANEL_BINDING_NAME, app) {
+        shortcuts.push(render_shortcut(
+            ShortcutProps {
+                keystroke,
+                text: crate::t!("agent-shortcuts-open-code-review").into(),
+                ..Default::default()
+            },
+            app,
+        ));
     }
 
     if FeatureFlag::AgentViewConversationListView.is_enabled() {
@@ -202,19 +192,17 @@ pub fn render_agent_shortcuts_view(
         app,
     ));
 
-    if !hide_ambient_zero_state_items {
-        if let Some(keystroke) =
-            keybinding_name_to_keystroke(TOGGLE_AUTOEXECUTE_MODE_KEYBINDING, app)
-        {
-            shortcuts.push(render_shortcut(
-                ShortcutProps {
-                    keystroke,
-                    text: crate::t!("agent-shortcuts-toggle-auto-accept").into(),
-                    ..Default::default()
-                },
-                app,
-            ));
-        }
+    if let Some(keystroke) =
+        keybinding_name_to_keystroke(TOGGLE_AUTOEXECUTE_MODE_KEYBINDING, app)
+    {
+        shortcuts.push(render_shortcut(
+            ShortcutProps {
+                keystroke,
+                text: crate::t!("agent-shortcuts-toggle-auto-accept").into(),
+                ..Default::default()
+            },
+            app,
+        ));
     }
 
     shortcuts.push(render_shortcut(

@@ -15,26 +15,23 @@ use crate::pane_group::pane::view::header::components::{
     render_three_column_header, CenteredHeaderEdgeWidth,
 };
 use crate::pane_group::pane::PaneStack;
-use crate::pane_group::{pane::view, pane::view::PaneHeaderAction, BackingView, SplitPaneState};
+use crate::pane_group::{pane::view, BackingView, SplitPaneState};
 use crate::terminal::cli_agent_sessions::CLIAgentSessionsModel;
-use crate::terminal::model::terminal_model::ConversationTranscriptViewerStatus;
 use crate::terminal::shared_session::participant_avatar_view::render_participants_and_role_elements;
 use crate::terminal::shared_session::render_util::shared_session_indicator_color;
 use crate::terminal::shared_session::SharedSessionActionSource;
 use crate::terminal::TerminalManager;
 use crate::terminal::TerminalView;
 use crate::ui_components::blended_colors;
-use crate::ui_components::buttons::icon_button_with_color;
 use crate::ui_components::icons;
 use crate::workspace::tab_settings::TabSettings;
 use warp_core::ui::Icon as WarpIcon;
 use warpui::elements::{
-    ChildAnchor, ConstrainedBox, CrossAxisAlignment, Flex, MainAxisAlignment, MainAxisSize,
-    OffsetPositioning, ParentAnchor, ParentElement, ParentOffsetBounds, Shrinkable, Stack,
+    ConstrainedBox, CrossAxisAlignment, Flex, MainAxisAlignment, MainAxisSize, ParentElement,
+    Shrinkable,
 };
-use warpui::prelude::{vec2f, ChildView, Container, Hoverable};
+use warpui::prelude::{ChildView, Container};
 use warpui::text_layout::ClipConfig;
-use warpui::ui_components::components::UiComponent;
 use warpui::WeakModelHandle;
 use warpui::{AppContext, Element, ModelHandle, SingletonEntity, TypedActionView, ViewContext};
 
@@ -95,7 +92,6 @@ impl TerminalView {
 
     /// Set the pane title from agent chrome when available, falling back to the regular terminal title.
     pub(super) fn update_pane_configuration(&mut self, ctx: &mut ViewContext<Self>) {
-        let is_ambient_agent = self.is_ambient_agent_session(ctx);
         let selected_conversation_title = self.selected_conversation_display_title(ctx);
         let selected_cli_agent_title = self.selected_cli_agent_title_for_chrome(ctx);
 
@@ -113,13 +109,7 @@ impl TerminalView {
                     self.is_using_conversation_for_pane_header_title = true;
                     conversation_title
                 }
-                None => {
-                    if is_ambient_agent {
-                        default_agent_conversation_title()
-                    } else {
-                        self.terminal_title.clone()
-                    }
-                }
+                None => self.terminal_title.clone(),
             }
         };
         self.pane_configuration.update(ctx, |pane_config, ctx| {
@@ -174,11 +164,8 @@ impl TerminalView {
             .and_then(|h| h.upgrade(app))
             .is_some_and(|stack| stack.as_ref(app).depth() > 1);
 
-        let ambient_agent_view = self.ambient_agent_view_model.as_ref(app);
         let is_transcript_viewer = self.model.lock().is_conversation_transcript_viewer();
-        let has_parent_terminal = (ambient_agent_view.is_ambient_agent()
-            && ambient_agent_view.has_parent_terminal())
-            || (!ambient_agent_view.is_ambient_agent() && !is_transcript_viewer);
+        let has_parent_terminal = !is_transcript_viewer;
         let is_fullscreen_agent_view = self.agent_view_controller.as_ref(app).is_fullscreen();
 
         if in_nav_stack || (is_fullscreen_agent_view && has_parent_terminal) {
@@ -208,17 +195,7 @@ impl TerminalView {
             ClipConfig::start()
         };
 
-        let should_render_ambient_agent_indicator = {
-            let model = self.model.lock();
-            model.is_shared_ambient_agent_session()
-                || matches!(
-                    model.conversation_transcript_viewer_status(),
-                    Some(ConversationTranscriptViewerStatus::ViewingAmbientConversation(_))
-                )
-        };
-        let pane_indicator = if should_render_ambient_agent_indicator {
-            Some(self.render_ambient_agent_indicator(app))
-        } else if let Some(shared_session) = self.shared_session.as_ref() {
+        let pane_indicator = if let Some(shared_session) = self.shared_session.as_ref() {
             if let Some(Viewer {
                 sharer: Some(sharer),
                 ..
@@ -499,33 +476,6 @@ impl BackingView for TerminalView {
 }
 
 impl TerminalView {
-    /// Render the cancel button for cancelling the ambient agent task while it's loading.
-    fn render_ambient_agent_cancel_button(&self, app: &AppContext) -> Box<dyn Element> {
-        let appearance = Appearance::as_ref(app);
-        let theme = appearance.theme();
-        let ui_builder = appearance.ui_builder().clone();
-
-        icon_button_with_color(
-            appearance,
-            icons::Icon::StopFilled,
-            false, /* active */
-            self.ambient_agent_cancel_mouse_state.clone(),
-            blended_colors::text_sub(theme, theme.background()).into(),
-        )
-        .with_tooltip(move || {
-            ui_builder
-                .tool_tip(crate::t!("common-cancel"))
-                .build()
-                .finish()
-        })
-        .build()
-        .on_click(|ctx, _, _| {
-            ctx.dispatch_typed_action::<PaneHeaderAction<TerminalAction, TerminalAction>>(
-                PaneHeaderAction::CustomAction(TerminalAction::CancelAmbientAgentTask),
-            );
-        })
-        .finish()
-    }
 
     /// Render the agent indicator icon for when a conversation is selected.
     fn render_agent_indicator(
@@ -615,51 +565,6 @@ impl TerminalView {
         None
     }
 
-    fn render_ambient_agent_indicator(&self, app: &AppContext) -> Box<dyn Element> {
-        let appearance = Appearance::as_ref(app);
-        let icon_color = appearance
-            .theme()
-            .main_text_color(appearance.theme().background());
-        let font_size = appearance.ui_font_size();
-        let ui_builder = appearance.ui_builder().clone();
-
-        Hoverable::new(
-            self.mouse_states
-                .ambient_agent_indicator_mouse_handle
-                .clone(),
-            move |state| {
-                let mut stack = Stack::new().with_child(
-                    ConstrainedBox::new(
-                        icons::Icon::AmbientAgentMode
-                            .to_warpui_icon(icon_color)
-                            .finish(),
-                    )
-                    .with_height(font_size * 1.5)
-                    .with_width(font_size * 1.5)
-                    .finish(),
-                );
-                if state.is_hovered() {
-                    let tooltip = ui_builder
-                        .tool_tip(crate::t!("terminal-cloud-agent-run"))
-                        .build()
-                        .finish();
-                    stack.add_positioned_overlay_child(
-                        tooltip,
-                        OffsetPositioning::offset_from_parent(
-                            vec2f(0., 3.),
-                            ParentOffsetBounds::WindowByPosition,
-                            ParentAnchor::BottomMiddle,
-                            ChildAnchor::TopMiddle,
-                        ),
-                    );
-                }
-
-                stack.finish()
-            },
-        )
-        .finish()
-    }
-
     /// Render shared session header content (participant avatars and role controls).
     fn render_shared_session_header_content(&self, app: &AppContext) -> Option<Box<dyn Element>> {
         let Some(shared_session) = &self.shared_session else {
@@ -682,8 +587,7 @@ impl TerminalView {
                 }
             };
 
-        // Hide role change button in ambient-agent conversations
-        let hide_role_change_button = self.model.lock().is_shared_ambient_agent_session();
+        let hide_role_change_button = false;
 
         // Render participant avatars and role elements
         Some(render_participants_and_role_elements(
@@ -695,10 +599,6 @@ impl TerminalView {
             hide_role_change_button,
             app,
         ))
-    }
-
-    pub fn is_ambient_agent_session(&self, _ctx: &AppContext) -> bool {
-        false
     }
 
     fn selected_conversation_for_user_facing_chrome<'a>(
@@ -737,11 +637,6 @@ impl TerminalView {
         let long_running = self.is_long_running();
 
         let Some(conversation) = self.selected_conversation_for_user_facing_chrome(ctx) else {
-            // Ambient agent tabs can show Oz chrome without a filtered "chrome" conversation;
-            // still surface busy while a long-running shell command is active.
-            if long_running && self.is_ambient_agent_session(ctx) {
-                return Some(ConversationStatus::InProgress);
-            }
             return None;
         };
 

@@ -28,7 +28,6 @@ use itertools::Itertools;
 use libsqlite3_sys as sqlite3;
 use num_traits::FromPrimitive;
 use pathfinder_geometry::{rect::RectF, vector::Vector2F};
-use persistence::model::AMBIENT_AGENT_PANE_KIND;
 use uuid::Uuid;
 use warpui::platform::FullscreenState;
 use warpui::{AppContext, SingletonEntity};
@@ -51,15 +50,14 @@ use super::{
     WriterHandles,
 };
 use crate::ai::agent::conversation::AIConversationId;
-use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::mcp::templatable_installation::VariableValue;
 use crate::ai::mcp::{TemplatableMCPServer, TemplatableMCPServerInstallation};
 use crate::auth::{user_uid::UserUid, AuthStateProvider};
 use objects::{GenericStringObjectId, StoredStringObject};
 use crate::drive::folders::FolderObject;
 use crate::app_state::{
-    AmbientAgentPaneSnapshot, EnvVarCollectionPaneSnapshot, LeftPanelSnapshot,
-    NotebookPaneSnapshot, RightPanelSnapshot, SettingsPaneSnapshot,
+    EnvVarCollectionPaneSnapshot, LeftPanelSnapshot, NotebookPaneSnapshot, RightPanelSnapshot,
+    SettingsPaneSnapshot,
 };
 use crate::code::editor_management::CodeSource;
 use crate::drive::DaisDriveObjectSettings;
@@ -1190,7 +1188,6 @@ fn save_pane_state(
         LeafContents::ExecutionProfileEditor => EXECUTION_PROFILE_EDITOR_PANE_KIND,
         LeafContents::Settings(_) => SETTINGS_PANE_KIND,
         LeafContents::EnvVarCollection(_) => ENV_VAR_COLLECTION_PANE_KIND,
-        LeafContents::AmbientAgent(_) => AMBIENT_AGENT_PANE_KIND,
         // Dais Wave 7-3:`EnvironmentManagement` arm 随 variant 一同物理删。
         LeafContents::SshServer { .. } => {
             // These pane types are filtered out before this function is
@@ -1399,17 +1396,6 @@ fn save_pane_state(
         }
         LeafContents::ExecutionProfileEditor => {
             // TODO: Implement execution profile editor pane saving.
-        }
-        LeafContents::AmbientAgent(snapshot) => {
-            let ambient_agent_pane = model::NewAmbientAgentPane {
-                id,
-                uuid: snapshot.uuid.clone(),
-                task_id: snapshot.task_id.map(|t| t.to_string()),
-            };
-
-            diesel::insert_into(schema::ambient_agent_panes::dsl::ambient_agent_panes)
-                .values(ambient_agent_pane)
-                .execute(conn)?;
         }
         LeafContents::Observatory => {
             // Unreachable: filtered by `is_persisted` in `save_app_state`.
@@ -2179,21 +2165,6 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
                     LeafContents::Settings(SettingsPaneSnapshot::Local {
                         current_page,
                         search_query: None,
-                    })
-                }
-                AMBIENT_AGENT_PANE_KIND => {
-                    let pane = schema::ambient_agent_panes::dsl::ambient_agent_panes
-                        .find(node.id)
-                        .select(model::AmbientAgentPane::as_select())
-                        .first(conn)?;
-
-                    let task_id = pane
-                        .task_id
-                        .and_then(|id_str| id_str.parse::<AmbientAgentTaskId>().ok());
-
-                    LeafContents::AmbientAgent(AmbientAgentPaneSnapshot {
-                        uuid: pane.uuid,
-                        task_id,
                     })
                 }
                 MCP_SERVER_PANE_KIND => {

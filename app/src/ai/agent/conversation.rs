@@ -1,6 +1,6 @@
 use crate::ai::agent::comment::CodeReview;
 use crate::ai::agent::linearization::compute_task_depths;
-use crate::ai::ambient_agents::AmbientAgentTaskId;
+use crate::ai::agent_sdk::LocalChildTaskId;
 use crate::ai::artifacts::Artifact;
 use crate::ai::blocklist::block::cli_controller::LongRunningCommandControlState;
 use crate::ai::blocklist::{RequestInput, ResponseStreamId, SerializedBlockListItem};
@@ -210,18 +210,17 @@ pub struct AIConversation {
     /// This must be roundtripped to the server when sending follow-ups within a given conversation.
     server_conversation_token: Option<ServerConversationToken>,
 
-    /// The server-assigned task/run identifier (`ai_tasks.id`) for this
-    /// conversation, used for local run and restored task identity.
+    /// Run identifier for this conversation's local BYOP agent run.
     ///
-    /// For local conversations, parsed from `StreamInit.run_id` on the first
-    /// response. For remote child agents spawned via `POST /agent/run`, set
-    /// from `SpawnAgentResponse.task_id`.
+    /// Parsed from `StreamInit.run_id` on the first response, and restored
+    /// from the persisted run id on session restore (constructor `run_id`
+    /// argument / `set_run_id`).
     ///
-    /// Used for messaging API, events API, poller self-filtering, lifecycle
-    /// reports, parent↔child agent identity, and task status reporting.
-    /// The string form (for APIs that accept a run_id) is obtained via
-    /// `run_id()` which calls `.to_string()` on this field.
-    task_id: Option<AmbientAgentTaskId>,
+    /// Exposed as a string via `run_id()` (and persisted with the
+    /// conversation's `ModelEvent` metadata); `agent_link_id()` uses it —
+    /// falling back to the server conversation token — for parent/child
+    /// conversation linking.
+    task_id: Option<LocalChildTaskId>,
 
     /// The server conversation ID of the source conversation if this conversation was forked.
     forked_from_server_conversation_token: Option<ServerConversationToken>,
@@ -861,13 +860,8 @@ impl AIConversation {
     }
 
     /// Returns the server-assigned task ID, if available.
-    pub fn task_id(&self) -> Option<AmbientAgentTaskId> {
+    pub fn task_id(&self) -> Option<LocalChildTaskId> {
         self.task_id
-    }
-
-    /// Sets the task ID directly (used for child agents spawned via `SpawnAgentResponse`).
-    pub fn set_task_id(&mut self, id: AmbientAgentTaskId) {
-        self.task_id = Some(id);
     }
 
     /// Returns the best available server-side agent identifier for parent/child linking.
@@ -3828,9 +3822,6 @@ pub struct ServerAIConversationMetadata {
 
     /// Usage metadata including token counts, credits spent, etc.
     pub usage: ConversationUsageMetadata,
-
-    /// The ID of the associated ambient agent task, if any.
-    pub ambient_agent_task_id: Option<crate::ai::ambient_agents::AmbientAgentTaskId>,
 
     /// The server conversation token used to identify this conversation on the server.
     pub server_conversation_token: ServerConversationToken,

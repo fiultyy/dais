@@ -167,16 +167,13 @@ impl Adapter {
 
         // The inactivity timer is reset every 10 seconds
         // as long as sharer activity was detected during the interval.
-        // For ambient agent sessions, we skip the inactivity timer entirely.
         let (activity_tx, activity_rx) = async_channel::unbounded();
-        if !matches!(source_type, SessionSourceType::AmbientAgent { .. }) {
-            let throttled_activity_rx = throttle(Duration::from_secs(10), activity_rx);
-            ctx.spawn_stream_local(
-                throttled_activity_rx,
-                |view, _, ctx| view.reset_sharer_inactivity_timer(ctx),
-                |_, _| {},
-            );
-        }
+        let throttled_activity_rx = throttle(Duration::from_secs(10), activity_rx);
+        ctx.spawn_stream_local(
+            throttled_activity_rx,
+            |view, _, ctx| view.reset_sharer_inactivity_timer(ctx),
+            |_, _| {},
+        );
 
         let sharer = Kind::Sharer(Sharer::new(activity_tx, ctx));
         Self::new(

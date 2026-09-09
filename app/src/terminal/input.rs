@@ -28,7 +28,6 @@ use crate::objects_display::StoredObjectHostExt;
 use crate::ai::agent::api::ServerConversationToken;
 use crate::ai::agent::conversation::AIConversationId;
 use crate::ai::agent::{AIAgentAttachment, AIAgentExchangeId, CancellationReason};
-use crate::ai::agent_conversations_model::AgentConversationsModel;
 use crate::ai::blocklist::agent_view::shortcuts::AgentShortcutViewModel;
 use crate::ai::blocklist::agent_view::{AgentViewEntryOrigin, EphemeralMessageModel};
 use crate::ai::blocklist::block::cli_controller::CLISubagentController;
@@ -96,8 +95,6 @@ use crate::ASSETS;
 #[cfg(feature = "local_fs")]
 use crate::code::editor_management::CodeSource;
 
-use crate::ai::ambient_agents::AttachmentInput;
-use crate::ai::attachment_utils::MAX_ATTACHMENT_SIZE_BYTES;
 use crate::ai::block_context::BlockContext;
 use crate::ai::blocklist::AttachmentType;
 use crate::ai::mcp::TemplatableMCPServerManager;
@@ -141,7 +138,6 @@ use objects::Space;
 
 use crate::terminal::shared_session::protocol::ParticipantId;
 use ai::skills::SkillReference;
-use base64::Engine as _;
 #[cfg(feature = "local_fs")]
 use diesel::SqliteConnection;
 use futures::FutureExt as _;
@@ -233,7 +229,6 @@ use super::{
         UniversalDeveloperInputButtonBar, UniversalDeveloperInputButtonBarEvent,
     },
     view::{
-        ambient_agent::AmbientAgentViewModel,
         inline_banner::{
             PromptSuggestionBannerState, ZeroStatePromptSuggestionTriggeredFrom,
             ZeroStatePromptSuggestionType,
@@ -247,7 +242,6 @@ use super::{
 use crate::ai::blocklist::agent_view::{
     AgentInputFooter, AgentInputFooterEvent, AgentViewController,
 };
-use crate::terminal::view::ambient_agent::{HarnessSelector, HostSelector, NakedHeaderButtonTheme};
 use async_channel::Sender;
 use futures::stream::AbortHandle;
 use parking_lot::FairMutex;
@@ -878,12 +872,6 @@ pub enum Event {
         origin: AgentViewEntryOrigin,
     },
     CreateDockerSandbox,
-    /// Exit ambient agent and start a new *local* agent conversation in the root terminal.
-    ///
-    /// If `initial_prompt` is `Some`, it should prefill the local agent prompt but not auto-send.
-    ExitAmbientAgentAndStartLocalAgent {
-        initial_prompt: Option<String>,
-    },
     ScrollToExchange {
         exchange_id: AIAgentExchangeId,
     },
@@ -1354,13 +1342,6 @@ pub struct Input {
 
     agent_input_footer: ViewHandle<AgentInputFooter>,
 
-    harness_selector: ViewHandle<HarnessSelector>,
-    /// 拦截配置栏 (issue #13):InterceptMode 切换 + block 计数 + Upstream 面板。
-    #[cfg(not(target_family = "wasm"))]
-    intercept_bar: ViewHandle<crate::terminal::view::ambient_agent::InterceptConfigBar>,
-
-    host_selector: Option<ViewHandle<HostSelector>>,
-
     prompt_suggestions_view: ViewHandle<PromptSuggestionsView>,
 
     inline_slash_commands_view: ViewHandle<InlineSlashCommandView>,
@@ -1412,7 +1393,6 @@ pub struct Input {
     agent_status_view: ViewHandle<BlocklistAIStatusBar>,
     agent_view_controller: ModelHandle<AgentViewController>,
     agent_shortcut_view_model: ModelHandle<AgentShortcutViewModel>,
-    ambient_agent_view_model: ModelHandle<AmbientAgentViewModel>,
     ephemeral_message_model: ModelHandle<EphemeralMessageModel>,
 
     /// When a command is executed from a prompt chip (e.g. `cd` from the directory dropdown),
@@ -1759,7 +1739,6 @@ impl Input {
         current_repo_path: Option<PathBuf>,
         model_events: ModelHandle<crate::terminal::model_events::ModelEventDispatcher>,
         agent_view_controller: ModelHandle<AgentViewController>,
-        ambient_agent_view_model: ModelHandle<AmbientAgentViewModel>,
         active_session: ModelHandle<ActiveSession>,
         ephemeral_message_model: ModelHandle<EphemeralMessageModel>,
         ctx: &mut ViewContext<Self>,
@@ -1786,7 +1765,6 @@ impl Input {
             model_events: model_events.clone(),
             is_shared_session_viewer,
             agent_view_controller: agent_view_controller.clone(),
-            ambient_agent_view_model: Some(ambient_agent_view_model.clone()),
         };
 
         let prompt_view = ctx.add_typed_action_view(|ctx| {
@@ -1827,7 +1805,7 @@ impl Input {
         });
         ctx.subscribe_to_model(&agent_view_controller, |me, _, event, ctx| {
             use crate::ai::blocklist::agent_view::AgentViewControllerEvent;
-            if let AgentViewControllerEvent::EnteredAgentView { origin, .. } = event {
+            if let AgentViewControllerEvent::EnteredAgentView { .. } = event {
                 me.close_suggestion_modes_for_new_conversation(ctx);
                 // Entering Agent View can remove multiline same-line prompt decorator content in a
                 // single render pass. Reset shrink-delay so we don't hold onto stale input height
@@ -1836,29 +1814,8 @@ impl Input {
                     editor.reset_height_shrink_delay(ctx);
                 });
 
-                if *origin == AgentViewEntryOrigin::AmbientAgent {
-                    // By default, shared session viewers cannot edit the input - override that for composing ambient agent queries.
-                    me.editor.update(ctx, |editor, ctx| {
-                        editor.set_interaction_state(InteractionState::Editable, ctx);
-                    });
-                    me.set_zero_state_hint_text(ctx);
-                }
             }
             ctx.notify();
-        });
-
-        ctx.subscribe_to_model(&ambient_agent_view_model, |me, handle, _, ctx| {
-            let is_ambient = handle.as_ref(ctx).is_ambient_agent();
-            me.editor.update(ctx, |editor, ctx| {
-                if let Some(ai_context_menu) = editor.ai_context_menu() {
-                    ai_context_menu.update(ctx, |menu, ctx| {
-                        menu.set_is_in_ambient_agent(is_ambient, ctx);
-                    });
-                }
-            });
-            if handle.as_ref(ctx).should_show_status_footer() {
-                ctx.notify();
-            }
         });
 
         let prompt_selection_state_handle = SelectionHandle::default();
@@ -1874,7 +1831,6 @@ impl Input {
                 terminal_view_id,
                 ai_input_model.clone(),
                 cli_subagent_controller.clone(),
-                ambient_agent_view_model.clone(),
                 model.clone(),
                 ctx,
             )
@@ -1891,41 +1847,11 @@ impl Input {
                 terminal_view_id,
                 ai_input_model.clone(),
                 model.clone(),
-                ambient_agent_view_model.clone(),
                 current_prompt.clone(),
                 footer_display_chip_config.clone(),
                 ctx,
             )
         });
-
-        let harness_selector = ctx.add_typed_action_view(|ctx| {
-            HarnessSelector::new(
-                menu_positioning_provider.clone(),
-                ambient_agent_view_model.clone(),
-                ctx,
-            )
-        });
-
-        #[cfg(not(target_family = "wasm"))]
-        let intercept_bar = ctx.add_typed_action_view(|ctx| {
-            crate::terminal::view::ambient_agent::InterceptConfigBar::new(
-                menu_positioning_provider.clone(),
-                ambient_agent_view_model.clone(),
-                ctx,
-            )
-        });
-
-        let host_selector = if false {
-            let view = ctx.add_typed_action_view(|ctx| {
-                HostSelector::new(menu_positioning_provider.clone(), ctx)
-            });
-            harness_selector.update(ctx, |selector, ctx| {
-                selector.set_button_theme(NakedHeaderButtonTheme, ctx);
-            });
-            Some(view)
-        } else {
-            None
-        };
 
         ctx.subscribe_to_view(&agent_input_footer, |me, _, event, ctx| {
             match event {
@@ -2009,8 +1935,6 @@ impl Input {
                 AgentInputFooterEvent::PluginInstalled(agent) => {
                     ctx.emit(Event::RegisterPluginListener(*agent));
                 }
-                // Dais Wave 7-3:`AgentInputFooterEvent::OpenEnvironmentManagementPane` handler
-                // 随 ambient-agent UI 子系统物理删。
                 #[cfg(not(target_family = "wasm"))]
                 AgentInputFooterEvent::OpenPluginInstructionsPane(agent, kind) => {
                     ctx.emit(Event::OpenPluginInstructionsPane(*agent, *kind));
@@ -2792,7 +2716,6 @@ impl Input {
                 &model_events,
                 model.clone(),
                 agent_shortcut_view_model.clone(),
-                ambient_agent_view_model.clone(),
                 suggestions_mode_model.clone(),
                 slash_command_model.clone(),
                 ephemeral_message_model.clone(),
@@ -2880,12 +2803,7 @@ impl Input {
             agent_status_view,
             agent_view_controller,
             agent_input_footer,
-            harness_selector,
-            #[cfg(not(target_family = "wasm"))]
-            intercept_bar,
-            host_selector,
             agent_shortcut_view_model,
-            ambient_agent_view_model,
             slash_command_data_source,
             ephemeral_message_model,
             input_contents_before_prompt_chip_command: None,
@@ -4278,8 +4196,7 @@ impl Input {
             })
             .count();
 
-        // Image context is available whenever the feature flag is enabled and we're in AI input
-        // mode, including ambient-agent mode
+        // Image context is available whenever the feature flag is enabled and we're in AI input mode.
         let image_context_options = if FeatureFlag::ImageAsContext.is_enabled()
             && matches!(ai_input_model.input_type(), InputType::AI)
         {
@@ -7230,15 +7147,6 @@ impl Input {
             }
         }
 
-        if let Some(task) = AgentConversationsModel::as_ref(ctx)
-            .tasks_iter()
-            .find(|task| task.conversation_id.as_deref() == Some(conversation_id))
-        {
-            return AIAgentAttachment::PlainText(format!(
-                "Conversation: {}\n\nPrompt:\n{}",
-                task.title, task.prompt
-            ));
-        }
 
         AIAgentAttachment::PlainText(format!(
             "Conversation: {title}\n\nConversation token: {conversation_id}"
@@ -10087,8 +9995,6 @@ impl Input {
             ctx.emit(Event::SubmitCLIAgentInput { text });
             return;
         }
-        let command = self.editor.as_ref(ctx).buffer_text(ctx);
-
         ctx.emit(Event::Enter);
 
         if self
@@ -10207,94 +10113,6 @@ impl Input {
                 );
             }
 
-            // Check if we're configuring an ambient agent and spawn it instead of submitting a regular AI query.
-            if self
-                .ambient_agent_view_model
-                .as_ref(ctx)
-                .is_configuring_ambient_agent()
-            {
-                let prompt = command.trim().to_owned();
-                if prompt.is_empty() {
-                    return;
-                }
-
-                // Collect pending files for the spawn request. Cloud mode image attachments are disabled in Dais.
-                let attachments: Vec<AttachmentInput> = if false {
-                    let mut inputs: Vec<AttachmentInput> = self
-                        .ai_context_model
-                        .as_ref(ctx)
-                        .pending_images()
-                        .iter()
-                        .map(|image| AttachmentInput {
-                            file_name: image.file_name.clone(),
-                            mime_type: image.mime_type.clone(),
-                            data: image.data.clone(),
-                        })
-                        .collect();
-
-                    let mut skipped_files: Vec<String> = Vec::new();
-                    for file in self.ai_context_model.as_ref(ctx).pending_files() {
-                        match std::fs::read(&file.file_path) {
-                            Ok(bytes) => {
-                                if bytes.len() > MAX_ATTACHMENT_SIZE_BYTES {
-                                    skipped_files.push(file.file_name.clone());
-                                    continue;
-                                }
-                                inputs.push(AttachmentInput {
-                                    file_name: file.file_name.clone(),
-                                    mime_type: file.mime_type.clone(),
-                                    data: base64::engine::general_purpose::STANDARD.encode(&bytes),
-                                });
-                            }
-                            Err(e) => {
-                                log::error!(
-                                    "Failed to read file {}: {e}",
-                                    file.file_path.display()
-                                );
-                            }
-                        }
-                    }
-
-                    if !skipped_files.is_empty() {
-                        let window_id = ctx.window_id();
-                        let message = if skipped_files.len() == 1 {
-                            format!(
-                                "{} was not attached — exceeds 10MB limit.",
-                                skipped_files[0]
-                            )
-                        } else {
-                            format!(
-                                "{} files were not attached — exceed 10MB limit.",
-                                skipped_files.len()
-                            )
-                        };
-                        ToastStack::handle(ctx).update(ctx, |ts, ctx| {
-                            ts.add_ephemeral_toast(
-                                DismissibleToast::error(message),
-                                window_id,
-                                ctx,
-                            );
-                        });
-                    }
-
-                    inputs
-                } else {
-                    vec![]
-                };
-
-                // Clear the buffer and pending attachments after collecting them.
-                self.editor.update(ctx, |editor, ctx| {
-                    editor.clear_buffer(ctx);
-                });
-                self.ai_context_model.update(ctx, |context_model, ctx| {
-                    context_model.clear_pending_attachments(ctx);
-                });
-
-                self.ambient_agent_view_model.update(ctx, |state, ctx| {
-                    state.spawn_agent(prompt, attachments, ctx);
-                });
-                return;
-            }
 
             self.submit_ai_query(None, ctx);
         } else {
@@ -10409,20 +10227,6 @@ impl Input {
                 if FeatureFlag::AgentView.is_enabled()
                     && self.maybe_handle_cmd_or_ctrl_shift_enter_for_slash_command(ctx)
                 {
-                    return;
-                }
-                // In ambient agent, Cmd+Enter should exit ambient-agent session entirely and start a
-                // new *local* agent conversation in the root terminal. This should work whether the
-                // buffer is empty (blank convo) or non-empty (prefill draft, but don't auto-send).
-                if self.ambient_agent_view_model.as_ref(ctx).is_ambient_agent() {
-                    let mut draft = self.editor.as_ref(ctx).buffer_text(ctx);
-                    // Normalize draft for empty-checks and for prefill.
-                    draft.truncate(draft.trim_end().len());
-
-                    let is_empty = draft.trim().is_empty();
-                    ctx.emit(Event::ExitAmbientAgentAndStartLocalAgent {
-                        initial_prompt: (!is_empty).then_some(draft),
-                    });
                     return;
                 }
 
@@ -12031,14 +11835,7 @@ impl View for Input {
             .agent_input_footer
             .as_ref(app)
             .is_model_selector_open(app);
-        let is_v2_model_selector_open = self
-            .agent_input_footer
-            .as_ref(app)
-            .is_v2_model_selector_open(app);
-        if is_profile_model_selector_open
-            || is_agent_footer_model_selector_open
-            || is_v2_model_selector_open
-        {
+        if is_profile_model_selector_open || is_agent_footer_model_selector_open {
             ctx.set.insert("ProfileModelSelectorOpen");
         }
 

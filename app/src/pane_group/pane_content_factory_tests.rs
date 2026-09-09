@@ -3,12 +3,11 @@
 //!
 //! 1. restore 幂等:注入记录型工厂,同一 `LeafContents` 两次 restore 产生
 //!    相同的 pane 类型序列(工厂无隐藏状态、同输入同输出)。
-//! 2. `is_persisted` 真值表:对 `LeafContents` 全部 13 个变体逐一断言持久化
+//! 2. `is_persisted` 真值表:对 `LeafContents` 全部 12 个变体逐一断言持久化
 //!    与否(含 `Code` 变体的 `source.is_restorable()` 细分),防止未来新增
 //!    变体漏标 —— 漏标会在保存端留下孤儿 `pane_nodes` 行导致整 tab 丢失。
 
 use super::*;
-use crate::app_state::AmbientAgentPaneSnapshot;
 use crate::code::buffer_location::RemotePath;
 use crate::code::editor_management::CodeSource;
 use crate::app_state::{CodePaneTabSnapshot, TerminalPaneSnapshot};
@@ -70,7 +69,6 @@ impl PaneContentFactory for RecordingFactory {
         _ctx: &mut ViewContext<PaneGroup>,
         _pane_contents: &mut HashMap<PaneId, Box<dyn AnyPaneContent>>,
         _deferred_panes: &mut Vec<(PaneId, LeafSnapshot)>,
-        _pending_ambient_restorations: &mut Vec<(AmbientAgentTaskId, PaneId)>,
     ) -> anyhow::Result<(PaneData, InitialFocus)> {
         let pane_type = match &leaf.contents {
             LeafContents::Terminal(_) => "Terminal",
@@ -81,7 +79,6 @@ impl PaneContentFactory for RecordingFactory {
             LeafContents::Notebook(_) => "Notebook",
             LeafContents::AIDocument(_) => "AIDocument",
             LeafContents::ExecutionProfileEditor => "ExecutionProfileEditor(unrestorable)",
-            LeafContents::AmbientAgent(_) => "Terminal",
             _ => "unrestorable",
         };
         self.calls.borrow_mut().push(pane_type);
@@ -182,7 +179,6 @@ fn assert_restore_idempotent(contents: LeafContents) {
                     let mut pane_contents: HashMap<PaneId, Box<dyn AnyPaneContent>> =
                         HashMap::new();
                     let mut deferred_panes: Vec<(PaneId, LeafSnapshot)> = Vec::new();
-                    let mut pending: Vec<(AmbientAgentTaskId, PaneId)> = Vec::new();
                     let leaf = make_leaf();
                     let result = PaneContentFactory::restore_leaf(
                         factory,
@@ -191,7 +187,6 @@ fn assert_restore_idempotent(contents: LeafContents) {
                         ctx,
                         &mut pane_contents,
                         &mut deferred_panes,
-                        &mut pending,
                     );
                     (result, deferred_panes)
                 };
@@ -354,14 +349,6 @@ fn leaf_contents_is_persisted_truth_table_covers_all_variants() {
         })
         .is_persisted()
     );
-    assert!(
-        LeafContents::AmbientAgent(AmbientAgentPaneSnapshot {
-            uuid: vec![1],
-            task_id: None,
-        })
-        .is_persisted()
-    );
-
     // 不持久化: false 组
     assert!(!LeafContents::Image { path: None }.is_persisted());
     assert!(

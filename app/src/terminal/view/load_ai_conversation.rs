@@ -79,9 +79,6 @@ pub enum ConversationRestorationInNewPaneType {
     Historical {
         conversation: AIConversation,
         should_use_live_appearance: bool,
-        /// The ambient agent task ID, if this is an ambient agent conversation.
-        /// Used to display the session ended tombstone.
-        ambient_agent_task_id: Option<crate::ai::ambient_agents::AmbientAgentTaskId>,
     },
 
     /// Fork an existing conversation into this new pane.
@@ -1115,7 +1112,6 @@ impl TerminalView {
                 params.ai_context_model,
                 params.find_model,
                 params.active_session,
-                self.ambient_agent_view_model.clone(),
                 &params.cli_subagent_controller,
                 &params.model_events_handle,
                 self.agent_view_controller.clone(),

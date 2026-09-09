@@ -326,11 +326,8 @@ impl TerminalView {
             }
         }
 
-        // Don't show the use agent footer during LRCs in setup phase of ambient agent sessions.
-        let is_shared_ambient_session = model.is_shared_ambient_agent_session();
-
         !self.is_input_box_visible(model, app)
-            && ((active_block.is_eligible_to_tag_in_agent() && !is_shared_ambient_session)
+            && (active_block.is_eligible_to_tag_in_agent()
                 || active_block.is_eligible_for_agent_handoff())
     }
 

@@ -6,7 +6,17 @@ use warpui::{prelude::ChildView, Element, EntityId, View, ViewContext, ViewHandl
 use crate::{
     ai::{ agent::{conversation::AIConversationId, AIAgentExchangeId}, blocklist::{agent_view::AgentViewEntryOrigin, AIBlock}, },
     env_vars::env_var_collection_block::EnvVarCollectionBlock,
-    terminal::{ block_list_viewport::ScrollPositionUpdate, ssh::{error::SshErrorBlock, install_tmux::SshInstallTmuxBlock, warpify::SshWarpifyBlock}, view::{ ambient_agent::AmbientAgentEntryBlock, block_onboarding::onboarding_agentic_suggestions_block::OnboardingAgenticSuggestionsBlock, ssh_remote_server_choice_view::SshRemoteServerChoiceView, ssh_remote_server_failed_banner::SshRemoteServerFailedBanner, }, warpify::success_block::WarpifySuccessBlock, TerminalView, },
+    terminal::{
+        block_list_viewport::ScrollPositionUpdate,
+        ssh::{error::SshErrorBlock, install_tmux::SshInstallTmuxBlock, warpify::SshWarpifyBlock},
+        view::{
+            block_onboarding::onboarding_agentic_suggestions_block::OnboardingAgenticSuggestionsBlock,
+            ssh_remote_server_choice_view::SshRemoteServerChoiceView,
+            ssh_remote_server_failed_banner::SshRemoteServerFailedBanner,
+        },
+        warpify::success_block::WarpifySuccessBlock,
+        TerminalView,
+    },
 };
 
 /// Specifies where to insert rich content in the blocklist.
@@ -212,9 +222,6 @@ pub enum RichContentMetadata {
         bootstrap_success_block_handle: ViewHandle<WarpifySuccessBlock>,
     },
     AgentViewEntry(AgentViewEntryMetadata),
-    AmbientAgentBlock {
-        block_handle: ViewHandle<AmbientAgentEntryBlock>,
-    },
     InlineAgentViewHeader,
     AgentViewZeroState,
     TerminalViewZeroState,

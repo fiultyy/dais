@@ -1,9 +1,7 @@
 use std::path::PathBuf;
 
-use crate::ai::agent::api::ServerConversationToken;
 use crate::ai::agent::conversation::AIConversationId;
 use crate::ai::agent::AIAgentExchangeId;
-use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::document::ai_document_model::{AIDocumentId, AIDocumentVersion};
 use crate::auth::LoginGatedFeature;
 use crate::palette::PaletteMode;
@@ -522,17 +520,6 @@ pub enum WorkspaceAction {
         conversation_id: AIConversationId,
         terminal_view_id: Option<EntityId>,
     },
-    /// Open an ambient agent session by joining its shared session.
-    /// Used when the sandbox is running or when we need to view a live session.
-    OpenAmbientAgentSession {
-        task_id: AmbientAgentTaskId,
-    },
-    /// Load conversation data into a transcript viewer.
-    /// Used for persisted view-only conversations.
-    OpenConversationTranscriptViewer {
-        conversation_id: ServerConversationToken,
-        ambient_agent_task_id: Option<AmbientAgentTaskId>,
-    },
     /// Toggle the conversation transcript details panel (WASM-only).
     #[cfg(target_family = "wasm")]
     ToggleConversationTranscriptDetailsPanel,
@@ -776,8 +763,6 @@ impl WorkspaceAction {
             | ShowRewindConfirmationDialog { .. }
             | ExecuteRewindAIConversation { .. }
             | ExecuteDeleteConversation { .. }
-            | OpenAmbientAgentSession { .. }
-            | OpenConversationTranscriptViewer { .. }
             | OpenLightbox { .. }
             | ShowSessionConfigModal
             | DismissSessionConfigTabConfigChip

@@ -92,13 +92,6 @@ impl TerminalView {
         Some(self.shared_session.as_ref()?.source_type())
     }
 
-    pub(crate) fn is_shared_session_for_ambient_agent(&self) -> bool {
-        matches!(
-            self.shared_session_source_type(),
-            Some(SessionSourceType::AmbientAgent { .. })
-        )
-    }
-
     fn handle_participant_avatar_event(
         &mut self,
         event: &ParticipantAvatarEvent,
@@ -325,7 +318,6 @@ impl TerminalView {
         });
 
         // Mark this terminal as a viewer for chips and AI context menu once on join
-        let is_ambient = self.ambient_agent_view_model.as_ref(ctx).is_ambient_agent();
         self.input().update(ctx, |input, ctx| {
             input
                 .prompt_render_helper
@@ -338,7 +330,6 @@ impl TerminalView {
                 if let Some(ai_context_menu) = editor.ai_context_menu() {
                     ai_context_menu.update(ctx, |menu, ctx| {
                         menu.set_is_shared_session_viewer(true, ctx);
-                        menu.set_is_in_ambient_agent(is_ambient, ctx);
                     });
                 }
             });
@@ -500,18 +491,6 @@ impl TerminalView {
     /// (2) After the second interval, we show a warning modal
     /// (3) After the third interval, we end the session
     pub fn reset_sharer_inactivity_timer(&mut self, ctx: &mut ViewContext<Self>) {
-        // For ambient agent shared sessions, we do not auto-revoke roles or end the
-        // session due to inactivity. Clear any existing timer and return early so
-        // the session stays open until explicitly closed.
-        if self.model.lock().is_shared_ambient_agent_session() {
-            if let Some(sharer) = self.shared_session_sharer_mut() {
-                if let Some(old_abort_handle) = sharer.inactivity_timer_abort_handle.take() {
-                    old_abort_handle.abort();
-                }
-            }
-            return;
-        }
-
         let Some(sharer) = self.shared_session_sharer_mut() else {
             return;
         };
@@ -1008,11 +987,10 @@ impl TerminalView {
     }
 
     pub fn insert_conversation_ended_tombstone(&mut self, ctx: &mut ViewContext<Self>) {
-        let task_id = self.model.lock().ambient_agent_task_id();
         let terminal_view_id = self.id();
 
         let tombstone_view_handle = ctx.add_typed_action_view(|ctx| {
-            ConversationEndedTombstoneView::new(ctx, terminal_view_id, task_id)
+            ConversationEndedTombstoneView::new(ctx, terminal_view_id)
         });
         self.insert_rich_content(
             None,
@@ -1023,7 +1001,6 @@ impl TerminalView {
             },
             ctx,
         );
-        self.has_inserted_conversation_ended_tombstone = true;
     }
 
     /// Updates shared session reconnection banner, participant avatars and
@@ -1110,33 +1087,29 @@ impl TerminalView {
     }
 
     /// Returns true if viewer-driven sizing should be active.
-    /// For ambient-agent sessions, the same-user identity check is skipped.
-    /// Otherwise, conditions: exactly 1 viewer, and that viewer is the same user as the sharer.
+    /// Conditions: exactly 1 viewer, and that viewer is the same user as the sharer.
     pub(crate) fn is_viewer_driven_sizing_eligible(
         &self,
         is_sharer: bool,
         ctx: &ViewContext<Self>,
     ) -> bool {
-        let skip_uid_check = self.is_shared_session_for_ambient_agent();
         self.shared_session_presence_manager()
             .map(|manager| {
                 let manager = manager.as_ref(ctx);
                 if is_sharer {
                     let one_viewer = manager.present_viewer_count() == 1;
                     one_viewer
-                        && (skip_uid_check
-                            || manager.get_present_viewers().all(|v| {
-                                v.info.profile_data.user_uid == manager.user_uid().as_string()
-                            }))
+                        && manager.get_present_viewers().all(|v| {
+                            v.info.profile_data.user_uid == manager.user_uid().as_string()
+                        })
                 } else {
                     // We are a viewer — we must be the only viewer and the sharer must be us.
                     // (present_viewer_count() excludes ourselves)
                     let only_viewer = manager.present_viewer_count() == 0;
                     only_viewer
-                        && (skip_uid_check
-                            || manager.get_sharer().is_some_and(|s| {
-                                s.info.profile_data.user_uid == manager.user_uid().as_string()
-                            }))
+                        && manager.get_sharer().is_some_and(|s| {
+                            s.info.profile_data.user_uid == manager.user_uid().as_string()
+                        })
                 }
             })
             .unwrap_or(false)
@@ -1147,21 +1120,6 @@ impl TerminalView {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn restore_pty_to_sharer_size(&mut self, ctx: &mut ViewContext<Self>) {
         self.active_viewer_driven_size = None;
-        self.refresh_size(ctx);
-    }
-
-    /// Forces a fresh viewer-size report to the sharer by clearing the dedup cache and
-    /// refreshing size. No-op when not an active viewer or when viewer-driven sizing is
-    /// not eligible. Used when a new process (e.g. the harness CLI starting for a non-oz
-    /// ambient-agent run) needs the sharer to resize its PTY so the new process picks up
-    /// correct terminal dimensions at startup.
-    pub(in crate::terminal::view) fn force_report_viewer_terminal_size(
-        &mut self,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        if let Some(viewer) = self.shared_session_viewer_mut() {
-            viewer.last_reported_natural_size = None;
-        }
         self.refresh_size(ctx);
     }
 

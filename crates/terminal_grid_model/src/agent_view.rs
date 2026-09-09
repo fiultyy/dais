@@ -96,11 +96,6 @@ pub enum AgentViewEntryOrigin {
     AcceptedPassiveCodeDiff,
     /// Entered agent view by starting conversation with an inline code review submission.
     InlineCodeReview,
-    /// Entered agent view through an ambient agent prompt.
-    AmbientAgent,
-    /// Entered agent view by opening an existing non-Oz ambient agent run (live shared-session
-    /// viewer or transcript viewer).
-    ExternalAmbientAgent,
     /// Entered agent view via the CLI (e.g. `warp agent run`).
     Cli,
     /// Entered agent view by adding an image (drag-and-drop or paste).
@@ -164,10 +159,6 @@ pub enum AutoTriggerBehavior {
 }
 
 impl AgentViewEntryOrigin {
-    pub fn is_ambient_agent(&self) -> bool {
-        matches!(self, Self::AmbientAgent)
-    }
-
     pub fn should_autotrigger_request(&self) -> AutoTriggerBehavior {
         match self {
             AgentViewEntryOrigin::Input {

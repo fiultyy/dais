@@ -1,7 +1,4 @@
-use crate::ai::agent::conversation::AIConversationId;
-use crate::ai::ambient_agents::{
-    conversation_output_status_from_conversation, AmbientAgentTaskId, AmbientConversationStatus,
-};
+use crate::ai::agent::conversation::{AIConversationId, ConversationStatus};
 use crate::ai::artifacts::{Artifact, ArtifactButtonsRow, ArtifactButtonsRowEvent};
 use crate::ai::blocklist::{format_credits, BlocklistAIHistoryModel};
 use crate::appearance::Appearance;
@@ -12,12 +9,8 @@ use crate::view_components::action_button::{ActionButton, PrimaryTheme};
 use crate::workspace::WorkspaceAction;
 use crate::workspaces::user_workspaces::UserWorkspaces;
 use std::path::Path;
-#[cfg(not(target_family = "wasm"))]
-use warp_cli::agent::Harness;
 use warp_core::paths::home_relative_path;
 
-#[cfg(not(target_family = "wasm"))]
-use crate::ai::ambient_agents::AmbientAgentTask;
 use warp_core::ui::icons::Icon;
 use warp_core::ui::theme::{AnsiColorIdentifier, Fill};
 use warpui::elements::{
@@ -37,10 +30,6 @@ struct TombstoneDisplayData {
     is_error: bool,
     error_message: Option<String>,
     conversation_is_transcript: bool,
-    /// Source of the task (Linear, Slack, etc.) - only for ambient agent tasks
-    source: Option<String>,
-    /// Skill/config name - only for ambient agent tasks
-    skill_name: Option<String>,
     /// Run time as formatted string
     run_time: Option<String>,
     /// Credits spent
@@ -49,23 +38,18 @@ struct TombstoneDisplayData {
     working_directory: Option<String>,
     /// Artifacts from the conversation
     artifacts: Vec<Artifact>,
-    /// 在可从本地数据获得时记录任务执行 harness。
-    #[cfg(not(target_family = "wasm"))]
-    harness: Option<Harness>,
 }
 
 impl TombstoneDisplayData {
     fn from_conversation(
         conversation_id: AIConversationId,
         terminal_view_id: EntityId,
-        has_task_id: bool,
         ctx: &ViewContext<ConversationEndedTombstoneView>,
     ) -> Self {
         let history_model = BlocklistAIHistoryModel::handle(ctx);
-        let conversation_is_transcript = !has_task_id
-            && history_model
-                .as_ref(ctx)
-                .is_terminal_view_conversation_transcript_viewer(terminal_view_id);
+        let conversation_is_transcript = history_model
+            .as_ref(ctx)
+            .is_terminal_view_conversation_transcript_viewer(terminal_view_id);
         let conversation = history_model
             .as_ref(ctx)
             .all_live_conversations_for_terminal_view(terminal_view_id)
@@ -75,17 +59,12 @@ impl TombstoneDisplayData {
             return Self::default();
         };
 
-        let conversation_status = conversation_output_status_from_conversation(conversation);
-        let is_error = matches!(
-            conversation_status,
-            Some(AmbientConversationStatus::Error { .. })
-        );
-        let error_message = conversation_status
-            .as_ref()
-            .and_then(|status| match status {
-                AmbientConversationStatus::Error { error } => Some(error.to_string()),
-                _ => None,
-            });
+        let is_error = matches!(conversation.status(), ConversationStatus::Error);
+        let error_message = if is_error {
+            conversation.status_error_message().map(str::to_string)
+        } else {
+            None
+        };
 
         // Calculate run time from exchanges
         let run_time = (|| {
@@ -101,61 +80,10 @@ impl TombstoneDisplayData {
             is_error,
             error_message,
             conversation_is_transcript,
-            source: None,
-            skill_name: None,
             run_time,
             credits: Some(format_credits(conversation.credits_spent())),
             working_directory: conversation.initial_working_directory(),
             artifacts: conversation.artifacts().to_vec(),
-            #[cfg(not(target_family = "wasm"))]
-            harness: None,
-        }
-    }
-
-    /// 用 AmbientAgentTask 的数据补充展示信息。
-    #[cfg(not(target_family = "wasm"))]
-    fn enrich_from_task(&mut self, task: AmbientAgentTask) {
-        // Use task title if we don't have a conversation title.
-        if self.title.is_none() {
-            self.title = Some(task.title.clone());
-        }
-
-        if let Some(source) = &task.source {
-            self.source = Some(source.display_name().to_string());
-        }
-        if let Some(config) = &task.agent_config_snapshot {
-            self.skill_name = config.name.clone();
-            // Default to Oz when the snapshot exists but has no explicit harness.
-            self.harness = Some(
-                config
-                    .harness
-                    .as_ref()
-                    .map(|h| h.harness_type)
-                    .unwrap_or(Harness::Oz),
-            );
-        }
-
-        if task.state.is_failure_like() {
-            self.is_error = true;
-            if let Some(status_message) = &task.status_message {
-                self.error_message = Some(status_message.message.clone());
-            }
-        }
-
-        // We update to use the task values when we have them, which includes
-        // the full credit cost (inference + compute). This matches what we show in
-        // the details panel.
-        if let Some(run_time) = task.run_time() {
-            self.run_time = Some(human_readable_precise_duration(run_time));
-        }
-        if let Some(credits) = task.credits_used() {
-            self.credits = Some(format_credits(credits));
-        }
-
-        // Surface task artifacts (plans, PRs, files, screenshots) for third-party
-        // harness runs.
-        if !task.artifacts.is_empty() {
-            self.artifacts = task.artifacts;
         }
     }
 }
@@ -172,13 +100,7 @@ pub struct ConversationEndedTombstoneView {
 }
 
 impl ConversationEndedTombstoneView {
-    pub fn new(
-        ctx: &mut ViewContext<Self>,
-        terminal_view_id: EntityId,
-        #[cfg_attr(target_family = "wasm", allow(unused_variables))] task_id: Option<
-            AmbientAgentTaskId,
-        >,
-    ) -> Self {
+    pub fn new(ctx: &mut ViewContext<Self>, terminal_view_id: EntityId) -> Self {
         let conversation_id = BlocklistAIHistoryModel::handle(ctx)
             .as_ref(ctx)
             .all_live_conversations_for_terminal_view(terminal_view_id)
@@ -186,14 +108,7 @@ impl ConversationEndedTombstoneView {
             .map(|c| c.id());
 
         let display_data = conversation_id
-            .map(|id| {
-                TombstoneDisplayData::from_conversation(
-                    id,
-                    terminal_view_id,
-                    task_id.is_some(),
-                    ctx,
-                )
-            })
+            .map(|id| TombstoneDisplayData::from_conversation(id, terminal_view_id, ctx))
             .unwrap_or_default();
 
         let artifact_buttons_view =
@@ -360,14 +275,6 @@ impl ConversationEndedTombstoneView {
             parts.push(format!("Directory: {display_dir}"));
         }
 
-        if let Some(source) = &self.display_data.source {
-            parts.push(format!("Source: {source}"));
-        }
-
-        if let Some(skill) = &self.display_data.skill_name {
-            parts.push(format!("Skill: {skill}"));
-        }
-
         if let Some(run_time) = &self.display_data.run_time {
             parts.push(format!("Run time: {run_time}"));
         }
@@ -428,15 +335,8 @@ impl ConversationEndedTombstoneView {
 
         #[cfg(not(target_family = "wasm"))]
         {
-            // Hide for non-Oz harnesses (e.g. Claude, Gemini): they can't be
-            // forked into a local Dais conversation. Unknown harness (None) is
-            // treated as allowed so plain conversations and pre-load tasks still
-            // show the button.
-            let harness_allows_continue =
-                !matches!(self.display_data.harness, Some(h) if h != Harness::Oz);
             if self.continue_locally_button.is_some()
                 && AISettings::as_ref(app).is_any_ai_enabled(app)
-                && harness_allows_continue
             {
                 row.add_child(
                     ChildView::new(self.continue_locally_button.as_ref().unwrap()).finish(),
@@ -578,7 +478,3 @@ impl TypedActionView for ConversationEndedTombstoneView {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "conversation_ended_tombstone_view_tests.rs"]
-mod tests;

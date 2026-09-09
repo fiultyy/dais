@@ -18,7 +18,7 @@ use warpui::{r#async::FutureExt, AppContext, Entity, ModelContext, ModelHandle, 
 use crate::terminal::model::session::ExecuteCommandOptions;
 
 use crate::{
-    ai::ambient_agents::AmbientAgentTaskId,
+    ai::agent_sdk::LocalChildTaskId,
     pane_group::NewTerminalOptions,
     root_view::{open_new_with_workspace_source, NewWorkspaceSource},
     terminal::{ shared_session::IsSharedSessionCreator, shell::ShellType, TerminalView, },
@@ -36,7 +36,7 @@ pub(crate) struct TerminalDriverOptions {
     pub working_dir: PathBuf,
     pub env_vars: HashMap<OsString, OsString>,
     pub should_share: bool,
-    pub task_id: Option<AmbientAgentTaskId>,
+    pub task_id: Option<LocalChildTaskId>,
 }
 
 /// Events emitted by [`TerminalDriver`] for [`super::AgentDriver`] to react to.
@@ -127,18 +127,18 @@ impl TerminalDriver {
     /// Set up event subscriptions for an already-created terminal view.
     fn new(
         terminal_view: ViewHandle<TerminalView>,
-        task_id: Option<AmbientAgentTaskId>,
+        task_id: Option<LocalChildTaskId>,
         working_dir: PathBuf,
         ctx: &mut ModelContext<Self>,
     ) -> Self {
         let session_bootstrapped = Condition::new();
 
-        // 立即把 task_id 和附件下载目录写入 AI controller,供本地任务元数据和附件使用。
-        if let Some(tid) = task_id {
+        // 附件下载目录仍随任务启动写入 AI controller(仅真实任务运行;
+        // `create_from_existing_view` 无 task_id,不写)。
+        if task_id.is_some() {
             let attachments_dir = attachments_download_dir(&working_dir);
             terminal_view.update(ctx, |terminal, ctx| {
-                terminal.ai_controller().update(ctx, |controller, ctx| {
-                    controller.set_ambient_agent_task_id(Some(tid), ctx);
+                terminal.ai_controller().update(ctx, |controller, _ctx| {
                     controller.set_attachments_download_dir(attachments_dir);
                 });
             });

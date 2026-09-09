@@ -2086,7 +2086,6 @@ agent-tip-open-code-review = `/open-code-review` でコードレビューパネ�
 agent-tip-new-conversation = `/new` でクリーンなコンテキストで新しいエージェント会話を開始できます。
 agent-tip-compact = `/compact` で現在の会話を要約しコンテキストウィンドウの空きを確保できます。
 agent-tip-usage = `/usage` で現在の AI クレジット使用量を表示できます。
-agent-tip-oz-headless = `oz` コマンドで Oz エージェントをヘッドレスモードで実行できます。リモートマシンに便利です。
 agent-tip-selected-text-context = 選択したテキストを右クリックするとエージェントのコンテキストとして添付できます。
 agent-tip-project-rules = `AGENTS.md` または `CLAUDE.md` でプロジェクトスコープのルールを適用できます。
 agent-tip-url-context = URL を貼り付けるとそのウェブページをエージェントのコンテキストとして添付できます。

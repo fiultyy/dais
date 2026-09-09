@@ -8,8 +8,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 use warp_multi_agent_api::{self as api, response_event::stream_finished};
 
 use super::schema::{
-    active_mcp_servers, agent_conversations, agent_tasks, ai_document_panes, ambient_agent_panes,
-    app, blocks, code_pane_tabs, code_panes, commands, env_var_collection_panes, folders,
+    active_mcp_servers, agent_conversations, agent_tasks, ai_document_panes, app, blocks,
+    code_pane_tabs, code_panes, commands, env_var_collection_panes, folders,
     generic_string_objects, ignored_suggestions, mcp_environment_variables,
     mcp_server_installations, mcp_server_panes, notebook_panes, notebooks, pane_branches,
     pane_leaves, pane_nodes, panels, server_experiments, settings_panes, ssh_nodes,
@@ -335,9 +335,6 @@ pub const EXECUTION_PROFILE_EDITOR_PANE_KIND: &str = "execution_profile_editor";
 /// The [`pane_leaves::kind`] value for AI document panes.
 pub const AI_DOCUMENT_PANE_KIND: &str = "ai_document";
 
-/// The [`pane_leaves::kind`] value for ambient agent (cloud mode) panes.
-pub const AMBIENT_AGENT_PANE_KIND: &str = "ambient_agent";
-
 #[derive(Insertable)]
 #[diesel(table_name = terminal_panes)]
 pub struct NewTerminalPane {
@@ -406,24 +403,6 @@ pub struct NewSettingsPane {
 #[diesel(table_name = mcp_server_panes)]
 pub struct NewMCPServerPane {
     pub id: i32,
-}
-
-#[derive(Identifiable, Queryable, Selectable)]
-#[diesel(table_name = ambient_agent_panes)]
-#[diesel(primary_key(id))]
-pub struct AmbientAgentPane {
-    pub id: i32,
-    pub kind: String,
-    pub uuid: Vec<u8>,
-    pub task_id: Option<String>,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = ambient_agent_panes)]
-pub struct NewAmbientAgentPane {
-    pub id: i32,
-    pub uuid: Vec<u8>,
-    pub task_id: Option<String>,
 }
 
 #[derive(Insertable)]

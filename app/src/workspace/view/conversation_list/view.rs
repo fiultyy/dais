@@ -321,7 +321,7 @@ impl ConversationListView {
         self.list_items.get(index)
     }
 
-    /// Finds the flat index of a conversation or task by ID, or None if not found.
+    /// Finds the flat index of a conversation by ID, or None if not found.
     fn get_index_of_conversation_id(&self, conversation_id: ConversationOrTaskId) -> Option<usize> {
         self.list_items.iter().position(|item| match item {
             ListItem::Conversation(entry) => entry.id == conversation_id,
@@ -460,7 +460,7 @@ impl ConversationListView {
         self.focus_query_editor(ctx);
     }
 
-    /// Send telemetry for opening a conversation or task
+    /// Send telemetry for opening a conversation
     fn send_open_telemetry(_id: &ConversationOrTaskId, _ctx: &mut ViewContext<Self>) {}
 
     /// Activate the currently selected item by dispatching the appropriate WorkspaceAction
@@ -543,7 +543,7 @@ impl ConversationListView {
 }
 
 /// Renders the zero state for the conversation list view
-/// (i.e. when there are no local or ambient conversations).
+/// (i.e. when there are no local conversations).
 fn render_zero_state(
     zero_state_button_mouse_state: MouseStateHandle,
     app: &AppContext,
@@ -778,64 +778,43 @@ impl TypedActionView for ConversationListView {
                     });
 
                     let conversation_id = *conversation_id;
-                    let is_ambient_agent_conversation =
-                        matches!(conversation_id, ConversationOrTaskId::TaskId(_));
 
-                    let mut delete_item =
-                        MenuItemFields::new(crate::t!("workspace-conversation-list-delete"))
-                            .with_override_text_color(Appearance::as_ref(ctx).theme().ansi_fg_red())
-                            .with_on_select_action(
-                                ConversationListViewAction::DeleteFromOverflowMenu {
-                                    conversation_id,
-                                },
-                            )
-                            .with_disabled(is_ambient_agent_conversation);
-                    if is_ambient_agent_conversation {
-                        delete_item = delete_item.with_tooltip(crate::t!(
-                            "workspace-conversation-list-delete-ambient-tooltip"
-                        ));
-                    }
+                    let delete_item = MenuItemFields::new(crate::t!(
+                        "workspace-conversation-list-delete"
+                    ))
+                    .with_override_text_color(Appearance::as_ref(ctx).theme().ansi_fg_red())
+                    .with_on_select_action(ConversationListViewAction::DeleteFromOverflowMenu {
+                        conversation_id,
+                    });
 
                     // Dais Phase 2a: conversation share menu item removed
                     // (cloud-conversation sharing was already retired upstream).
 
-                    let fork_items: Option<[MenuItem<ConversationListViewAction>; 2]> =
-                        // Forking from a closed ambient agent conversation is not supported at this point.
-                        if !is_ambient_agent_conversation {
-                            Some([
-                                MenuItemFields::new(crate::t!(
-                                    "workspace-conversation-list-fork-new-pane"
-                                ))
-                                    .with_on_select_action(
-                                        ConversationListViewAction::ForkConversation {
-                                            conversation_id,
-                                            destination: ForkedConversationDestination::SplitPane,
-                                        },
-                                    )
-                                    .into_item(),
-                                MenuItemFields::new(crate::t!(
-                                    "workspace-conversation-list-fork-new-tab"
-                                ))
-                                    .with_on_select_action(
-                                        ConversationListViewAction::ForkConversation {
-                                            conversation_id,
-                                            destination: ForkedConversationDestination::NewTab,
-                                        },
-                                    )
-                                    .into_item(),
-                            ])
-                        } else {
-                            None
-                        };
+                    let fork_items: [MenuItem<ConversationListViewAction>; 2] = [
+                        MenuItemFields::new(crate::t!(
+                            "workspace-conversation-list-fork-new-pane"
+                        ))
+                            .with_on_select_action(
+                                ConversationListViewAction::ForkConversation {
+                                    conversation_id,
+                                    destination: ForkedConversationDestination::SplitPane,
+                                },
+                            )
+                            .into_item(),
+                        MenuItemFields::new(crate::t!(
+                            "workspace-conversation-list-fork-new-tab"
+                        ))
+                            .with_on_select_action(
+                                ConversationListViewAction::ForkConversation {
+                                    conversation_id,
+                                    destination: ForkedConversationDestination::NewTab,
+                                },
+                            )
+                            .into_item(),
+                    ];
 
-                    let mut items = Vec::new();
-                    if let Some(fork_items) = fork_items {
-                        items.extend(fork_items);
-                    }
-
-                    if !items.is_empty() {
-                        items.push(MenuItem::Separator);
-                    }
+                    let mut items = Vec::from(fork_items);
+                    items.push(MenuItem::Separator);
                     items.push(delete_item.into_item());
                     self.item_overflow_menu.update(ctx, |menu, ctx| {
                         menu.set_items(items, ctx);
@@ -844,11 +823,7 @@ impl TypedActionView for ConversationListView {
                 ctx.notify();
             }
             ConversationListViewAction::DeleteFromOverflowMenu { conversation_id } => {
-                let ConversationOrTaskId::ConversationId(ai_conversation_id) = conversation_id
-                else {
-                    // For now, delete is only implemented for non-ambient conversations.
-                    return;
-                };
+                let ConversationOrTaskId::ConversationId(ai_conversation_id) = conversation_id;
 
                 let conversation =
                     BlocklistAIHistoryModel::as_ref(ctx).conversation(ai_conversation_id);
@@ -957,10 +932,7 @@ impl TypedActionView for ConversationListView {
                 conversation_id,
                 destination,
             } => {
-                let ConversationOrTaskId::ConversationId(ai_conversation_id) = conversation_id
-                else {
-                    return;
-                };
+                let ConversationOrTaskId::ConversationId(ai_conversation_id) = conversation_id;
 
                 ctx.dispatch_typed_action(&WorkspaceAction::ForkAIConversation {
                     conversation_id: *ai_conversation_id,

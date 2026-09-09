@@ -91,7 +91,7 @@ fn summary_pane_kind_icons_distinguish_agent_terminals_from_plain_terminals() {
             ),
             (
                 EntityId::from_usize(30),
-                SummaryPaneKind::OzAgent { is_ambient: false },
+                SummaryPaneKind::OzAgent,
             ),
         ]),
         Some(SummaryPaneKindIcons::Pair {

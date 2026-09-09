@@ -349,8 +349,6 @@ impl View for AgentMessageBar {
             return Empty::new().finish();
         };
 
-        // Dais(Phase 3c A1):删除 ambient credits banner UI。
-        // 本地化后 `ambient_only_credits_remaining` 恒为 None，原分支只会走 None。
         let right_element: Option<Box<dyn warpui::Element>> = None;
 
         // Append a Figma MCP chip to the message if applicable.
@@ -441,10 +439,7 @@ struct BootstrappingMessageProducer;
 
 impl MessageProvider<AgentMessageArgs<'_>> for BootstrappingMessageProducer {
     fn produce_message(&self, args: AgentMessageArgs<'_>) -> Option<Message> {
-        if args.terminal_model.block_list().is_bootstrapped()
-            || args.terminal_model.is_dummy_ambient_agent_session()
-            || args.terminal_model.is_shared_ambient_agent_session()
-        {
+        if args.terminal_model.block_list().is_bootstrapped() {
             None
         } else {
             Some(Message::from_text(crate::t!("terminal-starting-shell")))
@@ -569,11 +564,6 @@ impl MessageProvider<AgentMessageArgs<'_>> for ZeroStateMessageProducer {
             );
         }
 
-        let is_ambient_agent = matches!(
-            agent_view_controller.agent_view_state(),
-            AgentViewState::Active { origin, .. } if origin.is_ambient_agent()
-        );
-
         let plan_count = AIDocumentModel::as_ref(app)
             .get_all_documents_for_conversation(active_conversation.id())
             .len();
@@ -582,7 +572,6 @@ impl MessageProvider<AgentMessageArgs<'_>> for ZeroStateMessageProducer {
             *original_conversation_length != active_conversation.exchange_count();
 
         if show_zero_state_hints
-            && !is_ambient_agent
             && !has_conversation_been_updated_since_agent_view_entry
         {
             if let Some(conversations_keystroke) =
@@ -604,7 +593,6 @@ impl MessageProvider<AgentMessageArgs<'_>> for ZeroStateMessageProducer {
         // Code review only works locally.
         #[cfg(not(target_family = "wasm"))]
         if show_zero_state_hints
-            && !is_ambient_agent
             && *TabSettings::as_ref(app).show_code_review_button
         {
             let code_review_keystroke = if OperatingSystem::get().is_mac() {

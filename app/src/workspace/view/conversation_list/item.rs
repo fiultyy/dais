@@ -39,7 +39,6 @@ fn conversation_item_position_id(id: &ConversationOrTaskId) -> String {
         ConversationOrTaskId::ConversationId(conv_id) => {
             format!("conversation_list_item_{conv_id}")
         }
-        ConversationOrTaskId::TaskId(task_id) => format!("conversation_list_task_{task_id}"),
     }
 }
 
@@ -188,18 +187,8 @@ pub fn render_item(props: ItemProps<'_>, app: &AppContext) -> Box<dyn Element> {
     }
 
     let status_element_size = font_size + STATUS_ELEMENT_PADDING * 2.;
-    let icon_element: Box<dyn Element> = if conversation.is_ambient_agent_conversation() {
-        ConstrainedBox::new(
-            Icon::Cloud
-                .to_warpui_icon(theme.sub_text_color(theme.background()))
-                .finish(),
-        )
-        .with_width(status_element_size)
-        .with_height(status_element_size)
-        .finish()
-    } else {
-        render_status_element(&conversation.status(app), font_size, appearance)
-    };
+    let icon_element: Box<dyn Element> =
+        render_status_element(&conversation.status(app), font_size, appearance);
 
     let icon_and_title_row = Shrinkable::new(
         1.0,
@@ -387,13 +376,9 @@ pub fn render_item(props: ItemProps<'_>, app: &AppContext) -> Box<dyn Element> {
 }
 
 /// Returns the secondary label for a conversation list item:
-/// - For local conversations: the working directory.
-/// - For tasks: the source (Linear, Slack, CLI, etc.)
+/// the conversation's initial working directory.
 fn format_item_subtext(conversation: &ConversationOrTask) -> Option<String> {
     match conversation {
-        ConversationOrTask::Task(task) => {
-            task.source.as_ref().map(|s| s.display_name().to_string())
-        }
         ConversationOrTask::Conversation(metadata) => {
             let pwd = metadata.nav_data.initial_working_directory.clone();
             pwd.map(|pwd| {

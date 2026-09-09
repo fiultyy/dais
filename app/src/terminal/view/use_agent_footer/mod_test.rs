@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-use crate::terminal::shared_session::protocol::SessionSourceType;
 use warp_core::settings::Setting as _;
 use warpui::{App, AppContext, SingletonEntity, ViewContext};
 
@@ -160,7 +159,6 @@ fn insert_pending_ai_block(
             view.ai_context_model.clone(),
             view.find_model.clone(),
             view.active_session.clone(),
-            view.ambient_agent_view_model.clone(),
             &view.cli_subagent_controller,
             &view.model_events_handle,
             view.agent_view_controller.clone(),
@@ -281,11 +279,10 @@ fn use_agent_footer_renders_for_manual_handoff_when_unfinished_ai_block_remains(
     })
 }
 
-/// During the setup phase of an ambient-agent shared session — LRCs
-/// running before any CLI agent has started — the use-agent footer must stay
-/// hidden.
+/// While a long-running command is active and a CLI agent session exists for
+/// this terminal, the CLI agent footer should render.
 #[test]
-fn use_agent_footer_hidden_during_ambient_agent_setup_lrc() {
+fn cli_agent_footer_renders_when_cli_agent_session_is_active() {
     App::test((), |mut app| async move {
         initialize_app_for_terminal_view(&mut app);
 
@@ -294,59 +291,8 @@ fn use_agent_footer_hidden_during_ambient_agent_setup_lrc() {
         terminal.update(&mut app, |view, ctx| {
             simulate_user_started_long_running_command(view);
 
-            // Ambient-agent setup phase: ambient source type set, LRC running,
-            // NO CLIAgentSession registered yet.
-            view.model
-                .lock()
-                .set_shared_session_source_type(SessionSourceType::AmbientAgent { task_id: None });
-            assert!(view.model.lock().is_shared_ambient_agent_session());
-            assert!(
-                CLIAgentSessionsModel::as_ref(ctx)
-                    .session(view.id())
-                    .is_none(),
-                "precondition: no CLI agent session yet",
-            );
-
-            view.maybe_show_use_agent_footer_in_blocklist(ctx);
-
-            let model = view.model.lock();
-            assert!(
-                !view.should_render_use_agent_footer(&model, ctx),
-                "footer should be hidden during ambient-agent setup LRCs",
-            );
-            let active_block_index = model.block_list().active_block_index();
-            assert!(
-                model
-                    .block_list()
-                    .last_non_hidden_rich_content_block_after_block(Some(active_block_index))
-                    .is_none(),
-                "footer rich content should not be in the blocklist during ambient setup",
-            );
-        });
-    })
-}
-
-/// When viewing a shared ambient-agent session whose sharer is
-/// running a CLI agent, the CLI agent footer should still render.
-#[test]
-fn cli_agent_footer_renders_for_viewer_of_shared_ambient_agent_session() {
-    App::test((), |mut app| async move {
-        initialize_app_for_terminal_view(&mut app);
-
-        let terminal = add_window_with_terminal(&mut app, None);
-
-        terminal.update(&mut app, |view, ctx| {
-            simulate_user_started_long_running_command(view);
-
-            // Mark the model as a shared ambient agent session, mirroring
-            // what the viewer's terminal manager does on `JoinedSuccessfully`.
-            view.model
-                .lock()
-                .set_shared_session_source_type(SessionSourceType::AmbientAgent { task_id: None });
-            assert!(view.model.lock().is_shared_ambient_agent_session());
-
-            // Inject the CLI agent session state that an old shared-session viewer
-            // would have received from the sharer.
+            // Inject the CLI agent session state, as a viewer would have
+            // received from the sharer in a shared session.
             let view_id = view.id();
             CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
                 sessions.set_session(
@@ -372,7 +318,7 @@ fn cli_agent_footer_renders_for_viewer_of_shared_ambient_agent_session() {
             let model = view.model.lock();
             assert!(
                 view.should_render_use_agent_footer(&model, ctx),
-                "footer should render for viewer of shared ambient agent session with CLI agent",
+                "footer should render when a CLI agent session is active",
             );
             let active_block_index = model.block_list().active_block_index();
             let rendered_footer_view_id = model
