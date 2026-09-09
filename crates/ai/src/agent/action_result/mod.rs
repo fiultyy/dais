@@ -6,7 +6,7 @@ use itertools::Itertools as _;
 use serde::{Deserialize, Serialize};
 use warp_core::command::ExitCode;
 use warp_multi_agent_api::apply_file_diffs_result::success::UpdatedFileContent;
-use warp_terminal::model::BlockId;
+use terminal_grid_model::block_id::BlockId;
 
 use crate::{
     agent::FileLocations,

@@ -4,13 +4,7 @@ use warp_core::features::FeatureFlag;
 use warpui::{AppContext, ModelContext, SingletonEntity};
 
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversationId, AIAgentAttachment, AIAgentContext, AIAgentInput,
-            CloneRepositoryURL, EntrypointType, RequestMetadata, UserQueryMode,
-        },
-        blocklist::agent_view::AgentViewEntryOrigin,
-    },
+    ai::{ agent::{ conversation::AIConversationId, AIAgentAttachment, AIAgentContext, AIAgentInput, CloneRepositoryURL, EntrypointType, RequestMetadata, UserQueryMode, }, blocklist::agent_view::AgentViewEntryOrigin, },
     search::slash_command_menu::static_commands::commands,
     terminal::input::slash_commands::SlashCommandTrigger,
     BlocklistAIHistoryModel,

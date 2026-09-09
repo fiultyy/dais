@@ -6,7 +6,7 @@
 //! when the file is fixed.
 
 use std::time::Duration;
-use warp::{
+use dais::{
     features::FeatureFlag,
     integration_testing::{
         step::new_step_with_default_assertions,
@@ -19,7 +19,7 @@ use super::{new_builder, Builder};
 
 /// Helper: returns the path to the TOML settings file.
 fn toml_file_path() -> std::path::PathBuf {
-    warp::settings::user_preferences_toml_file_path()
+    dais::settings::user_preferences_toml_file_path()
 }
 
 // ---------------------------------------------------------------------------

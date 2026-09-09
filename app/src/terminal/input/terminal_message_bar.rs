@@ -264,9 +264,9 @@ impl MessageProvider<TerminalMessageArgs<'_>> for ContinueConversationMessagePro
 
 mod internal {
     use crate::terminal::{
-        model::blocks::{BlockHeight, BlockHeightItem, BlockHeightSummary, RichContentItem},
         TerminalModel,
     };
+    use terminal_grid_model::block::blocks::{BlockHeight, BlockHeightItem, BlockHeightSummary, RichContentItem};
 
     impl TerminalModel {
         pub(super) fn is_last_visible_item_agent_view_block(&self) -> bool {

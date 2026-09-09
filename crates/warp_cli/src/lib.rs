@@ -128,6 +128,11 @@ pub struct AppArgs {
     /// URLs to open in Dais.
     #[arg(hide = true)]
     pub urls: Vec<Url>,
+
+    /// 启动后跳过默认终端工作区,直接打开指定全屏面板做预览。
+    /// 可选值: observatory | cockpit | settings。
+    #[arg(long = "ui-preview", hide = true)]
+    pub ui_preview: Option<String>,
 }
 
 impl Args {

@@ -1,11 +1,9 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use crate::drive::settings::WarpDriveSettings;
 use crate::search::action::CommandBindingDataSource;
 use crate::search::binding_source::BindingSource;
 use crate::search::command_palette::files;
-use crate::search::command_palette::launch_config;
 use crate::search::command_palette::mixer::{CommandPaletteItemAction, ItemSummary};
 use crate::search::command_palette::new_session::NewSessionDataSource;
 use crate::search::command_palette::ssh_servers::SshServersDataSource;
@@ -16,20 +14,16 @@ use crate::search::mixer::AddAsyncSourceOptions;
 use crate::search::QueryFilter;
 use crate::session_management::SessionSource;
 use crate::settings::AISettings;
-use warp_core::context_flag::ContextFlag;
 use warp_core::features::FeatureFlag;
 use warpui::keymap::BindingId;
 use warpui::{AppContext, Entity, ModelContext, ModelHandle, SingletonEntity};
 
 use super::conversations;
-use super::warp_drive;
 
 /// Store of all of the [`crate::search::DataSource`]s for the command palette.
 pub struct DataSourceStore {
     actions_data_source: ModelHandle<CommandBindingDataSource>,
     sessions_data_source: ModelHandle<navigation::DataSource>,
-    warp_drive_data_source: ModelHandle<warp_drive::DataSource>,
-    launch_config_data_source: ModelHandle<launch_config::DataSource>,
     new_session_data_source: Option<ModelHandle<NewSessionDataSource>>,
     historical_conversation_data_source: ModelHandle<conversations::DataSource>,
     all_conversation_data_source: ModelHandle<conversations::DataSource>,
@@ -48,10 +42,6 @@ impl DataSourceStore {
         let sessions_data_source =
             ctx.add_model(|_| navigation::DataSource::new(active_session_handle));
 
-        let warp_drive_data_source = ctx.add_model(warp_drive::DataSource::new);
-
-        let launch_config_data_source = ctx.add_model(launch_config::DataSource::new);
-
         let new_session_data_source = (FeatureFlag::ShellSelector.is_enabled()
             && cfg!(feature = "local_tty"))
         .then_some(ctx.add_model(|ctx| NewSessionDataSource::new(binding_source, ctx)));
@@ -67,8 +57,6 @@ impl DataSourceStore {
         Self {
             actions_data_source,
             sessions_data_source,
-            warp_drive_data_source,
-            launch_config_data_source,
             new_session_data_source,
             historical_conversation_data_source,
             all_conversation_data_source,
@@ -86,29 +74,11 @@ impl DataSourceStore {
         mixer.update(ctx, |mixer, ctx| {
             mixer.reset(ctx);
 
-            if ContextFlag::LaunchConfigurations.is_enabled() {
-                mixer.add_sync_source(
-                    self.launch_config_data_source.clone(),
-                    HashSet::from([QueryFilter::LaunchConfigurations]),
-                );
-            }
-
             mixer.add_sync_source(
                 self.sessions_data_source.clone(),
                 HashSet::from([QueryFilter::Sessions]),
             );
 
-            if WarpDriveSettings::is_warp_drive_enabled(ctx) {
-                let mut warp_drive_filters = HashSet::from([
-                    QueryFilter::Notebooks,
-                    QueryFilter::Plans,
-                    QueryFilter::Drive,
-                ]);
-
-                warp_drive_filters.insert(QueryFilter::EnvironmentVariables);
-
-                mixer.add_sync_source(self.warp_drive_data_source.clone(), warp_drive_filters);
-            }
 
             mixer.add_sync_source(
                 self.actions_data_source.clone(),
@@ -178,29 +148,11 @@ impl DataSourceStore {
                 .actions_data_source
                 .as_ref(app)
                 .query_result(*binding_id),
-            ItemSummary::EnvVarCollection { id } => self
-                .warp_drive_data_source
-                .as_ref(app)
-                .query_result(id, app),
-            ItemSummary::Notebook { id } => self
-                .warp_drive_data_source
-                .as_ref(app)
-                .query_result(id, app),
+
             ItemSummary::Session { pane_view_locator } => self
                 .sessions_data_source
                 .as_ref(app)
                 .query_result(*pane_view_locator, app),
-            ItemSummary::LaunchConfiguration => {
-                // TODO(CLD-205): Launch configurations are not supported in the recent section of the
-                // zero state yet.
-                None
-            }
-            ItemSummary::StoredObject => {
-                // We don't yet support all cloud objects in the command palette but
-                // we have a `ViewInWarpDrive` action that supports all of them, so
-                // this is necessary to make the compiler happy.
-                None
-            }
             ItemSummary::NewSession { id } => self
                 .new_session_data_source
                 .as_ref()
@@ -269,6 +221,24 @@ impl DataSourceStore {
                 // No-op action (used for non-interactable separator items that don't do anything on click).
                 None
             }
+            ItemSummary::Notebook { id: _ } => {
+                // No command-palette data source to reconstruct a notebook recents item;
+                // filtered out of the recents section.
+                None
+            }
+            ItemSummary::EnvVarCollection { id: _ } => {
+                // No command-palette data source to reconstruct an env var recents item;
+                // filtered out of the recents section.
+                None
+            }
+            ItemSummary::LaunchConfiguration => {
+                // Dummy variant: launch configurations aren't shown in the recents section.
+                None
+            }
+            ItemSummary::StoredObject => {
+                // Dummy variant: unsupported cloud objects aren't shown in the recents section.
+                None
+            }
         }
     }
 
@@ -287,6 +257,3 @@ impl Entity for DataSourceStore {
     type Event = ();
 }
 
-#[cfg(test)]
-#[path = "data_sources_test.rs"]
-mod tests;

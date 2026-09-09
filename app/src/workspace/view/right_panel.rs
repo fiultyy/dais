@@ -1,5 +1,4 @@
 use crate::ai::agent::AgentReviewCommentBatch;
-use crate::code_review::code_review_header::HEADER_BUTTON_PADDING;
 #[cfg(feature = "local_fs")]
 use crate::code_review::code_review_view::CodeReviewAction;
 use crate::code_review::code_review_view::{
@@ -28,10 +27,12 @@ use crate::window_settings::WindowSettings;
 use crate::workspace::WorkspaceAction;
 use crate::{
     appearance::Appearance,
-    drive::panel::{MAX_SIDEBAR_WIDTH_RATIO, MIN_SIDEBAR_WIDTH},
     terminal::resizable_data::{ModalType, ResizableData},
 };
-use crate::{code_review::diff_state::DiffStateModel, terminal::view::TerminalView};
+use crate::{
+    code_review::diff_state::DiffStateModel,
+    terminal::view::TerminalView,
+};
 use dunce::canonicalize;
 use itertools::Itertools;
 use std::{
@@ -59,7 +60,16 @@ use warpui::{
     },
     fonts::{Properties, Weight},
     platform::Cursor,
-    ui_components::components::UiComponent,
+    ui_components::components::{Coords, UiComponent},
+};
+
+/// Header control padding (was `code_review_header::HEADER_BUTTON_PADDING`,
+/// localized after the header module removal).
+const HEADER_BUTTON_PADDING: Coords = Coords {
+    top: 2.,
+    bottom: 2.,
+    left: 6.,
+    right: 6.,
 };
 
 /// Describes which agent destination is available for sending review comments.
@@ -1821,8 +1831,8 @@ impl View for RightPanelView {
                 ctx.notify();
             })
             .with_bounds_callback(Box::new(|window_size| {
-                let min_width = MIN_SIDEBAR_WIDTH;
-                let max_width = window_size.x() * MAX_SIDEBAR_WIDTH_RATIO;
+                let min_width = 250.;
+                let max_width = window_size.x() * 0.75;
                 (min_width, max_width.max(min_width))
             }))
             .finish()

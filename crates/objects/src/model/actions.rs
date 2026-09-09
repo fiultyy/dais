@@ -1,0 +1,281 @@
+use std::collections::HashMap;
+
+use chrono::{DateTime, Duration, Utc};
+use warpui::{Entity, ModelContext, SingletonEntity};
+
+use crate::ids::{HashedSqliteId, ObjectUid};
+
+pub enum ObjectActionsEvent {}
+
+/// The type of action that occurred on an object, such as an execution, selection, so on
+/// and so forth.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ObjectActionType {
+    Execute,
+}
+
+// 为了复用历史序列化值和 SQLite 读取路径,action type 实现 to_string()。
+//
+// Temporarily suppress clippy warnings about the `ToString` impl until we
+// move `ObjectType` away from using `std::fmt::Display` for serialization.
+#[allow(clippy::to_string_trait_impl)]
+impl ToString for ObjectActionType {
+    fn to_string(&self) -> String {
+        match self {
+            ObjectActionType::Execute => String::from("EXECUTE"),
+        }
+    }
+}
+
+impl ObjectActionType {
+    fn singular(&self) -> String {
+        match self {
+            ObjectActionType::Execute => "run".to_string(),
+        }
+    }
+
+    fn plural(&self) -> String {
+        match self {
+            ObjectActionType::Execute => "runs".to_string(),
+        }
+    }
+}
+
+/// We track object actions, both those that have been sent to the server and not, through this
+/// type. A single ObjectAction represents an object_id, action pair and a subtype that contains data
+/// about the action(s). Each ObjectAction either represents one action or a summary of identical actions
+/// that occurred at different times. We summarize old actions in order to save memory footprint on the client.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ObjectAction {
+    pub action_type: ObjectActionType,
+    pub uid: ObjectUid,
+    pub hashed_sqlite_id: HashedSqliteId,
+    // This action either represents one action or a consolidation of multiple actions.
+    pub action_subtype: ObjectActionSubtype,
+}
+
+impl ObjectAction {
+    pub fn is_pending(&self) -> bool {
+        match self.action_subtype {
+            ObjectActionSubtype::SingleAction { pending, .. } => pending,
+            _ => false,
+        }
+    }
+}
+
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ObjectActionSubtype {
+    SingleAction {
+        // When the action occurred.
+        timestamp: DateTime<Utc>,
+
+        // When the action was processed by the server (used to order actions against eachother).
+        // None if the action has not been synced.
+        processed_at_timestamp: Option<DateTime<Utc>>,
+
+        // A JSON representation of anything else we might want to track about the action.
+        // For example, the exit code of a command execution.
+        data: Option<String>,
+
+        // Whether or not this action has been successfully synced to the server.
+        pending: bool,
+    },
+    BundledActions {
+        // The number of distinct actions that are coalesced into one entry here.
+        count: i32,
+
+        // The timestamp of the oldest action within this bundle.
+        oldest_timestamp: DateTime<Utc>,
+
+        // The timestamp of the most recent action within the bundle.
+        latest_timestamp: DateTime<Utc>,
+
+        // The most recent processed_at timestamp contained in the bundle (used to order actions and determine
+        // how up-to-date the client's actions are.)
+        latest_processed_at_timestamp: DateTime<Utc>,
+    },
+}
+
+/// A singleton model representing the actions that have occurred on a per-object basis. These
+/// represent actions taken by the user or by teammates. The actions have a pending status that is
+/// true when the server doesn't know about it and is false anytime after the action is successfully
+/// synced.
+pub struct ObjectActions {
+    #[allow(dead_code)]
+    object_actions_by_id: HashMap<ObjectUid, Vec<ObjectAction>>,
+}
+
+impl ObjectActions {
+    /// Accepts a vector of object actions read out of SQLite.
+    pub fn new(persisted_actions: Vec<ObjectAction>) -> Self {
+        // Partitions the actions by object id and plops them into the map.
+        let object_actions_by_id = persisted_actions.into_iter().fold(
+            HashMap::new(),
+            |mut map: HashMap<ObjectUid, Vec<ObjectAction>>, object_action| {
+                map.entry(object_action.uid.clone())
+                    .or_default()
+                    .push(object_action);
+                map
+            },
+        );
+
+        Self {
+            object_actions_by_id,
+        }
+    }
+
+    /// Insert a single action into the model. Returns the created action.
+    pub fn insert_action(
+        &mut self,
+        uid: ObjectUid,
+        hashed_sqlite_id: HashedSqliteId,
+        action_type: ObjectActionType,
+        data: Option<String>,
+        timestamp: DateTime<Utc>,
+        ctx: &mut ModelContext<Self>,
+    ) -> ObjectAction {
+        // Create an action with pending=true.
+        let action = ObjectAction {
+            action_type,
+            uid: uid.clone(),
+            hashed_sqlite_id,
+            action_subtype: ObjectActionSubtype::SingleAction {
+                timestamp,
+                data,
+                pending: true,
+                processed_at_timestamp: None,
+            },
+        };
+
+        // Insert the action into the model.
+        self.object_actions_by_id
+            .entry(uid)
+            .or_default()
+            .push(action.clone());
+
+        ctx.notify();
+
+        action
+    }
+
+    /// Returns a time-boxed summary of the number of times this action type has occurred on this object.
+    /// This summary prioritizes smaller units of time where possible, starting from Day and going to Year.
+    /// If the action type has occurred on the object in the last day, we return "X actions in the last day".
+    /// If not, we increase the time unit from Day to Week to Month. If no actions have occurred in the last month,
+    /// we return however many actions have occurred in the last year, possibly 0.
+    ///
+    /// This function operates by cloning a filtered Iterator<Item=&ObjectAction>, saving some performance overhead
+    /// by cloning references instead of objects.
+    pub fn get_action_history_summary_for_action_type(
+        &self,
+        uid: &ObjectUid,
+        action_type: ObjectActionType,
+    ) -> Option<String> {
+        // If the object is not in the model, return 0.
+        let all_actions_on_this_object = self.object_actions_by_id.get(uid);
+        if all_actions_on_this_object.is_none() {
+            return Some("0 runs in the last year".to_string());
+        }
+
+        // If the object doesn't have any of these action types recorded, return 0.
+        let all_relevant_actions = all_actions_on_this_object?
+            .iter()
+            .filter(|a| a.action_type == action_type);
+        if all_relevant_actions.clone().count() == 0 {
+            return Some("0 runs in the last year".to_string());
+        }
+
+        // If the action has occurred in the last day, return Day as the time unit.
+        let one_day_ago = Utc::now() - Duration::days(1);
+        let in_the_last_day = all_relevant_actions.clone().filter(|a| matches!(a.action_subtype, ObjectActionSubtype::SingleAction { timestamp, .. } if timestamp > one_day_ago)).count();
+        if in_the_last_day > 0 {
+            return Some(format!(
+                "{} {} in the last day",
+                in_the_last_day,
+                if in_the_last_day == 1 {
+                    action_type.singular()
+                } else {
+                    action_type.plural()
+                }
+            ));
+        }
+
+        // If the action has occurred in the last week, return Week as the time unit.
+        let one_week_ago = Utc::now() - Duration::days(7);
+        let in_the_last_week = all_relevant_actions.clone().filter(|a| matches!(a.action_subtype, ObjectActionSubtype::SingleAction { timestamp, .. } if timestamp > one_week_ago)).count();
+        if in_the_last_week > 0 {
+            return Some(format!(
+                "{} {} in the last week",
+                in_the_last_week,
+                if in_the_last_week == 1 {
+                    action_type.singular()
+                } else {
+                    action_type.plural()
+                }
+            ));
+        }
+
+        // If the action has occurred in the last month, return Month as the time unit.
+        let one_month_ago = Utc::now() - Duration::days(30);
+        let in_the_last_month = all_relevant_actions.clone().filter(|a| matches!(a.action_subtype, ObjectActionSubtype::SingleAction { timestamp, .. } if timestamp > one_month_ago)).count();
+        if in_the_last_month > 0 {
+            return Some(format!(
+                "{} {} in the last month",
+                in_the_last_month,
+                if in_the_last_month == 1 {
+                    action_type.singular()
+                } else {
+                    action_type.plural()
+                }
+            ));
+        }
+
+        // Finally, if all else turned up fruitless, return the yearly count.
+        let one_year_ago = Utc::now() - Duration::days(365);
+        let in_the_last_year: i32 = all_relevant_actions
+            .clone()
+            .filter_map(|a| match a.action_subtype {
+                ObjectActionSubtype::SingleAction { timestamp, .. } if timestamp > one_year_ago => {
+                    Some(1)
+                }
+                ObjectActionSubtype::BundledActions {
+                    count,
+                    oldest_timestamp,
+                    ..
+                } if oldest_timestamp > one_year_ago => Some(count),
+                _ => None,
+            })
+            .sum();
+
+        Some(format!(
+            "{} {} in the last year",
+            in_the_last_year,
+            if in_the_last_year == 1 {
+                action_type.singular()
+            } else {
+                action_type.plural()
+            }
+        ))
+    }
+
+    pub fn delete_actions_for_object(&mut self, uid: &ObjectUid, ctx: &mut ModelContext<Self>) {
+        self.object_actions_by_id.remove(uid);
+        ctx.notify()
+    }
+
+    #[cfg(test)]
+    pub fn count_actions_for_object(&mut self, uid: &ObjectUid) -> usize {
+        self.object_actions_by_id.get(uid).map_or(0, |v| v.len())
+    }
+}
+
+impl Entity for ObjectActions {
+    type Event = ObjectActionsEvent;
+}
+
+impl SingletonEntity for ObjectActions {}
+
+#[cfg(test)]
+#[path = "actions_tests.rs"]
+pub mod tests;

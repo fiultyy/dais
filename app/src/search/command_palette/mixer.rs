@@ -3,7 +3,7 @@ use crate::drive::ObjectTypeAndId;
 use crate::launch_configs::launch_config::LaunchConfig;
 use crate::search::command_palette::new_session::{NewSessionOption, NewSessionOptionId};
 use crate::search::mixer::SearchMixer;
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 use crate::util::bindings::CommandBinding;
 use crate::workspace::PaneViewLocator;
 use std::sync::Arc;

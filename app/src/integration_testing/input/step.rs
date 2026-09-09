@@ -3,10 +3,7 @@ use warpui::integration::TestStep;
 use warpui::{windowing::WindowManager, SingletonEntity};
 
 use crate::{
-    integration_testing::{
-        step::new_step_with_default_assertions, terminal::assert_context_menu_is_open,
-        view_getters::single_terminal_view,
-    },
+    integration_testing::{ step::new_step_with_default_assertions, terminal::assert_context_menu_is_open, view_getters::single_terminal_view, },
     terminal::view::TerminalAction,
 };
 

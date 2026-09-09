@@ -7,11 +7,11 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    cloud_object::StoredObjectMetadata,
-    drive::{index::DriveIndexAction, DriveObjectType, ObjectTypeAndId},
+    drive::{DriveObjectType, ObjectTypeAndId},
     notebooks::NotebookObject,
     themes::theme::Fill,
 };
+use objects::StoredObjectMetadata;
 
 use super::{WarpDriveItem, WarpDriveItemId};
 
@@ -55,9 +55,6 @@ impl WarpDriveItem for WarpDriveNotebook {
         None
     }
 
-    fn click_action(&self) -> Option<DriveIndexAction> {
-        Some(DriveIndexAction::OpenObject(self.id))
-    }
 
     fn preview(&self, appearance: &Appearance) -> Option<Box<dyn Element>> {
         let title_text = self.notebook.model().title.clone();
@@ -92,15 +89,11 @@ impl WarpDriveItem for WarpDriveNotebook {
 
     fn sync_status_icon(
         &self,
-        sync_queue_is_dequeueing: bool,
-        hover_state: MouseStateHandle,
-        appearance: &Appearance,
+        _sync_queue_is_dequeueing: bool,
+        _hover_state: MouseStateHandle,
+        _appearance: &Appearance,
     ) -> Option<Box<dyn Element>> {
-        self.notebook.metadata.pending_changes_statuses.render_icon(
-            sync_queue_is_dequeueing,
-            hover_state,
-            appearance,
-        )
+        None
     }
 
     fn action_summary(&self, _app: &AppContext) -> Option<String> {

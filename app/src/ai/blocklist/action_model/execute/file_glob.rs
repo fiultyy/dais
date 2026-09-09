@@ -18,10 +18,7 @@ use crate::terminal::model::session::ExecuteCommandOptions;
 use crate::{
     ai::agent::AIAgentActionResultType,
     send_telemetry_from_app_ctx,
-    terminal::{
-        model::session::active_session::ActiveSession, model::session::Session, shell::ShellType,
-        ShellLaunchData,
-    },
+    terminal::{ model::session::active_session::ActiveSession, model::session::Session, shell::ShellType, ShellLaunchData, },
     TelemetryEvent,
 };
 use warp_core::features::FeatureFlag;

@@ -10,22 +10,30 @@ use crate::drive::DaisDriveObjectSettings;
 use crate::launch_configs::launch_config::LaunchConfig;
 use crate::linear::{LinearAction, LinearIssueWork};
 use crate::root_view::{open_new_window_get_handles, OpenLaunchConfigArg};
-use crate::server::ids::ServerId;
+use objects::ids::ServerId;
 use crate::server::telemetry::{LaunchConfigUiLocation, TelemetryEvent};
 use crate::util::openable_file_type::{
     is_file_openable_in_warp, is_markdown_file, is_runnable_shell_script, starts_with_shebang,
 };
 use crate::workspace::active_terminal_in_window;
 use crate::workspace::{Workspace, WorkspaceAction, WorkspaceRegistry};
-use crate::{cloud_object::ObjectType, workspace::ToastStack};
-use crate::{drive::DaisDriveObjectArgs, view_components::DismissibleToast};
+use crate::workspace::ToastStack;
+use objects::ObjectType;
+use crate::{
+    drive::DaisDriveObjectArgs,
+    view_components::DismissibleToast,
+};
 
 use crate::ai::ambient_agents::github_auth_notifier::GitHubAuthNotifier;
 use crate::settings_view::SettingsSection;
 use crate::user_config::load_launch_configs;
 use crate::{
-    quake_mode_window_id, quake_mode_window_is_open, safe_info, send_telemetry_from_app_ctx,
-    ChannelState, OpenPath,
+    quake_mode_window_id,
+    quake_mode_window_is_open,
+    safe_info,
+    send_telemetry_from_app_ctx,
+    ChannelState,
+    OpenPath,
 };
 use anyhow::{anyhow, ensure, Result};
 use std::collections::HashMap;

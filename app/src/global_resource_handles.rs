@@ -1,5 +1,7 @@
 use crate::{
-    banner::BannerState, persistence::ModelEvent, resource_center::TipsCompleted,
+    banner::BannerState,
+    persistence::ModelEvent,
+    resource_center::TipsCompleted,
     settings::SettingsFileError,
 };
 use std::sync::mpsc::SyncSender;

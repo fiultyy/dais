@@ -7,10 +7,10 @@
 
 use std::collections::HashMap;
 
-use warp::integration_testing::sftp;
-use warp::integration_testing::sftp::{ConnectionState, Dialog, SftpBrowserAction};
-use warp::integration_testing::terminal::wait_until_bootstrapped_single_pane_for_tab;
-use warp::integration_testing::view_getters::{pane_group_view, workspace_view};
+use dais::integration_testing::sftp;
+use dais::integration_testing::sftp::{ConnectionState, Dialog, SftpBrowserAction};
+use dais::integration_testing::terminal::wait_until_bootstrapped_single_pane_for_tab;
+use dais::integration_testing::view_getters::{pane_group_view, workspace_view};
 use warpui::{async_assert, async_assert_eq, integration::AssertionCallback, integration::StepDataMap, integration::TestStep, TypedActionView};
 
 use super::{new_builder, Builder};

@@ -51,7 +51,7 @@ impl CommandExecutor for RemoteCommandExecutor {
                 .collect_vec();
             let env_vars_str = serialize_variables_for_shell(
                 env_vars.iter().map(|(key, value)| (key.as_str(), value)),
-                shell.shell_type(),
+                shell.shell_type().into(),
             );
             command_str.push_str(&env_vars_str);
             command_str.push(';');

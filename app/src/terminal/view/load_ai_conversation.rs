@@ -1,3 +1,5 @@
+use terminal_grid_model::block::blocks::RichContentItem;
+use terminal_grid_model::block_index::BlockIndex;
 use std::collections::HashSet;
 use std::path::Path;
 use std::rc::Rc;
@@ -16,8 +18,8 @@ use crate::ai::blocklist::history_model::{CLIAgentConversation, LoadedConversati
 use crate::ai::blocklist::{BlocklistAIContextModel, SerializedBlockListItem};
 use crate::terminal::input::message_bar::Message as InputMessage;
 use crate::terminal::input::message_bar::MessageItem;
-use crate::terminal::model::block::SerializedBlock;
-use crate::terminal::model::rich_content::RichContentType;
+use terminal_grid_model::block::SerializedBlock;
+use terminal_model::rich_content::RichContentType;
 use crate::terminal::model_events::ModelEventDispatcher;
 use crate::terminal::TerminalModel;
 use crate::util::bindings::keybinding_name_to_keystroke;
@@ -39,29 +41,9 @@ use crate::ai::agent::{
 use crate::ai::ai_document_view::DEFAULT_PLANNING_DOCUMENT_TITLE;
 use crate::ai::document::ai_document_model::AIDocumentModel;
 use crate::{
-    ai::{
-        agent::{
-            conversation::{AIConversation, AIConversationId},
-            AIAgentExchange, AIAgentExchangeId, AIAgentOutput,
-        },
-        blocklist::{
-            history_model::BlocklistAIHistoryModel, model::AIBlockModelImpl, AIBlock,
-            BlocklistAIActionModel, BlocklistAIController, ClientIdentifiers,
-        },
-        restored_conversations::RestoredAgentConversations,
-    },
+    ai::{ agent::{ conversation::{AIConversation, AIConversationId}, AIAgentExchange, AIAgentExchangeId, AIAgentOutput, }, blocklist::{ history_model::BlocklistAIHistoryModel, model::AIBlockModelImpl, AIBlock, BlocklistAIActionModel, BlocklistAIController, ClientIdentifiers, }, restored_conversations::RestoredAgentConversations, },
     persistence::model::AgentConversationData,
-    terminal::{
-        find::TerminalFindModel,
-        model::{
-            blocks::RichContentItem, session::active_session::ActiveSession,
-            terminal_model::BlockIndex,
-        },
-        view::{
-            AIBlockMetadata, Event, RichContent, RichContentInsertionPosition, RichContentMetadata,
-            TerminalView,
-        },
-    },
+    terminal::{ find::TerminalFindModel, model::{session::active_session::ActiveSession}, view::{ AIBlockMetadata, Event, RichContent, RichContentInsertionPosition, RichContentMetadata, TerminalView, }, },
 };
 use warp_core::channel::ChannelState;
 use warp_multi_agent_api as api;

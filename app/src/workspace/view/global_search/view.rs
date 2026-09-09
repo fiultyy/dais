@@ -1,3 +1,4 @@
+use crate::workspace::view::global_search::{GlobalSearchEvent, SearchConfig};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ops::Range;
@@ -26,7 +27,6 @@ use crate::ui_components::item_highlight::{ImageOrIcon, ItemHighlightState};
 use crate::ui_components::render_file_search_row::{render_file_search_row, FileSearchRowOptions};
 use crate::view_components::action_button::{ActionButton, ButtonSize, NakedTheme};
 use crate::workspace::view::global_search::model::GlobalSearch;
-use crate::workspace::view::global_search::SearchConfig;
 use crate::TelemetryEvent;
 use warp_core::send_telemetry_from_ctx;
 use warp_core::ui::appearance::Appearance;
@@ -102,29 +102,6 @@ pub enum GlobalSearchAction {
     FocusResultsList,
     ToggleRegexSearch,
     ToggleCaseSensitivity,
-}
-
-#[cfg_attr(target_family = "wasm", allow(dead_code))]
-pub enum GlobalSearchEvent {
-    Started {
-        search_id: u32,
-    },
-    Progress {
-        search_id: u32,
-        result: RipgrepMatch,
-    },
-    ProgressBatch {
-        search_id: u32,
-        items: Vec<RipgrepMatch>,
-    },
-    Completed {
-        search_id: u32,
-        total_match_count: usize,
-    },
-    Failed {
-        search_id: u32,
-        error: String,
-    },
 }
 
 #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]

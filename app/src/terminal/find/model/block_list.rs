@@ -1,20 +1,20 @@
 //! This module implements terminal find functionality for the blocklist.
+use terminal_grid_model::block::Block;
+use terminal_grid_model::block::blocks::{
+            BlockHeight, BlockHeightItem, BlockHeightSummary, BlockList, RichContentItem,
+            TotalIndex,
+        };
+use terminal_grid_model::WithinBlock;
+use terminal_grid_model::selected_blocks::BlockSortDirection;
+use terminal_grid_model::block_index::BlockIndex;
+use terminal_model::index::Point;
 use std::{collections::HashMap, iter, ops::RangeInclusive};
 
 use itertools::Itertools;
 use warpui::{units::Lines, AppContext, EntityId};
 
 use crate::terminal::{
-    model::{
-        block::Block,
-        blocks::{
-            BlockHeight, BlockHeightItem, BlockHeightSummary, BlockList, RichContentItem,
-            TotalIndex,
-        },
-        find::{FindConfig, RegexDFAs},
-        index::Point,
-        terminal_model::{BlockIndex, BlockSortDirection},
-    },
+    model::{find::{FindConfig, RegexDFAs}},
     GridType,
 };
 use crate::view_components::find::FindDirection;

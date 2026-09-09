@@ -25,7 +25,7 @@ The goal is to give tab-layout-dependent bindings a single source of truth for t
 - `app/src/app_menus.rs:1163-1186` — `custom_action_updater`, the per-menu-item update callback that pulls `description.in_context(MAC_MENUS_CONTEXT)` into `MenuItemPropertyChanges.name` on every menu open.
 - `app/src/util/bindings.rs:714-782` — `CommandBinding` and its `from_binding` / `From<BindingLens<'_>>` / `From<EditableBindingLens<'_>>` constructors. These are the cache-population entry points that clone `BindingDescription` into a reusable value type.
 - `app/src/search/action/data_source.rs:68-94` — `CommandBindingDataSource::on_binding_source_changed`, the command-palette cache-population site.
-- `app/src/search/action/data_source.rs:142-182` — `FuzzyActionSearcher::search`, which fuzzy-matches against cached descriptions without access to `AppContext`.
+- (2026-08-31 R4: `FuzzyActionSearcher` 已随 fuzzy 搜索路径移除; 现唯一搜索器为 `FullTextActionSearcher`)
 - `app/src/search/action/data_source.rs:261-298` — `FullTextActionSearcher::rebuild_search_index`, which builds a Tantivy index from cached descriptions without access to `AppContext`.
 - `app/src/search/action/search_item.rs:71-156` — `MatchedBinding::render_label` and `accessibility_label`, which read `binding.description` without access to `AppContext`.
 - `app/src/settings_view/keybindings.rs:761-800` — `on_page_selected`, the settings keybindings cache-population site.
@@ -53,7 +53,6 @@ The goal is to give tab-layout-dependent bindings a single source of truth for t
 Several `CommandBinding` consumers read the description from a path that does **not** have `AppContext`:
 
 - `search_item::MatchedBinding::accessibility_label` (no context parameter)
-- `FuzzyActionSearcher::search` (operates on cached descriptions)
 - `FullTextActionSearcher::rebuild_search_index` (builds a Tantivy index from cached descriptions)
 - `util/bindings::filter_bindings_including_keystroke` (no context parameter)
 - `settings_view/keybindings::render_summary` (only has `Appearance`)
@@ -195,7 +194,7 @@ flowchart TD
     RC -->|from_lens lens ctx| CB3[CommandBinding with materialized description]
     MB -->|description.resolve ctx MAC_MENUS_CONTEXT| MN[MenuItemPropertyChanges.name]
 
-    CB1 --> FZ[FuzzyActionSearcher / FullTextActionSearcher]
+    CB1 --> FZ[FullTextActionSearcher]
     CB1 --> AL[MatchedBinding::accessibility_label]
     CB2 --> KR[KeybindingRow::render_summary]
     CB3 --> RR[Resource center render_section]

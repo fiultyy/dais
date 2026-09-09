@@ -38,7 +38,7 @@ use super::generate_ai_input_suggestions::{
 use crate::ai::agent::api::collect_user_rules;
 use crate::ai::agent_providers::active_ai::next_command as byop_next_command;
 use crate::ai::agent_providers::oneshot::OneshotConfig;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
+use crate::objects::model::persistence::ObjectStoreModel;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "local_fs")] {

@@ -2,15 +2,7 @@ use futures::{future::BoxFuture, FutureExt};
 use warpui::{Entity, ModelContext, ModelHandle, SingletonEntity};
 
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversationId, AIAgentAction, AIAgentActionType,
-            CreateDocumentsRequest, CreateDocumentsResult, DocumentContext,
-        },
-        artifacts::Artifact,
-        blocklist::BlocklistAIHistoryModel,
-        document::ai_document_model::{AIDocumentModel, AIDocumentVersion},
-    },
+    ai::{ agent::{ conversation::AIConversationId, AIAgentAction, AIAgentActionType, CreateDocumentsRequest, CreateDocumentsResult, DocumentContext, }, artifacts::Artifact, blocklist::BlocklistAIHistoryModel, document::ai_document_model::{AIDocumentModel, AIDocumentVersion}, },
     notebooks::editor::model::FileLinkResolutionContext,
     terminal::model::session::active_session::ActiveSession,
 };

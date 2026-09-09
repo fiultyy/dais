@@ -9,15 +9,6 @@ use warpui::{
 
 use crate::{
     auth::{AuthManager, AuthStateProvider, UserUid, TEST_USER_EMAIL, TEST_USER_UID},
-    cloud_object::{
-        model::{
-            actions::ObjectActions,
-            persistence::ObjectStoreModel,
-            view::{Editor, EditorState, ObjectStoreViewModel},
-        },
-        update_manager::UpdateManager,
-        Owner, StoredObjectMetadata, StoredObjectPermissions,
-    },
     drive::DaisDriveObjectSettings,
     editor::{DisplayPoint, EditorAction, SelectAction},
     network::NetworkStatus,
@@ -29,17 +20,17 @@ use crate::{
     },
     pane_group::PaneEvent,
     search::files::model::FileSearchModel,
-    server::ids::{ClientId, ServerId, SyncId},
     settings_view::keybindings::KeybindingChangedNotifier,
     terminal::keys::TerminalKeybindings,
     test_util::settings::initialize_settings_for_tests,
     workspace::ActiveSession,
-    workspaces::{
-        user_profiles::{UserProfileWithUID, UserProfiles},
-        user_workspaces::UserWorkspaces,
-    },
-    GlobalResourceHandles, GlobalResourceHandlesProvider, PrivacySettings,
+    workspaces::{ user_profiles::{UserProfileWithUID, UserProfiles}, user_workspaces::UserWorkspaces, },
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
+    PrivacySettings,
 };
+use crate::objects::{Owner, StoredObjectMetadata, StoredObjectPermissions, ids::{ClientId, ServerId, SyncId}, model::{persistence::ObjectStoreModel, view::{Editor, EditorState, ObjectStoreViewModel}}, object_store::ObjectStore};
+use objects::ObjectActions;
 
 use super::{NotebookEvent, NotebookView, SAVE_PERIOD};
 
@@ -60,15 +51,13 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(TerminalKeybindings::new);
     app.add_singleton_model(PrivacySettings::mock);
     app.add_singleton_model(UserWorkspaces::default_mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(ObjectStoreViewModel::mock);
     app.add_singleton_model(|_| UserProfiles::new(vec![]));
     app.add_singleton_model(|_| ActiveSession::default());
     app.add_singleton_model(|_| ObjectActions::new(Vec::new()));
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
     app.add_singleton_model(AuthManager::new_for_test);
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
 }
 
 /// Container so that [`NotebookView`] can be registered as a typed action view.
@@ -129,7 +118,7 @@ fn cloud_notebook(title: impl Into<String>, data: impl Into<String>) -> Notebook
 }
 
 fn local_notebook_with_id(
-    id: crate::server::ids::SyncId,
+    id: objects::ids::SyncId,
     title: impl Into<String>,
     data: impl Into<String>,
 ) -> NotebookObject {
@@ -158,7 +147,7 @@ async fn initial_load(app: &mut App, updated_notebooks: impl Into<Vec<NotebookOb
         }
     });
     let load_complete = app.read(|ctx| {
-        crate::cloud_object::model::persistence::ObjectStoreModel::as_ref(ctx)
+        crate::objects::model::persistence::ObjectStoreModel::as_ref(ctx)
             .initial_load_complete()
     });
     load_complete.await
@@ -498,9 +487,7 @@ fn test_close_unmodified() {
             let object = ObjectStoreModel::as_ref(ctx)
                 .get_by_uid(&notebook_id.uid())
                 .expect("Notebook should exist");
-            assert!(!object.metadata().has_pending_content_changes());
-
-            // Dais(Wave 4):SyncQueue 整删,原 `sync_queue.is_empty()` 断言不适用。
+            // Dais(Wave 4):SyncQueue/同步状态机已删,原 pending/sync_queue 断言不适用。
         })
     });
 }

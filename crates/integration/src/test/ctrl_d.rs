@@ -1,6 +1,7 @@
 //! Integration tests for CTRL-D / EOT behaviour.
 
-use warp::{
+use terminal_grid_model::bootstrap::BootstrapStage;
+use dais::{
     integration_testing::{
         step::new_step_with_default_assertions,
         terminal::{
@@ -12,7 +13,7 @@ use warp::{
         view_getters::assert_no_views_of_type,
     },
     pane_group::PaneGroup,
-    terminal::{model::bootstrap::BootstrapStage, shell::ShellType, TerminalView},
+    terminal::{shell::ShellType, TerminalView},
     workspace::Workspace,
 };
 use warpui::integration::TestStep;

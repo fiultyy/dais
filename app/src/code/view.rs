@@ -1,3 +1,4 @@
+use crate::objects_display::StoredObjectHostExt;
 use crate::code::editor::scroll::ScrollPosition;
 use crate::code::editor::view::CodeEditorRenderOptions;
 use crate::code::editor_management::CodeEditorStatus;
@@ -19,7 +20,10 @@ use crate::terminal::cli_agent::{
 use crate::terminal::view::CliAgentRouting;
 use crate::workspace::util::get_context_target_terminal_view;
 use crate::workspace::TabBarDropTargetData;
-use crate::{code::EditorTabBarDropTargetData, pane_group::pane::ActionOrigin};
+use crate::{
+    code::EditorTabBarDropTargetData,
+    pane_group::pane::ActionOrigin,
+};
 use pathfinder_color::ColorU;
 use pathfinder_geometry::rect::RectF;
 use warpui::geometry::vector::Vector2F;
@@ -77,7 +81,10 @@ use super::{
     local_code_editor::{LocalCodeEditorEvent, LocalCodeEditorView},
 };
 
-use crate::{send_telemetry_from_ctx, TelemetryEvent};
+use crate::{
+    send_telemetry_from_ctx,
+    TelemetryEvent,
+};
 
 // Read-only rendered Markdown preview for remote files reuses the notebook rich-text
 // machinery. `RichTextEditorView` is referenced by the always-present `TabData` field, so
@@ -86,10 +93,7 @@ use crate::{send_telemetry_from_ctx, TelemetryEvent};
 use crate::notebooks::editor::view::RichTextEditorView;
 #[cfg(feature = "local_fs")]
 use crate::{
-    notebooks::{
-        editor::{model::NotebooksEditorModel, rich_text_styles, view::RichTextEditorConfig},
-        link::{NotebookLinks, SessionSource},
-    },
+    notebooks::{ editor::{model::NotebooksEditorModel, rich_text_styles, view::RichTextEditorConfig}, link::{NotebookLinks, SessionSource}, },
     settings::FontSettings,
 };
 

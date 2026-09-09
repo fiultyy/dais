@@ -22,7 +22,7 @@ use warp_core::features::{FeatureFlag, DEBUG_FLAGS, DOGFOOD_FLAGS, PREVIEW_FLAGS
 /// not include most of the app's object files and the `inventory`
 /// submissions they contain.
 fn ensure_settings_linked() {
-    let _ = std::hint::black_box(warp::settings::RESTORE_SESSION);
+    let _ = std::hint::black_box(dais::settings::RESTORE_SESSION);
 }
 
 /// Recursively strips `minimum`, `maximum`, and `format` from integer and

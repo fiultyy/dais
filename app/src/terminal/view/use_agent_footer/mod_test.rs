@@ -5,31 +5,16 @@ use warp_core::settings::Setting as _;
 use warpui::{App, AppContext, SingletonEntity, ViewContext};
 
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversationId, task::TaskId, AIAgentInput, ServerOutputId,
-            UserQueryMode,
-        },
-        blocklist::{
-            agent_view::AgentViewEntryOrigin,
-            block::cli_controller::UserTakeOverReason,
-            model::{AIBlockModel, AIBlockOutputStatus, AIRequestType, OutputStatusUpdateCallback},
-            AIBlock, ClientIdentifiers,
-        },
-        llms::LLMId,
-    },
+    ai::{ agent::{ conversation::AIConversationId, task::TaskId, AIAgentInput, ServerOutputId, UserQueryMode, }, blocklist::{ agent_view::AgentViewEntryOrigin, block::cli_controller::UserTakeOverReason, model::{AIBlockModel, AIBlockOutputStatus, AIRequestType, OutputStatusUpdateCallback}, AIBlock, ClientIdentifiers, }, llms::LLMId, },
     features::FeatureFlag,
     settings::AISettings,
-    terminal::cli_agent_sessions::{
-        CLIAgentInputState, CLIAgentSession, CLIAgentSessionContext, CLIAgentSessionStatus,
-        CLIAgentSessionsModel,
-    },
-    terminal::model::ansi::{BootstrappedValue, Handler as _, InitShellValue},
+    terminal::cli_agent_sessions::{ CLIAgentInputState, CLIAgentSession, CLIAgentSessionContext, CLIAgentSessionStatus, CLIAgentSessionsModel, },
     terminal::CLIAgent,
     test_util::{add_window_with_terminal, terminal::initialize_app_for_terminal_view},
 };
 
 use super::super::{AIBlockMetadata, RichContentMetadata, RichContentType};
+use terminal_grid_model::ansi::{BootstrappedValue, Handler as _, InitShellValue};
 use super::*;
 
 #[test]

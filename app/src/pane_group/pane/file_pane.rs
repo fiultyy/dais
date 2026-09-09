@@ -13,9 +13,59 @@ use crate::{
 };
 
 use super::{
-    notebook_pane::subscribe_to_link_model, view::PaneView, DetachType, PaneConfiguration,
-    PaneContent, PaneGroup, PaneId, ShareableLink, ShareableLinkError,
+    view::PaneView, DetachType, PaneConfiguration, PaneContent, PaneGroup, PaneId, ShareableLink,
+    ShareableLinkError,
 };
+use crate::notebooks::link::{LinkEvent, NotebookLinks};
+use crate::pane_group::{Direction, DefaultSessionModeBehavior};
+
+// Dais Wave 7-3: 原 `notebook_pane::subscribe_to_link_model` 随 notebook pane 物理删,
+// file notebook 链接订阅内联于此。
+fn subscribe_to_link_model(
+    pane_id: PaneId,
+    handle: &ModelHandle<NotebookLinks>,
+    ctx: &mut ViewContext<PaneGroup>,
+) {
+    ctx.subscribe_to_model(handle, move |pane_group, _, event, ctx| match event {
+        LinkEvent::OpenFileNotebook { path, session } => {
+            // Opening local files is delegated to the parent workspace.
+            ctx.emit(crate::pane_group::Event::OpenFileInWarp {
+                path: path.clone(),
+                session: session.clone(),
+            })
+        }
+        LinkEvent::DaisDriveLink {
+            open_warp_drive_args,
+        } => ctx.emit(crate::pane_group::Event::DaisDriveLink {
+            open_warp_drive_args: open_warp_drive_args.clone(),
+        }),
+        LinkEvent::StartLocalSession { path } => {
+            pane_group.add_session_in_directory(
+                Direction::Right,
+                Some(pane_id),
+                None, /* chosen_shell */
+                Some(path.clone()),
+                None,
+                DefaultSessionModeBehavior::Apply,
+                ctx,
+            );
+        }
+        #[cfg(feature = "local_fs")]
+        LinkEvent::OpenFileWithTarget {
+            path,
+            target,
+            line_col,
+        } => {
+            // Emit event to workspace to handle opening in Dais
+            ctx.emit(crate::pane_group::Event::OpenFileWithTarget {
+                path: path.clone(),
+                target: target.clone(),
+                line_col: *line_col,
+            });
+        }
+        LinkEvent::RefreshLinks => (),
+    });
+}
 
 pub struct FilePane {
     view: ViewHandle<PaneView<FileNotebookView>>,

@@ -12,8 +12,8 @@ use crate::pane_group::focus_state::{PaneFocusHandle, PaneGroupFocusState};
 use crate::pane_group::{BackingView as _, PaneId};
 use crate::terminal::keys::TerminalKeybindings;
 use crate::{
-    cloud_object::model::{persistence::ObjectStoreModel, view::ObjectStoreViewModel},
-    cloud_object::update_manager::UpdateManager,
+    objects::model::{persistence::ObjectStoreModel, view::ObjectStoreViewModel},
+    objects::object_store::ObjectStore,
     editor::InteractionState,
     network::NetworkStatus,
     notebooks::{editor::keys::NotebookKeybindings, notebook::NotebookView},
@@ -21,10 +21,17 @@ use crate::{
     test_util::settings::initialize_settings_for_tests,
     workspace::ActiveSession,
     workspaces::{user_profiles::UserProfiles, user_workspaces::UserWorkspaces},
-    GlobalResourceHandles, GlobalResourceHandlesProvider,
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
 };
 
 fn initialize_app(app: &mut App) {
+    // 断言 t! 产出的 Cut/Copy/Paste/Split pane 文案:单测进程不走 lib.rs 启动链,
+    // i18n 未 init 时 t!() 返回 key 原文;且并行测试可能热切换全局 locale,
+    // 故每次强制 en(同 test_util/terminal.rs initialize_app_for_terminal_view 惯例)。
+    crate::i18n::init(Some("en"));
+    crate::i18n::set_locale("en");
+
     initialize_settings_for_tests(app);
 
     let global_resources = GlobalResourceHandles::mock(app);
@@ -34,7 +41,7 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| Appearance::mock());
 
     app.add_singleton_model(UserWorkspaces::default_mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(ObjectStoreViewModel::mock);
     app.add_singleton_model(|_| UserProfiles::new(vec![]));
     app.add_singleton_model(|_| ActiveSession::default());
@@ -46,8 +53,6 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(NotebookKeybindings::new);
     app.add_singleton_model(TerminalKeybindings::new);
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
 }
 
 /// Builds a list of the standard notebook context-menu items by appending the set of split-pane

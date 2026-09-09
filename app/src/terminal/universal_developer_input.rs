@@ -1,16 +1,15 @@
 #[cfg(not(target_family = "wasm"))]
+use terminal_grid_model::block::BlockMetadata;
 use crate::search::ai_context_menu::view::AIContextMenu;
 #[cfg(not(target_family = "wasm"))]
 use crate::settings::InputSettings;
 use crate::{
     ai::{blocklist::block::cli_controller::CLISubagentController, llms::LLMPreferences},
-    cloud_object::model::generic_string_model::StringModel,
     settings::AISettingsChangedEvent,
-    terminal::profile_model_selector::{
-        calculate_max_profile_name_width, calculate_scaled_font_size,
-    },
+    terminal::profile_model_selector::{ calculate_max_profile_name_width, calculate_scaled_font_size, },
     terminal::view::ambient_agent::AmbientAgentViewModel,
 };
+use objects::StringModel;
 use pathfinder_color::ColorU;
 #[cfg(not(target_family = "wasm"))]
 use settings::Setting as _;
@@ -53,27 +52,13 @@ use crate::ai::blocklist::BlocklistAIHistoryEvent;
 #[cfg(not(target_family = "wasm"))]
 use crate::terminal::model::session::SessionType;
 use crate::{
-    ai::{
-        blocklist::{
-            prompt::prompt_alert::PromptAlertView, BlocklistAIInputModel, InputConfig, InputType,
-        },
-        execution_profiles::profiles::AIExecutionProfilesModel,
-        AIRequestUsageModel,
-    },
+    ai::{ blocklist::{ prompt::prompt_alert::PromptAlertView, BlocklistAIInputModel, InputConfig, InputType, }, execution_profiles::profiles::AIExecutionProfilesModel, AIRequestUsageModel, },
     network::NetworkStatus,
     settings::AISettings,
     settings_view::SettingsSection,
-    terminal::{
-        input::MenuPositioningProvider,
-        keys::TerminalKeybindings,
-        model::{block::BlockMetadata, session::Sessions},
-        profile_model_selector::{ProfileModelSelector, ProfileModelSelectorEvent},
-        session_settings::{SessionSettings, SessionSettingsChangedEvent},
-    },
+    terminal::{ input::MenuPositioningProvider, keys::TerminalKeybindings, model::{ session::Sessions}, profile_model_selector::{ProfileModelSelector, ProfileModelSelectorEvent}, session_settings::{SessionSettings, SessionSettingsChangedEvent}, },
     ui_components::icons::Icon,
-    view_components::action_button::{
-        ActionButton, ActionButtonTheme, ButtonSize, NakedTheme, TooltipAlignment,
-    },
+    view_components::action_button::{ ActionButton, ActionButtonTheme, ButtonSize, NakedTheme, TooltipAlignment, },
     workspaces::user_workspaces::UserWorkspaces,
     BlocklistAIHistoryModel,
 };
@@ -285,7 +270,6 @@ impl CachedUIState {
 
 pub struct UniversalDeveloperInputButtonBar {
     terminal_view_id: EntityId,
-    mic_button: ViewHandle<ActionButton>,
     at_button: ViewHandle<ActionButton>,
     file_button: ViewHandle<ActionButton>,
     slash_command_button: ViewHandle<ActionButton>,
@@ -300,16 +284,12 @@ pub struct UniversalDeveloperInputButtonBar {
 
 #[derive(Debug, Clone)]
 pub enum UniversalDeveloperInputButtonBarAction {
-    #[cfg(feature = "voice_input")]
-    ToggleVoiceInput,
     SelectFile,
     SetAIContextMenuOpen(bool),
     OpenSlashCommandMenu,
 }
 
 pub enum UniversalDeveloperInputButtonBarEvent {
-    #[cfg(feature = "voice_input")]
-    ToggleVoiceInput(voice_input::VoiceInputToggledFrom),
     InputTypeSelected(InputType),
     EnableAutoDetection,
     SelectFile,
@@ -332,23 +312,6 @@ impl UniversalDeveloperInputButtonBar {
     ) -> Self {
         let button_size = ButtonSize::UDIButton;
 
-        let mic_button_view = ctx.add_typed_action_view(|_ctx| {
-            #[cfg_attr(not(feature = "voice_input"), allow(unused_mut))]
-            let mut button = ActionButton::new("", PromptIconButtonTheme::new(false))
-                .with_icon(Icon::Microphone)
-                .with_tooltip(crate::t!("terminal-voice-input-tooltip"))
-                .with_size(button_size)
-                .with_tooltip_alignment(TooltipAlignment::Left);
-            #[cfg(feature = "voice_input")]
-            {
-                button = button.on_click(|ctx| {
-                    ctx.dispatch_typed_action(
-                        UniversalDeveloperInputButtonBarAction::ToggleVoiceInput,
-                    );
-                });
-            }
-            button
-        });
 
         let at_button_view = ctx.add_typed_action_view(|_ctx| {
             ActionButton::new("", PromptIconButtonTheme::new(false))
@@ -492,7 +455,7 @@ impl UniversalDeveloperInputButtonBar {
         });
 
         ctx.subscribe_to_model(&AISettings::handle(ctx), |me, ai_settings, event, ctx| {
-            // Re-render when AI settings change (like voice input enabled/disabled)
+            // Re-render when AI settings change
             // Also update segmented control options when auto-detection setting changes
             if let AISettingsChangedEvent::AIAutoDetectionEnabled { .. } = event {
                 let is_autodection_enabled =
@@ -581,7 +544,6 @@ impl UniversalDeveloperInputButtonBar {
 
         let mut me = Self {
             terminal_view_id,
-            mic_button: mic_button_view,
             at_button: at_button_view,
             file_button: file_button_view,
             slash_command_button: slash_command_menu_view,
@@ -599,15 +561,6 @@ impl UniversalDeveloperInputButtonBar {
         me
     }
 
-    pub fn set_voice_is_listening(&mut self, is_listening: bool, ctx: &mut ViewContext<Self>) {
-        self.mic_button.update(ctx, |mic_button, ctx| {
-            if is_listening {
-                mic_button.set_icon(Some(Icon::Stop), ctx);
-            } else {
-                mic_button.set_icon(Some(Icon::Microphone), ctx);
-            }
-        });
-    }
 
     /// Update the input empty state and refresh the autodetection label
     pub fn update_input_empty_state(&mut self, is_empty: bool, ctx: &mut ViewContext<Self>) {
@@ -741,9 +694,6 @@ impl UniversalDeveloperInputButtonBar {
         let is_blurred = self.cached_ui_state.borrow().is_button_bar_blurred();
         let theme = PromptIconButtonTheme::new(is_blurred);
 
-        self.mic_button.update(ctx, |button, ctx| {
-            button.set_theme(theme.clone(), ctx);
-        });
 
         self.at_button.update(ctx, |button, ctx| {
             button.set_theme(theme.clone(), ctx);
@@ -778,8 +728,6 @@ impl View for UniversalDeveloperInputButtonBar {
     fn render(&self, app: &AppContext) -> Box<dyn warpui::Element> {
         let appearance = Appearance::as_ref(app);
         let theme = appearance.theme();
-        #[cfg(feature = "voice_input")]
-        let is_voice_input_enabled = AISettings::as_ref(app).is_voice_input_enabled(app);
 
         // Helper function to create a 1px vertical divider
         let create_divider = || {
@@ -811,10 +759,6 @@ impl View for UniversalDeveloperInputButtonBar {
 
             buttons = buttons.with_child(ChildView::new(&self.slash_command_button).finish());
 
-            #[cfg(feature = "voice_input")]
-            if is_voice_input_enabled {
-                buttons = buttons.with_child(ChildView::new(&self.mic_button).finish());
-            }
 
             buttons = buttons.with_child(ChildView::new(&self.at_button).finish());
 
@@ -882,12 +826,6 @@ impl TypedActionView for UniversalDeveloperInputButtonBar {
         ctx: &mut ViewContext<Self>,
     ) {
         match action {
-            #[cfg(feature = "voice_input")]
-            UniversalDeveloperInputButtonBarAction::ToggleVoiceInput => {
-                ctx.emit(UniversalDeveloperInputButtonBarEvent::ToggleVoiceInput(
-                    voice_input::VoiceInputToggledFrom::Button,
-                ));
-            }
             UniversalDeveloperInputButtonBarAction::SelectFile => {
                 ctx.emit(UniversalDeveloperInputButtonBarEvent::SelectFile);
             }

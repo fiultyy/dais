@@ -7,12 +7,9 @@ use warpui::{Entity, EntityId, ModelContext, ModelHandle};
 use super::get_server_output_id;
 #[cfg(not(target_family = "wasm"))]
 use crate::{
-    ai::{
-        agent::{AIAgentAction, AIAgentActionResultType, CallMCPToolResult},
-        blocklist::{action_model::AIAgentActionType, BlocklistAIPermissions},
-        mcp::TemplatableMCPServerManager,
-    },
-    send_telemetry_from_app_ctx, TelemetryEvent,
+    ai::{ agent::{AIAgentAction, AIAgentActionResultType, CallMCPToolResult}, blocklist::{action_model::AIAgentActionType, BlocklistAIPermissions}, mcp::TemplatableMCPServerManager, },
+    send_telemetry_from_app_ctx,
+    TelemetryEvent,
 };
 #[cfg(not(target_family = "wasm"))]
 use itertools::Itertools;

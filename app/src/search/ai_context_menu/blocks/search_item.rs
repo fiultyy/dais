@@ -3,7 +3,7 @@ use crate::search::ai_context_menu::mixer::AIContextMenuSearchableAction;
 use crate::search::ai_context_menu::styles;
 use crate::search::item::SearchItem;
 use crate::search::result_renderer::ItemHighlightState;
-use crate::terminal::model::block::BlockId;
+use terminal_grid_model::block::BlockId;
 use crate::util::truncation::truncate_from_end;
 use fuzzy_match::FuzzyMatchResult;
 use ordered_float::OrderedFloat;

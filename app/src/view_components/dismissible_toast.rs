@@ -23,7 +23,10 @@ use warpui::{
 };
 use warpui::{Action, ViewHandle};
 
-use crate::{appearance::Appearance, themes::theme::Fill};
+use crate::{
+    appearance::Appearance,
+    themes::theme::Fill,
+};
 
 use super::action_button::ActionButton;
 

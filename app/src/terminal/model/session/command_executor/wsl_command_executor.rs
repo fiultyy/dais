@@ -72,7 +72,7 @@ impl WslCommandExecutor {
                 // result in truncation.
                 let env_vars_str = serialize_variables_for_shell(
                     [("PATH", &EnvVarValue::Constant(path_var))],
-                    self.shell_type,
+                    self.shell_type.into(),
                 );
                 command_with_env = Cow::Owned(format!(r#"{env_vars_str}; {command}"#));
             }

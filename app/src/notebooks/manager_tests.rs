@@ -6,15 +6,10 @@ use warpui::{
 };
 
 use crate::{
+    objects::model::{persistence::ObjectStoreModel, view::ObjectStoreViewModel},
+    objects::object_store::ObjectStore,
     ai::blocklist::BlocklistAIHistoryModel,
     auth::{AuthManager, AuthStateProvider},
-    cloud_object::update_manager::UpdateManager,
-    cloud_object::{
-        model::{
-            actions::ObjectActions, persistence::ObjectStoreModel, view::ObjectStoreViewModel,
-        },
-        Owner,
-    },
     network::NetworkStatus,
     notebooks::{editor::keys::NotebookKeybindings, notebook::NotebookView},
     pane_group::NotebookPane,
@@ -26,8 +21,10 @@ use crate::{
     test_util::settings::initialize_settings_for_tests,
     workspace::ActiveSession,
     workspaces::{user_profiles::UserProfiles, user_workspaces::UserWorkspaces},
-    GlobalResourceHandles, GlobalResourceHandlesProvider,
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
 };
+use objects::{ObjectActions, Owner};
 
 use super::NotebookManager;
 
@@ -89,11 +86,9 @@ fn initialize_app(app: &mut App) -> TestState {
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
     app.add_singleton_model(AuthManager::new_for_test);
     app.add_singleton_model(|_| BlocklistAIHistoryModel::new_for_test());
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
 
     let (sender, receiver) = mpsc::sync_channel(10);
-    app.add_singleton_model(|ctx| UpdateManager::new(Some(sender), ctx));
+    app.add_singleton_model(|ctx| ObjectStore::new(Some(sender), ctx));
     // Dais(Wave 4):SyncQueue 整删,原 `sync_queue.start_dequeueing(ctx)` 已不适用。
 
     app.add_singleton_model(ObjectStoreViewModel::mock);

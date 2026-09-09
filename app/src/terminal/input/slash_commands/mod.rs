@@ -21,10 +21,12 @@ use crate::ai::blocklist::agent_view::{
     AgentViewEntryOrigin, DismissalStrategy, EphemeralMessage, ENTER_OR_EXIT_CONFIRMATION_WINDOW,
 };
 use crate::ai::blocklist::{BlocklistAIHistoryModel, SlashCommandRequest};
+
 use crate::code_review::telemetry_event::CodeReviewPaneEntrypoint;
 use crate::search::slash_command_menu::static_commands::commands::{self, COMMAND_REGISTRY};
 use crate::search::slash_command_menu::static_commands::Availability;
 use crate::search::slash_command_menu::{SlashCommandId, StaticCommand};
+
 use crate::server::telemetry::SlashCommandAcceptedDetails;
 use crate::settings::AISettings;
 use crate::terminal::input::decorations::InputBackgroundJobOptions;
@@ -58,42 +60,8 @@ impl InlineMenuAction for AcceptSlashCommandOrSavedPrompt {
     const MENU_TYPE: InlineMenuType = InlineMenuType::SlashCommands;
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum SlashCommandTrigger {
-    Input { cmd_or_ctrl_enter: bool },
-    Keybinding,
-}
-
-impl SlashCommandTrigger {
-    fn cmd_or_ctrl_enter() -> Self {
-        Self::Input {
-            cmd_or_ctrl_enter: true,
-        }
-    }
-
-    pub fn input() -> Self {
-        Self::Input {
-            cmd_or_ctrl_enter: false,
-        }
-    }
-
-    pub(super) fn keybinding() -> Self {
-        Self::Keybinding
-    }
-
-    pub fn is_keybinding(&self) -> bool {
-        matches!(self, Self::Keybinding)
-    }
-
-    fn is_cmd_or_ctrl_enter(&self) -> bool {
-        matches!(
-            self,
-            Self::Input {
-                cmd_or_ctrl_enter: true
-            }
-        )
-    }
-}
+// R15: SlashCommandTrigger 提升 terminal_grid_model::agent_view。
+pub use terminal_grid_model::agent_view::SlashCommandTrigger;
 
 #[cfg(feature = "local_fs")]
 fn open_file_command_path(
@@ -922,6 +890,7 @@ impl Input {
 #[cfg(all(test, feature = "local_fs", windows))]
 mod tests {
     use super::*;
+    use terminal_grid_model::agent_view::SlashCommandTrigger;
     use std::sync::Arc;
 
     use crate::terminal::model::session::command_executor::testing::TestCommandExecutor;

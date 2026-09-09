@@ -16,11 +16,11 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::model::persistence::{ObjectStoreEvent, ObjectStoreModel},
     debounce::debounce,
     editor::InteractionState,
     notebooks::telemetry::BlockInfo,
 };
+use crate::objects::model::persistence::{ObjectStoreEvent, ObjectStoreModel};
 use crate::{
     notebooks::editor::interaction_state_model::InteractionStateModelEvent,
     terminal::ShellLaunchData,

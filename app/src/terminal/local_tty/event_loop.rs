@@ -15,9 +15,10 @@ use mio::{self, Events, Interest};
 use parking_lot::{FairMutex, FairMutexGuard};
 
 use crate::terminal::{
-    event_listener::ChannelEventListener, local_tty, model::ansi, TerminalModel,
+    event_listener::ChannelEventListener, local_tty, TerminalModel,
 };
 use crate::terminal::{model::terminal_model::ExitReason, writeable_pty::Message};
+use terminal_grid_model::ansi;
 
 use super::mio_channel::Receiver;
 
@@ -63,14 +64,14 @@ struct Writing {
 pub struct State {
     write_list: VecDeque<Cow<'static, [u8]>>,
     writing: Option<Writing>,
-    parser: ansi::Processor,
+    parser: terminal_grid_model::ansi::Processor,
 }
 
 impl Default for State {
     fn default() -> State {
         State {
             write_list: VecDeque::new(),
-            parser: ansi::Processor::new(),
+            parser: terminal_grid_model::ansi::Processor::new(),
             writing: None,
         }
     }

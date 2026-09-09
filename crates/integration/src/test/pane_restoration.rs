@@ -3,7 +3,7 @@
 
 use super::{new_builder, Builder};
 use std::{collections::HashMap, time::Duration};
-use warp::{
+use dais::{
     cmd_or_ctrl_shift,
     features::FeatureFlag,
     integration_testing::{
@@ -201,7 +201,7 @@ pub fn test_undo_close_grace_period_cleanup() -> Builder {
         .with_step(
             new_step_with_default_assertions("Check pane count before undo close")
                 .add_assertion(move |app, window_id| {
-                    let workspace_view = warp::integration_testing::view_getters::workspace_view(app, window_id);
+                    let workspace_view = dais::integration_testing::view_getters::workspace_view(app, window_id);
                     let initial_pane_count = workspace_view.read(app, |workspace, ctx| {
                         let pane_group_view = workspace.get_pane_group_view(0).expect("should have tab 0");
                         pane_group_view.read(ctx, |pane_group, _| pane_group.pane_count())
@@ -213,7 +213,7 @@ pub fn test_undo_close_grace_period_cleanup() -> Builder {
             .add_assertion(assert_focused_pane_index(0, 0)) // Should still be focused on original pane
             .add_assertion(move |app, window_id| {
                 // Assert we still only have one pane (no restoration occurred)
-                let workspace_view = warp::integration_testing::view_getters::workspace_view(app, window_id);
+                let workspace_view = dais::integration_testing::view_getters::workspace_view(app, window_id);
                 workspace_view.read(app, |workspace, ctx| {
                     let pane_group_view = workspace.get_pane_group_view(0).expect("should have tab 0");
                     let pane_count = pane_group_view.read(ctx, |pane_group, _| pane_group.pane_count());
@@ -272,7 +272,7 @@ pub fn test_closed_panes_cleared_on_rearrangement() -> Builder {
         ))
         .with_step(
             // Close the middle pane by using a direct operation targeting pane index 1
-            warp::integration_testing::pane_group::close_pane_by_index(
+            dais::integration_testing::pane_group::close_pane_by_index(
                 0, // tab index
                 1, // pane index - the middle pane
             ),
@@ -280,7 +280,7 @@ pub fn test_closed_panes_cleared_on_rearrangement() -> Builder {
         .with_step(
             new_step_with_default_assertions("Verify we have 2 visible panes after closing one")
                 .add_assertion(move |app, window_id| {
-                    let workspace_view = warp::integration_testing::view_getters::workspace_view(app, window_id);
+                    let workspace_view = dais::integration_testing::view_getters::workspace_view(app, window_id);
                     workspace_view.read(app, |workspace, ctx| {
                         let pane_group_view = workspace.get_pane_group_view(0).expect("should have tab 0");
                         let (visible_pane_count, total_pane_count) = pane_group_view.read(ctx, |pane_group, _| {
@@ -296,11 +296,11 @@ pub fn test_closed_panes_cleared_on_rearrangement() -> Builder {
         )
         .with_step(
             // Trigger pane rearrangement by moving panes
-            warp::integration_testing::pane_group::move_pane_by_indices(
+            dais::integration_testing::pane_group::move_pane_by_indices(
                 0,
                 0,
                 1,
-                warp::pane_group::tree::Direction::Right,
+                dais::pane_group::tree::Direction::Right,
             ),
         )
         .with_step(
@@ -310,7 +310,7 @@ pub fn test_closed_panes_cleared_on_rearrangement() -> Builder {
         .with_step(
             new_step_with_default_assertions("Verify pane was NOT restored - still have same visible panes")
                 .add_assertion(move |app, window_id| {
-                    let workspace_view = warp::integration_testing::view_getters::workspace_view(app, window_id);
+                    let workspace_view = dais::integration_testing::view_getters::workspace_view(app, window_id);
                     workspace_view.read(app, |workspace, ctx| {
                         let pane_group_view = workspace.get_pane_group_view(0).expect("should have tab 0");
                         let visible_pane_count = pane_group_view.read(ctx, |pane_group, _| pane_group.visible_pane_count());
@@ -326,7 +326,7 @@ pub fn test_closed_panes_cleared_on_rearrangement() -> Builder {
         )
         .with_step(
             trigger_undo_close().add_assertion(move |app, window_id| {
-                let workspace_view = warp::integration_testing::view_getters::workspace_view(app, window_id);
+                let workspace_view = dais::integration_testing::view_getters::workspace_view(app, window_id);
                 workspace_view.read(app, |workspace, ctx| {
                     let pane_group_view = workspace.get_pane_group_view(0).expect("should have tab 0");
                     let visible_pane_count = pane_group_view.read(ctx, |pane_group, _| pane_group.visible_pane_count());
@@ -342,7 +342,7 @@ pub fn test_closed_panes_cleared_on_rearrangement() -> Builder {
         .with_step(
             new_step_with_default_assertions("Verify remaining pane has expected state")
                 .add_assertion(move |app, window_id| {
-                    let workspace_view = warp::integration_testing::view_getters::workspace_view(app, window_id);
+                    let workspace_view = dais::integration_testing::view_getters::workspace_view(app, window_id);
                     let visible_pane_count = workspace_view.read(app, |workspace, ctx| {
                         let pane_group_view = workspace.get_pane_group_view(0).expect("should have tab 0");
                         pane_group_view.read(ctx, |pane_group, _| pane_group.visible_pane_count())
@@ -448,7 +448,7 @@ pub fn test_tab_closes_when_last_visible_pane_closed() -> Builder {
                 .set_pause_on_failure(std::time::Duration::from_secs(30))
                 .add_assertion(move |app, window_id| {
                     let workspace_view =
-                        warp::integration_testing::view_getters::workspace_view(app, window_id);
+                        dais::integration_testing::view_getters::workspace_view(app, window_id);
                     workspace_view.read(app, |workspace, _ctx| {
                         let focused_tab_idx = workspace.active_tab_index();
 

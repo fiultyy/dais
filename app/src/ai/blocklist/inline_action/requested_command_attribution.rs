@@ -8,7 +8,8 @@ use crate::env_vars::EnvVarCollection;
 use crate::env_vars::EnvVarValue;
 use crate::notebooks::NotebookObjectModel;
 use crate::terminal::shell::ShellType;
-use crate::{ai::agent::AIAgentCitation, cloud_object::model::persistence::ObjectStoreModel};
+use crate::ai::agent::AIAgentCitation;
+use crate::objects::model::persistence::ObjectStoreModel;
 use markdown_parser::{parse_markdown, FormattedTextLine};
 
 /// Returns true iff the `command` is directly copied from the `document`.
@@ -81,7 +82,7 @@ fn is_command_copied_from_env_var_collection(
     shell_type: ShellType,
 ) -> bool {
     // Check if the command is an instantiation of all the env-vars in the collection.
-    if collection.export_variables_for_shell(shell_type) == command {
+    if collection.export_variables_for_shell(shell_type.into()) == command {
         return true;
     }
 
@@ -94,7 +95,7 @@ fn is_command_copied_from_env_var_collection(
         }
 
         // Check if the command is an initialization of the specific env-var.
-        let init_string = var.get_initialization_string(shell_type);
+        let init_string = var.get_initialization_string(shell_type.into());
         if init_string == command || init_string.trim_end_matches(";") == command {
             return true;
         }

@@ -27,16 +27,8 @@ use warp_core::ui::Icon as WarpIcon;
 
 use super::AcceptSlashCommandOrSavedPrompt;
 use crate::{
-    ai::blocklist::{
-        agent_view::{AgentViewController, AgentViewControllerEvent},
-        block::cli_controller::{CLISubagentController, CLISubagentEvent},
-    },
-    search::{
-        slash_command_menu::{
-            static_commands::commands::COMMAND_REGISTRY, SlashCommandId, StaticCommand,
-        },
-        SyncDataSource,
-    },
+    ai::blocklist::{ agent_view::{AgentViewController, AgentViewControllerEvent}, block::cli_controller::{CLISubagentController, CLISubagentEvent}, },
+    search::{ slash_command_menu::{ static_commands::commands::COMMAND_REGISTRY, SlashCommandId, StaticCommand, }, SyncDataSource, },
     settings::{AISettings, AISettingsChangedEvent, InputSettings, InputSettingsChangedEvent},
     terminal::model::session::active_session::{ActiveSession, ActiveSessionEvent},
 };

@@ -1,0 +1,37 @@
+[package]
+name = "search_ui"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+regex.workspace = true
+i18n.workspace = true
+i18n-embed-fl.workspace = true
+num-traits.workspace = true
+warp_ripgrep.workspace = true
+concat-idents.workspace = true
+serde_json.workspace = true
+async-channel.workspace = true
+
+anyhow.workspace = true
+bitflags.workspace = true
+env_vars_ui.workspace = true
+fuzzy_match.workspace = true
+futures.workspace = true
+instant.workspace = true
+itertools.workspace = true
+log.workspace = true
+ordered-float.workspace = true
+parking_lot.workspace = true
+settings.workspace = true
+sha2.workspace = true
+string-offset.workspace = true
+strum_macros.workspace = true
+warpui.workspace = true
+
+# 与 app/Cargo.toml 同款声明:tantivy 不支持 wasm 目标,searcher 模块
+# 在 wasm 下整体 cfg 摘除(与原 app/src/search/searcher.rs 语义一致)。
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+tantivy.workspace = true

@@ -12,7 +12,7 @@ use parking_lot::Mutex;
 use super::{ExecuteCommandOptions, ExecutorCommandEvent};
 use crate::server::datetime_ext::DateTimeExt;
 use crate::terminal::event::ExecutedExecutorCommandEvent;
-use crate::terminal::model::tmux::commands::TmuxCommand;
+use terminal_model::tmux::commands::TmuxCommand;
 use crate::terminal::shell::Shell;
 
 use super::CommandExecutor;

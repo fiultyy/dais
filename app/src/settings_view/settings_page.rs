@@ -10,12 +10,9 @@ use super::{
     ai_page::{AISettingsPageAction, AISettingsPageView},
     appearance_page::AppearanceSettingsPageView,
     code_page::CodeSettingsPageView,
-    cloud_sync_page::CloudSyncPageView,
-    features_page::FeaturesPageView,
     keybindings::KeybindingsView,
     mcp_servers_page::MCPServersSettingsPageView,
     network_page::NetworkPageView,
-    warp_drive_page::WarpDriveSettingsPageView,
     warpify_page::WarpifyPageView,
     SettingsSection,
 };
@@ -96,7 +93,6 @@ pub trait SettingsPageMeta {
 #[derive(Clone)]
 pub enum SettingsPageViewHandle {
     Appearance(ViewHandle<AppearanceSettingsPageView>),
-    Features(ViewHandle<FeaturesPageView>),
     Keybindings(ViewHandle<KeybindingsView>),
     About(ViewHandle<AboutPageView>),
     Code(ViewHandle<CodeSettingsPageView>),
@@ -108,19 +104,14 @@ pub enum SettingsPageViewHandle {
     Warpify(ViewHandle<WarpifyPageView>),
     AI(ViewHandle<AISettingsPageView>),
     MCPServers(ViewHandle<MCPServersSettingsPageView>),
-    DaisDrive(ViewHandle<WarpDriveSettingsPageView>),
     /// 全局 HTTP 代理设置页。
     Network(ViewHandle<NetworkPageView>),
-    /// 云同步设置页。
-    CloudSync(ViewHandle<CloudSyncPageView>),
 }
-
 impl SettingsPageViewHandle {
     pub fn child_view(&self) -> Box<dyn Element> {
         use SettingsPageViewHandle::*;
         match self {
             Appearance(view_handle) => ChildView::new(view_handle).finish(),
-            Features(view_handle) => ChildView::new(view_handle).finish(),
             Keybindings(view_handle) => ChildView::new(view_handle).finish(),
             About(view_handle) => ChildView::new(view_handle).finish(),
             Code(view_handle) => ChildView::new(view_handle).finish(),
@@ -130,9 +121,7 @@ impl SettingsPageViewHandle {
             Warpify(view_handle) => ChildView::new(view_handle).finish(),
             AI(view_handle) => ChildView::new(view_handle).finish(),
             MCPServers(view_handle) => ChildView::new(view_handle).finish(),
-            DaisDrive(view_handle) => ChildView::new(view_handle).finish(),
             Network(view_handle) => ChildView::new(view_handle).finish(),
-            CloudSync(view_handle) => ChildView::new(view_handle).finish(),
         }
     }
 }
@@ -140,12 +129,6 @@ impl SettingsPageViewHandle {
 impl From<ViewHandle<MCPServersSettingsPageView>> for SettingsPageViewHandle {
     fn from(view_handle: ViewHandle<MCPServersSettingsPageView>) -> Self {
         SettingsPageViewHandle::MCPServers(view_handle)
-    }
-}
-
-impl From<ViewHandle<CloudSyncPageView>> for SettingsPageViewHandle {
-    fn from(view_handle: ViewHandle<CloudSyncPageView>) -> Self {
-        SettingsPageViewHandle::CloudSync(view_handle)
     }
 }
 

@@ -7,13 +7,16 @@ use warpui::{
 use crate::{
     ai::blocklist::BlocklistAIHistoryModel,
     auth::AuthStateProvider,
-    cloud_object::model::persistence::ObjectStoreModel,
     menu::MenuItemFields,
     pane_group::{focus_state::PaneFocusHandle, BackingView, PaneConfiguration, PaneId, PaneView},
     settings_view::keybindings::KeybindingChangedNotifier,
     test_util::settings::initialize_settings_for_tests,
-    NetworkStatus, UpdateManager, UserProfiles, UserWorkspaces,
+    NetworkStatus,
+    ObjectStore,
+    UserProfiles,
+    UserWorkspaces,
 };
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use super::{Event, OpenOverlay};
 
@@ -108,11 +111,9 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(|ctx| UserWorkspaces::mock(vec![], ctx));
     app.add_singleton_model(|_| UserProfiles::new(Vec::new()));
     app.add_singleton_model(ObjectStoreModel::mock);
-    app.add_singleton_model(|ctx| UpdateManager::new(None, ctx));
+    app.add_singleton_model(|ctx| ObjectStore::new(None, ctx));
     app.add_singleton_model(|_| KeybindingChangedNotifier::mock());
     app.add_singleton_model(|_| BlocklistAIHistoryModel::new_for_test());
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
 }
 

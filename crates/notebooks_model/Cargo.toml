@@ -1,0 +1,11 @@
+[package]
+name = "notebooks_model"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+objects.workspace = true
+serde.workspace = true
+warpui.workspace = true

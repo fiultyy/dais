@@ -75,6 +75,14 @@ impl CockpitCardStatus {
         }
     }
 
+    /// Blocked 携带的插件上报 message(权限请求/提问文本);非 Blocked 为 None。
+    pub fn blocked_message(&self) -> Option<&str> {
+        match self {
+            CockpitCardStatus::Blocked(msg) => msg.as_deref(),
+            _ => None,
+        }
+    }
+
     /// 状态判别键(供 `CockpitStatusFilter` 匹配;Blocked 不比 message 文本)。
     pub fn kind(&self) -> CockpitStatusFilter {
         match self {

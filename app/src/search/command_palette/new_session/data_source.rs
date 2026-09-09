@@ -9,7 +9,7 @@ use crate::search::{
     mixer::{DataSourceRunErrorWrapper, SyncDataSource},
 };
 use crate::terminal::available_shells::AvailableShells;
-use fuzzy_match::{match_indices_case_insensitive, FuzzyMatchResult};
+use fuzzy_match::FuzzyMatchResult;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 use warp_core::features::FeatureFlag;
@@ -54,39 +54,9 @@ pub struct NewSessionDataSource {
 }
 
 impl NewSessionDataSource {
-    #[cfg(not(target_family = "wasm"))]
     pub fn new(binding_source: ModelHandle<BindingSource>, ctx: &mut ModelContext<Self>) -> Self {
-        if FeatureFlag::UseTantivySearch.is_enabled() {
-            // 编译期 gate: feature 缺省时 full_text 分支不存在, 恒走 fuzzy
-            #[cfg(feature = "use_tantivy_search")]
-            {
-                return Self::new_full_text(binding_source, ctx);
-            }
-            Self::new_fuzzy(binding_source, ctx)
-        } else {
-            Self::new_fuzzy(binding_source, ctx)
-        }
-    }
-
-    #[cfg(target_family = "wasm")]
-    pub fn new(binding_source: ModelHandle<BindingSource>, ctx: &mut ModelContext<Self>) -> Self {
-        Self::new_fuzzy(binding_source, ctx)
-    }
-
-    fn new_fuzzy(binding_source: ModelHandle<BindingSource>, ctx: &mut ModelContext<Self>) -> Self {
-        ctx.observe(&binding_source, Self::on_binding_source_changed);
-        Self {
-            searcher: Box::new(FuzzyNewSessionSearcher::default()),
-            allowed: Default::default(),
-        }
-    }
-
-    // gate 与 full_text_searcher mod 一致: feature 缺省时本函数与 mod 一同不存在
-    #[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
-    fn new_full_text(
-        binding_source: ModelHandle<BindingSource>,
-        ctx: &mut ModelContext<Self>,
-    ) -> Self {
+        // wasm 下 tantivy 不支持: searcher.rs 顶行 cfg 已保证该模块仅在非 wasm 编译。
+        // Dais 为桌面专属目标, wasm 构建路径不存在。
         ctx.observe(&binding_source, Self::on_binding_source_changed);
         Self {
             searcher: Box::new(full_text_searcher::FullTextNewSessionSearcher::new(
@@ -186,8 +156,7 @@ impl NewSessionDataSource {
 impl SyncDataSource for NewSessionDataSource {
     type Action = CommandPaletteItemAction;
 
-    /// Does a fuzzy search on the descriptions of the new session options.
-    /// Logic is mostly copied from actions/data_source.rs
+    /// Full-text search on the descriptions of the new session options.
     fn run_query(
         &self,
         query: &Query,
@@ -238,77 +207,9 @@ trait NewSessionSearcher {
     /// matches should have this value as a ceiling.
     fn compute_max_match(&self, query_str: &str) -> Option<f64>;
 }
-#[derive(Default)]
-struct FuzzyNewSessionSearcher {
-    shell_id_to_options: HashMap<NewSessionOptionId, Arc<NewSessionOption>>,
-}
 
-impl NewSessionSearcher for FuzzyNewSessionSearcher {
-    fn search(&self, search_term: &str) -> anyhow::Result<Vec<QueryResult<SearcherAction>>> {
-        let max_match = self.compute_max_match(search_term);
-
-        Ok(self
-            .shell_id_to_options
-            .values()
-            .filter_map(move |new_session_option| {
-                // Binding descriptions are almost always upper case. If a user searches with
-                // lowercase text, the fuzzy matcher will weight this match lower because the case
-                // between the search term and the description differ. As a result, we lowercase
-                // both the search term and the description to ensure that we are matching the two
-                // with the same casing.
-                match_indices_case_insensitive(
-                    new_session_option.description().to_lowercase().as_str(),
-                    search_term.to_lowercase().as_str(),
-                )
-                .map(|result| {
-                    // If for some reason the variant (ex: "Create New Tab: Powershell") ranks higher
-                    // than a match for a base string (ex: "Create New Tab"), we want to cap the score
-                    // to be one less than the base string.
-                    if let Some(max_match) = max_match {
-                        FuzzyMatchResult {
-                            score: std::cmp::min(result.score, max_match.round() as i64 - 1),
-                            matched_indices: result.matched_indices,
-                        }
-                    } else {
-                        result
-                    }
-                })
-                .map(|result| (result, new_session_option))
-            })
-            .map(|(match_result, new_session_config)| {
-                SearchItem::new(new_session_config.clone(), match_result).into()
-            })
-            .collect())
-    }
-
-    /// This method is a no-op for the fuzzy searcher since it does not maintain an index.
-    fn build_index(&mut self) {}
-
-    fn bindings(&self) -> &HashMap<NewSessionOptionId, Arc<NewSessionOption>> {
-        &self.shell_id_to_options
-    }
-
-    fn bindings_mut(&mut self) -> &mut HashMap<NewSessionOptionId, Arc<NewSessionOption>> {
-        &mut self.shell_id_to_options
-    }
-
-    fn compute_max_match(&self, query_str: &str) -> Option<f64> {
-        SEARCHER_BASE_STRINGS
-            .iter()
-            .filter_map(|base| {
-                match_indices_case_insensitive(
-                    base.to_lowercase().as_str(),
-                    query_str.to_lowercase().as_str(),
-                )
-                .map(|result| result.score)
-            })
-            .min()
-            .map(|score| score as f64)
-    }
-}
-
-// tantivy 为 optional dep: 该全文搜索 mod 仅在 use_tantivy_search feature 下编译
-#[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
+// wasm 下 tantivy 不支持: 本 crate 为桌面专属, 不构建 wasm 目标
+#[cfg(not(target_family = "wasm"))]
 mod full_text_searcher {
     use crate::define_search_schema;
     use crate::search::command_palette::new_session::data_source::{

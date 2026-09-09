@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use warp::integration_testing::terminal::util::current_shell_starter_and_version;
-use warp::terminal::shell::ShellType;
-use warp::{
+use dais::integration_testing::terminal::util::current_shell_starter_and_version;
+use dais::terminal::shell::ShellType;
+use dais::{
     features::FeatureFlag,
     integration_testing::{
         clipboard::write_to_clipboard,

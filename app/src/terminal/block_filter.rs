@@ -1,6 +1,5 @@
 use pathfinder_color::ColorU;
 use pathfinder_geometry::vector::vec2f;
-use regex_automata::hybrid::BuildError;
 use warp_editor::editor::NavigationKey;
 use warpui::elements::{Align, Dash};
 use warpui::ui_components::components::UiComponent;
@@ -16,20 +15,16 @@ use warpui::{
     AppContext, Element, Entity, SingletonEntity, TypedActionView, View, ViewContext, ViewHandle,
 };
 
-use crate::terminal::model::terminal_model::BlockIndex;
+use terminal_grid_model::block_index::BlockIndex;
 use crate::{
     appearance::Appearance,
-    editor::{
-        EditOrigin, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys,
-        SingleLineEditorOptions, TextOptions, ValidInputType,
-    },
+    editor::{ EditOrigin, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, ValidInputType, },
     send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
     themes::theme::Fill,
     ui_components::{blended_colors, icons::Icon},
 };
 
-use super::model::find::{FindConfig, RegexDFAs};
 
 const BLOCK_FILTER_BAR_WIDTH: f32 = 380.;
 const BLOCK_FILTER_BAR_PADDING: f32 = 4.;
@@ -44,8 +39,15 @@ const BLOCK_FILTER_ICON_CORNER_RADIUS: f32 = 4.;
 const MAXIMUM_CONTEXT_LINES: u16 = 99;
 /// The maximum buffer length that we allow in the context line editor.
 const MAXIMUM_CONTEXT_LINE_EDITOR_BUFFER_LENGTH: usize = 2;
-pub type ContextLines = u16;
-pub const DEFAULT_CONTEXT_LINES_VALUE: ContextLines = 0;
+// R10: 常量单源迁至 terminal_grid_model,旧路径保持兼容。
+// R15: BlockFilterQuery/ContextLines 提升 terminal_grid_model;Editor UI 留守。
+pub use terminal_grid_model::block_filter::{BlockFilterQuery, ContextLines};
+
+pub enum OpenedFromClick {
+    Yes,
+    No,
+}
+pub use terminal_grid_model::grid::DEFAULT_CONTEXT_LINES_VALUE;
 const CONTEXT_LINE_EDITOR_TOOLTIP_LABEL: &str = "Show context lines around matches";
 const REGEX_TOOLTIP_LABEL: &str = "Regex toggle";
 const CASE_SENSITIVITY_TOOLTIP_LABEL: &str = "Case sensitive search";
@@ -85,54 +87,6 @@ struct MouseStateHandles {
     invert_filter_mouse_state_handle: MouseStateHandle,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct BlockFilterQuery {
-    pub query: String,
-    /// The number of context lines to include above/below each matched line.
-    pub num_context_lines: ContextLines,
-    pub regex_enabled: bool,
-    pub case_sensitivity_enabled: bool,
-    pub invert_filter_enabled: bool,
-    /// Only active queries will be applied to a block. Inactive queries will not
-    /// be applied, but are used to store the previous filter state on a block.
-    pub is_active: bool,
-}
-
-pub enum OpenedFromClick {
-    Yes,
-    No,
-}
-
-impl BlockFilterQuery {
-    pub fn construct_dfas(&self) -> Result<RegexDFAs, Box<BuildError>> {
-        RegexDFAs::new_with_config(
-            self.query.as_str(),
-            FindConfig {
-                is_regex_enabled: self.regex_enabled,
-                is_case_sensitive: self.case_sensitivity_enabled,
-            },
-        )
-    }
-
-    /// Returns true if this block filter query will apply an active filter to
-    /// the block. If false, this query will set the block into a non-filtered
-    /// state.
-    pub fn is_active_and_nonempty(&self) -> bool {
-        !self.query.is_empty() && self.is_active
-    }
-
-    #[cfg(test)]
-    pub fn new_for_test(query: String) -> Self {
-        Self {
-            query,
-            num_context_lines: 0,
-            regex_enabled: false,
-            case_sensitivity_enabled: false,
-            invert_filter_enabled: false,
-            is_active: true,
-        }
-    }
-}
 
 pub enum BlockFilterEditorEvent {
     UpdateFilter(BlockFilterQuery),

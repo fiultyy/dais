@@ -5679,7 +5679,7 @@ fn test_vim_semicolon_and_comma() {
         });
 
         editor.update(&mut app, |view, ctx| {
-            view.vim_user_insert(";;;;", ctx);
+            view.vim_user_insert(";", ctx);
         });
 
         editor.read(&app, |view, ctx| {

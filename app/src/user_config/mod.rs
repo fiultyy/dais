@@ -6,7 +6,7 @@ mod imp;
 
 use crate::tab_configs::{TabConfig, TabConfigError};
 use crate::themes::theme::WarpThemeConfig;
-use crate::{launch_configs::launch_config::LaunchConfig, themes::theme::ThemeKind};
+use crate::launch_configs::launch_config::LaunchConfig;
 use lazy_static::lazy_static;
 #[cfg(feature = "local_fs")]
 use std::path::Path;
@@ -125,16 +125,6 @@ impl WarpConfig {
         ctx: &mut ModelContext<Self>,
     ) {
         self.theme_config = theme_config;
-        ctx.emit(WarpConfigUpdateEvent::Themes);
-    }
-
-    pub fn add_new_theme_to_config(
-        &mut self,
-        theme_name: ThemeKind,
-        theme: WarpTheme,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        self.theme_config.add_new_theme(theme_name, theme);
         ctx.emit(WarpConfigUpdateEvent::Themes);
     }
 

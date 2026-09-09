@@ -54,6 +54,7 @@ generic-array = "0.14.7"
 derivative.workspace = true
 warp_core.workspace = true
 warp_terminal.workspace = true
+terminal_grid_model.workspace = true
 warp_util.workspace = true
 chrono.workspace = true
 clap.workspace = true

@@ -33,10 +33,7 @@ use crate::{
     appearance::Appearance,
     editor::{EditorView, Event as EditorEvent, SingleLineEditorOptions},
     modal::ModalAction,
-    tab_configs::{
-        branch_picker::BranchPicker,
-        repo_picker::{RepoPicker, RepoPickerEvent},
-    },
+    tab_configs::{ branch_picker::BranchPicker, repo_picker::{RepoPicker, RepoPickerEvent}, },
 };
 
 /// Gap between sections in the modal body (repo picker, branch picker, checkbox).

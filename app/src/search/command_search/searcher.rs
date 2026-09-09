@@ -1,6 +1,6 @@
 use crate::env_vars::EnvVarCollectionObject;
 use crate::search::mixer::SearchMixer;
-use crate::server::ids::SyncId;
+use objects::ids::SyncId;
 
 pub type CommandSearchMixer = SearchMixer<CommandSearchItemAction>;
 

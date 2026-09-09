@@ -16,7 +16,7 @@ use warpui::{ModelHandle, ModelSpawner};
 use crate::ai::agent::conversation::AIConversationId;
 use crate::ai::agent_events::AgentEventStreamClient;
 use crate::ai::ambient_agents::AmbientAgentTaskId;
-use crate::terminal::model::block::BlockId;
+use terminal_grid_model::block::BlockId;
 use crate::terminal::model::session::ExecuteCommandOptions;
 use crate::terminal::CLIAgent;
 

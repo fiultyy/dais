@@ -27,20 +27,7 @@ pub use telemetry::{
 };
 
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversationId, AIAgentAction, AIAgentActionId,
-            AIAgentActionResultType, AIAgentActionType, AIAgentOutputMessage,
-            AIAgentOutputMessageType, AIIdentifiers, RequestFileEditsResult, UpdatedFileContext,
-        },
-        blocklist::{
-            inline_action::code_diff_view::{
-                CodeDiffView, CodeDiffViewEvent, DiffSessionType, FileDiff,
-            },
-            BlocklistAIPermissions, RequestedEditResolution,
-        },
-        paths::host_native_absolute_path,
-    },
+    ai::{ agent::{ conversation::AIConversationId, AIAgentAction, AIAgentActionId, AIAgentActionResultType, AIAgentActionType, AIAgentOutputMessage, AIAgentOutputMessageType, AIIdentifiers, RequestFileEditsResult, UpdatedFileContext, }, blocklist::{ inline_action::code_diff_view::{ CodeDiffView, CodeDiffViewEvent, DiffSessionType, FileDiff, }, BlocklistAIPermissions, RequestedEditResolution, }, paths::host_native_absolute_path, },
     safe_warn,
     terminal::model::session::{active_session::ActiveSession, SessionType},
     BlocklistAIHistoryModel,

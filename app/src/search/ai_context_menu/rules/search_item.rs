@@ -3,7 +3,7 @@ use ordered_float::OrderedFloat;
 use std::fmt::Debug;
 
 use crate::appearance::Appearance;
-use crate::cloud_object::{GenericStringObjectFormat, JsonObjectType, ObjectType};
+use objects::{GenericStringObjectFormat, JsonObjectType, ObjectType};
 use crate::search::ai_context_menu::styles;
 use crate::search::ai_context_menu::{mixer::AIContextMenuSearchableAction, safe_truncate};
 use crate::search::item::SearchItem;

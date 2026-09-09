@@ -1,6 +1,6 @@
 use crate::search::command_palette::mixer::CommandPaletteItemAction;
 use crate::search::command_palette::navigation::search::{
-    FuzzySessionSearcher, MatchedSession, SessionMatchResult, SessionSearcher,
+    FullTextSessionSearcher, MatchedSession, SessionMatchResult, SessionSearcher,
 };
 use crate::search::command_palette::navigation::search_item::SearchItem;
 use crate::search::data_source::{DataSourceSearchError, Query, QueryResult};
@@ -16,37 +16,10 @@ pub struct DataSource {
 }
 
 impl DataSource {
-    #[cfg(not(target_family = "wasm"))]
     pub fn new(active_session_handle: ModelHandle<SessionSource>) -> Self {
-        if warp_core::features::FeatureFlag::UseTantivySearch.is_enabled() {
-            // 编译期 gate: feature 缺省时 full_text 分支不存在, 恒走 fuzzy
-            #[cfg(feature = "use_tantivy_search")]
-            {
-                return Self::new_full_text(active_session_handle);
-            }
-            Self::new_fuzzy(active_session_handle)
-        } else {
-            Self::new_fuzzy(active_session_handle)
-        }
-    }
-
-    #[cfg(target_family = "wasm")]
-    pub fn new(active_session_handle: ModelHandle<SessionSource>) -> Self {
-        Self::new_fuzzy(active_session_handle)
-    }
-
-    // gate 与 full_text_searcher mod 一致: feature 缺省时本函数与 mod 一同不存在
-    #[cfg(all(not(target_family = "wasm"), feature = "use_tantivy_search"))]
-    fn new_full_text(active_session_handle: ModelHandle<SessionSource>) -> Self {
-        use crate::search::command_palette::navigation::search::FullTextSessionSearcher;
+        // wasm 下 tantivy 不支持: full_text_searcher mod 仅在非 wasm 编译。
+        // Dais 为桌面专属目标, wasm 构建路径不存在。
         let searcher = Box::new(FullTextSessionSearcher::new(active_session_handle));
-        Self { searcher }
-    }
-
-    fn new_fuzzy(active_session_handle: ModelHandle<SessionSource>) -> Self {
-        let searcher = Box::new(FuzzySessionSearcher {
-            session_source_handle: active_session_handle,
-        });
         Self { searcher }
     }
 }

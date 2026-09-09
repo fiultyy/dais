@@ -5,7 +5,7 @@ use super::super::rich_text_styles;
 use super::NotebooksEditorModel;
 use crate::appearance::Appearance;
 use crate::auth::AuthStateProvider;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
+use crate::objects::model::persistence::ObjectStoreModel;
 use crate::editor::InteractionState;
 use crate::notebooks::editor::keys::NotebookKeybindings;
 use crate::notebooks::editor::model::DEBOUNCED_RESIZE_PERIOD;
@@ -19,7 +19,10 @@ use crate::terminal::keys::TerminalKeybindings;
 use crate::test_util::settings::initialize_settings_for_tests;
 use crate::workspace::ActiveSession;
 use crate::UserWorkspaces;
-use crate::{GlobalResourceHandles, GlobalResourceHandlesProvider};
+use crate::{
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
+};
 use futures::prelude::*;
 use itertools::Itertools;
 use markdown_parser::markdown_parser::RUNNABLE_BLOCK_MARKDOWN_LANG;
@@ -119,13 +122,29 @@ fn model_from_markdown(
 }
 
 fn initialize_deps(app: &mut App) {
+    // 命令高亮/描述链路经 t!() 取文案:单测进程不走 lib.rs 启动链,i18n 未 init
+    // 时 t!() 返回 key 原文,<c_#…> 高亮断言拿不到真实结果;且并行测试可能热切换
+    // 全局 locale,故每次强制 en(同 test_util/terminal.rs 惯例,init 幂等)。
+    crate::i18n::init(Some("en"));
+    crate::i18n::set_locale("en");
+
+    // Shell 高亮 span 生成点(NotebookCommand::highlight_syntax)经
+    // SessionAgnosticContext 从 CommandRegistry::global_instance() 取命令签名:
+    // 产品运行时由插件宿主注册,单测进程无人注册(v2 注册表初始为空),token
+    // 拿不到 description → 不生成 <c_#…> 颜色 span。这里向同一注册表幂等注册
+    // 测试用命令,使链路与产品一致;断言色值(#b4fa72 等)即 Appearance::mock()
+    // 的 mock_terminal_colors。
+    crate::test_util::initialize_command_signatures_for_tests();
+
     app.add_singleton_model(|_| Appearance::mock());
     app.add_singleton_model(|ctx| UserWorkspaces::mock(vec![], ctx));
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
     initialize_settings_for_tests(app);
 }
+
+/// 向全局命令注册表幂等注册本文件断言涉及的命令签名(git/cargo/echo/code/command)。
+/// 注册表为进程级共享且 `register_signature` 只做增量插入,并行测试下安全;
+/// `Once` 保证重复调用无副作用。
 
 /// Get the handle for each nested editor model.
 fn command_models(

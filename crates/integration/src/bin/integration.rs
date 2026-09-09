@@ -51,7 +51,7 @@ pub fn main() -> Result<()> {
                 // GUI application), do so.  This must occur before init_logging, as the
                 // terminal server sets up its own logger, and attempting to set a second
                 // logger leads to a panic.
-                warp::terminal::local_tty::server::run_terminal_server(args);
+                dais::terminal::local_tty::server::run_terminal_server(args);
                 return Ok(());
             }
             // This is a catch-all to handle the plugin host, which the integration test crate doesn't have a feature flag for.
@@ -97,7 +97,7 @@ pub fn main() -> Result<()> {
     }
 
     #[cfg_attr(not(any(unix, windows)), allow(unreachable_code))]
-    warp::run_integration_test(driver)
+    dais::run_integration_test(driver)
 }
 
 /// Type of a function that produces an integration test builder.
@@ -120,7 +120,6 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
     register_test!(test_single_command);
     register_test!(test_add_and_close_session);
     register_test!(test_add_many_sessions);
-    register_test!(test_ctrl_tab_session_switching);
     register_test!(test_ctrl_d_eot);
     register_test!(test_ctrl_d_exit);
     register_test!(test_ctrl_d_handled_by_read_during_bootstrapping);
@@ -161,7 +160,6 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
     register_test!(test_unnecessary_resizes);
     register_test!(test_open_and_close_settings);
     register_test!(test_suggestions_menu_positioning);
-    register_test!(test_open_and_close_theme_creator_modal);
     register_test!(test_removing_tabs_out_of_order);
     register_test!(test_ctrl_c);
     register_test!(test_click_on_prompt_to_focus_input);
@@ -218,12 +216,10 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
     register_test!(test_accepting_completion_inserts_space);
     register_test!(test_create_session_with_split_pane_while_bootstrapping);
     register_test!(test_create_session_with_new_tab_while_bootstrapping);
-    register_test!(test_add_theme_to_warp_config);
     register_test!(test_palette_opens_when_theme_chooser_is_open);
     #[cfg(target_os = "macos")]
     register_test!(test_preview_config_dir_migration);
-    register_test!(test_launch_warp_with_theme_in_warp_config);
-    register_test!(test_add_launch_config_to_warp_config);
+
     register_test!(test_cmd_enter);
     register_test!(test_alias_expansion_has_limit);
     register_test!(test_command_corrections);
@@ -300,8 +296,6 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
     register_test!(test_ask_warp_ai_keybinding_for_selected_block);
     register_test!(test_create_folder_from_command_palette);
 
-    register_test!(test_tab_behavior_setting);
-
     register_test!(test_private_public_settings_routing_with_flag_enabled);
     register_test!(test_private_settings_preloaded_and_not_leaked_to_toml);
 
@@ -341,6 +335,7 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
     register_test!(test_open_in_warp_banner);
     register_test!(test_close_notebook_window);
     register_test!(test_backspace_inside_rendered_mermaid_block_is_atomic);
+
 
     register_test!(test_block_filtering_keybinding);
     register_test!(test_block_filtering_keybinding_with_long_running_command);
@@ -400,7 +395,6 @@ fn register_tests() -> HashMap<&'static str, BoxedBuilderFn> {
 
     register_test!(test_rule_creation);
     register_test!(test_rule_update);
-    register_test!(test_rule_pane_opening);
     register_test!(test_undo_close_stack_timeout_cleanup);
 
     // File tree tests

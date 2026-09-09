@@ -14,7 +14,10 @@ use warpui::{
     AppContext, Element, ModelHandle,
 };
 
-use crate::{appearance::Appearance, ui_components::blended_colors};
+use crate::{
+    appearance::Appearance,
+    ui_components::blended_colors,
+};
 
 use super::{panel::AIAssistantAction, requests::Requests, transcript::CodeBlockMouseStateHandles};
 

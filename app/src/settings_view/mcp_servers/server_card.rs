@@ -1,3 +1,4 @@
+use crate::ai::mcp::templatable::TemplatableMCPServerObjectStoreExt;
 use markdown_parser::{FormattedText, FormattedTextFragment, FormattedTextLine};
 use pathfinder_color::ColorU;
 use warp_core::{
@@ -5,7 +6,7 @@ use warp_core::{
     ui::{
         external_product_icon::ExternalProductIcon,
         icons::{Icon, ICON_DIMENSIONS},
-        theme::{color::internal_colors, AnsiColorIdentifier},
+        theme::color::internal_colors,
     },
 };
 use warpui::{
@@ -27,19 +28,12 @@ use warpui::{
 };
 
 use crate::{
-    ai::mcp::{
-        templatable::TemplatableMCPServerObject, MCPServerState, TemplatableMCPServerManager,
-    },
+    ai::mcp::{ templatable::TemplatableMCPServerObject, MCPServerState, TemplatableMCPServerManager, },
     appearance::Appearance,
-    cloud_object::StoredObject,
     settings_view::mcp_servers::{style, ServerCardItemId},
-    ui_components::{
-        avatar::{Avatar, AvatarContent, StatusElementTypes},
-        blended_colors,
-        buttons::icon_button,
-        red_notification_dot::RedNotificationDot,
-    },
+    ui_components::{ avatar::{Avatar, AvatarContent, StatusElementTypes}, blended_colors, buttons::icon_button, },
 };
+use objects::StoredObject;
 
 /// A chip displayed inline with the server card title, optionally with a leading icon.
 #[derive(Debug, Clone)]
@@ -71,7 +65,6 @@ pub enum ServerCardAction {
     Edit(ServerCardItemId),
     Share(ServerCardItemId),
     Install(ServerCardItemId),
-    InstallServerUpdate(ServerCardItemId),
     ViewLogs(ServerCardItemId),
     LogOut(ServerCardItemId),
     FullCardClick,
@@ -83,7 +76,6 @@ pub enum ServerCardEvent {
     Share(ServerCardItemId),
     ToggleRunningSwitch(ServerCardItemId, bool),
     Install(ServerCardItemId),
-    InstallServerUpdate(ServerCardItemId),
     ViewLogs(ServerCardItemId),
     LogOut(ServerCardItemId),
 }
@@ -94,7 +86,6 @@ pub struct ServerCardMouseHandles {
     logout_icon_button: MouseStateHandle,
     share_icon_button: MouseStateHandle,
     edit_icon_button: MouseStateHandle,
-    update_icon_button: MouseStateHandle,
 
     view_logs_button: MouseStateHandle,
     edit_config_button: MouseStateHandle,
@@ -144,7 +135,6 @@ pub struct ServerCardOptions {
     pub show_log_out_icon_button: bool,
     pub show_share_icon_button: bool,
     pub show_edit_config_icon_button: bool,
-    pub show_update_available_icon_button: bool,
     pub show_view_logs_text_button: bool,
     pub show_edit_config_text_button: bool,
     pub show_setup_text_button: bool,
@@ -191,7 +181,6 @@ impl From<ServerCardStatus> for ServerCardOptions {
                 show_log_out_icon_button: false,
                 show_share_icon_button: false,
                 show_edit_config_icon_button: false,
-                show_update_available_icon_button: false,
                 show_view_logs_text_button: false,
                 show_edit_config_text_button: false,
                 show_setup_text_button: false,
@@ -208,7 +197,6 @@ impl From<ServerCardStatus> for ServerCardOptions {
                 show_log_out_icon_button: false,
                 show_share_icon_button: false,
                 show_edit_config_icon_button: true,
-                show_update_available_icon_button: false,
                 show_view_logs_text_button: false,
                 show_edit_config_text_button: false,
                 show_setup_text_button: true,
@@ -225,7 +213,6 @@ impl From<ServerCardStatus> for ServerCardOptions {
                 show_log_out_icon_button: false,
                 show_share_icon_button: false,
                 show_edit_config_icon_button: true,
-                show_update_available_icon_button: false,
                 show_view_logs_text_button: false,
                 show_edit_config_text_button: false,
                 show_setup_text_button: false,
@@ -245,7 +232,6 @@ impl From<ServerCardStatus> for ServerCardOptions {
                 show_log_out_icon_button: false,
                 show_share_icon_button: false,
                 show_edit_config_icon_button: true,
-                show_update_available_icon_button: false,
                 show_view_logs_text_button: false,
                 show_edit_config_text_button: false,
                 show_setup_text_button: false,
@@ -265,7 +251,6 @@ impl From<ServerCardStatus> for ServerCardOptions {
                 show_log_out_icon_button: false,
                 show_share_icon_button: false,
                 show_edit_config_icon_button: true,
-                show_update_available_icon_button: false,
                 show_view_logs_text_button: false,
                 show_edit_config_text_button: false,
                 show_setup_text_button: false,
@@ -285,7 +270,6 @@ impl From<ServerCardStatus> for ServerCardOptions {
                 show_log_out_icon_button: false,
                 show_share_icon_button: false,
                 show_edit_config_icon_button: true,
-                show_update_available_icon_button: false,
                 show_view_logs_text_button: false,
                 show_edit_config_text_button: false,
                 show_setup_text_button: false,
@@ -305,7 +289,6 @@ impl From<ServerCardStatus> for ServerCardOptions {
                 show_log_out_icon_button: false,
                 show_share_icon_button: false,
                 show_edit_config_icon_button: true,
-                show_update_available_icon_button: false,
                 show_view_logs_text_button: false,
                 show_edit_config_text_button: false,
                 show_setup_text_button: false,
@@ -325,7 +308,6 @@ impl From<ServerCardStatus> for ServerCardOptions {
                 show_log_out_icon_button: false,
                 show_share_icon_button: false,
                 show_edit_config_icon_button: false,
-                show_update_available_icon_button: false,
                 show_view_logs_text_button: true,
                 show_edit_config_text_button: true,
                 show_setup_text_button: false,
@@ -826,10 +808,6 @@ impl ServerCardView {
             }
         }
 
-        if self.render_options.show_update_available_icon_button {
-            actions_row = actions_row.with_child(self.render_update_available_icon(appearance));
-        }
-
         if self.render_options.show_view_logs_text_button {
             let view_logs_button = appearance
                 .ui_builder()
@@ -911,36 +889,6 @@ impl ServerCardView {
             .finish()
     }
 
-    fn render_update_available_icon(&self, appearance: &Appearance) -> Box<dyn Element> {
-        let item_id = self.item_id;
-        let update_available_button = self
-            .build_icon_button(
-                appearance,
-                Icon::Refresh,
-                crate::t!("settings-mcp-card-tooltip-update-available"),
-                self.mouse_handles.update_icon_button.clone(),
-            )
-            .on_click(move |ctx, _, _| {
-                ctx.dispatch_typed_action(ServerCardAction::InstallServerUpdate(item_id));
-            })
-            .finish();
-
-        RedNotificationDot::render_with_offset(
-            update_available_button,
-            &UiComponentStyles {
-                width: Some(style::UPDATE_AVAILABLE_DOT_WIDTH),
-                height: Some(style::UPDATE_AVAILABLE_DOT_WIDTH),
-                background: Some(Fill::Solid(
-                    AnsiColorIdentifier::Blue
-                        .to_ansi_color(&appearance.theme().terminal_colors().normal)
-                        .into(),
-                )),
-                ..RedNotificationDot::default_styles(appearance)
-            },
-            (-4., 4.),
-        )
-    }
-
     fn get_actions_row_width(&self) -> f32 {
         let mut number_of_buttons = 0;
         if self.render_options.show_add_icon {
@@ -998,10 +946,6 @@ impl TypedActionView for ServerCardView {
             }
             ServerCardAction::Install(item_id) => {
                 ctx.emit(ServerCardEvent::Install(*item_id));
-                ctx.notify();
-            }
-            ServerCardAction::InstallServerUpdate(item_id) => {
-                ctx.emit(ServerCardEvent::InstallServerUpdate(*item_id));
                 ctx.notify();
             }
             ServerCardAction::ViewLogs(item_id) => {

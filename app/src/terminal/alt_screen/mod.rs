@@ -1,8 +1,9 @@
+use terminal_grid_model::grid::grid_handler::TermMode;
 use settings::Setting as _;
 use warpui::{AppContext, SingletonEntity};
 
 use super::{
-    alt_screen_reporting::AltScreenReporting, model::grid::grid_handler::TermMode, TerminalModel,
+    alt_screen_reporting::AltScreenReporting, TerminalModel,
 };
 
 pub mod alt_screen_element;

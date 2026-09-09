@@ -3,10 +3,11 @@ use warpui::{platform::WindowStyle, App, ViewHandle};
 
 use crate::auth::AuthStateProvider;
 use crate::{
-    cloud_object::model::{
-        actions::ObjectActions, persistence::ObjectStoreModel, view::ObjectStoreViewModel,
+    objects::{
+        ObjectActions,
+        model::{persistence::ObjectStoreModel, view::ObjectStoreViewModel},
     },
-    cloud_object::update_manager::UpdateManager,
+    objects::object_store::ObjectStore,
     env_vars::{
         active_env_var_collection_data::SavingStatus,
         view::env_var_collection::EnvVarCollectionView,
@@ -29,7 +30,7 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| Appearance::mock());
 
     app.add_singleton_model(UserWorkspaces::default_mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(ObjectStoreViewModel::mock);
     app.add_singleton_model(|_| UserProfiles::new(vec![]));
     app.add_singleton_model(|_| ActiveSession::default());
@@ -37,8 +38,6 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| KeybindingChangedNotifier::mock());
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
 
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
 }
 
 fn create_env_var_collection_view(app: &mut App) -> ViewHandle<EnvVarCollectionView> {
@@ -57,7 +56,7 @@ fn test_variable_row_addition_and_removal() {
 
         env_var_collection_view.update(&mut app, |view, ctx| {
             view.open_new_env_var_collection(
-                crate::cloud_object::Owner::mock_current_user(),
+                objects::Owner::mock_current_user(),
                 None,
                 ctx,
             );

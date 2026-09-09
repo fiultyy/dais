@@ -1,3 +1,6 @@
+use terminal_grid_model::block::SerializedBlock;
+use terminal_grid_model::block::blocks::BlockListPoint;
+use terminal_model::index::{Point, Side};
 use warp_core::semantic_selection::SemanticSelection;
 use warpui::App;
 
@@ -5,14 +8,12 @@ use crate::terminal::{
     block_filter::BlockFilterQuery,
     event_listener::ChannelEventListener,
     model::{
-        block::SerializedBlock,
-        blocks::BlockListPoint,
-        index::{Point, Side},
-        terminal_model::WithinBlock,
-    },
+        terminal_model::WithinBlock},
     shared_session::tests::terminal_model_for_viewer,
     GridType, SizeInfo, SizeUpdate, SizeUpdateReason, TerminalModel,
 };
+use terminal_grid_model::block::blocks::BlockListPointExt as _;
+use crate::terminal::shared_session::selections::WithinBlockSessionSharing as _;
 use warpui::text::SelectionType;
 
 /// Creates a [`SelectionType::Simple`], left-to-right text selection

@@ -41,6 +41,11 @@ pub use bootstrapping::*;
 pub use code_review::*;
 pub use ctrl_d::*;
 pub use file_tree::*;
+use terminal_grid_model::grid::Dimensions;
+use terminal_grid_model::block::blocks::{BlockHeightItem, TotalIndex};
+use terminal_grid_model::grid::grid_handler::TermMode;
+use terminal_grid_model::block_index::BlockIndex;
+use terminal_grid_model::ansi::{Handler as _, InitShellValue};
 use float_cmp::assert_approx_eq;
 pub use goto_line::*;
 pub use history::*;
@@ -84,7 +89,7 @@ use warpui::{
     AssetProvider, Event, SingletonEntity, UpdateView, ViewHandle,
 };
 
-use warp::{terminal::find::TerminalFindModel, util::bindings::CustomAction, AgentModeEntrypoint};
+use dais::{terminal::find::TerminalFindModel, util::bindings::CustomAction, AgentModeEntrypoint};
 
 use sysinfo::{Pid, ProcessesToUpdate, System};
 use version_compare::Cmp;
@@ -96,18 +101,13 @@ use crate::builder::cargo_target_tmpdir;
 use crate::user_defaults;
 use crate::Builder;
 use sum_tree::SeekBias;
-use warp::integration_testing::terminal::assert_focused_editor_in_tab;
-use warp::integration_testing::{
-    settings::assert_theme_chooser_contains,
-    tab::{assert_pane_title, assert_tab_title},
-};
-use warp::settings::CtrlTabBehavior;
-use warp::terminal::keys_settings::KeysSettings;
-use warp::terminal::{
-    model::{blocks::BlockHeightSummary, terminal_model::BlockIndex},
-    view::TerminalViewState,
-};
-use warp::{
+use dais::integration_testing::terminal::assert_focused_editor_in_tab;
+use dais::integration_testing::tab::{assert_pane_title, assert_tab_title};
+use dais::settings::CtrlTabBehavior;
+use dais::terminal::keys_settings::KeysSettings;
+use dais::terminal::view::TerminalViewState;
+use terminal_grid_model::block::blocks::BlockHeightSummary;
+use dais::{
     appearance::Appearance,
     cmd_or_ctrl_shift,
     integration_testing::{
@@ -152,23 +152,20 @@ use warp::{
             single_input_suggestions_view_for_tab, single_input_view_for_tab,
             single_terminal_view_for_tab,
         },
-        view_of_type,
         window::{add_window, add_window_and_check_bounds, close_window, save_active_window_id},
     },
     settings::{TabBehavior, INPUT_MODE},
-    settings_view::FeaturesPageAction,
     terminal::{
         alt_screen_reporting::MouseReportingEnabled,
         block_list_viewport::{InputMode, ScrollPosition},
-        model::grid::grid_handler::TermMode,
         session_settings::SessionSettings,
         session_settings::{HonorPS1, StartupShellOverride},
         view::BlockVisibilityMode,
     },
 };
 
-use warp::terminal::view::ALIAS_EXPANSION_BANNER_SEEN_KEY;
-use warp::{
+use dais::terminal::view::ALIAS_EXPANSION_BANNER_SEEN_KEY;
+use dais::{
     features::FeatureFlag,
     integration_testing::{
         find::{Find, FindWithinBlockState},
@@ -179,13 +176,13 @@ use warp::{
         window::add_and_save_window,
     },
 };
-use warp::{
+use dais::{
     integration_testing::warp_drive::{
         assert_is_left_panel_open, assert_warp_drive_is_closed, assert_warp_drive_is_open,
     },
     settings::CompletionsOpenWhileTyping,
 };
-use warp::{
+use dais::{
     integration_testing::{
         self,
         input::{input_contains_string, input_is_empty},
@@ -195,11 +192,11 @@ use warp::{
     },
     settings::MonospaceFontSize,
 };
-use warp::{
+use dais::{
     integration_testing::{assertions::join_a_workspace, view_getters::single_terminal_view},
     terminal::view::TerminalAction,
 };
-use warp::{
+use dais::{
     integration_testing::{
         command_palette::{
             close_command_palette, open_command_palette, open_command_palette_and_run_action,
@@ -209,11 +206,11 @@ use warp::{
     },
     pane_group::AGENT_MODE_PANE_DEFAULT_MINIMUM_WIDTH,
 };
-use warp::{
+use dais::{
     integration_testing::{terminal::util::ExactLine, workspace::assert_tab_count},
     terminal::available_shells::AvailableShells,
 };
-use warp::{
+use dais::{
     integration_testing::{
         terminal::{
             assert_active_block_output, assert_alt_grid_active, assert_alt_screen_output,
@@ -224,16 +221,11 @@ use warp::{
     },
     workspace::WorkspaceAction,
 };
-use warp::{settings_view::SettingsAction, terminal::block_list_viewport::ScrollLines};
-use warp::{
+use dais::{settings_view::SettingsAction, terminal::block_list_viewport::ScrollLines};
+use dais::{
     settings_view::{keybindings::KeybindingsView, SettingsSection, SettingsView},
     terminal::{
         input::{Input, InputSuggestionsMode},
-        model::{
-            ansi::{Handler, InitShellValue},
-            blocks::{BlockHeightItem, TotalIndex},
-            grid::Dimensions,
-        },
         shell, TerminalView,
     },
     workspace::{Workspace, NEW_SESSION_MENU_BUTTON_POSITION_ID, NEW_TAB_BUTTON_POSITION_ID},
@@ -262,65 +254,6 @@ use super::util::{self, write_all_rc_files_for_test, write_rc_files_for_test};
 
 fn new_builder() -> Builder {
     Builder::new()
-}
-
-pub fn test_launch_warp_with_theme_in_warp_config() -> Builder {
-    new_builder()
-        .with_setup(move |utils| {
-            utils.set_env("WARP_CONFIG_WATCHER_DELAY_MS", Some((10).to_string()));
-
-            integration_testing::create_file_from_assets(
-                TEST_ONLY_ASSETS,
-                "test_theme.yaml",
-                &integration_testing::themes::themes_dir().join("test_theme.yaml"),
-            );
-        })
-        .with_step(assert_theme_chooser_contains("Test Theme", 1))
-}
-
-/// Adds a theme to the mocked out warp config directory and verifies that
-/// the theme appears in the theme picker.
-pub fn test_add_theme_to_warp_config() -> Builder {
-    new_builder()
-        .with_setup(move |utils| {
-            utils.set_env("WARP_CONFIG_WATCHER_DELAY_MS", Some((10).to_string()));
-
-            std::fs::create_dir_all(integration_testing::themes::themes_dir())
-                .expect("Should be able to create themes dir");
-        })
-        .with_step(wait_until_bootstrapped_single_pane_for_tab(0))
-        .with_step(assert_theme_chooser_contains("Test Theme", 0))
-        .with_step(TestStep::new("Write a new theme").with_setup(|_utils| {
-            integration_testing::create_file_from_assets(
-                TEST_ONLY_ASSETS,
-                "test_theme.yaml",
-                &integration_testing::themes::themes_dir().join("test_theme.yaml"),
-            );
-        }))
-        .with_step(assert_theme_chooser_contains("Test Theme", 1))
-        .with_step(
-            TestStep::new("Write another new theme").with_setup(|_utils| {
-                integration_testing::create_file_from_assets(
-                    TEST_ONLY_ASSETS,
-                    "test_theme.yaml",
-                    &integration_testing::themes::themes_dir().join("test_theme_2.yaml"),
-                );
-            }),
-        )
-        .with_step(assert_theme_chooser_contains("Test Theme", 2))
-        .with_step(
-            TestStep::new("Write another new theme with a name in the .yaml").with_setup(
-                |_utils| {
-                    integration_testing::create_file_from_assets(
-                        TEST_ONLY_ASSETS,
-                        "test_theme_with_name.yaml",
-                        &integration_testing::themes::themes_dir().join("test_theme_3.yaml"),
-                    );
-                },
-            ),
-        )
-        .with_step(assert_theme_chooser_contains("test_theme", 1))
-        .with_step(assert_theme_chooser_contains("Test Theme", 2))
 }
 
 pub fn test_palette_opens_when_theme_chooser_is_open() -> Builder {
@@ -477,50 +410,6 @@ pub fn test_open_and_close_settings() -> Builder {
                 .with_click_on_saved_position("close_tab_button:1")
                 .add_assertion(assert_tab_count(1))
                 .add_assertion(assert_tab_title(0, "~")),
-        )
-}
-
-pub fn test_open_and_close_theme_creator_modal() -> Builder {
-    new_builder()
-        .with_step(wait_until_bootstrapped_single_pane_for_tab(0))
-        .with_steps(
-            open_command_palette_and_run_action("Open Theme Picker").add_assertion(
-                |app, window_id| {
-                    let views = app.views_of_type(window_id).unwrap();
-                    let workspace: &ViewHandle<Workspace> = views.first().unwrap();
-                    workspace.read(app, |view, _| {
-                        async_assert!(view.is_theme_chooser_open(), "Theme chooser should be open")
-                    })
-                },
-            ),
-        )
-        .with_step(
-            new_step_with_default_assertions("Click on button to open theme creator modal")
-                .with_click_on_saved_position("create_theme_button")
-                .add_assertion(move |app, window_id| {
-                    let views: Vec<ViewHandle<Workspace>> = app.views_of_type(window_id).unwrap();
-                    let workspace = views.first().unwrap();
-                    workspace.read(app, |view, _| {
-                        async_assert!(
-                            view.is_theme_creator_modal_open(),
-                            "Theme creator modal should be open"
-                        )
-                    })
-                }),
-        )
-        .with_step(
-            new_step_with_default_assertions("Click on cancel button to close theme creator modal")
-                .with_click_on_saved_position("theme_creator_cancel_button")
-                .add_assertion(move |app, window_id| {
-                    let views: Vec<ViewHandle<Workspace>> = app.views_of_type(window_id).unwrap();
-                    let workspace = views.first().unwrap();
-                    workspace.read(app, |view, _| {
-                        async_assert!(
-                            !view.is_theme_creator_modal_open(),
-                            "Theme creator modal should be closed"
-                        )
-                    })
-                }),
         )
 }
 
@@ -1996,7 +1885,7 @@ pub fn test_add_and_close_session() -> Builder {
                                     .expect("pane at index 0 is a terminal pane")
                                     .as_ref(ctx)
                                     .as_any()
-                                    .downcast_ref::<warp::terminal::local_tty::TerminalManager>()
+                                    .downcast_ref::<dais::terminal::local_tty::TerminalManager>()
                                     .expect("terminal pane at index 0 contains a local session")
                                     .pid()
                                     .expect("shell should be spawned")
@@ -2107,128 +1996,6 @@ pub fn test_add_many_sessions() -> Builder {
             .with_step(execute_echo(tab_idx))
     }
     builder
-}
-
-pub fn test_ctrl_tab_session_switching() -> Builder {
-    #[allow(unused_mut, unused_assignments)]
-    let mut builder = new_builder();
-
-    // If linux return early.  For reasons unknown and not worth the time to debug currently
-    // this test fails on linux at the step where the command palette is expected to show.
-    // The feature does work on linux though - there's some underlying issue with our integration
-    // test here.
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-    {
-        return builder;
-    }
-
-    // if we are on linux, allow unreachable code
-    #[allow(unreachable_code)]
-    {
-        builder = new_builder()
-            .with_step(wait_until_bootstrapped_single_pane_for_tab(0))
-            .with_step(execute_echo(0))
-            .with_step(
-                toggle_setting(SettingsAction::FeaturesPageToggle(
-                    FeaturesPageAction::SetCtrlTabBehavior(CtrlTabBehavior::CycleMostRecentSession),
-                ))
-                .add_assertion(|app, _| {
-                    let ctrl_tab_behavior = KeysSettings::handle(app)
-                        .read(app, |keys_settings, _| *keys_settings.ctrl_tab_behavior);
-                    async_assert!(
-                        matches!(ctrl_tab_behavior, CtrlTabBehavior::CycleMostRecentSession),
-                        "Ctrl-Tab behavior should be set to CycleMostLeastRecentSession"
-                    )
-                })
-                .add_assertion(save_active_window_id("first_window_id")),
-            );
-
-        for i in 1..5 {
-            let tab_idx = i;
-            builder = builder
-                .with_step(
-                    new_step_with_default_assertions(
-                        format!("Add a session {i} using cmd-t and verify it bootstraps").as_str(),
-                    )
-                    .with_keystrokes(&[cmd_or_ctrl_shift("t")])
-                    .set_timeout(Duration::from_secs(10))
-                    .add_assertion(move |app, window_id| {
-                        assert_single_terminal_in_tab_bootstrapped(app, window_id, tab_idx)
-                    })
-                    .add_assertion(assert_tab_count(tab_idx + 1)),
-                )
-                .with_step(execute_echo(tab_idx))
-        }
-        builder = builder
-            .with_step(
-                new_step_with_default_assertions("Switch to the most recently added tab")
-                    .with_action(|app, _, data| {
-                        let window_id = match data.get("first_window_id") {
-                            Some(window_id) => *window_id,
-                            None => {
-                                panic!("Expected first_window_id to be defined");
-                            }
-                        };
-                        app.dispatch_custom_action(CustomAction::CycleNextSession, window_id);
-                    }),
-            )
-            .with_step(
-                new_step_with_default_assertions("release ctrl key 1")
-                    .with_event(Event::ModifierKeyChanged {
-                        key_code: KeyCode::ControlLeft,
-                        state: KeyState::Released,
-                    })
-                    .add_assertion(assert_focused_editor_in_tab(
-                        3, /* second to last tab, which was most recently added */
-                    )),
-            )
-            .with_step(
-                new_step_with_default_assertions("Switch to the tab just switched away from")
-                    .with_action(|app, _, data| {
-                        let window_id = match data.get("first_window_id") {
-                            Some(window_id) => *window_id,
-                            None => {
-                                panic!("Expected first_window_id to be defined");
-                            }
-                        };
-                        app.dispatch_custom_action(CustomAction::CycleNextSession, window_id);
-                    }),
-            )
-            .with_step(
-                new_step_with_default_assertions("release ctrl key 2")
-                    .with_event(Event::ModifierKeyChanged {
-                        key_code: KeyCode::ControlLeft,
-                        state: KeyState::Released,
-                    })
-                    .add_assertion(assert_focused_editor_in_tab(
-                        4, /* last tab, which was most recently switched away from*/
-                    )),
-            )
-            .with_step(
-                new_step_with_default_assertions("Go backwards in the tab cycle").with_action(
-                    |app, _, data| {
-                        let window_id = match data.get("first_window_id") {
-                            Some(window_id) => *window_id,
-                            None => {
-                                panic!("Expected first_window_id to be defined");
-                            }
-                        };
-                        app.dispatch_custom_action(CustomAction::CyclePrevSession, window_id);
-                    },
-                ),
-            )
-            .with_step(
-                new_step_with_default_assertions("release ctrl key 3")
-                    .with_event(Event::ModifierKeyChanged {
-                        key_code: KeyCode::ControlLeft,
-                        state: KeyState::Released,
-                    })
-                    .add_assertion(assert_focused_editor_in_tab(
-                        0, /* first tab, should wrap around */
-                    )),
-            );
-        builder
-    }
 }
 
 // This test verifies part of the behavior that we expect from 'ssh' command
@@ -6629,42 +6396,6 @@ pub fn test_create_folder_from_command_palette() -> Builder {
             open_command_palette_and_run_action("Create a New Personal Folder")
                 .add_assertion(assert_warp_drive_is_open()),
         )
-}
-
-pub fn test_tab_behavior_setting() -> Builder {
-    let completions_binding_name = "input:open_completion_suggestions";
-    let autosuggestions_binding_name = "editor_view:insert_autosuggestion";
-
-    let expected_completion_binding_name = if OperatingSystem::get().is_mac() {
-        "⌃Space"
-    } else {
-        "Ctrl Space"
-    };
-
-    new_builder()
-        .with_step(wait_until_bootstrapped_single_pane_for_tab(0))
-        .with_step(toggle_setting(SettingsAction::FeaturesPageToggle(
-            FeaturesPageAction::SetTabBehavior(TabBehavior::Autosuggestions),
-        )))
-        .with_step(assert_binding_display_string(
-            autosuggestions_binding_name,
-            Some("Tab"),
-        ))
-        .with_step(assert_binding_display_string(
-            completions_binding_name,
-            Some(expected_completion_binding_name),
-        ))
-        .with_step(toggle_setting(SettingsAction::FeaturesPageToggle(
-            FeaturesPageAction::SetTabBehavior(TabBehavior::Completions),
-        )))
-        .with_step(assert_binding_display_string(
-            autosuggestions_binding_name,
-            None,
-        ))
-        .with_step(assert_binding_display_string(
-            completions_binding_name,
-            Some("Tab"),
-        ))
 }
 
 pub fn test_context_chips_prompt_at_bootstrap() -> Builder {

@@ -241,7 +241,7 @@ fn init_subshell_script_for_shell(
         honor_ps1_env_var_value,
         env_vars
             .iter()
-            .map(|var| var.get_initialization_string(shell_type))
+            .map(|var| var.get_initialization_string(shell_type.into()))
             .collect_vec()
             .join(" ")
     );

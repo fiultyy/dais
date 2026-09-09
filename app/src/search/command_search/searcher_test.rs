@@ -11,7 +11,10 @@ use crate::search::result_renderer::ItemHighlightState;
 use crate::search::{QueryFilter, SyncDataSource};
 
 use crate::terminal::HistoryEntry;
-use crate::{appearance::Appearance, search::command_search::history::history_data_source};
+use crate::{
+    appearance::Appearance,
+    search::command_search::history::history_data_source,
+};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use std::collections::HashSet;

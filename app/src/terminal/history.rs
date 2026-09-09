@@ -1,3 +1,4 @@
+use terminal_grid_model::block::{AgentInteractionMetadata, Block, SerializedAIMetadata, SerializedBlock};
 use chrono::{DateTime, Local, TimeZone as _};
 use futures::Future;
 use serde::{Deserialize, Serialize};
@@ -10,13 +11,16 @@ use warp_core::command::ExitCode;
 use warpui::{Entity, ModelContext, SingletonEntity};
 
 use super::{
-    model::block::{AgentInteractionMetadata, Block, SerializedAIMetadata, SerializedBlock},
     shell::ShellType,
 };
 use crate::{
     terminal::model::session::{Session, SessionId},
     util::dedupe_from_last,
+
 };
+use objects::{Space, ids::{ClientId, HashableId as _, SyncId}};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::model::view::ObjectStoreViewModel;
 
 mod up_arrow;
 pub(crate) use up_arrow::UpArrowHistoryConfig;
@@ -73,51 +77,20 @@ impl From<crate::persistence::model::Command> for PersistedCommand {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub struct ShellHost {
-    // This field was originally named `shell` so mark it as an alias for
-    // backwards compatibility.
-    #[serde(alias = "shell")]
-    pub shell_type: ShellType,
-    pub user: String,
-    pub hostname: String,
+// R17: ShellHost 提升 terminal_grid_model::block_serialized。
+pub use terminal_grid_model::block_serialized::ShellHost;
+
+/// R17: from_session 依赖 app Session,改自由函数(孤儿规则禁 inherent impl)。
+pub fn shell_host_from_session(session: &crate::terminal::model::session::Session) -> ShellHost {
+    ShellHost {
+        shell_type: session.shell().shell_type(),
+        user: session.user().to_owned(),
+        hostname: session.hostname().to_owned(),
+    }
 }
 
-impl ShellHost {
-    pub fn from_session(session: &Session) -> Self {
-        Self {
-            shell_type: session.shell().shell_type(),
-            user: session.user().to_owned(),
-            hostname: session.hostname().to_owned(),
-        }
-    }
-
-    #[cfg(test)]
-    pub fn from_session_info(session_info: &super::model::session::SessionInfo) -> Self {
-        Self {
-            shell_type: session_info.shell.shell_type(),
-            user: session_info.user.clone(),
-            hostname: session_info.hostname.clone(),
-        }
-    }
-
-    pub fn try_from_persisted_block(block: &crate::persistence::model::Block) -> Option<Self> {
-        block
-            .shell
-            .as_ref()
-            .and_then(|name| ShellType::from_name(&name[..]))
-            .map(|shell| ShellHost {
-                shell_type: shell,
-                user: block
-                    .user
-                    .clone()
-                    .unwrap_or_else(|| "local:user".to_owned()),
-                hostname: block
-                    .host
-                    .clone()
-                    .unwrap_or_else(|| "local:host".to_owned()),
-            })
-    }
+pub fn try_from_persisted_block(b: &crate::persistence::model::Block) -> Option<ShellHost> {
+    ShellHost::from_parts(b.shell.as_deref(), b.user.as_deref(), b.host.as_deref())
 }
 
 /// Represents the state of the async task for reading the shell's history file for a given session.

@@ -1,3 +1,7 @@
+use terminal_grid_model::block_index::BlockIndex;
+use terminal_grid_model::grid::selection::{SelectAction, SelectionDirection};
+use terminal_model::index::Point;
+use warp_terminal::model::mouse::MouseState;
 use std::fmt;
 
 use std::ops::Range;
@@ -15,27 +19,16 @@ use crate::ai::agent::conversation::AIConversationId;
 use crate::code_review::telemetry_event::CodeReviewPaneEntrypoint;
 use crate::server::telemetry::{AgentModeRewindEntrypoint, ToggleBlockFilterSource};
 use crate::terminal::available_shells::AvailableShell;
-use crate::terminal::model::completions::ShellCompletion;
+use terminal_model::completions::ShellCompletion;
 use crate::terminal::shared_session::SharedSessionActionSource;
 use crate::terminal::ssh::error::SshErrorBlockAction;
 use crate::terminal::view::RichContentSecretTooltipInfo;
 use crate::terminal::view::inline_banner::AgentModeSetupSpeedbumpBannerAction;
 use crate::terminal::view::passive_suggestions::PromptSuggestionResolution;
 use crate::{
-    terminal::{
-        block_list_element::{
-            BlockHoverAction, BlockListMenuSource, BlockSelectAction, BlockTextSelectAction,
-        },
-        block_list_viewport::OverhangingBlock,
-        model::{
-            SecretHandle,
-            index::Point,
-            mouse::MouseState,
-            selection::{SelectAction, SelectionDirection},
-            terminal_model::{BlockIndex, WithinModel},
-        },
-    },
+    terminal::{ block_list_element::{ BlockHoverAction, BlockListMenuSource, BlockSelectAction, BlockTextSelectAction, }, block_list_viewport::OverhangingBlock, model::{ SecretHandle, terminal_model::WithinModel }, },
 };
+use objects::ids::SyncId;
 
 use super::inline_banner::{
     AwsBedrockLoginBannerAction, AwsCliNotInstalledBannerAction, OpenInWarpBannerAction,
@@ -315,9 +308,6 @@ pub enum TerminalAction {
     SetInputModeAgent,
     /// Sets the input mode to Terminal Mode
     SetInputModeTerminal,
-    /// Toggle voice input for CLI agent footer (dispatched from alt screen/blocklist when footer is visible)
-    #[cfg(feature = "voice_input")]
-    ToggleCLIAgentVoiceInput(voice_input::VoiceInputToggledFrom),
 
     StartFileDropTarget,
     StopFileDropTarget,
@@ -554,8 +544,6 @@ impl fmt::Debug for TerminalAction {
             NotifySshErrorBlock(action) => write!(f, "NotifySshErrorBlock({action:?})"),
             SetInputModeAgent => write!(f, "SetInputModeAgent"),
             SetInputModeTerminal => write!(f, "SetInputModeTerminal"),
-            #[cfg(feature = "voice_input")]
-            ToggleCLIAgentVoiceInput(source) => write!(f, "ToggleCLIAgentVoiceInput({source:?})"),
             StartFileDropTarget => write!(f, "StartFileDropTarget"),
             StopFileDropTarget => write!(f, "StopFileDropTarget"),
             RunNativeShellCompletions { buffer_text, .. } => {

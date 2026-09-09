@@ -22,7 +22,7 @@ use warpui::App;
 
 use crate::pane_group::focus_state::PaneGroupFocusState;
 use crate::pane_group::{BackingView, TerminalPaneId};
-use crate::terminal::model::grid::Dimensions as _;
+use warp_terminal::model::grid::Dimensions as _;
 use crate::{
     terminal::alt_screen::should_intercept_mouse,
     test_util::terminal::add_window_with_id_and_terminal,
@@ -54,12 +54,13 @@ use crate::terminal::session_settings::AgentToolbarChipSelection;
 use crate::view_components::find::FindWithinBlockState;
 
 use crate::persistence::model::AgentConversationData;
-use crate::terminal::model::ansi::{self, InitShellValue};
-use crate::terminal::model::ansi::{BootstrappedValue, PreexecValue};
-use crate::terminal::model::block::{
+use terminal_grid_model::ansi::{self, InitShellValue};
+use terminal_grid_model::ansi::{BootstrappedValue, PreexecValue};
+use terminal_grid_model::block::{
     AgentInteractionMetadata, AgentViewVisibility, BlockId, SerializedAIMetadata, SerializedBlock,
 };
-use crate::terminal::model::blocks::{insert_block, TotalIndex};
+use terminal_grid_model::block::blocks::TotalIndex;
+use crate::terminal::model::blocks::insert_block;
 use crate::terminal::model::terminal_model::WithinBlock;
 use crate::terminal::view::load_ai_conversation::RestoredAIConversation;
 use crate::test_util::ai_agent_tasks::{
@@ -1194,7 +1195,7 @@ fn test_clear_session_flag_state() {
     use warp_terminal::shell::ShellType;
 
     use crate::ai::blocklist::SerializedBlockListItem;
-    use crate::terminal::model::block::SerializedBlock;
+    use terminal_grid_model::block::SerializedBlock;
     use crate::terminal::ShellHost;
 
     App::test((), |mut app| async move {
@@ -1320,7 +1321,7 @@ fn test_insert() {
                 blocks.input('f');
                 blocks.linefeed();
                 blocks.preexec(PreexecValue::default());
-                blocks.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+                blocks.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
             }
             view.begin_block_text_selection(
                 BlockListPoint::new(1.0, 1),
@@ -1501,7 +1502,7 @@ fn test_copy_on_select() {
 
                 blocks.preexec(PreexecValue::default());
 
-                blocks.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+                blocks.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
             }
 
             view.begin_block_text_selection(
@@ -1531,7 +1532,7 @@ fn test_alt_screen_copy_on_select() {
             {
                 // Enter alt screen and add text
                 let mut model = view.model.lock();
-                model.set_mode(ansi::Mode::SwapScreen {
+                model.set_mode(terminal_grid_model::ansi::Mode::SwapScreen {
                     save_cursor_and_clear_screen: true,
                 });
                 assert!(model.is_alt_screen_active());
@@ -1574,10 +1575,10 @@ fn test_alt_screen_select_with_sgr_mouse() {
             {
                 // Enter alt screen and enable SGR Mouse
                 let mut model = view.model.lock();
-                model.set_mode(ansi::Mode::SwapScreen {
+                model.set_mode(terminal_grid_model::ansi::Mode::SwapScreen {
                     save_cursor_and_clear_screen: true,
                 });
-                model.set_mode(ansi::Mode::SgrMouse);
+                model.set_mode(terminal_grid_model::ansi::Mode::SgrMouse);
                 assert!(model.is_alt_screen_active());
                 assert!(!should_intercept_mouse(&model, false, ctx));
                 assert!(should_intercept_mouse(&model, true, ctx));
@@ -1767,7 +1768,7 @@ fn test_find_bar_select() {
 
                 blocks.preexec(PreexecValue::default());
 
-                blocks.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+                blocks.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
             }
 
             // Select 'foo'.

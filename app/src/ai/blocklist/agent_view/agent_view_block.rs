@@ -14,10 +14,7 @@ use warpui::{
 };
 
 use crate::{
-    ai::{
-        agent::conversation::{AIConversationId, ConversationStatus},
-        blocklist::BlocklistAIHistoryEvent,
-    },
+    ai::{ agent::conversation::{AIConversationId, ConversationStatus}, blocklist::BlocklistAIHistoryEvent, },
     terminal::BlockListSettings,
     ui_components::blended_colors,
     BlocklistAIHistoryModel,

@@ -3,7 +3,10 @@ use warpui::elements::{DraggableState, MouseStateHandle};
 use super::FileTreeItem;
 use crate::code::icon_from_file_path;
 use crate::ui_components::item_highlight::ImageOrIcon;
-use crate::{appearance::Appearance, ui_components::icons::Icon};
+use crate::{
+    appearance::Appearance,
+    ui_components::icons::Icon,
+};
 
 impl FileTreeItem {
     pub(super) fn to_render_state(

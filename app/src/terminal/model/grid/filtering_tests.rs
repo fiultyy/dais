@@ -1,18 +1,30 @@
+use warp_terminal::model::grid::Dimensions as _;
+use terminal_grid_model::grid::blockgrid::BlockGrid;
+use terminal_model::index::{VisiblePoint, VisibleRow};
 use warp_terminal::model::grid::cell::Flags;
+use terminal_grid_model::ansi::Handler as _;
 
-use crate::{
-    terminal::model::{
-        ansi::Handler as _,
-        blockgrid::BlockGrid,
-        grid::Dimensions as _,
-        index::{VisiblePoint, VisibleRow},
-    },
-    test_util::mock_blockgrid,
-};
+use crate::test_util::mock_blockgrid;
 
 use super::*;
+use terminal_grid_model::grid::*;
+use terminal_grid_model::grid::grid_handler::{add_displayed_rows_with_cursor_line, trim_context_lines};
 
 /// Converts a vector of ranges into DisplayedRows objects with source FilterMatch.
+// R10: 原父模块的可见 use 集,随模块下沉后显式补齐。
+#[allow(unused_imports)]
+use std::{ cmp::{max, min}, ops::{Range, RangeInclusive}, sync::Arc, };
+#[allow(unused_imports)]
+use itertools::Itertools as _;
+#[allow(unused_imports)]
+use crate::terminal::model::find::RegexDFAs;
+#[allow(unused_imports)]
+use terminal_grid_model::grid::displayed_output::{DisplaySource, DisplayedOutput, DisplayedRows};
+#[allow(unused_imports)]
+use terminal_model::index::Point;
+#[allow(unused_imports)]
+use terminal_grid_model::grid::grid_handler::GridHandler;
+
 fn make_displayed_rows_from_ranges(ranges: Vec<RangeInclusive<usize>>) -> Vec<DisplayedRows> {
     ranges
         .into_iter()

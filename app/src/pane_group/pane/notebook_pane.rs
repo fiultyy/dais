@@ -6,16 +6,15 @@ use warpui::{AppContext, ModelHandle, SingletonEntity, ViewContext, ViewHandle};
 
 use crate::{
     app_state::{LeafContents, NotebookPaneSnapshot},
-    cloud_object::Space,
     drive::{items::WarpDriveItemId, ObjectTypeAndId, DaisDriveObjectSettings},
     notebooks::{
         link::{LinkEvent, NotebookLinks},
         manager::{NotebookManager, NotebookSource},
         notebook::{NotebookEvent, NotebookView},
     },
-    server::ids::SyncId,
     workspaces::user_workspaces::UserWorkspaces,
 };
+use objects::{Space, ids::SyncId};
 
 use super::{
     super::{DefaultSessionModeBehavior, Direction},

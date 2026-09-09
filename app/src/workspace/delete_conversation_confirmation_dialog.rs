@@ -14,9 +14,7 @@ use crate::{
     ai::agent::conversation::AIConversationId,
     appearance::Appearance,
     ui_components::dialog::{dialog_styles, Dialog},
-    view_components::action_button::{
-        ActionButton, DangerPrimaryTheme, KeystrokeSource, NakedTheme,
-    },
+    view_components::action_button::{ ActionButton, DangerPrimaryTheme, KeystrokeSource, NakedTheme, },
 };
 
 pub fn init(app: &mut AppContext) {

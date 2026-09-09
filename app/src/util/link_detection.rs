@@ -10,7 +10,7 @@ use crate::ai::agent::{AIAgentActionType, AIAgentOutput, AIAgentTextSection, Rea
 use crate::ai::blocklist::block::view_impl::output::LinkActionConstructors;
 use crate::ai::blocklist::block::TextLocation;
 use crate::terminal::links::should_directly_open_link;
-use crate::terminal::model::grid::grid_handler::FILE_LINK_SEPARATORS;
+use terminal_grid_model::grid::grid_handler::FILE_LINK_SEPARATORS;
 use crate::terminal::ShellLaunchData;
 use warpui::elements::MouseStateHandle;
 use warpui::text::char_slice;

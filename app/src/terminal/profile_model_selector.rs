@@ -24,40 +24,18 @@ const SIDECAR_HORIZONTAL_GAP: f32 = 8.;
 const SIDECAR_POSITION_ID: &str = "model_sidecar_panel";
 
 use crate::{
-    ai::{
-        blocklist::{
-            prompt::PromptIconButtonTheme, BlocklistAIController, BlocklistAIControllerEvent,
-            BlocklistAIInputEvent, BlocklistAIInputModel,
-        },
-        execution_profiles::{
-            model_menu_items::{available_model_menu_items, has_reasoning_variants, is_auto},
-            profiles::{AIExecutionProfilesModel, AIExecutionProfilesModelEvent, ClientProfileId},
-        },
-        llms::{
-            dedupe_model_display_names, is_using_api_key_for_provider, LLMId, LLMInfo,
-            LLMPreferences, LLMPreferencesEvent, LLMSpec,
-        },
-    },
+    ai::{ blocklist::{ prompt::PromptIconButtonTheme, BlocklistAIController, BlocklistAIControllerEvent, BlocklistAIInputEvent, BlocklistAIInputModel, }, execution_profiles::{ model_menu_items::{available_model_menu_items, has_reasoning_variants, is_auto}, profiles::{AIExecutionProfilesModel, AIExecutionProfilesModelEvent, ClientProfileId}, }, llms::{ dedupe_model_display_names, is_using_api_key_for_provider, LLMId, LLMInfo, LLMPreferences, LLMPreferencesEvent, LLMSpec, }, },
     appearance::Appearance,
-    cloud_object::model::generic_string_model::StringModel,
-    context_chips::{
-        display_chip::{udi_font_size, udi_icon_size},
-        spacing,
-    },
+    context_chips::{ display_chip::{udi_font_size, udi_icon_size}, spacing, },
     menu::{Event as MenuEvent, Menu, MenuItem, MenuItemFields},
     settings_view::SettingsSection,
     terminal::view::ambient_agent::AmbientAgentViewModel,
-    terminal::{
-        input::{MenuPositioning, MenuPositioningProvider},
-        TerminalModel,
-    },
+    terminal::{ input::{MenuPositioning, MenuPositioningProvider}, TerminalModel, },
     ui_components::icons::Icon,
-    view_components::{
-        action_button::{ActionButton, ActionButtonTheme, ButtonSize, SecondaryTheme},
-        FeaturePopup, NewFeaturePopupEvent, NewFeaturePopupLabel,
-    },
+    view_components::{ action_button::{ActionButton, ActionButtonTheme, ButtonSize, SecondaryTheme}, FeaturePopup, NewFeaturePopupEvent, NewFeaturePopupLabel, },
     workspace::WorkspaceAction,
 };
+use objects::StringModel;
 
 use warp_core::ui::theme::{color::internal_colors, Fill};
 use warp_core::{

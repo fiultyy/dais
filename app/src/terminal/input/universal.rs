@@ -4,12 +4,7 @@ use crate::{
     context_chips::spacing,
     features::FeatureFlag,
     settings::{AppEditorSettings, InputModeSettings},
-    terminal::{
-        block_list_viewport::InputMode,
-        input::{InputAction, InputDropTargetData},
-        settings::TerminalSettings,
-        view::TerminalAction,
-    },
+    terminal::{ block_list_viewport::InputMode, input::{InputAction, InputDropTargetData}, settings::TerminalSettings, view::TerminalAction, },
     themes::theme::color::internal_colors,
 };
 use settings::Setting;

@@ -5,7 +5,7 @@ use crate::search::ai_context_menu::blocks::search_item::BlockSearchItem;
 use crate::search::data_source::Query;
 use crate::search::item::SearchItem;
 use crate::search::mixer::SyncDataSource;
-use crate::terminal::model::block::BlockId;
+use terminal_grid_model::block::BlockId;
 use crate::test_util::terminal::{
     add_window_with_id_and_terminal, add_window_with_terminal, initialize_app_for_terminal_view,
 };

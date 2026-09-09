@@ -6,8 +6,6 @@
 mod ai;
 mod alloc;
 mod antivirus;
-#[cfg(target_os = "macos")]
-mod app_menus;
 mod app_services;
 mod app_state;
 mod auth;
@@ -15,7 +13,6 @@ mod autoupdate;
 mod banner;
 mod changelog_model;
 mod chip_configurator;
-mod cloud_object;
 mod code;
 mod code_review;
 mod coding_entrypoints;
@@ -74,9 +71,12 @@ mod quit_warning;
 mod remote_server;
 mod resource_limits;
 mod safe_triangle;
-mod search_bar;
+mod objects;
+mod objects_display;
 mod server;
-mod server_time;
+pub mod server_time {
+    pub use objects::server_time::*;
+}
 mod session_management;
 mod shell_indicator;
 mod skill_manager;
@@ -88,7 +88,6 @@ mod tab;
 #[cfg(test)]
 mod test_util;
 mod throttle;
-mod tips;
 mod tracing;
 mod ui_components;
 mod undo_close;
@@ -97,13 +96,10 @@ mod user_config;
 pub mod util;
 mod view_components;
 mod vim_registers;
-mod voice;
+
 mod warp_managed_paths_watcher;
-#[cfg(target_family = "wasm")]
-mod wasm_nux_dialog;
-mod window_settings;
-mod word_block_editor;
 mod workspaces;
+mod window_settings;
 
 // PLEASE DO NOT ADD MORE PUBLIC MODULES!
 //
@@ -114,7 +110,7 @@ mod workspaces;
 //
 // If you feel the need to export a module so that a type or function within it
 // can be used by an integration test, you should define a new assertion function
-// in the warp::integration_testing::assertions module (or a sub-module).  These
+// in the dais::integration_testing::assertions module (or a sub-module).  These
 // functions will allow us to keep types internal to this crate and expose a
 // simpler API for integration tests to consume.
 pub mod ai_assistant;
@@ -146,6 +142,14 @@ use ::ai::project_context::model::ProjectContextModel;
 pub use ai::agent::{todos::AIAgentTodoList, AIAgentActionResultType, FileEdit, TodoOperation};
 #[cfg(feature = "orchestration")]
 pub use ai::orchestration::runtime_rpc;
+// cockpit-sandbox(app 的 warpui example)经此路径挂面板真身;
+// ai 模块本身对 crate 外私有,只有白名单 re-export 出去。
+#[cfg(not(target_family = "wasm"))]
+pub use ai::cockpit::view::CockpitPanelView;
+#[cfg(not(target_family = "wasm"))]
+pub use ai::observatory::model::ObservatoryModel;
+#[cfg(not(target_family = "wasm"))]
+pub use ai::observatory::view::ObservatoryPanelView;
 use ai::agent_conversations_model::AgentConversationsModel;
 use ai::blocklist::{BlocklistAIHistoryModel, BlocklistAIPermissions};
 use ai::execution_profiles::editor::ExecutionProfileEditorManager;
@@ -156,10 +160,8 @@ use code::editor_management::CodeManager;
 use code::opened_files::OpenedFilesModel;
 use code_review::GlobalCodeReviewModel;
 use quit_warning::UnsavedStateSummary;
-// Dais(本地化,Phase 4):`ServerVoiceTranscriber` 原用于默认 VoiceTranscriber 注入,现走 `VoiceTranscriber::disabled()`,同名 import 暂收。
 #[cfg(feature = "local_fs")]
 use settings::import::model::ImportedConfigModel;
-use voice::transcriber::VoiceTranscriber;
 use warp_cli::GlobalOptions;
 use warp_cli::{agent::AgentCommand, CliCommand};
 
@@ -193,7 +195,6 @@ use window_settings::WindowSettings;
 
 use crate::ai::ambient_agents::github_auth_notifier::GitHubAuthNotifier;
 use crate::ai::document::ai_document_model::AIDocumentModel;
-use crate::ai::facts::manager::AIFactManager;
 use crate::ai::llms::LLMPreferences;
 use crate::ai::mcp::MCPGalleryManager;
 use crate::ai::mcp::TemplatableMCPServerManager;
@@ -202,9 +203,9 @@ use crate::ai::skills::SkillManager;
 use crate::ai::AIRequestUsageModel;
 use crate::autoupdate::{AutoupdateState, RelaunchModel};
 use crate::changelog_model::ChangelogModel;
-use crate::cloud_object::model::actions::ObjectActions;
-use crate::cloud_object::model::view::ObjectStoreViewModel;
-use crate::cloud_object::update_manager::UpdateManager;
+use objects::ObjectActions;
+use crate::objects::model::view::ObjectStoreViewModel;
+use crate::objects::object_store::ObjectStore;
 use crate::code::global_buffer_model::GlobalBufferModel;
 use crate::context_chips::prompt::Prompt;
 use crate::default_terminal::DefaultTerminal;
@@ -235,7 +236,7 @@ use crate::undo_close::UndoCloseStack;
 use crate::user_config::WarpConfig;
 use crate::vim_registers::VimRegisters;
 use crate::warp_managed_paths_watcher::{ensure_warp_watch_roots_exist, WarpManagedPathsWatcher};
-use crate::workspace::{ActiveSession, OneTimeModalModel, ToastStack};
+use crate::workspace::{ActiveSession, ToastStack};
 use crate::workspaces::user_profiles::UserProfiles;
 #[cfg(feature = "local_tty")]
 use anyhow::Context;
@@ -261,11 +262,8 @@ use warpui::{integration::TestDriver, App, AssetProvider, Event};
 
 use self::features::FeatureFlag;
 use crate::app_state::AppState;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
+use crate::objects::model::persistence::ObjectStoreModel;
 use crate::drive::ObjectTypeAndId;
-// 仅在 use_tantivy_search 下使用 (见 set_enabled 探针), 同步 cfg 避免 unused import
-#[cfg(feature = "use_tantivy_search")]
-use crate::experiments::ImprovedPaletteSearch;
 pub use crate::global_resource_handles::{GlobalResourceHandles, GlobalResourceHandlesProvider};
 use crate::notification::NotificationContext;
 use crate::root_view::{
@@ -528,6 +526,26 @@ fn apply_scroll_multiplier(event: &mut Event, app: &AppContext) {
 }
 
 /// Runs the app. If a subcommand was requested, it'll be run instead of the main application.
+/// `--ui-preview <name>` 的落地槽:首个 Workspace 首帧消费一次(CAS 防多窗口重复打开)。
+static UI_PREVIEW: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+static UI_PREVIEW_APPLIED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// 记录 `--ui-preview` 请求的面板名(observatory|cockpit|settings)。
+fn set_ui_preview(name: &str) {
+    let _ = UI_PREVIEW.set(name.to_lowercase());
+}
+
+/// 首个 Workspace 首帧取走 ui-preview 请求;后续调用返回 None。
+pub fn take_ui_preview() -> Option<String> {
+    let name = UI_PREVIEW.get()?;
+    if UI_PREVIEW_APPLIED
+        .swap(true, std::sync::atomic::Ordering::SeqCst)
+    {
+        return None;
+    }
+    Some(name.clone())
+}
+
 pub fn run() -> Result<()> {
     // POSIX locale 兜底:在 LANG/LC_* 全部未设置时,给依赖这些环境变量的 C/Rust 库
     // (chrono 数字格式化、libc strftime 等) 一个合理的 UTF-8 默认值。Windows 上特意跳过
@@ -556,6 +574,10 @@ pub fn run() -> Result<()> {
 
     // Parse command-line arguments.
     let args = warp_cli::Args::from_env();
+
+    if let Some(name) = args.app_args().ui_preview.as_deref() {
+        set_ui_preview(name);
+    }
 
     if let Some(command) = args.command() {
         #[cfg(windows)]
@@ -892,8 +914,6 @@ fn run_internal(mut launch_mode: LaunchMode) -> Result<()> {
         let dev_icon = ASSETS.get("bundled/png/local.png")?;
         app_builder.set_dev_icon(dev_icon);
 
-        app_builder.set_menu_bar_builder(app_menus::menu_bar);
-        app_builder.set_dock_menu_builder(|_| app_menus::dock_menu());
     }
 
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
@@ -1022,13 +1042,6 @@ fn run_internal(mut launch_mode: LaunchMode) -> Result<()> {
             ctx,
             pre_init_errors,
         );
-
-        // 编译期: tantivy 可用 (use_tantivy_search) 才编译此探针;
-        // 运行期: 实验分组命中才真正启用 flag —— 两层 gate 正交
-        #[cfg(feature = "use_tantivy_search")]
-        if ImprovedPaletteSearch::improved_search_enabled(ctx) {
-            FeatureFlag::UseTantivySearch.set_enabled(true);
-        }
 
         launch(ctx, app_state, launch_mode);
     })
@@ -1263,7 +1276,7 @@ fn initialize_app(
     });
 
     let (
-        cloud_objects,
+        objectss,
         cached_workspaces,
         current_workspace_uid,
         app_state,
@@ -1282,7 +1295,7 @@ fn initialize_app(
     ) = sqlite_data
         .map(|sqlite_data| {
             (
-                sqlite_data.cloud_objects,
+                sqlite_data.objectss,
                 sqlite_data.workspaces,
                 sqlite_data.current_workspace_uid,
                 Some(sqlite_data.app_state),
@@ -1357,8 +1370,6 @@ fn initialize_app(
 
     ctx.add_singleton_model(AntivirusInfo::new);
 
-    // 云同步 Token 走 OS 密钥库，不落 TOML。
-    ctx.add_singleton_model(crate::settings::CloudSyncTokenStore::new);
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "crash_reporting")] {
@@ -1400,7 +1411,6 @@ fn initialize_app(
     App::record_last_active_timestamp();
 
     ctx.add_singleton_model(|_| SettingsPaneManager::new());
-    ctx.add_singleton_model(|_| AIFactManager::new());
     ctx.add_singleton_model(|_| ExecutionProfileEditorManager::default());
     ctx.add_singleton_model(|_| pricing::PricingInfoModel::new());
     ctx.add_singleton_model(|_| {
@@ -1501,11 +1511,8 @@ fn initialize_app(
             });
 
             for window_id in ctx.window_ids().collect_vec() {
-                SettingsPaneManager::handle(ctx)
-                    .read(ctx, |model, _| model.settings_view(window_id))
-                    .update(ctx, |settings, ctx| {
-                        settings.refresh_preferred_graphics_backend_dropdown(ctx);
-                    })
+                // W3 域裁切: Features 页随 preferred-graphics-backend 下线,
+                // 启动时的 dropdown 刷新随页面一同物理删。
             }
 
             send_telemetry_from_app_ctx!(event, ctx);
@@ -1611,15 +1618,10 @@ fn initialize_app(
     terminal::init(ctx);
     input::init(ctx);
     editor::init(ctx);
-    onboarding::set_localizer(|key| crate::i18n::t_or(key, key));
-    onboarding::init(ctx);
     menu::init(ctx);
-    tips::tip_view::init(ctx);
     launch_configs::init(ctx);
     notifications::init(ctx);
     themes::theme_chooser::init(ctx);
-    themes::theme_creator_modal::init(ctx);
-    themes::theme_deletion_modal::init(ctx);
     root_view::init(ctx);
     auth::init(ctx);
     crate::view_components::find::init(ctx);
@@ -1630,7 +1632,6 @@ fn initialize_app(
     tab_configs::params_modal::init(ctx);
     ai::blocklist::init(ctx);
     ai::blocklist::block::status_bar::init(ctx);
-    drive::index::init(ctx);
     ai_assistant::panel::init(ctx);
     // Dais Wave 7-2:`settings_view::update_environment_form::init` 随 cloud ambient agent
     // 主体子系统物理删。
@@ -1642,7 +1643,6 @@ fn initialize_app(
     context_chips::node_version_popup::init(ctx);
     env_vars::view::env_var_collection::init(ctx);
     ai::agent::todos::popup::init(ctx);
-    coding_entrypoints::project_buttons::init(ctx);
     if FeatureFlag::CodeReviewSaveChanges.is_enabled() {
         code_review::init(ctx);
     }
@@ -1669,7 +1669,6 @@ fn initialize_app(
     ctx.add_singleton_model(UndoCloseStack::new);
     ctx.add_singleton_model(|_| ToastStack);
     ctx.add_singleton_model(|_| GlobalCodeReviewModel);
-    ctx.add_singleton_model(workspace::OneTimeModalModel::new);
     ctx.add_singleton_model(
         workspace::bonus_grant_notification_model::BonusGrantNotificationModel::new,
     );
@@ -1689,18 +1688,9 @@ fn initialize_app(
     #[cfg(windows)]
     ctx.add_singleton_model(util::traffic_lights::windows::RendererState::new);
 
-    #[cfg(feature = "voice_input")]
-    ctx.add_singleton_model(voice_input::VoiceInput::new);
-    ctx.add_singleton_model(|_| {
-        // Dais(本地化,Phase 4):原默认注入 `ServerVoiceTranscriber` 走云端 Wispr STT。
-        // 本地化场景下云端语音转写不可用,改为 `disabled()` 让上层 `transcriber()` 返 None,
-        // 语音输入 UI 变为只采集不转写(后续接入本地 STT 补上)。
-        VoiceTranscriber::disabled()
-    });
-
     timer.mark_interval_end("CORE_SINGLETONS_REGISTERED");
 
-    let notebooks = cloud_objects
+    let notebooks = objectss
         .iter()
         .filter_map(|object| {
             let notebook: Option<&NotebookObject> = object.into();
@@ -1712,7 +1702,7 @@ fn initialize_app(
     let object_store_model = ctx.add_singleton_model(|_ctx| {
         ObjectStoreModel::new(
             persistence_writer.sender(),
-            cloud_objects,
+            objectss,
             time_of_next_force_object_refresh,
         )
     });
@@ -1781,8 +1771,8 @@ fn initialize_app(
 
     ctx.add_singleton_model(|_| AudibleBell::new());
 
-    // Dais:UpdateManager 只负责本地 cloud object 的内存/SQLite 同步,不再注入云端 client。
-    ctx.add_singleton_model(|ctx| UpdateManager::new(persistence_writer.sender(), ctx));
+    // Dais:ObjectStore 只负责本地 cloud object 的内存/SQLite 同步,不再注入云端 client。
+    ctx.add_singleton_model(|ctx| ObjectStore::new(persistence_writer.sender(), ctx));
 
     let toml_file_path = settings::user_preferences_toml_file_path();
     // Dais(本地化,Phase 5):`PreferencesSyncer` 已物理删除。原同步器负责本地
@@ -1802,7 +1792,7 @@ fn initialize_app(
     ctx.add_singleton_model(FileMCPWatcher::new);
     ctx.add_singleton_model(FileBasedMCPManager::new);
 
-    // TemplatableMCPServerManager must be registered after UpdateManager and MCPServerManager so it can migrate legacy MCPs on start up
+    // TemplatableMCPServerManager must be registered after ObjectStore and MCPServerManager so it can migrate legacy MCPs on start up
     // It should also be registered after FileBasedMCPManager so it can receive file-based server updates.
     ctx.add_singleton_model(|ctx| {
         TemplatableMCPServerManager::new(
@@ -1813,21 +1803,21 @@ fn initialize_app(
         )
     });
 
-    // MCPGalleryManager subscribes to UpdateManager so that it can be notified when gallery items are updated locally.
-    // The registration of this singleton must be after UpdateManager is registered.
+    // MCPGalleryManager subscribes to ObjectStore so that it can be notified when gallery items are updated locally.
+    // The registration of this singleton must be after ObjectStore is registered.
     ctx.add_singleton_model(MCPGalleryManager::new);
 
     // SkillManager is used to cache SKILL.md files for all active terminal views and their working directories
     ctx.add_singleton_model(SkillManager::new);
 
-    // ObjectStoreViewModel subscribes to UpdateManager so that it can be notified when objects are
+    // ObjectStoreViewModel subscribes to ObjectStore so that it can be notified when objects are
     // created or mutated in the local object store.
     ctx.add_singleton_model(ObjectStoreViewModel::new);
 
-    // AIDocumentModel subscribes to UpdateManager so that it can be notified when notebooks are created locally.
+    // AIDocumentModel subscribes to ObjectStore so that it can be notified when notebooks are created locally.
     ctx.add_singleton_model(AIDocumentModel::new);
 
-    // AgentConversationsModel subscribes to UpdateManager events that still flow through the local updater.
+    // AgentConversationsModel subscribes to ObjectStore events that still flow through the local updater.
     ctx.add_singleton_model(AgentConversationsModel::new);
 
     // ByoLlmAuthBannerSessionState tracks dismissal of the BYO LLM auth banner (e.g., AWS Bedrock login).
@@ -1840,7 +1830,7 @@ fn initialize_app(
     ctx.add_singleton_model(NotebookKeybindings::new);
     ctx.add_singleton_model(TerminalKeybindings::new);
     ctx.add_singleton_model(|_| ActiveSession::default());
-    // Dais(本地化,Phase 2d-4a-1):原 `Listener` singleton 负责云端 cloud_objects RTC WebSocket,
+    // Dais(本地化,Phase 2d-4a-1):原 `Listener` singleton 负责云端 objectss RTC WebSocket,
     // 2b-1 后 `start_listener` 已是 no-op,本班整个文件与 singleton 注入一起物理删除。
 
     #[cfg(all(not(target_family = "wasm"), feature = "local_tty"))]
@@ -1898,6 +1888,7 @@ fn initialize_app(
 
     ctx.add_singleton_model(move |_| IgnoredSuggestionsModel::new(persisted_ignored_suggestions));
 
+
     // When running natively, add the http server singleton to the application.
     #[cfg(not(target_family = "wasm"))]
     ctx.add_singleton_model(move |ctx| {
@@ -1949,21 +1940,6 @@ fn app_callbacks(is_integration_test: bool) -> warpui::platform::AppCallbacks {
             let active_window_id = ctx.windows().active_window();
             let update_quake_mode_arg = UpdateQuakeModeEventArg { active_window_id };
 
-            #[cfg(feature = "voice_input")]
-            {
-                if let voice_input::VoiceInputState::Listening { enabled_from, .. } =
-                    voice_input::VoiceInput::as_ref(ctx).state()
-                {
-                    // Abort the voice input if it's toggled from a key press, as we cannot listen to key events
-                    // if the user is focused on a different app - we could miss the release of the key.
-                    if matches!(
-                        *enabled_from,
-                        voice_input::VoiceInputToggledFrom::Key { .. }
-                    ) {
-                        ctx.dispatch_global_action("root_view:abort_voice_input", &());
-                    }
-                }
-            }
             ctx.dispatch_global_action("root_view:update_quake_mode_state", &update_quake_mode_arg);
         })),
         on_will_terminate: Some(Box::new(move |ctx| {
@@ -2162,12 +2138,6 @@ fn app_callbacks(is_integration_test: bool) -> warpui::platform::AppCallbacks {
                     "root_view:update_quake_mode_state",
                     &update_quake_mode_arg,
                 );
-            }
-
-            if let Some(active_window_id) = active_window_id {
-                OneTimeModalModel::handle(ctx).update(ctx, |model, ctx| {
-                    model.update_target_window_id(active_window_id, ctx);
-                });
             }
 
             ctx.dispatch_global_action("workspace:save_app", &());
@@ -2481,7 +2451,7 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::RectSelection,
         #[cfg(feature = "alacritty_settings_import")]
         FeatureFlag::AlacrittySettingsImport,
-        #[cfg(feature = "shared_with_me")]
+
         FeatureFlag::SharedWithMe,
         #[cfg(feature = "ai_rules")]
         FeatureFlag::AIRules,
@@ -2531,8 +2501,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::KittyImages,
         #[cfg(feature = "warp_packs")]
         FeatureFlag::WarpPacks,
-        #[cfg(feature = "default_adeberry_theme")]
-        FeatureFlag::DefaultAdeberryTheme,
         #[cfg(feature = "agent_mode_primary_xml")]
         FeatureFlag::AgentModePrimaryXML,
         #[cfg(feature = "agent_mode_pre_plan_xml")]
@@ -2545,8 +2513,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::CommandCorrectionKey,
         #[cfg(feature = "predict_am_queries")]
         FeatureFlag::PredictAMQueries,
-        #[cfg(feature = "use_tantivy_search")]
-        FeatureFlag::UseTantivySearch,
         #[cfg(feature = "grep_tool")]
         FeatureFlag::GrepTool,
         #[cfg(feature = "mcp_server")]
@@ -2621,10 +2587,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::ConversationArtifacts,
         #[cfg(feature = "sync_ambient_plans")]
         FeatureFlag::SyncAmbientPlans,
-        #[cfg(feature = "get_started_tab")]
-        FeatureFlag::GetStartedTab,
-        #[cfg(feature = "welcome_tab")]
-        FeatureFlag::WelcomeTab,
         #[cfg(feature = "projects")]
         FeatureFlag::Projects,
         #[cfg(feature = "drive_objects_as_context")]
@@ -2659,10 +2621,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::ServerFileBrowser,
         #[cfg(feature = "allow_ignoring_input_suggestions")]
         FeatureFlag::AllowIgnoringInputSuggestions,
-        // Dais(本地化):ambient agent / agent management view 的云端入口已物理下线。
-        // BYOP agent 本地运行不依赖这些入口。
-        #[cfg(feature = "code_launch_modal")]
-        FeatureFlag::CodeLaunchModal,
         #[cfg(feature = "api_key_authentication")]
         FeatureFlag::APIKeyAuthentication,
         #[cfg(feature = "api_key_management")]
@@ -2671,9 +2629,7 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::McpOauth,
         #[cfg(feature = "file_based_mcp")]
         FeatureFlag::FileBasedMcp,
-        #[cfg(feature = "diff_set_as_context")]
         FeatureFlag::DiffSetAsContext,
-        #[cfg(feature = "discard_per_file_and_all_changes")]
         FeatureFlag::DiscardPerFileAndAllChanges,
         #[cfg(feature = "summarization_cancellation_confirmation")]
         FeatureFlag::SummarizationCancellationConfirmation,
@@ -2751,7 +2707,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::OzPlatformSkills,
         #[cfg(feature = "bundled_skills")]
         FeatureFlag::BundledSkills,
-        #[cfg(feature = "open_warp_launch_modal")]
         FeatureFlag::ZapLaunchModal,
         #[cfg(feature = "new_tab_styling")]
         FeatureFlag::NewTabStyling,
@@ -2771,7 +2726,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::KittyKeyboardProtocol,
         #[cfg(feature = "inline_menu_headers")]
         FeatureFlag::InlineMenuHeaders,
-        #[cfg(feature = "directory_tab_colors")]
         FeatureFlag::DirectoryTabColors,
         #[cfg(feature = "open_warp_new_settings_modes")]
         FeatureFlag::ZapNewSettingsModes,
@@ -2797,8 +2751,6 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::WarpifyFooter,
         #[cfg(feature = "solo_user_byok")]
         FeatureFlag::SoloUserByok,
-        #[cfg(feature = "hoa_onboarding_flow")]
-        FeatureFlag::HOAOnboardingFlow,
         #[cfg(feature = "git_operations_in_code_review")]
         FeatureFlag::GitOperationsInCodeReview,
         #[cfg(feature = "hoa_remote_control")]

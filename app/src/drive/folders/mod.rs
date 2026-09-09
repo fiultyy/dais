@@ -1,14 +1,15 @@
+use objects::UpsertEvent;
+use crate::objects_display::WarpDriveItemOverrides;
 use super::items::folder::WarpDriveFolder;
 use super::items::WarpDriveItem;
 use super::ObjectTypeAndId;
 use crate::{
     appearance::Appearance,
-    cloud_object::{GenericStoredObject, ObjectType, SerializedModel, Space, StoredObjectModel},
     persistence::ModelEvent,
-    server::ids::SyncId,
 };
+use objects::{GenericStoredObject, ObjectType, SerializedModel, Space, StoredObjectModel, ids::SyncId};
 
-pub use crate::server::ids::FolderId;
+pub use objects::ids::FolderId;
 
 /// The model for a `FolderObject`.
 #[derive(Clone, Debug, PartialEq)]
@@ -54,18 +55,14 @@ impl StoredObjectModel for FolderObjectModel {
         self.name.clone()
     }
 
-    fn upsert_event(&self, folder: &FolderObject) -> ModelEvent {
-        ModelEvent::UpsertFolder {
+    fn upsert_event(&self, folder: &FolderObject) -> UpsertEvent {
+        UpsertEvent::App(Box::new(ModelEvent::UpsertFolder {
             folder: folder.clone(),
-        }
+        }))
     }
 
-    fn bulk_upsert_event(objects: &[FolderObject]) -> ModelEvent {
-        ModelEvent::UpsertFolders(objects.to_vec())
-    }
-
-    fn should_update_after_server_conflict(&self) -> bool {
-        false
+    fn bulk_upsert_event(objects: &[FolderObject]) -> UpsertEvent {
+        UpsertEvent::App(Box::new(ModelEvent::UpsertFolders(objects.to_vec())))
     }
 
     fn serialized(&self) -> SerializedModel {
@@ -81,19 +78,27 @@ impl StoredObjectModel for FolderObjectModel {
         true
     }
 
+
+}
+
+impl WarpDriveItemOverrides for FolderObjectModel {
+
     fn renders_in_warp_drive(&self) -> bool {
         true
     }
 
+}
+
+impl FolderObjectModel {
     fn to_warp_drive_item(
         &self,
-        id: SyncId,
+        id: objects::SyncId,
         _appearance: &Appearance,
-        folder: &FolderObject,
+        object: &FolderObject,
     ) -> Option<Box<dyn WarpDriveItem>> {
         Some(Box::new(WarpDriveFolder::new(
-            self.object_type_and_id(id),
-            folder.clone(),
+            objects::ObjectTypeAndId::Folder(id),
+            object.clone(),
         )))
     }
 }

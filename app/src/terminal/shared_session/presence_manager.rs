@@ -1,3 +1,6 @@
+use terminal_grid_model::block::BlockId;
+use terminal_grid_model::block::blocks::BlockList;
+use terminal_grid_model::block_index::BlockIndex;
 use std::{
     collections::{HashMap, HashSet},
     iter,
@@ -26,7 +29,6 @@ use crate::terminal::shared_session::protocol::ParticipantId;
 use crate::{
     auth::UserUid,
     editor::{CursorColors, PeerSelectionData},
-    terminal::model::{block::BlockId, blocks::BlockList, terminal_model::BlockIndex},
     util::color::coloru_with_opacity,
 };
 

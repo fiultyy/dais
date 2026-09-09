@@ -19,7 +19,6 @@ use watcher::HomeDirectoryWatcher;
 
 use super::settings::initialize_settings_for_tests;
 use crate::ai::agent_providers::AgentProviderSecrets;
-use crate::settings::CloudSyncTokenStore;
 use crate::ai::blocklist::BlocklistAIPermissions;
 use crate::ai::blocklist::SerializedBlockListItem;
 use crate::ai::execution_profiles::profiles::AIExecutionProfilesModel;
@@ -32,11 +31,9 @@ use crate::pricing::PricingInfoModel;
 use crate::suggestions::ignored_suggestions_model::IgnoredSuggestionsModel;
 use crate::terminal::view::inline_banner::ByoLlmAuthBannerSessionState;
 use crate::undo_close::UndoCloseStack;
-use crate::workspace::{OneTimeModalModel, WorkspaceRegistry};
+use crate::workspace::WorkspaceRegistry;
 use crate::{
     ai::{blocklist::BlocklistAIHistoryModel, AIRequestUsageModel},
-    cloud_object::model::persistence::ObjectStoreModel,
-    cloud_object::update_manager::UpdateManager,
     context_chips::prompt::Prompt,
     experiments,
     network::NetworkStatus,
@@ -52,6 +49,9 @@ use crate::{
     workspace::{sync_inputs::SyncedInputState, ActiveSession},
     workspaces::user_workspaces::UserWorkspaces,
 };
+
+use crate::objects::object_store::ObjectStore;
+use crate::objects::model::persistence::ObjectStoreModel;
 use repo_metadata::watcher::DirectoryWatcher;
 
 /// Initializes all of the necessary models to use a terminal view.
@@ -68,7 +68,7 @@ pub fn initialize_app_for_terminal_view(app: &mut App) {
     app.add_singleton_model(|_| Prompt::mock());
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(UserWorkspaces::default_mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(MCPGalleryManager::new);
     app.add_singleton_model(|_| Appearance::mock());
     app.add_singleton_model(PrivacySettings::mock);
@@ -92,7 +92,6 @@ pub fn initialize_app_for_terminal_view(app: &mut App) {
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
     app.add_singleton_model(AuthManager::new_for_test);
     app.add_singleton_model(AgentProviderSecrets::new);
-    app.add_singleton_model(CloudSyncTokenStore::new);
     app.add_singleton_model(LLMPreferences::new);
     app.add_singleton_model(DirectoryWatcher::new);
     app.add_singleton_model(|_| DetectedRepositories::default());
@@ -109,14 +108,10 @@ pub fn initialize_app_for_terminal_view(app: &mut App) {
     app.add_singleton_model(|ctx| {
         AIExecutionProfilesModel::new(&crate::LaunchMode::new_for_unit_test(), ctx)
     });
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
-
     #[cfg(not(target_family = "wasm"))]
     app.add_singleton_model(SystemInfo::new);
 
     app.add_singleton_model(|_| RestoredAgentConversations::default());
-    app.add_singleton_model(OneTimeModalModel::new);
     app.add_singleton_model(|_| WorkspaceRegistry::new());
     app.add_singleton_model(|_| IgnoredSuggestionsModel::new(vec![]));
     app.add_singleton_model(|_| PricingInfoModel::new());

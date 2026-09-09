@@ -9,14 +9,7 @@ use warpui::{
 };
 
 use crate::{
-    ai::{
-        agent::icons,
-        blocklist::{
-            block::cli_controller::LongRunningCommandControlState,
-            inline_action::inline_action_header::HeaderConfig, BlocklistAIActionModel,
-            BlocklistAIHistoryEvent, BlocklistAIHistoryModel,
-        },
-    },
+    ai::{ agent::icons, blocklist::{ block::cli_controller::LongRunningCommandControlState, inline_action::inline_action_header::HeaderConfig, BlocklistAIActionModel, BlocklistAIHistoryEvent, BlocklistAIHistoryModel, }, },
     terminal::{model::session::Sessions, TerminalModel},
     ui_components::{blended_colors, icons::Icon},
 };
@@ -109,7 +102,7 @@ impl View for InlineAgentViewHeader {
                     .long_running_control_state()
                     .is_some_and(LongRunningCommandControlState::is_user_in_control),
                 active_block.is_agent_blocked(),
-                active_block.top_level_command(sessions),
+                crate::terminal::model::session::top_level_command(active_block, sessions),
             )
         };
         if is_agent_tagged_in {

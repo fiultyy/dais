@@ -1,3 +1,5 @@
+use terminal_grid_model::secrets::SecretLevel;
+use env_vars_ui::data::{AccessLevel, Editability, EnvVarData};
 use pathfinder_geometry::vector::{vec2f, Vector2F};
 
 use warp_core::features::FeatureFlag;
@@ -21,10 +23,9 @@ use warpui::{
 
 use crate::{
     ai::blocklist::block::secret_redaction::find_secrets_in_text_with_levels,
-    cloud_object::{
-        breadcrumbs::ContainingObject,
+    objects::{
         model::persistence::{ObjectStoreEvent, ObjectStoreModel},
-        update_manager::{FetchSingleObjectOption, UpdateManager},
+        object_store::ObjectStore,
         Owner, StoredObjectEventEntrypoint,
     },
     drive::{items::WarpDriveItemId, sharing::ContentEditability},
@@ -45,10 +46,9 @@ use crate::{
     },
     search::external_secrets::view::ExternalSecretsMenu,
     send_telemetry_from_ctx,
-    server::ids::{ServerId, SyncId},
-    terminal::{model::secrets::SecretLevel, safe_mode_settings::get_secret_obfuscation_mode},
+    server::ids::SyncId,
+    terminal::{ safe_mode_settings::get_secret_obfuscation_mode},
     ui_components::{
-        breadcrumb::{render_breadcrumbs, BreadcrumbState},
         buttons::icon_button,
         icons::Icon,
         menu_button::{
@@ -286,7 +286,6 @@ pub struct EnvVarCollectionView {
     // (the key) or a rendered secret/command button. Once a menu item
     // is selected, we set this to Some(VariableRowIndex())
     pub(super) pending_variable_row_index: Option<VariableRowIndex>,
-    pub(super) breadcrumbs: Vec<BreadcrumbState<ContainingObject>>,
     // State vars used to manage menus; pane_context_menu_offset holds
     // the offset from the parent (i.e. origin of the element saved to
     // the below view_position_id variable) on a user's right click
@@ -315,6 +314,28 @@ pub enum EnvVarCollectionEvent {
 }
 #[derive(Debug, Clone)]
 pub struct VariableRowIndex(pub usize);
+
+/// P-ARC R1: crates/env_vars_ui 的 POD 权限镜像(`data::AccessLevel`/`data::Editability`)
+/// 与 app 侧 `drive::sharing` 同形状枚举的桥(见 env_vars_ui data.rs 头注:宿主适配层做转换)。
+impl From<AccessLevel> for crate::drive::sharing::SharingAccessLevel {
+    fn from(level: AccessLevel) -> Self {
+        match level {
+            AccessLevel::View => Self::View,
+            AccessLevel::Edit => Self::Edit,
+            AccessLevel::Full => Self::Full,
+        }
+    }
+}
+
+impl From<Editability> for crate::drive::sharing::ContentEditability {
+    fn from(editability: Editability) -> Self {
+        match editability {
+            Editability::ReadOnly => Self::ReadOnly,
+            Editability::RequiresLogin => Self::RequiresLogin,
+            Editability::Editable => Self::Editable,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum EnvVarCollectionAction {
@@ -560,7 +581,6 @@ impl EnvVarCollectionView {
             title_editor,
             description_editor,
             variable_rows: Vec::new(),
-            breadcrumbs: Vec::new(),
             menus,
             pending_variable_row_index: None,
             pane_context_menu_offset: None,
@@ -601,7 +621,7 @@ impl EnvVarCollectionView {
         ctx: &mut ViewContext<Self>,
     ) {
         let initial_load_complete =
-            crate::cloud_object::model::persistence::ObjectStoreModel::as_ref(ctx)
+            crate::objects::model::persistence::ObjectStoreModel::as_ref(ctx)
                 .initial_load_complete();
         ctx.spawn(initial_load_complete, move |me, _, ctx| {
             let env_var_collection = ObjectStoreModel::as_ref(ctx)
@@ -609,8 +629,6 @@ impl EnvVarCollectionView {
                 .cloned();
             if let Some(env_var_collection) = env_var_collection {
                 me.load(env_var_collection, ctx);
-            } else if let Some(server_id) = env_var_collection_id.into_server() {
-                me.fetch_and_load_env_var_collection(server_id, window_id, ctx);
             } else {
                 ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                     toast_stack.add_ephemeral_toast_by_type(
@@ -624,34 +642,6 @@ impl EnvVarCollectionView {
         });
     }
 
-    fn fetch_and_load_env_var_collection(
-        &mut self,
-        env_var_collection_id: ServerId,
-        window_id: WindowId,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        let fetch_cloud_object_rx =
-            UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                update_manager.fetch_single_cloud_object(
-                    &env_var_collection_id,
-                    FetchSingleObjectOption::None,
-                    ctx,
-                )
-            });
-        ctx.spawn(fetch_cloud_object_rx, move |me, _, ctx| {
-            if let Some(env_var_collection) = ObjectStoreModel::as_ref(ctx)
-                .get_env_var_collection(&SyncId::ServerId(env_var_collection_id))
-                .cloned()
-            {
-                me.load(env_var_collection, ctx);
-            } else {
-                ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-                    toast_stack.add_ephemeral_toast_by_type(ToastType::StoredObjectNotFound, window_id, ctx);
-                });
-                log::warn!("Tried to open unknown env var collection {env_var_collection_id:?} after fetching");
-            }
-        });
-    }
 
     pub fn load(
         &mut self,
@@ -677,7 +667,7 @@ impl EnvVarCollectionView {
         self.set_pane_title(&title, ctx);
         // TODO(zap-cloud-removal Phase 5): sharing UI 已退役,
         // env_var_collection 的 ShareableObject 注入移除;ServerId 路径保留待
-        // cloud_object 整体退役。
+        // objects 整体退役。
         let _ = env_var_collection.id;
 
         let description = collection.description.clone().unwrap_or_default();
@@ -839,9 +829,9 @@ impl EnvVarCollectionView {
         match active_env_var_collection {
             // If the EVC has already been committed, then update the local
             // memory and server data via update manager
-            ActiveEnvVarCollection::CommittedEnvVarCollection(id) => UpdateManager::handle(ctx)
-                .update(ctx, |update_manager, ctx| {
-                    update_manager.update_env_var_collection(
+            ActiveEnvVarCollection::CommittedEnvVarCollection(id) => ObjectStore::handle(ctx)
+                .update(ctx, |object_store, ctx| {
+                    object_store.update_env_var_collection(
                         new_env_var_collection,
                         id,
                         self.active_env_var_collection_data
@@ -853,8 +843,8 @@ impl EnvVarCollectionView {
             // manager, and update the active EVC
             ActiveEnvVarCollection::NewEnvVarCollection(env_var_collection) => {
                 if let Some(client_id) = env_var_collection.id.into_client() {
-                    UpdateManager::handle(ctx).update(ctx, |update_manager, ctx| {
-                        update_manager.create_env_var_collection(
+                    ObjectStore::handle(ctx).update(ctx, |object_store, ctx| {
+                        object_store.create_env_var_collection(
                             client_id,
                             env_var_collection.permissions.owner,
                             env_var_collection.metadata.folder_id,
@@ -964,10 +954,6 @@ impl EnvVarCollectionView {
         ctx: &mut ViewContext<Self>,
     ) {
         match event {
-            ActiveEnvVarCollectionDataEvent::BreadcrumbsChanged => {
-                self.update_breadcrumbs(ctx);
-                ctx.notify()
-            }
             ActiveEnvVarCollectionDataEvent::TrashStatusChanged => {
                 self.pane_configuration.update(ctx, |pane_config, ctx| {
                     pane_config.refresh_pane_header_overflow_menu_items(ctx)
@@ -1293,45 +1279,20 @@ impl View for EnvVarCollectionView {
         let access_level = self
             .active_env_var_collection_data
             .as_ref(app)
-            .access_level(app);
+            .access_level(app, &crate::env_vars::manager::host_env_var_data());
         let editability = self
             .active_env_var_collection_data
             .as_ref(app)
-            .editability(app);
+            .editability(app, &crate::env_vars::manager::host_env_var_data());
 
-        content.extend(self.render_trash_banner(access_level, app));
+        content.extend(self.render_trash_banner(access_level.into(), app));
 
-        content.add_child(
-            Align::new(
-                ConstrainedBox::new(
-                    Align::new(
-                        Container::new(render_breadcrumbs(
-                            self.breadcrumbs.clone(),
-                            appearance,
-                            |ctx, _, breadcrumb| {
-                                ctx.dispatch_typed_action(EnvVarCollectionAction::ViewInWarpDrive(
-                                    breadcrumb.kind.into_item_id(),
-                                ));
-                            },
-                        ))
-                        .with_horizontal_margin(CORE_HORIZONATAL_MARGIN)
-                        .with_vertical_margin(CORE_VERTICAL_MARGIN / 2.)
-                        .finish(),
-                    )
-                    .top_left()
-                    .finish(),
-                )
-                .with_max_width(CORE_MAX_WIDTH)
-                .finish(),
-            )
-            .top_center()
-            .finish(),
-        );
+        // Dais(W3-d8): 面包屑行随 crate::objects::breadcrumbs 裁撤, 不再渲染。
 
         if let TrashStatus::Active = self
             .active_env_var_collection_data
             .as_ref(app)
-            .trash_status(app)
+            .trash_status(app, &crate::env_vars::manager::host_env_var_data())
         {
             let mut buttons_row = Flex::row()
                 .with_child(Container::new(self.render_invoke_button(appearance, app)).finish())
@@ -1377,13 +1338,15 @@ impl View for EnvVarCollectionView {
                     .finish(),
             )
             .with_child(
-                Container::new(self.render_variables_section_header(editability, appearance))
-                    .with_margin_bottom(SECTION_SPACING)
-                    .finish(),
+                Container::new(
+                    self.render_variables_section_header(editability.into(), appearance),
+                )
+                .with_margin_bottom(SECTION_SPACING)
+                .finish(),
             )
             .with_child(
                 Flex::column()
-                    .with_children(self.render_variable_rows(editability, appearance, app))
+                    .with_children(self.render_variable_rows(editability.into(), appearance, app))
                     .finish(),
             );
         if let Some(error_element) = self.render_bottom_error_message(appearance) {

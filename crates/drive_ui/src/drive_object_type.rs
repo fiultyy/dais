@@ -1,0 +1,51 @@
+use std::fmt;
+
+use warp_core::ui::icons::Icon;
+
+#[derive(Copy, Clone, Debug)]
+pub enum DriveObjectType {
+    AIFact,
+    AIFactCollection,
+    Notebook {
+        /// Whether the notebook was created as an AI Document (plan)
+        is_ai_document: bool,
+    },
+    Folder,
+    EnvVarCollection,
+    MCPServer,
+    MCPServerCollection,
+}
+
+impl From<DriveObjectType> for Icon {
+    fn from(objects_type: DriveObjectType) -> Icon {
+        match objects_type {
+            DriveObjectType::AIFact => Icon::BookOpen,
+            DriveObjectType::AIFactCollection => Icon::BookOpen,
+            DriveObjectType::Notebook { is_ai_document } => {
+                if is_ai_document {
+                    Icon::Compass
+                } else {
+                    Icon::Notebook
+                }
+            }
+            DriveObjectType::Folder => Icon::Folder,
+            DriveObjectType::EnvVarCollection => Icon::EnvVarCollection,
+            DriveObjectType::MCPServer => Icon::Dataflow,
+            DriveObjectType::MCPServerCollection => Icon::Dataflow,
+        }
+    }
+}
+
+impl fmt::Display for DriveObjectType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DriveObjectType::Notebook { .. } => write!(f, "notebook"),
+            DriveObjectType::Folder => write!(f, "folder"),
+            DriveObjectType::EnvVarCollection => write!(f, "env var collection"),
+            DriveObjectType::AIFact => write!(f, "ai fact"),
+            DriveObjectType::AIFactCollection => write!(f, "ai fact collection"),
+            DriveObjectType::MCPServer => write!(f, "mcp server"),
+            DriveObjectType::MCPServerCollection => write!(f, "mcp server collection"),
+        }
+    }
+}

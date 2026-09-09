@@ -3,9 +3,11 @@ use crate::ai::execution_profiles::{
 };
 use crate::ai::llms::LLMModelHost;
 use crate::{
-    auth::UserUid, pricing::StripeSubscriptionPlan, server::ids::ServerId,
+    auth::UserUid,
+    pricing::StripeSubscriptionPlan,
     settings::AgentModeCommandExecutionPredicate,
 };
+use objects::ids::ServerId;
 use chrono::Utc;
 use regex::Regex;
 use serde::{Deserialize, Serialize};

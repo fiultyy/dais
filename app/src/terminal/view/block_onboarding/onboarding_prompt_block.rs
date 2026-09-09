@@ -5,7 +5,7 @@ use crate::send_telemetry_from_ctx;
 use crate::server::telemetry::{PromptChoice, TelemetryEvent};
 use crate::settings::EnforceMinimumContrast;
 use crate::terminal::blockgrid_element::BlockGridElement;
-use crate::terminal::model::blockgrid::BlockGrid;
+use terminal_grid_model::grid::blockgrid::BlockGrid;
 use crate::terminal::model::ObfuscateSecrets;
 use crate::terminal::session_settings::SessionSettings;
 use crate::terminal::view::block_onboarding::util;

@@ -38,13 +38,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    ai_memory_panes (id) {
-        id -> Integer,
-        kind -> Text,
-    }
-}
-
-diesel::table! {
     ai_queries (id) {
         id -> Integer,
         exchange_id -> Text,
@@ -106,13 +99,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    cloud_objects_refreshes (id) {
-        id -> Integer,
-        time_of_next_refresh -> Timestamp,
-    }
-}
-
-diesel::table! {
     code_pane_tabs (id) {
         id -> Integer,
         code_pane_id -> Integer,
@@ -126,15 +112,6 @@ diesel::table! {
         id -> Integer,
         active_tab_index -> Integer,
         source_data -> Nullable<Text>,
-    }
-}
-
-diesel::table! {
-    code_review_panes (id) {
-        id -> Integer,
-        kind -> Text,
-        terminal_uuid -> Binary,
-        repo_path -> Text,
     }
 }
 
@@ -154,12 +131,6 @@ diesel::table! {
         cloud_workflow_id -> Nullable<Text>,
         workflow_command -> Nullable<Text>,
         is_agent_executed -> Nullable<Bool>,
-    }
-}
-
-diesel::table! {
-    current_user_information (email) {
-        email -> Text,
     }
 }
 
@@ -235,56 +206,6 @@ diesel::table! {
         title -> Nullable<Text>,
         data -> Nullable<Text>,
         ai_document_id -> Nullable<Text>,
-    }
-}
-
-diesel::table! {
-    object_actions (id) {
-        id -> Integer,
-        hashed_object_id -> Text,
-        timestamp -> Nullable<Timestamp>,
-        action -> Text,
-        data -> Nullable<Text>,
-        count -> Nullable<Integer>,
-        oldest_timestamp -> Nullable<Timestamp>,
-        latest_timestamp -> Nullable<Timestamp>,
-        pending -> Nullable<Bool>,
-        processed_at_timestamp -> Nullable<Timestamp>,
-    }
-}
-
-diesel::table! {
-    object_metadata (id) {
-        id -> Integer,
-        is_pending -> Bool,
-        object_type -> Text,
-        revision_ts -> Nullable<BigInt>,
-        server_id -> Nullable<Text>,
-        client_id -> Nullable<Text>,
-        shareable_object_id -> Integer,
-        author_id -> Nullable<Integer>,
-        retry_count -> Integer,
-        metadata_last_updated_ts -> Nullable<BigInt>,
-        trashed_ts -> Nullable<BigInt>,
-        folder_id -> Nullable<Text>,
-        is_welcome_object -> Bool,
-        creator_uid -> Nullable<Text>,
-        last_editor_uid -> Nullable<Text>,
-        current_editor -> Nullable<Text>,
-    }
-}
-
-diesel::table! {
-    object_permissions (id) {
-        id -> Integer,
-        object_metadata_id -> Integer,
-        subject_type -> Text,
-        subject_id -> Nullable<Text>,
-        subject_uid -> Text,
-        permissions_last_updated_at -> Nullable<BigInt>,
-        object_guests -> Nullable<Binary>,
-        anyone_with_link_access_level -> Nullable<Text>,
-        anyone_with_link_source -> Nullable<Binary>,
     }
 }
 
@@ -405,33 +326,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    team_members (id) {
-        id -> Integer,
-        team_id -> Integer,
-        user_uid -> Text,
-        email -> Text,
-        role -> Text,
-    }
-}
-
-diesel::table! {
-    team_settings (id) {
-        id -> Integer,
-        team_id -> Integer,
-        settings_json -> Text,
-    }
-}
-
-diesel::table! {
-    teams (id) {
-        id -> Integer,
-        name -> Text,
-        server_uid -> Text,
-        billing_metadata_json -> Nullable<Text>,
-    }
-}
-
-diesel::table! {
     terminal_panes (id) {
         id -> Integer,
         kind -> Text,
@@ -460,14 +354,6 @@ diesel::table! {
     users (id) {
         id -> Integer,
         firebase_uid -> Text,
-    }
-}
-
-diesel::table! {
-    welcome_panes (id) {
-        id -> Integer,
-        kind -> Text,
-        startup_directory -> Nullable<Text>,
     }
 }
 
@@ -537,7 +423,6 @@ diesel::table! {
 diesel::joinable!(ambient_agent_panes -> pane_nodes (id));
 diesel::joinable!(app -> windows (active_window_id));
 diesel::joinable!(code_pane_tabs -> code_panes (code_pane_id));
-diesel::joinable!(object_permissions -> object_metadata (object_metadata_id));
 diesel::joinable!(pane_branches -> pane_nodes (pane_node_id));
 diesel::joinable!(pane_leaves -> pane_nodes (pane_node_id));
 diesel::joinable!(pane_nodes -> tabs (tab_id));
@@ -545,8 +430,6 @@ diesel::joinable!(panels -> tabs (tab_id));
 diesel::joinable!(ssh_servers -> ssh_onekey_credentials (credential_id));
 diesel::joinable!(ssh_servers -> ssh_nodes (node_id));
 diesel::joinable!(tabs -> windows (window_id));
-diesel::joinable!(team_members -> teams (team_id));
-diesel::joinable!(team_settings -> teams (team_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     ambient_agent_panes,
@@ -559,8 +442,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     windows,
 );
 diesel::allow_tables_to_appear_in_same_query!(code_pane_tabs, code_panes,);
-diesel::allow_tables_to_appear_in_same_query!(object_metadata, object_permissions,);
-diesel::allow_tables_to_appear_in_same_query!(team_members, team_settings, teams,);
 diesel::allow_tables_to_appear_in_same_query!(sync_meta,);
 diesel::allow_tables_to_appear_in_same_query!(ssh_nodes, ssh_onekey_credentials, ssh_servers,);
 

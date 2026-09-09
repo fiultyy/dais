@@ -9,7 +9,8 @@ use warpui::{
 use crate::{
     appearance::Appearance,
     editor::{EditorView, Event as EditorEvent, SingleLineEditorOptions, TextOptions},
-    report_if_error, send_telemetry_from_ctx,
+    report_if_error,
+    send_telemetry_from_ctx,
     server::telemetry::TelemetryEvent,
     settings_view::features_page::render_group,
     terminal::session_settings::*,

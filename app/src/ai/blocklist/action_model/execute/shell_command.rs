@@ -24,20 +24,19 @@ use crate::ai::blocklist::permissions::CommandExecutionPermission;
 use crate::ai::blocklist::BlocklistAIPermissions;
 use crate::ai::execution_profiles::WriteToPtyPermission;
 use crate::terminal::event::BlockMetadataReceivedEvent;
-use crate::terminal::model::block::{
+use terminal_grid_model::block::{
     formatted_terminal_contents_for_input, Block, BlockId, CURSOR_MARKER,
 };
 use crate::terminal::shell::ShellType;
 use crate::terminal::ssh::util::parse_interactive_ssh_command;
 use crate::{
     ai::agent::AIAgentActionResultType,
-    terminal::{
-        model::session::active_session::ActiveSession,
-        model_events::{ModelEvent, ModelEventDispatcher},
-        TerminalModel,
-    },
+    terminal::{ model::session::active_session::ActiveSession, model_events::{ModelEvent, ModelEventDispatcher}, TerminalModel, },
 };
-use crate::{send_telemetry_from_ctx, TelemetryEvent};
+use crate::{
+    send_telemetry_from_ctx,
+    TelemetryEvent,
+};
 
 use super::{ActionExecution, AnyActionExecution, ExecuteActionInput, PreprocessActionInput};
 

@@ -49,64 +49,18 @@ use crate::ai::agent::MessageId;
 use crate::terminal::find::BlockListMatch;
 use crate::terminal::grid_renderer::{FOCUSED_MATCH_COLOR, MATCH_COLOR};
 use crate::{
-    ai::{
-        agent::{conversation::AIConversation, icons, ShellCommandDelay},
-        blocklist::{
-            block::status_bar::BlocklistAIStatusBarAction, history_model::BlocklistAIHistoryModel,
-            BlocklistAIActionModel, ShellCommandExecutor,
-        },
-        loading::shimmering_warp_loading_text,
-    },
+    ai::{ agent::{conversation::AIConversation, icons, ShellCommandDelay}, blocklist::{ block::status_bar::BlocklistAIStatusBarAction, history_model::BlocklistAIHistoryModel, BlocklistAIActionModel, ShellCommandExecutor, }, loading::shimmering_warp_loading_text, },
     terminal::{self, TerminalModel},
     util::link_detection::{add_link_detection_mouse_interactions, DetectedLinksState},
     workspaces::{user_workspaces::UserWorkspaces, workspace::CustomerType},
 };
 use crate::{
-    ai::{
-        agent::{
-            icons::red_stop_icon, AIAgentAction, AIAgentActionType, AIAgentAttachment,
-            AIAgentInput, AIAgentOutputMessageType, AIAgentTextSection, AgentOutputImage,
-            AgentOutputImageLayout, AgentOutputMermaidDiagram, AgentOutputTable,
-            AgentOutputTableRendering, DriveObjectPayload, ProgrammingLanguage, RenderableAIError,
-            SummarizationType, WebSearchStatus,
-        },
-        blocklist::{
-            block::{
-                find::FindState, view_impl::CONTENT_HORIZONTAL_PADDING, AIBlockAction,
-                CollapsibleElementState, CollapsibleExpansionState, EmbeddedCodeEditorView,
-                TableSectionHandles,
-            },
-            code_block::{
-                render_code_block_plain, render_code_block_with_warp_text, CodeBlockOptions,
-                CodeSnippetButtonHandles,
-            },
-            inline_action::{
-                aws_bedrock_credentials_error::AwsBedrockCredentialsErrorView,
-                inline_action_header::{
-                    INLINE_ACTION_HEADER_VERTICAL_PADDING, INLINE_ACTION_HORIZONTAL_PADDING,
-                },
-                inline_action_icons::{self, icon_size},
-                requested_action::RenderableAction,
-            },
-            model::{AIBlockModel, AIBlockModelHelper},
-            secret_redaction::{redact_secrets_in_element, SecretRedactionState},
-            view_util::error_color,
-            TextLocation,
-        },
-    },
+    ai::{ agent::{ icons::red_stop_icon, AIAgentAction, AIAgentActionType, AIAgentAttachment, AIAgentInput, AIAgentOutputMessageType, AIAgentTextSection, AgentOutputImage, AgentOutputImageLayout, AgentOutputMermaidDiagram, AgentOutputTable, AgentOutputTableRendering, DriveObjectPayload, ProgrammingLanguage, RenderableAIError, SummarizationType, WebSearchStatus, }, blocklist::{ block::{ find::FindState, view_impl::CONTENT_HORIZONTAL_PADDING, AIBlockAction, CollapsibleElementState, CollapsibleExpansionState, EmbeddedCodeEditorView, TableSectionHandles, }, code_block::{ render_code_block_plain, render_code_block_with_warp_text, CodeBlockOptions, CodeSnippetButtonHandles, }, inline_action::{ aws_bedrock_credentials_error::AwsBedrockCredentialsErrorView, inline_action_header::{ INLINE_ACTION_HEADER_VERTICAL_PADDING, INLINE_ACTION_HORIZONTAL_PADDING, }, inline_action_icons::{self, icon_size}, requested_action::RenderableAction, }, model::{AIBlockModel, AIBlockModelHelper}, secret_redaction::{redact_secrets_in_element, SecretRedactionState}, view_util::error_color, TextLocation, }, },
     code::{editor::view::CodeEditorView, editor_management::CodeSource},
     notebooks::editor::{rich_text_styles, MarkdownTableAppearance},
     settings_view::SettingsSection,
-    terminal::{
-        find::TerminalFindModel, safe_mode_settings::get_secret_obfuscation_mode,
-        view::TerminalAction, ShellLaunchData,
-    },
-    ui_components::{
-        avatar::{Avatar, AvatarContent},
-        blended_colors,
-        buttons::icon_button,
-        icons::Icon,
-    },
+    terminal::{ find::TerminalFindModel, safe_mode_settings::get_secret_obfuscation_mode, view::TerminalAction, ShellLaunchData, },
+    ui_components::{ avatar::{Avatar, AvatarContent}, blended_colors, buttons::icon_button, icons::Icon, },
     workspace::WorkspaceAction,
 };
 use crate::{
@@ -201,7 +155,7 @@ pub struct ButtonProps<'a> {
 pub struct ForceRefreshButtonProps<'a> {
     pub button_handle: &'a MouseStateHandle,
     /// The block the force-refresh should target.
-    pub block_id: crate::terminal::model::block::BlockId,
+    pub block_id: terminal_grid_model::block::BlockId,
 }
 
 pub fn render_warping_indicator<V: View>(

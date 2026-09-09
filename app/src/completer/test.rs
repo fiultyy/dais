@@ -22,6 +22,16 @@ fn test_session_context(session: Session, cwd: TypedPathBuf, app: &App) -> Sessi
     app.read(|ctx| SessionContext::new(session, CommandRegistry::default().into(), cwd, ctx))
 }
 
+/// R9 测试装配: completions_v2 下 SessionContext::new 需要 PluginHost 单例
+/// (js_function_caller 桥)。IPC server 为惰性连接,无插件进程时
+/// js_ctx=None,补全走 registry/session 内建路径,不影响本组断言。
+fn ensure_plugin_host(app: &mut App) {
+    use crate::plugin::PluginHost;
+    app.add_singleton_model(|ctx| {
+        PluginHost::new(ctx).expect("PluginHost IPC server should start in tests")
+    });
+}
+
 fn working_directory() -> TypedPathBuf {
     #[cfg(unix)]
     let cwd = TypedPathBuf::from("/test/home/");
@@ -33,7 +43,8 @@ fn working_directory() -> TypedPathBuf {
 
 #[test]
 pub fn test_session_context_top_level_commands_includes_function_names() {
-    App::test((), |app| async move {
+    App::test((), |mut app| async move {
+        ensure_plugin_host(&mut app);
         let function_names = vec![
             "my_func".into(),
             "foo".into(),
@@ -56,7 +67,8 @@ pub fn test_session_context_top_level_commands_includes_function_names() {
 
 #[test]
 pub fn test_session_context_top_level_commands_includes_aliases() {
-    App::test((), |app| async move {
+    App::test((), |mut app| async move {
+        ensure_plugin_host(&mut app);
         let aliases = HashMap::from_iter([
             ("first".into(), "test one".into()),
             ("second".into(), "first".into()),
@@ -78,7 +90,8 @@ pub fn test_session_context_top_level_commands_includes_aliases() {
 
 #[test]
 pub fn test_session_context_top_level_commands_includes_abbreviations() {
-    App::test((), |app| async move {
+    App::test((), |mut app| async move {
+        ensure_plugin_host(&mut app);
         let abbreviations = HashMap::from_iter([
             ("gl".into(), "git log".into()),
             ("gs".into(), "git status".into()),
@@ -98,7 +111,8 @@ pub fn test_session_context_top_level_commands_includes_abbreviations() {
 
 #[test]
 pub fn test_session_context_top_level_commands_includes_keywords() {
-    App::test((), |app| async move {
+    App::test((), |mut app| async move {
+        ensure_plugin_host(&mut app);
         let keywords = vec!["while".into(), "foreach".into(), "repeat".into()];
         let session = Session::new(
             SessionInfo::new_for_test().with_keywords(keywords.clone()),
@@ -115,7 +129,8 @@ pub fn test_session_context_top_level_commands_includes_keywords() {
 
 #[test]
 pub fn test_session_context_top_level_commands_includes_external_commands() {
-    App::test((), |app| async move {
+    App::test((), |mut app| async move {
+        ensure_plugin_host(&mut app);
         let session = Session::new(
             SessionInfo::new_for_test(),
             Arc::new(TestCommandExecutor::default()),
@@ -132,7 +147,8 @@ pub fn test_session_context_top_level_commands_includes_external_commands() {
 
 #[test]
 pub fn test_session_context_top_level_commands_includes_builtins() {
-    App::test((), |app| async move {
+    App::test((), |mut app| async move {
+        ensure_plugin_host(&mut app);
         let builtins = vec!["export".into(), "print".into(), "break".into()];
         let session = Session::new(
             SessionInfo::new_for_test().with_builtins(builtins.clone().into_iter().collect()),
@@ -149,7 +165,8 @@ pub fn test_session_context_top_level_commands_includes_builtins() {
 
 #[test]
 pub fn test_session_context_lists_directory_entries_locally() {
-    App::test((), |app| async move {
+    App::test((), |mut app| async move {
+        ensure_plugin_host(&mut app);
         VirtualFS::test(
             "test_session_context_lists_directory_entries_locally",
             |dirs, mut sandbox| {
@@ -224,7 +241,8 @@ fn windows_to_unix_shell_encoding(
 #[cfg_attr(windows, ignore = "TODO(CORE-3626)")]
 #[test]
 pub fn test_session_context_lists_directory_entries_remotely() {
-    App::test((), |app| async move {
+    App::test((), |mut app| async move {
+        ensure_plugin_host(&mut app);
         VirtualFS::test(
             "test_session_context_lists_directory_entries_remotely",
             |dirs, mut sandbox| {
@@ -282,7 +300,8 @@ fn perform_special_characters_in_path_test(session: Session, file_names: Vec<&st
         .iter()
         .map(|&filename| String::from(filename))
         .collect_vec();
-    App::test((), |app| async move {
+    App::test((), |mut app| async move {
+        ensure_plugin_host(&mut app);
         VirtualFS::test(
             "test_session_context_lists_directory_entries_with_special_characters",
             |dirs, mut sandbox| {

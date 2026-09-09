@@ -1,0 +1,11 @@
+[package]
+name = "code_review_model"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+ai.workspace = true
+rangemap.workspace = true
+warp_editor.workspace = true

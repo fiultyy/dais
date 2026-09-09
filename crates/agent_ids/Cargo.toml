@@ -1,0 +1,8 @@
+[package]
+name = "agent_ids"
+edition = "2021"
+
+[dependencies]
+serde.workspace = true
+uuid.workspace = true
+anyhow.workspace = true

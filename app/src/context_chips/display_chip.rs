@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::ai::blocklist::agent_view::AgentViewController;
+use crate::context_chips::ContextChipKindExt as _;
 use crate::ai::blocklist::prompt::plan_and_todo_list::{PlanAndTodoListEvent, PlanAndTodoListView};
 use crate::ai::{
     blocklist::{BlocklistAIContextModel, BlocklistAIInputModel},
@@ -46,7 +47,10 @@ use warpui::{
 
 use crate::appearance::Appearance;
 use crate::completer::SessionContext;
-use crate::{send_telemetry_from_ctx, TelemetryEvent};
+use crate::{
+    send_telemetry_from_ctx,
+    TelemetryEvent,
+};
 
 use super::{
     agent_view_chip_color,
@@ -301,58 +305,24 @@ pub struct DisplayChip {
     terminal_view_id: EntityId,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct GitLineChanges {
-    pub files_changed: u32,
-    pub lines_added: u32,
-    pub lines_removed: u32,
+// R21: GitLineChanges 提升 terminal_grid_model::prompt_snapshot。
+pub use terminal_grid_model::prompt_snapshot::GitLineChanges;
+
+/// R21: from_diff_stats(依赖 app DiffStats)以扩展 trait 承载。
+pub trait GitLineChangesExt {
+    fn from_diff_stats(diff_stats: &DiffStats) -> GitLineChanges;
 }
 
-impl GitLineChanges {
-    /// Convert GitDiffData to GitLineChanges
-    pub fn from_diff_stats(diff_stats: &DiffStats) -> Self {
-        Self {
+impl GitLineChangesExt for GitLineChanges {
+    fn from_diff_stats(diff_stats: &DiffStats) -> GitLineChanges {
+        GitLineChanges {
             files_changed: diff_stats.files_changed as u32,
             lines_added: diff_stats.total_additions as u32,
             lines_removed: diff_stats.total_deletions as u32,
         }
     }
-
-    /// Parse git diff --shortstat output into GitLineChanges struct
-    /// Input example: " 1 file changed, 2 insertions(+), 17 deletions(-)"
-    pub fn parse_from_git_output(raw_output: &str) -> Option<Self> {
-        let line = raw_output.trim();
-
-        if line.is_empty() {
-            return None;
-        }
-
-        let mut files_changed = 0;
-        let mut lines_added = 0;
-        let mut lines_removed = 0;
-
-        let words: Vec<&str> = line.split_whitespace().collect();
-        for (i, word) in words.iter().enumerate() {
-            if let Ok(num) = word.parse::<u32>() {
-                if let Some(next_word) = words.get(i + 1) {
-                    if next_word.starts_with("file") {
-                        files_changed = num;
-                    } else if next_word.starts_with("insertion") {
-                        lines_added = num;
-                    } else if next_word.starts_with("deletion") {
-                        lines_removed = num;
-                    }
-                }
-            }
-        }
-
-        Some(Self {
-            files_changed,
-            lines_added,
-            lines_removed,
-        })
-    }
 }
+
 
 #[derive(Debug, Clone)]
 pub enum DisplayChipKind {

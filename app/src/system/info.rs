@@ -12,8 +12,12 @@ use warp_core::channel::ChannelState;
 use warpui::{App, AppContext, Entity, ModelContext, SingletonEntity};
 
 use crate::{
-    send_telemetry_from_app_ctx, send_telemetry_sync_from_ctx, server::telemetry,
-    system::memory_footprint, terminal::TerminalView, TelemetryEvent,
+    send_telemetry_from_app_ctx,
+    send_telemetry_sync_from_ctx,
+    server::telemetry,
+    system::memory_footprint,
+    terminal::TerminalView,
+    TelemetryEvent,
 };
 
 /// The threshold at which we emit a memory usage warning.
@@ -474,7 +478,7 @@ impl MemoryUsageStats {
     fn add_blocks<'a>(
         &mut self,
         now: DateTime<Local>,
-        blocks: impl Iterator<Item = &'a crate::terminal::model::block::Block>,
+        blocks: impl Iterator<Item = &'a terminal_grid_model::block::Block>,
     ) {
         // We compute block-related memory stats across various intervals.
         // "Activity" refers to how recently the block was painted.
