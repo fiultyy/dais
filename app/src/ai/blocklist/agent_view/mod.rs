@@ -1,4 +1,3 @@
-pub(crate) mod agent_input_footer;
 mod agent_message_bar;
 mod agent_view_block;
 pub mod child_agent_status_card;
@@ -9,7 +8,6 @@ mod inline_agent_view_header;
 pub mod shortcuts;
 mod zero_state_block;
 
-pub use agent_input_footer::*;
 pub use agent_message_bar::*;
 pub use agent_view_block::*;
 pub use controller::*;

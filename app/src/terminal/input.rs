@@ -239,9 +239,8 @@ use super::{
     warpify::SubshellSource,
     History, HistoryEntry, SizeInfo, TerminalModel, UpArrowHistoryConfig,
 };
-use crate::ai::blocklist::agent_view::{
-    AgentInputFooter, AgentInputFooterEvent, AgentViewController,
-};
+use crate::agent_input_footer::{AgentInputFooter, AgentInputFooterEvent};
+use crate::ai::blocklist::agent_view::AgentViewController;
 use async_channel::Sender;
 use futures::stream::AbortHandle;
 use parking_lot::FairMutex;

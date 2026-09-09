@@ -1,3 +1,7 @@
+// R41-T7 边界标注（只标注，不改行为）: `ai::mcp` 为基座保留模块 —— Oz 剥离手术中不删不改。
+// 依赖方: `ai::agent_sdk`（driver.rs `MCPServerState`、mcp.rs `TemplatableMCPServerManager`、
+// mcp_config.rs `TemplatableMCPServer` + `parsing::normalize_mcp_json`）经由 `crate::ai::mcp`
+// 消费本模块；后续 Oz 残根清扫（B1/B4）触及 MCP 相关符号时，以保留本模块边界为前提。
 #[cfg(not(target_family = "wasm"))]
 use crate::objects_display::WarpDriveItemOverrides;
 use crate::server::datetime_ext::DateTimeExt;

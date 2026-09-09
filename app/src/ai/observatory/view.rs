@@ -36,7 +36,7 @@ use super::format::{
     relative_time_text,
 };
 use super::row::{list_row, status_dot_element};
-use crate::ai::blocklist::agent_view::agent_input_footer::AgentInputButtonTheme;
+use crate::agent_input_footer::AgentInputButtonTheme;
 use crate::terminal::intercept_sessions::InterceptSessionsModel;
 use crate::view_components::action_button::{ActionButton, ButtonSize};
 use crate::view_components::{SubmittableTextInput, SubmittableTextInputEvent};

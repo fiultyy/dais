@@ -30,7 +30,7 @@ use crate::workspace::cross_window_tab_drag::{
 
 use crate::ai::agent_conversations_model::AgentConversationsModel;
 use crate::ai::agent_conversations_model::ConversationOrTask;
-use crate::ai::blocklist::agent_view::agent_input_footer::editor::AgentToolbarEditorMode;
+use crate::agent_input_footer::editor::AgentToolbarEditorMode;
 use crate::ai::blocklist::agent_view::AgentViewEntryOrigin;
 
 use crate::ai::conversation_utils;
@@ -196,7 +196,7 @@ use crate::remote_server::manager::RemoteServerManager;
 use crate::remote_server::manager::RemoteServerManagerEvent;
 use crate::terminal::keys_settings::KeysSettings;
 
-use crate::ai::blocklist::agent_view::editor::{AgentToolbarEditorEvent, AgentToolbarEditorModal};
+use crate::agent_input_footer::editor::{AgentToolbarEditorEvent, AgentToolbarEditorModal};
 use crate::objects::object_store::{
     ObjectOperation, OperationSuccessType, ObjectStore, ObjectStoreMutationEvent,
 };
