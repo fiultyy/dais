@@ -20,11 +20,7 @@ use warpui::{
 
 use crate::{
     code::editor::{add_color, remove_color},
-    code_review::git_dialog::{
-        interactive_path_future, render_branch_section, render_chevron_icon, render_file_list,
-        show_toast, user_facing_git_error, GitDialog, GitDialogAction, GitDialogEvent,
-        GitDialogMode,
-    },
+    code_review::git_dialog::{ interactive_path_future, render_branch_section, render_chevron_icon, render_file_list, show_toast, user_facing_git_error, GitDialog, GitDialogAction, GitDialogEvent, GitDialogMode, },
     ui_components::icons::Icon,
     util::git::{Commit, FileChangeEntry},
 };

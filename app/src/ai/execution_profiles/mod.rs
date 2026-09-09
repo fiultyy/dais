@@ -1,21 +1,12 @@
+use crate::objects_display::WarpDriveItemOverrides;
 use std::path::PathBuf;
 
-use crate::cloud_object::UniquePer;
+use objects::UniquePer;
 use crate::settings::AISettings;
 use crate::{
-    cloud_object::{
-        model::{
-            generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel},
-            json_model::{JsonModel, JsonSerializer},
-        },
-        GenericStoredObject, GenericStringObjectFormat, GenericStringObjectUniqueKey,
-        JsonObjectType,
-    },
-    settings::{
-        AgentModeCommandExecutionPredicate, DEFAULT_COMMAND_EXECUTION_ALLOWLIST,
-        DEFAULT_COMMAND_EXECUTION_DENYLIST,
-    },
+    settings::{ AgentModeCommandExecutionPredicate, DEFAULT_COMMAND_EXECUTION_ALLOWLIST, DEFAULT_COMMAND_EXECUTION_DENYLIST, },
 };
+use objects::{GenericStoredObject, GenericStringObjectFormat, GenericStringObjectUniqueKey, JsonObjectType, model::{generic_string_model::{GenericStringModel, GenericStringObjectId, StringModel}, json_model::{JsonModel, JsonSerializer}}};
 use serde::{Deserialize, Serialize};
 use warp_core::channel::ChannelState;
 use warp_core::features::FeatureFlag;
@@ -434,13 +425,16 @@ impl StringModel for AIExecutionProfile {
             })
     }
 
-    fn renders_in_warp_drive(&self) -> bool {
-        false
-    }
 }
 
 impl JsonModel for AIExecutionProfile {
     fn json_object_type() -> JsonObjectType {
         JsonObjectType::AIExecutionProfile
+    }
+}
+
+impl WarpDriveItemOverrides for AIExecutionProfile {
+    fn renders_in_warp_drive(&self) -> bool {
+        false
     }
 }

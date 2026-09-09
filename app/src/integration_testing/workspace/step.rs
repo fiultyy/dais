@@ -1,7 +1,8 @@
 use warpui::{async_assert, integration::TestStep, SingletonEntity};
 
 use crate::{
-    integration_testing::view_getters::workspace_view, undo_close::UndoCloseStack,
+    integration_testing::view_getters::workspace_view,
+    undo_close::UndoCloseStack,
     workspace::Workspace,
 };
 

@@ -16,13 +16,6 @@ define_settings_group!(WarpDriveSettings, settings: [
         toml_path: "warp_drive.sorting_choice",
         description: "The sort order for items in Dais Drive.",
     },
-    sharing_onboarding_block_shown: WarpDriveSharingOnboardingBlockShown {
-        type: bool,
-        default: false,
-        supported_platforms: SupportedPlatforms::ALL,
-        sync_to_cloud: SyncToCloud::Globally(RespectUserSyncSetting::Yes),
-        private: true,
-    },
     // Controls whether Dais Drive appears in the tools panel, command palette, and command search.
     enable_warp_drive: EnableWarpDrive {
         type: bool,

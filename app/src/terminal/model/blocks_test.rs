@@ -1,24 +1,44 @@
+use terminal_grid_model::ansi::Handler;
+use terminal_grid_model::{SizeInfo, ansi};
+use terminal_grid_model::size_info::SizeUpdate;
+use sum_tree::SeekBias;
+use terminal_grid_model::grid::block_types::BlockSize;
+use terminal_grid_model::block_index::BlockIndex;
+use warpui::EntityId;
+use terminal_grid_model::ansi::PrecmdValue;
+use agent_ids::AIConversationId;
+use terminal_grid_model::block::blocks::ToTotalIndex as _;
+use terminal_grid_model::bootstrap::BootstrapStage;
+use terminal_grid_model::ansi::dcs_hooks::BootstrappedValue;
+use terminal_grid_model::block::AgentViewVisibility;
+use terminal_grid_model::GridType;
+use terminal_grid_model::ansi::ClearMode;
+use sum_tree::{Dimension as _, Item as _, SumTree};
+use terminal_grid_model::ansi::PreexecValue;
+use terminal_grid_model::block_events::BlockType;
+use warpui::units::Lines;
+use terminal_model::index::Point;
+use terminal_grid_model::block_serialized::{SerializedBlock, SerializedBlockListItem};
+use terminal_grid_model::block::blocks::RESTORED_BLOCK_SEPARATOR_HEIGHT;
+use crate::terminal::event_listener::ChannelEventListener;
 use float_cmp::{approx_eq, assert_approx_eq};
 use warp_core::features::FeatureFlag;
 use warpui::units::IntoLines;
 use warpui::{elements::DEFAULT_UI_LINE_HEIGHT_RATIO, App};
 
 use super::*;
+use terminal_grid_model::block::blocks::*;
 use crate::ai::agent::AIAgentActionId;
 use crate::ai::blocklist::agent_view::{
     AgentViewDisplayMode, AgentViewEntryOrigin, AgentViewState,
 };
-use crate::terminal::model::block::AgentInteractionMetadata;
+use terminal_grid_model::block::AgentInteractionMetadata;
 use crate::terminal::model::test_utils;
 use crate::terminal::view::{InlineBannerItem, InlineBannerType};
 use crate::terminal::BlockListSettings;
 use crate::{
     settings::TerminalSpacing,
-    terminal::{
-        event::Event,
-        model::{ansi::Handler, test_utils::TestBlockListBuilder},
-        SizeUpdateReason,
-    },
+    terminal::{ event::Event, model::{test_utils::TestBlockListBuilder}, SizeUpdateReason, },
 };
 
 pub fn input_string(block_list: &mut BlockList, input: &str) {
@@ -99,9 +119,8 @@ pub fn insert_block_with_prompt(
         honor_ps1: Some(true),
         ..Default::default()
     });
-
-    block_list.prompt_marker(ansi::PromptMarker::StartPrompt {
-        kind: ansi::PromptKind::Initial,
+    block_list.prompt_marker(terminal_grid_model::ansi::PromptMarker::StartPrompt {
+        kind: terminal_grid_model::ansi::PromptKind::Initial,
     });
     // Fill the prompt grid.  This logic splits on newlines, adding a
     // CR/LF only when a `\n` character actually appears in the input
@@ -115,7 +134,7 @@ pub fn insert_block_with_prompt(
         block_list.linefeed();
         input_string(block_list, line);
     }
-    block_list.prompt_marker(ansi::PromptMarker::EndPrompt);
+    block_list.prompt_marker(terminal_grid_model::ansi::PromptMarker::EndPrompt);
 
     insert_block(block_list, command, output)
 }
@@ -1101,7 +1120,7 @@ fn test_removed_gap_with_banner() {
 
     // Pretend that we finished processing a chunk of bytes from the PTY so we
     // properly update block heights.
-    block_list.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    block_list.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     assert!(block_list.active_gap.is_none());
     assert_eq!(
@@ -1954,7 +1973,7 @@ fn test_interleaves_background_with_gaps() {
     input_string(&mut block_list, "bg2");
     block_list.carriage_return();
     block_list.linefeed();
-    block_list.on_finish_byte_processing(&ansi::ProcessorInput::new(&[]));
+    block_list.on_finish_byte_processing(&terminal_grid_model::ansi::ProcessorInput::new(&[]));
 
     // There are 2 bootstrap blocks, 1 command block, 2 background blocks, and 1 active block.
     assert_eq!(block_list.blocks.len(), 6);

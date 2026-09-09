@@ -21,7 +21,6 @@ use crate::ai::agent::AIIdentifiers;
 use crate::ai::agent::EntrypointType;
 use crate::ai::agent::PassiveSuggestionTrigger;
 use crate::ai::agent::ServerOutputId;
-use crate::ai::agent::SuggestedLoggingId;
 use crate::ai::ambient_agents::AmbientAgentTaskId;
 use crate::ai::blocklist::agent_view::AgentViewEntryOrigin;
 use crate::ai::blocklist::CommandExecutionPermissionAllowedReason;
@@ -31,7 +30,7 @@ use crate::ai::predict::generate_ai_input_suggestions::GenerateAIInputSuggestion
 use crate::ai::predict::generate_ai_input_suggestions::GenerateAIInputSuggestionsResponseV2;
 use crate::ai::predict::next_command_model::HistoryBasedAutosuggestionState;
 use crate::auth::LoginGatedFeature;
-use crate::cloud_object::{
+use objects::{
     model::generic_string_model::GenericStringObjectId, GenericStringObjectFormat, ObjectType,
     Space,
 };
@@ -48,8 +47,8 @@ use crate::pane_group::PaneDragDropLocation;
 use crate::prompt::editor_modal::OpenSource as PromptEditorOpenSource;
 use crate::search::command_search::searcher::CommandSearchItemAction;
 use crate::search::QueryFilter;
-use crate::server::ids::ObjectUid;
-use crate::server::ids::ServerId;
+use objects::ids::ObjectUid;
+use objects::ids::ServerId;
 use crate::settings::import::config::ParsedTerminalSetting;
 use crate::settings::import::config::SettingType;
 use crate::settings::import::model::TerminalType;
@@ -59,8 +58,8 @@ use crate::terminal::block_list_viewport::InputMode;
 use crate::terminal::cli_agent_sessions::CLIAgentInputEntrypoint;
 use crate::terminal::cli_agent_sessions::CLIAgentRichInputCloseReason;
 use crate::terminal::input::TelemetryInputSuggestionsMode;
-use crate::terminal::model::ansi::WarpificationUnavailableReason;
-use crate::terminal::model::block::BlockId;
+use terminal_grid_model::ansi::WarpificationUnavailableReason;
+use terminal_grid_model::block::BlockId;
 use crate::terminal::model::session::SessionId;
 use crate::terminal::model::terminal_model::BlockSelectionCardinality;
 use crate::terminal::model::terminal_model::TmuxInstallationState;
@@ -78,7 +77,6 @@ use crate::terminal::view::PromptPart;
 use crate::terminal::view::{
     NotificationsDiscoveryBannerAction, NotificationsErrorBannerAction, NotificationsTrigger,
 };
-use crate::tips::WelcomeTipFeature;
 #[cfg(feature = "local_fs")]
 use crate::util::file::external_editor::settings::EditorLayout;
 #[cfg(feature = "local_fs")]
@@ -530,7 +528,6 @@ pub enum CommandSearchResultType {
     TranslateUsingWarpAI,
     Notebook,
     EnvVarCollection,
-    ViewInWarpDrive,
     AIQuery,
     Project,
 }
@@ -607,7 +604,6 @@ pub enum SaveAsWorkflowModalSource {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum LaunchConfigUiLocation {
     CommandPalette,
-    AppMenu,
     TabMenu,
     Uri,
 }
@@ -1032,7 +1028,6 @@ pub enum TelemetryAgentViewEntryOrigin {
     ContinueConversationButton,
     ViewPassiveCodeDiffDetails,
     ResumeConversationButton,
-    CodexModal,
     LongRunningCommand,
     HistoryMenu,
     InlineConversationMenu,
@@ -1082,7 +1077,6 @@ impl From<AgentViewEntryOrigin> for TelemetryAgentViewEntryOrigin {
             AgentViewEntryOrigin::ContinueConversationButton => Self::ContinueConversationButton,
             AgentViewEntryOrigin::ViewPassiveCodeDiffDetails => Self::ViewPassiveCodeDiffDetails,
             AgentViewEntryOrigin::ResumeConversationButton => Self::ResumeConversationButton,
-            AgentViewEntryOrigin::CodexModal => Self::CodexModal,
             AgentViewEntryOrigin::InlineHistoryMenu => Self::HistoryMenu,
             AgentViewEntryOrigin::InlineConversationMenu => Self::InlineConversationMenu,
             AgentViewEntryOrigin::PromptChip => Self::PromptChip,
@@ -1235,16 +1229,12 @@ pub enum TelemetryEvent {
     CursorDisplayType {
         cursor: String,
     },
-    OpenThemeCreatorModal,
-    CreateCustomTheme,
-    DeleteCustomTheme,
     SplitPane,
     UnableToAutoUpdateToNewVersion,
     /// An update was successfully installed, and we're attempting to relaunch the app.
     AutoupdateRelaunchAttempt {
         new_version: String,
     },
-    SkipOnboardingSurvey,
     ToggleRestoreSession(bool),
     DatabaseStartUpError(String),
     DatabaseReadError(String),
@@ -1275,12 +1265,6 @@ pub enum TelemetryEvent {
     WorkflowSelected(WorkflowTelemetryMetadata),
     OpenWorkflowSearch,
     OpenQuakeModeWindow,
-    OpenWelcomeTips,
-    CompleteWelcomeTipFeature {
-        total_completed_count: usize,
-        tip_name: WelcomeTipFeature,
-    },
-    DismissWelcomeTips,
     ShowNotificationsDiscoveryBanner,
     NotificationsDiscoveryBannerAction(NotificationsDiscoveryBannerAction),
     ShowNotificationsErrorBanner,
@@ -1318,12 +1302,6 @@ pub enum TelemetryEvent {
         source: LoginEventSource,
     },
     OpenNewSessionFromFilePath,
-    ShowedSuggestedAgentModeWorkflowChip {
-        logging_id: SuggestedLoggingId,
-    },
-    ShowedSuggestedAgentModeWorkflowModal {
-        logging_id: SuggestedLoggingId,
-    },
     SelectNavigationPaletteItem,
     SelectCommandPaletteOption(String),
     PaletteSearchOpened {
@@ -1646,7 +1624,6 @@ pub enum TelemetryEvent {
     },
     DuplicateObject(TelemetryObjectType),
     ExportObject(TelemetryObjectType),
-    DriveSharingOnboardingBlockShown,
     CommandFileRun,
     PageUpDownInEditorPressed {
         // Key pressed when nothing is in the editor (no-op)
@@ -2097,19 +2074,6 @@ pub enum TelemetryEvent {
     },
     #[cfg(feature = "local_fs")]
     PreviewPanePromoted,
-    AISuggestedRuleAdded {
-        rule_id: SuggestedLoggingId,
-    },
-    AISuggestedRuleEdited {
-        rule_id: SuggestedLoggingId,
-    },
-    AISuggestedRuleContentChanged {
-        rule_id: SuggestedLoggingId,
-        is_saved: bool,
-    },
-    AISuggestedAgentModeWorkflowAdded {
-        logging_id: SuggestedLoggingId,
-    },
     AttachedImagesToAgentModeQuery {
         num_images: usize,
         /// Whether or not Universal Developer Input mode is enabled
@@ -2323,9 +2287,6 @@ pub enum TelemetryEvent {
     CloneRepoPromptSubmitted {
         is_ftux: bool,
     },
-    /// From the first-time user "get started" page, skip straight to terminal without
-    /// creating/opening a project/repository.
-    GetStartedSkipToTerminal,
 
     /// User selected an item from the "Recent" list on the new tab zero state
     RecentMenuItemSelected {
@@ -2497,10 +2458,6 @@ pub enum TelemetryEvent {
         /// Whether the shortcuts view is now visible.
         is_visible: bool,
     },
-    /// Emitted when the Codex modal is opened.
-    CodexModalOpened,
-    /// Emitted when the user clicks "Use Codex" in the Codex modal.
-    CodexModalUseCodexClicked,
     /// Emitted when a RequestComputerUse action is approved (manually or auto-executed).
     ComputerUseApproved {
         conversation_id: AIConversationId,
@@ -2583,15 +2540,6 @@ pub enum TelemetryEvent {
 impl TelemetryEvent {
     pub fn payload(&self) -> Option<Value> {
         match self {
-            TelemetryEvent::ShowedSuggestedAgentModeWorkflowChip { logging_id } => Some(json!({
-                "logging_id": logging_id,
-            })),
-            TelemetryEvent::ShowedSuggestedAgentModeWorkflowModal { logging_id } => Some(json!({
-                "logging_id": logging_id,
-            })),
-            TelemetryEvent::AISuggestedAgentModeWorkflowAdded { logging_id } => Some(json!({
-                "logging_id": logging_id,
-            })),
             TelemetryEvent::AutosuggestionInserted {
                 insertion_length,
                 buffer_length,
@@ -2727,12 +2675,6 @@ impl TelemetryEvent {
             }
             TelemetryEvent::WorkflowExecuted(metadata) => Some(json!(metadata)),
             TelemetryEvent::WorkflowSelected(metadata) => Some(json!(metadata)),
-            TelemetryEvent::CompleteWelcomeTipFeature {
-                total_completed_count,
-                tip_name,
-            } => Some(
-                json!({ "total_completed_count": total_completed_count, "tip_name": tip_name }),
-            ),
             TelemetryEvent::NotificationsDiscoveryBannerAction(action) => {
                 Some(json!({ "action": action }))
             }
@@ -2951,13 +2893,6 @@ impl TelemetryEvent {
             TelemetryEvent::CodeSelectionAddedAsContext { destination } => Some(json!({
                 "destination": destination,
             })),
-            TelemetryEvent::AISuggestedRuleAdded { rule_id } => Some(json!({ "rule_id": rule_id })),
-            TelemetryEvent::AISuggestedRuleEdited { rule_id } => {
-                Some(json!({ "rule_id": rule_id }))
-            }
-            TelemetryEvent::AISuggestedRuleContentChanged { rule_id, is_saved } => {
-                Some(json!({ "rule_id": rule_id, "is_saved": is_saved }))
-            }
             TelemetryEvent::UsedWarpAIPreparedPrompt { prompt } => {
                 Some(json!({ "prompt": prompt }))
             }
@@ -3609,17 +3544,11 @@ impl TelemetryEvent {
             | TelemetryEvent::JumpToPreviousCommand
             | TelemetryEvent::TabSingleResultAutocompletion
             | TelemetryEvent::OpenThemeChooser
-            | TelemetryEvent::OpenThemeCreatorModal
-            | TelemetryEvent::CreateCustomTheme
-            | TelemetryEvent::DeleteCustomTheme
             | TelemetryEvent::SplitPane
             | TelemetryEvent::UnableToAutoUpdateToNewVersion
-            | TelemetryEvent::SkipOnboardingSurvey
             | TelemetryEvent::LoggedOutStartup
             | TelemetryEvent::OpenWorkflowSearch
             | TelemetryEvent::OpenQuakeModeWindow
-            | TelemetryEvent::OpenWelcomeTips
-            | TelemetryEvent::DismissWelcomeTips
             | TelemetryEvent::ShowNotificationsDiscoveryBanner
             | TelemetryEvent::ShowNotificationsErrorBanner
             | TelemetryEvent::NotificationClicked
@@ -3694,7 +3623,6 @@ impl TelemetryEvent {
             )
             | TelemetryEvent::SettingsImportResetButtonClicked
             | TelemetryEvent::ITermMultipleHotkeys
-            | TelemetryEvent::DriveSharingOnboardingBlockShown
             | TelemetryEvent::SSHControlMasterError
             | TelemetryEvent::SettingsImportInitiated
             | TelemetryEvent::GrepToolSucceeded
@@ -3707,7 +3635,7 @@ impl TelemetryEvent {
             | TelemetryEvent::ConversationListViewOpened
             | TelemetryEvent::GlobalSearchOpened
             | TelemetryEvent::GlobalSearchQueryStarted
-            | TelemetryEvent::GetStartedSkipToTerminal => None,
+            => None,
             TelemetryEvent::RemoteServerBinaryCheck {
                 found,
                 error,
@@ -4057,9 +3985,6 @@ impl TelemetryEvent {
             TelemetryEvent::AgentShortcutsViewToggled { is_visible } => Some(json!({
                 "is_visible": is_visible,
             })),
-            TelemetryEvent::CodexModalOpened => None,
-            TelemetryEvent::CodexModalUseCodexClicked => None,
-            TelemetryEvent::LinearIssueLinkOpened => None,
             TelemetryEvent::ComputerUseApproved {
                 conversation_id,
                 is_autoexecuted,
@@ -4076,6 +4001,7 @@ impl TelemetryEvent {
                 "conversation_id": conversation_id,
                 "ambient_agent_task_id": ambient_agent_task_id.map(|id| id.to_string()),
             })),
+            TelemetryEvent::LinearIssueLinkOpened => None,
             TelemetryEvent::LoginButtonClicked { source }
             | TelemetryEvent::LoginLaterButtonClicked { source }
             | TelemetryEvent::LoginLaterConfirmationButtonClicked { source }
@@ -4116,9 +4042,6 @@ impl TelemetryEvent {
                     AgentModeAutoDetectionFalsePositivePayload::InternalDogfoodUsers { .. }
                 )
             }
-            TelemetryEvent::ShowedSuggestedAgentModeWorkflowModal { .. }
-            | TelemetryEvent::ShowedSuggestedAgentModeWorkflowChip { .. }
-            | TelemetryEvent::AISuggestedAgentModeWorkflowAdded { .. }
             | TelemetryEvent::AutosuggestionInserted { .. }
             | TelemetryEvent::BlockCompleted { .. }
             | TelemetryEvent::BlockCompletedOnDogfoodOnly { .. }
@@ -4152,13 +4075,9 @@ impl TelemetryEvent {
             | TelemetryEvent::ThemeSelection { .. }
             | TelemetryEvent::AppIconSelection { .. }
             | TelemetryEvent::CursorDisplayType { .. }
-            | TelemetryEvent::OpenThemeCreatorModal
-            | TelemetryEvent::CreateCustomTheme
-            | TelemetryEvent::DeleteCustomTheme
             | TelemetryEvent::SplitPane
             | TelemetryEvent::UnableToAutoUpdateToNewVersion
             | TelemetryEvent::AutoupdateRelaunchAttempt { .. }
-            | TelemetryEvent::SkipOnboardingSurvey
             | TelemetryEvent::ToggleRestoreSession(_)
             | TelemetryEvent::DatabaseStartUpError(_)
             | TelemetryEvent::DatabaseReadError(_)
@@ -4175,9 +4094,6 @@ impl TelemetryEvent {
             | TelemetryEvent::WorkflowSelected(_)
             | TelemetryEvent::OpenWorkflowSearch
             | TelemetryEvent::OpenQuakeModeWindow
-            | TelemetryEvent::OpenWelcomeTips
-            | TelemetryEvent::CompleteWelcomeTipFeature { .. }
-            | TelemetryEvent::DismissWelcomeTips
             | TelemetryEvent::ShowNotificationsDiscoveryBanner
             | TelemetryEvent::NotificationsDiscoveryBannerAction(_)
             | TelemetryEvent::ShowNotificationsErrorBanner
@@ -4329,7 +4245,6 @@ impl TelemetryEvent {
             | TelemetryEvent::PtyThroughput { .. }
             | TelemetryEvent::DuplicateObject(_)
             | TelemetryEvent::ExportObject(_)
-            | TelemetryEvent::DriveSharingOnboardingBlockShown
             | TelemetryEvent::CommandFileRun
             | TelemetryEvent::PageUpDownInEditorPressed { .. }
             | TelemetryEvent::WebObjectOpenedOnDesktop { .. }
@@ -4409,9 +4324,6 @@ impl TelemetryEvent {
             | TelemetryEvent::AgentModeCreatedAIBlock { .. }
             | TelemetryEvent::StaticPromptSuggestionsBannerShown { .. }
             | TelemetryEvent::StaticPromptSuggestionAccepted { .. }
-            | TelemetryEvent::AISuggestedRuleAdded { .. }
-            | TelemetryEvent::AISuggestedRuleEdited { .. }
-            | TelemetryEvent::AISuggestedRuleContentChanged { .. }
             | TelemetryEvent::AttachedImagesToAgentModeQuery { .. }
             | TelemetryEvent::ImageReceived { .. }
             | TelemetryEvent::FileExceededContextLimit { .. }
@@ -4445,7 +4357,6 @@ impl TelemetryEvent {
             | TelemetryEvent::AgentModeSetupBannerDismissed
             | TelemetryEvent::AgentModeSetupProjectScopedRulesAction { .. }
             | TelemetryEvent::CloneRepoPromptSubmitted { .. }
-            | TelemetryEvent::GetStartedSkipToTerminal
             | TelemetryEvent::FileTreeItemAttachedAsContext { .. }
             | TelemetryEvent::CodeSelectionAddedAsContext { .. }
             | TelemetryEvent::FileTreeItemCreated
@@ -4484,8 +4395,6 @@ impl TelemetryEvent {
             | TelemetryEvent::CLIAgentRichInputSubmitted { .. }
             | TelemetryEvent::ToggleCLIAgentToolbarSetting { .. }
             | TelemetryEvent::ToggleUseAgentToolbarSetting { .. }
-            | TelemetryEvent::CodexModalOpened
-            | TelemetryEvent::CodexModalUseCodexClicked
             | TelemetryEvent::LinearIssueLinkOpened
             | TelemetryEvent::ComputerUseApproved { .. }
             | TelemetryEvent::ComputerUseCancelled { .. }

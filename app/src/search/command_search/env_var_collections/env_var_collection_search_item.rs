@@ -13,11 +13,7 @@ use warpui::{
 use crate::{
     appearance::Appearance,
     env_vars::EnvVarCollectionObject,
-    search::{
-        command_search::searcher::CommandSearchItemAction,
-        env_var_collections::fuzzy_match::FuzzyMatchEnvVarCollectionResult, item::SearchItem,
-        result_renderer::ItemHighlightState,
-    },
+    search::{ command_search::searcher::CommandSearchItemAction, env_var_collections::fuzzy_match::FuzzyMatchEnvVarCollectionResult, item::SearchItem, result_renderer::ItemHighlightState, },
 };
 
 const ENV_VAR_COLLECTION_ICON_PATH: &str = "bundled/svg/env-var-collection.svg";

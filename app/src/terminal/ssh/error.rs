@@ -1,5 +1,5 @@
 use crate::appearance::Appearance;
-use crate::terminal::model::ansi::WarpificationUnavailableReason;
+use terminal_grid_model::ansi::WarpificationUnavailableReason;
 use crate::terminal::warpify;
 use crate::terminal::warpify::render::apply_spacing_styles;
 use crate::terminal::warpify::render::build_description_row;
@@ -55,7 +55,13 @@ fn get_ssh_github_issue_url(title: &str) -> String {
     format!("{url}&title={title}")
 }
 
-impl WarpificationUnavailableReason {
+// R11: 类型下沉后以扩展 trait 承载 app 侧错误文案映射。
+trait WarpificationUnavailableReasonExt {
+    fn error_message(&self) -> &'static str;
+    fn error_title(&self) -> &'static str;
+}
+
+impl WarpificationUnavailableReasonExt for WarpificationUnavailableReason {
     fn error_message(&self) -> &'static str {
         match self {
             WarpificationUnavailableReason::TmuxNotInstalled { .. } => TMUX_NOT_INSTALLED_ERROR,

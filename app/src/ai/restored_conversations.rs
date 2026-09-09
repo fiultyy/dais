@@ -4,10 +4,7 @@ use std::collections::HashMap;
 use warpui::{Entity, SingletonEntity};
 
 use crate::{
-    ai::{
-        agent::conversation::{AIConversation, AIConversationId},
-        blocklist::history_model::convert_persisted_conversation_to_ai_conversation_with_metadata,
-    },
+    ai::{ agent::conversation::{AIConversation, AIConversationId}, blocklist::history_model::convert_persisted_conversation_to_ai_conversation_with_metadata, },
     persistence::model::AgentConversation,
 };
 

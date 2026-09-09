@@ -8,21 +8,22 @@ use super::{
     SettingsSection,
 };
 use crate::send_telemetry_from_ctx;
-use crate::{appearance::Appearance, themes};
 use crate::{
-    editor::EditorView, keyboard::write_custom_keybinding, util::bindings::CommandBinding,
+    appearance::Appearance,
+    themes,
 };
 use crate::{
-    editor::{
-        Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions,
-    },
+    editor::EditorView,
+    keyboard::write_custom_keybinding,
+    util::bindings::CommandBinding,
+};
+use crate::{
+    editor::{ Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, },
     keyboard::UserDefinedKeybinding,
 };
-use crate::{search_bar::SearchBar, settings::PreferencesSettings};
+use crate::settings::PreferencesSettings;
 use crate::{
-    util::bindings::{
-        filter_bindings_including_keystroke, reset_keybinding_to_default, set_custom_keybinding,
-    },
+    util::bindings::{ filter_bindings_including_keystroke, reset_keybinding_to_default, set_custom_keybinding, },
     TelemetryEvent,
 };
 use itertools::Itertools;
@@ -162,7 +163,6 @@ impl FromIterator<Option<Keystroke>> for ConflictMap {
 pub struct KeybindingsView {
     page: PageType<Self>,
     search_editor: ViewHandle<EditorView>,
-    search_bar: ViewHandle<SearchBar>,
     clipped_scroll_state: ClippedScrollStateHandle,
     bindings: Option<Vec<CommandBinding>>,
     modifying_row: Option<KeyBindingModifyingState>,
@@ -561,7 +561,6 @@ impl KeybindingsView {
             editor.set_placeholder_text(crate::t!("settings-keybindings-search-placeholder"), ctx);
         });
 
-        let search_bar = ctx.add_typed_action_view(|_| SearchBar::new(search_editor.clone()));
 
         let page = PageType::new_monolith(KeybindingsWidget::default(), None, false);
         Self {
@@ -570,7 +569,6 @@ impl KeybindingsView {
             bindings: None,
             rows: Default::default(),
             modifying_row: None,
-            search_bar,
             search_editor,
             conflict_map: Default::default(),
         }
@@ -1184,7 +1182,16 @@ impl SettingsWidget for KeybindingsWidget {
                 ))
                 .with_uniform_margin(20.)
                 .finish(),
-                Container::new(ChildView::new(&view.search_bar).finish())
+                Container::new(ChildView::new(&view.search_editor).finish())
+                    .with_background::<warpui::elements::Fill>(appearance.theme().background().into())
+                    .with_border(
+                        Border::all(1.)
+                            .with_border_fill::<warpui::elements::Fill>(
+                                appearance.theme().foreground().with_opacity(20).into(),
+                            ),
+                    )
+                    .with_corner_radius(CornerRadius::with_all(Radius::Pixels(3.)))
+                    .with_uniform_padding(10.)
                     .with_margin_right(10.)
                     .finish(),
                 0.62,

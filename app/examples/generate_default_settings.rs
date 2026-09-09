@@ -25,11 +25,11 @@ use warpui_extras::user_preferences::UserPreferences as _;
 /// dependency tree are linked into the binary.
 ///
 /// Binary targets only link crate code that is transitively referenced.
-/// Without an explicit reference to the `warp` library, the linker will
+/// Without an explicit reference to the `dais` library, the linker will
 /// not include most of the app's object files and the `inventory`
 /// submissions they contain.
 fn ensure_settings_linked() {
-    let _ = std::hint::black_box(warp::settings::RESTORE_SESSION);
+    let _ = std::hint::black_box(dais::settings::RESTORE_SESSION);
 }
 
 fn active_flags_for_channel(channel: &str) -> HashSet<FeatureFlag> {

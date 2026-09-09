@@ -2,7 +2,7 @@
 
 use settings::Setting as _;
 use version_compare::Cmp;
-use warp::{
+use dais::{
     cmd_or_ctrl_shift,
     integration_testing::{
         input::{

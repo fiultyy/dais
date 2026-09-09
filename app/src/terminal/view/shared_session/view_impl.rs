@@ -4,8 +4,10 @@ use crate::context_chips::ContextChipKind;
 use crate::editor::{InteractionState, ReplicaId};
 use crate::settings::InputModeSettings;
 use crate::terminal::block_list_viewport::ScrollPositionUpdate;
-use crate::terminal::model::blocks::BlockListPoint;
-use crate::terminal::model::index::Point;
+use terminal_grid_model::block::blocks::BlockListPointExt as _;
+use crate::terminal::shared_session::selections::WithinBlockSessionSharing as _;
+use terminal_grid_model::block::blocks::BlockListPoint;
+use terminal_model::index::Point;
 use crate::terminal::model::terminal_model::WithinBlock;
 use crate::terminal::shared_session::protocol::RoleUpdatedReason;
 use crate::terminal::shared_session::protocol::SessionSourceType;
@@ -547,7 +549,7 @@ impl TerminalView {
         // First check if we have any selected blocks.
         let selected_block_ids = self
             .selected_blocks
-            .to_block_ids(model_lock.block_list())
+            .to_block_ids(|idx| model_lock.block_list().block_at(idx).map(|b| b.id()))
             .map(|id| id.to_string().into())
             .collect_vec();
         if !selected_block_ids.is_empty() {

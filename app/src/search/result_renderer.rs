@@ -11,7 +11,10 @@ use warpui::{
 };
 
 use crate::search::item::IconLocation;
-use crate::{appearance::Appearance, themes::theme::Fill};
+use crate::{
+    appearance::Appearance,
+    themes::theme::Fill,
+};
 
 use super::data_source::QueryResult;
 

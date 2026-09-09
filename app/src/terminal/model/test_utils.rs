@@ -6,6 +6,8 @@
 //! is marked as no_run only  because it's currently not possible
 //! to reference `#[cfg(test)]` symbols from doctests.
 
+use terminal_grid_model::block_index::BlockIndex;
+use terminal_grid_model::bootstrap::BootstrapStage;
 use std::{io::sink, sync::Arc};
 
 use warp_core::command::ExitCode;
@@ -18,14 +20,10 @@ use crate::terminal::{
     BlockPadding, SizeInfo,
 };
 
-use super::{
-    ansi::{CommandFinishedValue, Handler, PrecmdValue, PreexecValue, Processor},
-    block::{Block, BlockId, BlockSize},
-    blocks::BlockList,
-    bootstrap::BootstrapStage,
-    terminal_model::BlockIndex,
-    ObfuscateSecrets, TerminalModel,
-};
+use terminal_grid_model::ansi::{CommandFinishedValue, Handler, PrecmdValue, PreexecValue, Processor};
+use super::{ObfuscateSecrets, TerminalModel};
+use terminal_grid_model::block::{Block, BlockId, BlockSize};
+use terminal_grid_model::block::blocks::BlockList;
 
 pub fn block_size() -> BlockSize {
     BlockSize {
@@ -51,7 +49,7 @@ fn block_padding() -> BlockPadding {
 /// prompt:
 ///
 /// ```no_run
-/// # use warp::terminal::model::test_utils::TestBlockListBuilder;
+/// # use dais::terminal::model::test_utils::TestBlockListBuilder;
 /// let block_list = TestBlockListBuilder::new()
 ///     .with_honor_ps1(true)
 ///     .build();
@@ -63,10 +61,10 @@ fn block_padding() -> BlockPadding {
 /// the channel event proxy:
 ///
 /// ```no_run
-/// # use warp::terminal::event::{BlockType, Event};
-/// # use warp::terminal::event_listener::ChannelEventListener;
-/// # use warp::terminal::model::block::SerializedBlock;
-/// # use warp::terminal::model::test_utils::TestBlockListBuilder;
+/// # use dais::terminal::event::{BlockType, Event};
+/// # use dais::terminal::event_listener::ChannelEventListener;
+/// # use dais::terminal_grid_model::block::SerializedBlock;
+/// # use dais::terminal::model::test_utils::TestBlockListBuilder;
 ///
 /// let (events_tx, events_rx) = async_channel::unbounded();
 /// let channel_event_proxy = ChannelEventListener::builder_for_test()
@@ -127,8 +125,11 @@ impl<'a> TestBlockListBuilder<'a> {
         let mut block_list = BlockList::new(
             self.restored_blocks,
             self.block_sizes,
-            self.channel_event_proxy,
-            Arc::new(Background::default()),
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                self.channel_event_proxy.clone(),
+            )),
+            crate::terminal::event_listener::host_determine_secret_level,
+            std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
             false, /* show_warp_bootstrap_input */
             false, /* show_warp_bootstrap_input */
             false, /* show_memory_stats */
@@ -157,7 +158,7 @@ impl Default for TestBlockListBuilder<'_> {
 /// For example, to create a [`Block`] that respects the user's custom prompt:
 ///
 /// ```no_run
-/// # use warp::terminal::model::test_utils::TestBlockBuilder;
+/// # use dais::terminal::model::test_utils::TestBlockBuilder;
 /// let block = TestBlockBuilder::new()
 ///     .with_honor_ps1(true)
 ///     .build();
@@ -211,8 +212,11 @@ impl TestBlockBuilder {
         Block::new(
             BlockId::new(),
             self.size,
-            self.event_proxy,
-            Arc::new(Background::default()),
+            std::sync::Arc::new(crate::terminal::event_listener::GridEventSinkAdapter(
+                self.event_proxy.clone(),
+            )),
+            crate::terminal::event_listener::host_determine_secret_level,
+            std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
             self.bootstrap_stage,
             false, /* show_warp_bootstrap_input */
             false, /* show_in_band_command_blocks */
@@ -234,11 +238,11 @@ impl Default for TestBlockBuilder {
 
 pub fn create_test_block_with_grids(
     block_index: BlockIndex,
-    prompt_and_command_grid: super::blockgrid::BlockGrid,
-    rprompt_grid: super::blockgrid::BlockGrid,
-    output_grid: super::blockgrid::BlockGrid,
+    prompt_and_command_grid: terminal_grid_model::grid::blockgrid::BlockGrid,
+    rprompt_grid: terminal_grid_model::grid::blockgrid::BlockGrid,
+    output_grid: terminal_grid_model::grid::blockgrid::BlockGrid,
     honor_ps1: bool,
-) -> super::block::Block {
+) -> terminal_grid_model::block::Block {
     let mut block = TestBlockBuilder::new()
         .with_block_index(block_index)
         .with_honor_ps1(honor_ps1)
@@ -264,7 +268,7 @@ impl TerminalModel {
             block_size(),
             color::List::from(&Colors::default()),
             event_proxy.unwrap_or_else(ChannelEventListener::new_for_test),
-            Arc::new(Background::default()),
+            std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
             false,
             restored_blocks,
             false,

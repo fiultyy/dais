@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use warpui::{AppContext, SingletonEntity};
 
-use crate::cloud_object::model::persistence::ObjectStoreModel;
+use crate::objects::model::persistence::ObjectStoreModel;
 
 use super::EnvVarCollectionSearchItem;
 use crate::search::command_search::searcher::CommandSearchItemAction;
@@ -12,7 +12,7 @@ use crate::search::mixer::{DataSourceRunErrorWrapper, SyncDataSource};
 pub struct EnvVarCollectionDataSource {}
 
 impl EnvVarCollectionDataSource {
-    /// Creates a new EnvVarCollectionDataSource containing personal and team EVCs.
+    /// Creates a new EnvVarCollectionDataSource containing EVCs from the local object store.
     pub fn new() -> Self {
         Self {}
     }

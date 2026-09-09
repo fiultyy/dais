@@ -17,19 +17,10 @@ use warpui::{
 };
 
 use crate::{
-    ai::blocklist::agent_view::{
-        AgentViewController, AgentViewControllerEvent, ENTER_AGENT_VIEW_NEW_CONVERSATION_KEYSTROKE,
-    },
+    ai::blocklist::agent_view::{ AgentViewController, AgentViewControllerEvent, ENTER_AGENT_VIEW_NEW_CONVERSATION_KEYSTROKE, },
     appearance::Appearance,
     settings::{AISettings, AISettingsChangedEvent, InputModeSettings},
-    terminal::{
-        self,
-        event::BlockType,
-        input::message_bar::{common::render_standard_message, Message, MessageItem},
-        model_events::{ModelEvent, ModelEventDispatcher},
-        settings::{TerminalSettings, TerminalSettingsChangedEvent},
-        view::TerminalAction,
-    },
+    terminal::{ self, event::BlockType, input::message_bar::{common::render_standard_message, Message, MessageItem}, model_events::{ModelEvent, ModelEventDispatcher}, settings::{TerminalSettings, TerminalSettingsChangedEvent}, view::TerminalAction, },
     ui_components::blended_colors,
     util::bindings::keybinding_name_to_keystroke,
     workspace::tab_settings::TabSettings,

@@ -17,10 +17,7 @@ use crate::{
     appearance::Appearance,
     editor::{self, EditorView, SingleLineEditorOptions, TextOptions},
     report_if_error,
-    settings_view::{
-        features_page::render_group,
-        settings_page::{render_body_item, LocalOnlyIconState, ToggleState},
-    },
+    settings_view::{ features_page::render_group, settings_page::{render_body_item, LocalOnlyIconState, ToggleState}, },
     undo_close::{settings::UndoCloseEnabled, UndoCloseSettings},
 };
 

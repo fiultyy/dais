@@ -16,7 +16,8 @@ use warpui::{
 };
 
 use crate::{
-    terminal::ssh::util::InteractiveSshCommand, ui_components::buttons::icon_button,
+    terminal::ssh::util::InteractiveSshCommand,
+    ui_components::buttons::icon_button,
     ui_components::icons::Icon,
 };
 

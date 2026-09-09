@@ -1,3 +1,5 @@
+use crate::terminal::event_listener::ChannelEventListener;
+use terminal_grid_model::block::SerializedBlock;
 use super::{decode_scrollback, SharedSessionScrollbackType};
 
 use crate::ai::blocklist::agent_view::AgentViewState;
@@ -9,7 +11,6 @@ use crate::uri::web_intent_parser::maybe_rewrite_web_url_to_intent;
 use crate::terminal::model::ObfuscateSecrets;
 use crate::terminal::shared_session::protocol::{Scrollback, ScrollbackBlock};
 use crate::terminal::TerminalModel;
-use crate::terminal::{event_listener::ChannelEventListener, model::block::SerializedBlock};
 use crate::themes::default_themes::dark_theme;
 use serde_json::Value;
 use std::sync::Arc;
@@ -62,7 +63,7 @@ pub fn terminal_model_for_viewer(event_proxy: ChannelEventListener) -> TerminalM
         block_size(),
         List::from(&dark_theme().into()),
         event_proxy,
-        Arc::new(Background::default()),
+        std::sync::Arc::new(terminal_grid_model::block_host::ImmediateBlockTimerHost),
         false, /* show_memory_stats */
         false, /* honor_ps1 */
         false, /* is_inverted */

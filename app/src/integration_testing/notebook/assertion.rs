@@ -8,19 +8,13 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::model::{
-        generic_string_model::GenericStringObjectId, persistence::ObjectStoreModel,
-    },
-    integration_testing::{
-        cloud_object::assert_metadata_revision,
-        terminal::util::ExpectedOutput,
-        view_getters::{notebook_view, terminal_view},
-    },
+    objects::model::persistence::ObjectStoreModel,
+    integration_testing::{ assertions::assert_metadata_revision, terminal::util::ExpectedOutput, view_getters::{notebook_view, terminal_view}, },
     notebooks::{notebook::NotebookView, NotebookId, NotebookObjectModel},
     pane_group::PaneGroup,
-    server::ids::SyncId,
     settings::{Preference, PreferenceObjectModel},
 };
+use objects::{ids::SyncId, GenericStringObjectId};
 
 /// Asserts that the notebook in the given pane has the expected Markdown content.
 pub fn assert_notebook_contents(

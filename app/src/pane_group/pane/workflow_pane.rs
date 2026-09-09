@@ -6,14 +6,10 @@ use super::{
 use crate::{
     app_state::{LeafContents, WorkflowPaneSnapshot},
     drive::{items::WarpDriveItemId, DaisDriveObjectSettings},
-    server::ids::SyncId,
-    workflows::{
-        manager::{WorkflowManager, WorkflowOpenSource},
-        workflow_view::{WorkflowView, WorkflowViewEvent},
-        WorkflowSelectionSource, WorkflowSource, WorkflowType, WorkflowViewMode,
-    },
+    workflows::{ manager::{WorkflowManager, WorkflowOpenSource}, workflow_view::{WorkflowView, WorkflowViewEvent}, WorkflowSelectionSource, WorkflowSource, WorkflowType, WorkflowViewMode, },
     workspaces::user_workspaces::UserWorkspaces,
 };
+use objects::ids::SyncId;
 use anyhow::Context;
 use std::{collections::HashMap, sync::Arc};
 use url::Url;

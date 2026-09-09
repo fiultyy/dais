@@ -1,7 +1,7 @@
 use super::{new_builder, Builder};
 use regex::Regex;
 
-use warp::{
+use dais::{
     integration_testing::{
         step::new_step_with_default_assertions,
         tab::assert_pane_title,

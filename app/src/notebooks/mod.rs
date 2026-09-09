@@ -7,8 +7,10 @@ pub mod link;
 pub mod manager;
 pub mod notebook;
 mod styles;
-pub mod telemetry;
+pub use notebooks_model::telemetry;
 
+use objects::UpsertEvent;
+use crate::objects_display::WarpDriveItemOverrides;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use warpui::AppContext;
@@ -16,16 +18,12 @@ use warpui::AppContext;
 use crate::{
     ai::document::ai_document_model::AIDocumentId,
     appearance::Appearance,
-    cloud_object::{GenericStoredObject, ObjectType, Owner, StoredObjectModel},
-    drive::{
-        items::{notebook::WarpDriveNotebook, WarpDriveItem},
-        ObjectTypeAndId,
-    },
+    drive::{ items::{notebook::WarpDriveNotebook, WarpDriveItem}, ObjectTypeAndId, },
     persistence::ModelEvent,
-    server::ids::{ServerId, SyncId},
 };
+use objects::{GenericStoredObject, ObjectType, Owner, StoredObjectModel, ids::{ServerId, SyncId}};
 
-use crate::cloud_object::SerializedModel;
+use objects::SerializedModel;
 
 /// Serialized representation of a notebook stored in local object persistence.
 /// The AIDocumentID and ConversationID stay grouped with notebook content.
@@ -76,19 +74,16 @@ impl StoredObjectModel for NotebookObjectModel {
         name.clone_into(&mut self.title);
     }
 
-    fn upsert_event(&self, notebook: &NotebookObject) -> ModelEvent {
-        ModelEvent::UpsertNotebook {
+    fn upsert_event(&self, notebook: &NotebookObject) -> UpsertEvent {
+        UpsertEvent::App(Box::new(ModelEvent::UpsertNotebook {
             notebook: notebook.clone(),
-        }
+        }))
     }
 
-    fn bulk_upsert_event(objects: &[NotebookObject]) -> ModelEvent {
-        ModelEvent::UpsertNotebooks(objects.to_vec())
+    fn bulk_upsert_event(objects: &[NotebookObject]) -> UpsertEvent {
+        UpsertEvent::App(Box::new(ModelEvent::UpsertNotebooks(objects.to_vec())))
     }
 
-    fn should_update_after_server_conflict(&self) -> bool {
-        true
-    }
 
     fn serialized(&self) -> SerializedModel {
         let serialized = SerializedNotebook {
@@ -100,32 +95,17 @@ impl StoredObjectModel for NotebookObjectModel {
         SerializedModel::new(json)
     }
 
-    fn renders_in_warp_drive(&self) -> bool {
-        true
-    }
 
     fn can_export(&self) -> bool {
         true
     }
 
-    fn to_warp_drive_item(
-        &self,
-        id: SyncId,
-        _appearance: &Appearance,
-        notebook: &NotebookObject,
-    ) -> Option<Box<dyn WarpDriveItem>> {
-        Some(Box::new(WarpDriveNotebook::new(
-            self.object_type_and_id(id),
-            notebook.clone(),
-            notebook.model().ai_document_id.is_some(),
-        )))
-    }
 }
 
 /// This is the notebook_id in the database associated with this notebook.
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct NotebookId(ServerId);
-crate::server_id_traits! { NotebookId, "Notebook" }
+objects::server_id_traits! { NotebookId, "Notebook" }
 
 impl From<NotebookId> for SyncId {
     fn from(id: NotebookId) -> Self {
@@ -192,4 +172,27 @@ pub fn export_notebook(data: &str, ctx: &AppContext) -> anyhow::Result<String> {
             should_not_escape_markdown_punctuation: false,
         },
     ))
+}
+
+impl WarpDriveItemOverrides for NotebookObjectModel {
+
+    fn renders_in_warp_drive(&self) -> bool {
+        true
+    }
+
+}
+
+impl NotebookObjectModel {
+    fn to_warp_drive_item(
+        &self,
+        id: objects::SyncId,
+        _appearance: &Appearance,
+        object: &NotebookObject,
+    ) -> Option<Box<dyn WarpDriveItem>> {
+        Some(Box::new(WarpDriveNotebook::new(
+            objects::ObjectTypeAndId::Notebook(id),
+            object.clone(),
+            object.model().ai_document_id.is_some(),
+        )))
+    }
 }

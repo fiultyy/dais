@@ -14,10 +14,10 @@ use crate::ai::byop_readiness::{
 };
 use crate::persistence::model::AgentConversationData;
 use crate::persistence::ModelEvent;
-use crate::terminal::model::block::{
+use terminal_grid_model::block::{
     AgentInteractionMetadata, AgentViewVisibility, SerializedAIMetadata, SerializedBlock,
 };
-use crate::terminal::model::BlockId;
+use terminal_grid_model::block_id::BlockId;
 use warp_core::features::FeatureFlag;
 use warp_multi_agent_api as api;
 

@@ -5,15 +5,11 @@ use warpui::{AppContext, ModelHandle, SingletonEntity, ViewContext, ViewHandle};
 use crate::{
     app_state::{EnvVarCollectionPaneSnapshot, LeafContents},
     drive::items::WarpDriveItemId,
-    env_vars::{
-        manager::{EnvVarCollectionManager, EnvVarCollectionSource},
-        view::env_var_collection::{EnvVarCollectionEvent, EnvVarCollectionView},
-        EnvVarCollectionType,
-    },
+    env_vars::{ manager::{EnvVarCollectionManager, EnvVarCollectionSource}, view::env_var_collection::{EnvVarCollectionEvent, EnvVarCollectionView}, EnvVarCollectionType, },
     pane_group::focus_state::PaneFocusHandle,
-    server::ids::SyncId,
     workspaces::user_workspaces::UserWorkspaces,
 };
+use objects::ids::SyncId;
 
 use super::{
     view::PaneView, DetachType, PaneConfiguration, PaneContent, PaneGroup, PaneId, ShareableLink,

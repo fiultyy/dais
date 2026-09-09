@@ -1,3 +1,26 @@
+//! # P-ARC R2-b 后的 app 侧 workflows 模块(留守层)
+//!
+//! 纯模型/类型层已下沉 `crates/workflows_ui`(Workflow/Argument/ArgumentType、
+//! WorkflowEnum 体系、command_parser、WorkflowAlias、export_workflow POD 版、
+//! WorkflowId/WorkflowSelectionSource/AIWorkflowOrigin)。
+//! 本模块保留:
+//! - `WorkflowObjectModel` / `WorkflowObject`:`StoredObjectModel::upsert_event`
+//!   构造 `app::persistence::ModelEvent`(sqlite 事件流保持 ModelEvent 直传,
+//!   与 Folder/Notebook 的 `UpsertEvent::App` 用法一致),随 store 进 crate 会成
+//!   反向依赖;
+//! - `WorkflowType` / `WorkflowSource`:引用 WorkflowObject 与 notebooks 域类型
+//!   (NotebookId/NotebookLocation);
+//! - `WorkflowViewMode`:`supported_edit_mode/supported_view_mode` 依赖
+//!   ObjectStoreViewModel + FeatureFlag,且被 workflows 域外以关联函数语法调用
+//!   (pane_group/pane/workflow_pane.rs),下沉将强制散改域外调用点;
+//! - 各视图与宿主单例(categories、workflow_view、info_box、manager、
+//!   local_workflows、aliases 设置组);
+//! - 路径兼容 shim(`workflow`/`workflow_enum`/`command_parser` 模块)与
+//!   `export_workflow::export_serialize` 同签名包装,保证 `crate::workflows::*`
+//!   全部既有路径不变。
+
+use objects::UpsertEvent;
+use crate::objects_display::WarpDriveItemOverrides;
 use serde::{Deserialize, Serialize};
 use warp_core::context_flag::ContextFlag;
 use warp_core::features::FeatureFlag;
@@ -7,27 +30,42 @@ pub mod categories;
 use workflow::Workflow;
 
 pub mod aliases;
-pub mod command_parser;
 pub mod export_workflow;
 pub mod info_box;
 pub mod local_workflows;
 pub mod manager;
-pub mod workflow;
-pub mod workflow_enum;
 pub mod workflow_view;
 
-use crate::appearance::Appearance;
-use crate::cloud_object::model::view::ObjectStoreViewModel;
-use crate::cloud_object::{GenericStoredObject, ObjectType, StoredObjectModel};
+// R2-b 路径兼容 shim:主体已下沉 crates/workflows_ui,保持
+// `crate::workflows::{workflow,workflow_enum,command_parser}::*` 旧路径不变。
+pub mod workflow {
+    pub use workflows_ui::workflow::*;
+}
+pub mod workflow_enum {
+    pub use workflows_ui::workflow_enum::*;
+}
+pub mod command_parser {
+    pub use workflows_ui::command_parser::*;
+}
 
-use crate::cloud_object::SerializedModel;
+// R2-b 宿主桥:ObjectStoreModel → workflows_ui::WorkflowData POD 契约。
+mod data;
+
+use crate::appearance::Appearance;
+use crate::objects::model::view::ObjectStoreViewModel;
+use objects::{GenericStoredObject, ObjectType, StoredObjectModel};
+
+use objects::SerializedModel;
 use crate::drive::items::workflow::WarpDriveWorkflow;
 use crate::drive::items::WarpDriveItem;
 use crate::drive::ObjectTypeAndId;
 use crate::notebooks::{NotebookId, NotebookLocation};
 use crate::persistence::ModelEvent;
-use crate::server::ids::{ServerId, SyncId};
+use objects::ids::{ServerId, SyncId};
 pub use categories::{CategoriesView, CategoriesViewEvent, WorkflowsViewAction};
+
+// 下沉类型的根路径再导出(原定义于本模块,现移 crates/workflows_ui)。
+pub use workflows_ui::{AIWorkflowOrigin, WorkflowId, WorkflowSelectionSource};
 
 pub fn init(app: &mut AppContext) {
     categories::init(app);
@@ -53,22 +91,6 @@ pub enum WorkflowSource {
     /// A hardcoded workflow type that allows Dais to surface features as Workflows (e.g.
     /// a command to see our network log)
     App,
-}
-
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, Eq, PartialEq, Hash, PartialOrd)]
-pub enum WorkflowSelectionSource {
-    DaisDrive,
-    CommandPalette,
-    UniversalSearch,
-    Voltron,
-    WarpAI,
-    Notebook,
-    SlashMenu,
-    UpArrowHistory,
-    WorkflowView,
-    AgentMode,
-    Undefined,
-    Alias,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -126,17 +148,6 @@ impl WorkflowViewMode {
             Self::Edit | Self::Create => true,
         }
     }
-}
-
-#[derive(Clone, Debug, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct WorkflowId(ServerId);
-crate::server_id_traits! { WorkflowId, "Workflow" }
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum AIWorkflowOrigin {
-    CommandSearch,
-    AgentMode,
-    LegacyWarpAI,
 }
 
 /// Wrapper type for a workflow that may be saved locally or in the object store.
@@ -247,19 +258,17 @@ impl StoredObjectModel for WorkflowObjectModel {
         self.data.set_name(name);
     }
 
-    fn upsert_event(&self, workflow: &WorkflowObject) -> ModelEvent {
-        ModelEvent::UpsertWorkflow {
+    fn upsert_event(&self, workflow: &WorkflowObject) -> UpsertEvent {
+        UpsertEvent::App(Box::new(ModelEvent::UpsertWorkflow {
             workflow: workflow.clone(),
-        }
+        }))
     }
 
-    fn bulk_upsert_event(objects: &[WorkflowObject]) -> ModelEvent {
-        ModelEvent::UpsertWorkflows(objects.to_vec())
+    fn bulk_upsert_event(objects: &[WorkflowObject]) -> UpsertEvent {
+        UpsertEvent::App(Box::new(ModelEvent::UpsertWorkflows(objects.to_vec())))
     }
 
-    fn should_update_after_server_conflict(&self) -> bool {
-        true
-    }
+
 
     fn serialized(&self) -> SerializedModel {
         SerializedModel::new(
@@ -267,51 +276,36 @@ impl StoredObjectModel for WorkflowObjectModel {
         )
     }
 
-    fn renders_in_warp_drive(&self) -> bool {
-        true
-    }
 
-    fn to_warp_drive_item(
-        &self,
-        id: SyncId,
-        _appearance: &Appearance,
-        workflow: &WorkflowObject,
-    ) -> Option<Box<dyn WarpDriveItem>> {
-        Some(Box::new(WarpDriveWorkflow::new(
-            self.object_type_and_id(id),
-            workflow.clone(),
-        )))
-    }
 
     fn can_export(&self) -> bool {
         true
     }
 }
 
-impl PartialEq<Workflow> for WorkflowObject {
-    fn eq(&self, other: &Workflow) -> bool {
-        self.model().data == *other
-    }
-}
-
-impl PartialEq<WorkflowObject> for WorkflowObject {
-    fn eq(&self, other: &WorkflowObject) -> bool {
-        self.model().data == other.model().data && self.id == other.id
-    }
-}
-
-impl From<WorkflowObject> for Workflow {
-    fn from(workflow: WorkflowObject) -> Self {
-        workflow.model().data.clone()
-    }
-}
-
-impl From<&WorkflowObject> for Workflow {
-    fn from(workflow: &WorkflowObject) -> Self {
-        workflow.model().data.to_owned()
-    }
-}
 
 #[cfg(test)]
 #[path = "mod_test.rs"]
 mod tests;
+
+impl WarpDriveItemOverrides for WorkflowObjectModel {
+
+    fn renders_in_warp_drive(&self) -> bool {
+        true
+    }
+
+}
+
+impl WorkflowObjectModel {
+    fn to_warp_drive_item(
+        &self,
+        id: objects::SyncId,
+        _appearance: &Appearance,
+        object: &WorkflowObject,
+    ) -> Option<Box<dyn WarpDriveItem>> {
+        Some(Box::new(WarpDriveWorkflow::new(
+            objects::ObjectTypeAndId::Workflow(id),
+            object.clone(),
+        )))
+    }
+}

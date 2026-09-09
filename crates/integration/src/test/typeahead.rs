@@ -1,4 +1,5 @@
-use warp::{
+use terminal_grid_model::block_index::BlockIndex;
+use dais::{
     integration_testing::{
         agent_mode::AgentViewState,
         step::new_step_with_default_assertions,
@@ -11,7 +12,6 @@ use warp::{
         view_getters::single_terminal_view_for_tab,
     },
     terminal::{
-        model::terminal_model::BlockIndex,
         shell::{Shell, ShellType},
     },
 };
@@ -212,7 +212,7 @@ pub fn test_input_reporting_powershell() -> Builder {
 pub fn test_background_output() -> Builder {
     use regex::Regex;
     use std::{fs::OpenOptions, io::Write, os::unix::prelude::OpenOptionsExt};
-    use warp::integration_testing::{
+    use dais::integration_testing::{
         block::assert_background_output,
         terminal::{execute_command_for_single_terminal_in_tab, util::ExpectedExitStatus},
     };

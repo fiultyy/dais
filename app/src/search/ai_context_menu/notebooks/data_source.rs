@@ -1,11 +1,10 @@
 use super::search_item::NotebookSearchItem;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::cloud_object::StoredObjectModel;
+use crate::objects::model::persistence::ObjectStoreModel;
+use objects::StoredObjectModel;
 use crate::notebooks::manager::{NotebookManager, NotebookSource};
 use crate::search::ai_context_menu::mixer::AIContextMenuSearchableAction;
 use crate::search::data_source::{Query, QueryResult};
 use crate::search::mixer::{DataSourceRunErrorWrapper, SyncDataSource};
-use crate::workspaces::user_workspaces::UserWorkspaces;
 use fuzzy_match::FuzzyMatchResult;
 use warpui::{AppContext, SingletonEntity};
 
@@ -37,9 +36,7 @@ impl SyncDataSource for NotebookDataSource {
 
         // Get all notebooks from ObjectStoreModel
         let object_store_model = ObjectStoreModel::as_ref(app);
-        let _user_workspaces = UserWorkspaces::as_ref(app);
 
-        // Get notebooks from all spaces the user has access to
         let mut notebook_results = Vec::new();
         let notebook_manager = NotebookManager::as_ref(app);
 

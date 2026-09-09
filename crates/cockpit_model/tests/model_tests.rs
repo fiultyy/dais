@@ -2,15 +2,14 @@
 //! (split-plan §4.1: set_* 同值不 emit / toggle 对合 / take 注入对合)。
 
 use std::collections::HashSet;
-use warpui::{EntityId, ModelHandle, ReadModel, SingletonEntity};
+use warpui::{EntityId, ReadModel};
 
 use cockpit_model::pure::{
     apply_view_params, compute_groups, cwd_group_key, preview_tail_from_output, recap_chain,
     resolve_targets,
 };
 use cockpit_model::{
-    CockpitCard, CockpitCardStatus, CockpitEvent, CockpitGroupBy, CockpitModel, CockpitSort,
-    CockpitStatusFilter,
+    CockpitCard, CockpitCardStatus, CockpitGroupBy, CockpitModel, CockpitSort, CockpitStatusFilter,
 };
 
 fn card(id: usize, title: &str, cwd: Option<&str>, status: CockpitCardStatus) -> CockpitCard {

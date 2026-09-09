@@ -1,3 +1,14 @@
+use terminal_grid_model::block::{Block, BlockSection};
+use terminal_grid_model::block::blocks::{
+            BlockHeight, BlockHeightItem, BlockHeightSummary, BlockList, BlockListPoint,
+            SelectionRange, TotalIndex,
+        };
+use terminal_grid_model::WithinBlock;
+use terminal_grid_model::selected_blocks::BlockSortDirection;
+use terminal_grid_model::block_index::BlockIndex;
+use terminal_grid_model::grid::selection::SelectionPoint;
+use terminal_model::index::Point as IndexPoint;
+use terminal_grid_model::block::blocks::RichContentItem;
 use std::{ops::Range, rc::Rc, sync::MutexGuard};
 
 use pathfinder_geometry::vector::Vector2F;
@@ -12,9 +23,11 @@ use warpui::{
 
 use crate::{
     ai::blocklist::agent_view::AgentViewDisplayMode,
-    terminal::{input::inline_menu::InlineMenuPositioner, model::index::Point as IndexPoint},
+    terminal::input::inline_menu::InlineMenuPositioner,
 };
-use crate::{ai::blocklist::agent_view::AgentViewState, terminal::model::blocks::RichContentItem};
+use crate::{
+    ai::blocklist::agent_view::AgentViewState,
+};
 
 use super::{
     block_list_element::{
@@ -22,15 +35,6 @@ use super::{
     },
     height_in_range_approx, heights_approx_gt, heights_approx_gte, heights_approx_lt,
     heights_approx_lte,
-    model::{
-        block::{Block, BlockSection},
-        blocks::{
-            BlockHeight, BlockHeightItem, BlockHeightSummary, BlockList, BlockListPoint,
-            SelectionRange, TotalIndex,
-        },
-        selection::SelectionPoint,
-        terminal_model::{BlockIndex, BlockSortDirection, WithinBlock},
-    },
     view::BlockVisibilityMode,
     SizeInfo, HEIGHT_FUDGE_FACTOR_LINES,
 };

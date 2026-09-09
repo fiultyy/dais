@@ -4,12 +4,12 @@
 
 use std::sync::{Arc, Mutex};
 
-use warp::integration_testing::ssh_manager::{
+use dais::integration_testing::ssh_manager::{
     assert_db_node_parent_id, assert_server_group_id, assert_server_view_visible,
     assert_ssh_manager_panel_open, create_folder_via_db, create_server_via_db,
     open_ssh_manager_panel, save_server, select_group_by_id, ssh_server_view,
 };
-use warp::workspace::Workspace;
+use dais::workspace::Workspace;
 use warpui::{
     async_assert, integration::TestStep,
     windowing::WindowManager, SingletonEntity,

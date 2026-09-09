@@ -10,7 +10,10 @@ use warp_core::channel::{Channel, ChannelState};
 use warpui::{Entity, ModelContext, SingletonEntity, WindowId};
 use warpui_extras::user_preferences::UserPreferences;
 
-use crate::{report_if_error, settings};
+use crate::{
+    report_if_error,
+    settings,
+};
 
 /// Keep in sync with [`warp_cli::AppArgs`].
 pub const RECOVERY_MECHANISM_ARG: &str = "crash-recovery-mechanism";

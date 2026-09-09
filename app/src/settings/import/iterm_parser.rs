@@ -13,17 +13,8 @@ use warpui::{
 
 use crate::{
     root_view::QuakeModePinPosition,
-    settings::{
-        import::config::HotkeyError, ExtraMetaKeys, DEFAULT_MONOSPACE_FONT_NAME,
-        DEFAULT_MONOSPACE_FONT_SIZE,
-    },
-    terminal::{
-        local_tty::shell::is_valid_path_or_command_for_supported_shell,
-        session_settings::{
-            StartupShell, WorkingDirectoryConfig, WorkingDirectoryMode,
-            WorkingDirectoryPerSourceConfig,
-        },
-    },
+    settings::{ import::config::HotkeyError, ExtraMetaKeys, DEFAULT_MONOSPACE_FONT_NAME, DEFAULT_MONOSPACE_FONT_SIZE, },
+    terminal::{ local_tty::shell::is_valid_path_or_command_for_supported_shell, session_settings::{ StartupShell, WorkingDirectoryConfig, WorkingDirectoryMode, WorkingDirectoryPerSourceConfig, }, },
 };
 
 use super::config::{

@@ -1,3 +1,4 @@
+use terminal_grid_model::block_index::BlockIndex;
 use settings::Setting as _;
 use warpui::{
     async_assert, async_assert_eq,
@@ -11,14 +12,12 @@ use crate::{
     terminal::block_list_viewport::ViewportState,
 };
 use crate::{
-    integration_testing::{
-        terminal::util::ExpectedOutput, view_getters::single_terminal_view_for_tab,
-    },
+    integration_testing::{ terminal::util::ExpectedOutput, view_getters::single_terminal_view_for_tab, },
     terminal::view::BlockVisibilityMode,
 };
 use crate::{
     settings::InputModeSettings,
-    terminal::{heights_approx_eq, model::terminal_model::BlockIndex, TerminalModel, TerminalView},
+    terminal::{heights_approx_eq, model::TerminalModel, TerminalView},
 };
 
 /// Specifies a block position either directly by index, or by whether it's first or

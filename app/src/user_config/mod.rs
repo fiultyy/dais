@@ -7,7 +7,8 @@ mod imp;
 use crate::tab_configs::{TabConfig, TabConfigError};
 use crate::themes::theme::WarpThemeConfig;
 use crate::{
-    launch_configs::launch_config::LaunchConfig, themes::theme::ThemeKind,
+    launch_configs::launch_config::LaunchConfig,
+    themes::theme::ThemeKind,
     workflows::workflow::Workflow,
 };
 use lazy_static::lazy_static;
@@ -137,16 +138,6 @@ impl WarpConfig {
         ctx: &mut ModelContext<Self>,
     ) {
         self.theme_config = theme_config;
-        ctx.emit(WarpConfigUpdateEvent::Themes);
-    }
-
-    pub fn add_new_theme_to_config(
-        &mut self,
-        theme_name: ThemeKind,
-        theme: WarpTheme,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        self.theme_config.add_new_theme(theme_name, theme);
         ctx.emit(WarpConfigUpdateEvent::Themes);
     }
 

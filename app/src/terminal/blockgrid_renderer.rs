@@ -1,9 +1,9 @@
 use crate::settings::EnforceMinimumContrast;
 use crate::terminal::color;
 use crate::terminal::grid_renderer::{render_cursor, render_grid, CellGlyphCache};
-use crate::terminal::model::blockgrid::{BlockGrid, CursorDisplayPoint};
-use crate::terminal::model::grid::grid_handler::Link;
-use crate::terminal::model::index::Point;
+use terminal_grid_model::grid::blockgrid::{BlockGrid, CursorDisplayPoint};
+use terminal_grid_model::grid::grid_handler::Link;
+use terminal_model::index::Point;
 use crate::terminal::model::ObfuscateSecrets;
 use crate::terminal::SizeInfo;
 use crate::themes::theme::WarpTheme;
@@ -16,9 +16,9 @@ use warpui::geometry::rect::RectF;
 use warpui::geometry::vector::{vec2f, Vector2F};
 use warpui::{AppContext, Element, EntityId, PaintContext};
 
-use super::model::ansi::{CursorShape, CursorStyle};
-use super::model::grid::RespectDisplayedOutput;
-use super::model::image_map::StoredImageMetadata;
+use terminal_grid_model::ansi::{CursorShape, CursorStyle};
+use terminal_grid_model::grid::RespectDisplayedOutput;
+use terminal_grid_model::image_map::StoredImageMetadata;
 use super::model::SecretHandle;
 
 pub struct GridRenderParams {
@@ -46,9 +46,54 @@ pub struct BlockGridParams {
     pub bounds: RectF,
 }
 
-impl BlockGrid {
+/// R14: BlockGrid 下沉后渲染方法以 app 侧扩展 trait 承载(孤儿规则)。
+pub trait BlockGridRenderExt {
     #[allow(clippy::too_many_arguments)]
-    pub fn draw<'a>(
+    fn draw<'a>(
+        &self,
+        grid_origin: Vector2F,
+        origin: Vector2F,
+        glyphs: &mut CellGlyphCache,
+        alpha: u8,
+        highlighted_url: Option<&Link>,
+        link_tool_tip: Option<&Link>,
+        hovered_secret: Option<SecretHandle>,
+        ordered_matches: Option<impl Iterator<Item = &'a RangeInclusive<Point>>>,
+        focused_match_range: Option<&RangeInclusive<Point>>,
+        properties: Properties,
+        block_grid_params: &BlockGridParams,
+        visible_cursor_shape: Option<CursorShape>,
+        image_metadata: &HashMap<u32, StoredImageMetadata>,
+        ctx: &mut PaintContext,
+        app: &AppContext,
+    );
+
+    fn draw_with_default_params(
+        &self,
+        grid_origin: Vector2F,
+        origin: Vector2F,
+        block_grid_params: &BlockGridParams,
+        ctx: &mut PaintContext,
+        app: &AppContext,
+    );
+
+    #[allow(clippy::too_many_arguments)]
+    fn draw_cursor(
+        &self,
+        grid_origin: Vector2F,
+        grid_render_params: &GridRenderParams,
+        ctx: &mut PaintContext,
+        terminal_view_id: EntityId,
+        cursor_hint_text: Option<&mut Box<dyn Element>>,
+        color: ColorU,
+        app: &AppContext,
+    );
+}
+
+impl BlockGridRenderExt for BlockGrid {
+
+    #[allow(clippy::too_many_arguments)]
+    fn draw<'a>(
         &self,
         grid_origin: Vector2F,
         origin: Vector2F,
@@ -125,7 +170,7 @@ impl BlockGrid {
         );
     }
 
-    pub fn draw_with_default_params(
+    fn draw_with_default_params(
         &self,
         grid_origin: Vector2F,
         origin: Vector2F,
@@ -154,7 +199,7 @@ impl BlockGrid {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn draw_cursor(
+    fn draw_cursor(
         &self,
         grid_origin: Vector2F,
         grid_render_params: &GridRenderParams,

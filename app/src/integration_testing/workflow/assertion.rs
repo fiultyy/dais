@@ -5,10 +5,10 @@ use warpui::{
 };
 
 use crate::{
-    integration_testing::{cloud_object::assert_metadata_revision, view_getters::workflow_view},
-    server::ids::SyncId,
+    integration_testing::{assertions::assert_metadata_revision, view_getters::workflow_view},
     workflows::{workflow_view::WorkflowView, WorkflowId, WorkflowObjectModel},
 };
+use objects::ids::SyncId;
 
 /// Asserts metadata exists for the workflow with the given key and that the revision in that
 /// metadata matches the given expected revision.
@@ -46,15 +46,6 @@ pub fn assert_no_workflow_pane_open() -> AssertionCallback {
     })
 }
 
-pub fn assert_no_team_workflow_pane_open() -> AssertionCallback {
-    Box::new(move |app, _| {
-        let count = get_all_open_workflows(app)
-            .iter()
-            .filter(|view| view.read(app, |v, _| v.is_team_workflow()))
-            .count();
-        async_assert!(count == 0, "Expected no workflow panes to be open")
-    })
-}
 
 pub fn assert_open_workflow_pane_count_equals(num: usize) -> AssertionCallback {
     Box::new(move |app, _| {
@@ -66,18 +57,6 @@ pub fn assert_open_workflow_pane_count_equals(num: usize) -> AssertionCallback {
     })
 }
 
-pub fn assert_open_team_workflow_pane_count_equals(num: usize) -> AssertionCallback {
-    Box::new(move |app, _| {
-        let count = get_all_open_workflows(app)
-            .iter()
-            .filter(|view| view.read(app, |v, _| v.is_team_workflow()))
-            .count();
-        async_assert!(
-            count == num,
-            "Expected number of open workflow panes to be: {num}. Found {count} instead"
-        )
-    })
-}
 
 /// Find number of workflows that are open by id
 pub fn open_workflow_count(app: &App, id: SyncId) -> usize {

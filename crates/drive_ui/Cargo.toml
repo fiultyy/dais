@@ -1,0 +1,18 @@
+[package]
+name = "drive_ui"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+i18n-embed.workspace = true
+i18n-embed-fl.workspace = true
+log.workspace = true
+i18n.workspace = true
+itertools.workspace = true
+objects.workspace = true
+env_vars_ui.workspace = true
+pathfinder_color.workspace = true
+warp_core.workspace = true
+warpui.workspace = true

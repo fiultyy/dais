@@ -1,3 +1,4 @@
+use crate::objects_display::StoredObjectHostExt;
 use std::{collections::HashMap, ops::Range, sync::Arc};
 
 use itertools::Itertools;
@@ -34,12 +35,12 @@ use warpui::{
 };
 
 use crate::{
-    cloud_object::{model::persistence::ObjectStoreModel, StoredObject},
-    drive::{cloud_object_styling::warp_drive_icon_color, DriveObjectType},
-    server::ids::{HashableId, ToServerId},
+    drive::{objects_styling::warp_drive_icon_color, DriveObjectType},
     ui_components::icons::Icon,
     workflows::{workflow::Workflow, WorkflowId, WorkflowObject},
 };
+use objects::{StoredObject, ids::{HashableId, ToServerId}};
+use crate::objects::model::persistence::ObjectStoreModel;
 
 // Spacing for the embedded workflow card.
 const EMBED_WORKFLOW_SPACING: BlockSpacing = BlockSpacing {
@@ -231,7 +232,7 @@ impl EmbeddedItem for EmbeddedWorkflow {
 
         let Some(workflow) = cloud_workflow.and_then(|workflow| {
             if !workflow.is_trashed(object_store_model) {
-                Some(Into::<Workflow>::into(workflow))
+                Some(workflow.model().data.clone())
             } else {
                 None
             }
@@ -467,7 +468,7 @@ impl RenderableEmbeddedWorkflow {
             )
         };
         let workflow_icon = ConstrainedBox::new(
-            icon.to_warpui_icon(icon_color.into())
+            icon.to_warpui_icon(warp_core::ui::theme::Fill::from(icon_color))
                 .with_opacity(1.0)
                 .finish(),
         )

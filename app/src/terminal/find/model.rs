@@ -8,6 +8,7 @@ mod testing;
 pub use block_list::{BlockGridMatch, BlockListFindRun, BlockListMatch};
 pub use rich_content::{FindableRichContentView, RichContentMatchId};
 
+use terminal_grid_model::block_index::BlockIndex;
 use crate::terminal::block_list_viewport::InputMode;
 use std::{collections::HashMap, sync::Arc};
 
@@ -18,7 +19,7 @@ use warpui::{AppContext, Entity, EntityId, ModelContext, SingletonEntity, ViewHa
 
 use crate::{
     settings::InputModeSettings,
-    terminal::model::{terminal_model::BlockIndex, TerminalModel},
+    terminal::model::{TerminalModel},
     view_components::find::{FindEvent, FindModel},
 };
 

@@ -24,10 +24,7 @@ use crate::PrivacySettings;
 use crate::{
     ai::agent::{AIAgentActionResultType, GrepFileMatch, GrepLineMatch},
     send_telemetry_from_app_ctx,
-    terminal::{
-        model::session::active_session::ActiveSession, model::session::Session, shell::ShellType,
-        ShellLaunchData,
-    },
+    terminal::{ model::session::active_session::ActiveSession, model::session::Session, shell::ShellType, ShellLaunchData, },
     TelemetryEvent,
 };
 

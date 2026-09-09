@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use super::*;
+use crate::terminal::model::terminal_model::TerminalModel;
 use crate::ai::agent::DriveObjectPayload;
 use crate::ai::agent_conversations_model::AgentConversationsModel;
 use crate::ai::blocklist::{AIQueryHistory, BlocklistAIPermissions};
@@ -15,13 +16,13 @@ use crate::ai::AIRequestUsageModel;
 use crate::auth::AuthManager;
 use crate::auth::AuthStateProvider;
 use crate::changelog_model::ChangelogModel;
-use crate::cloud_object::{
+use crate::objects::{
     model::persistence::ObjectStoreModel, GenericStringObjectFormat, JsonObjectType, ObjectType,
     Owner,
 };
 use crate::pricing::PricingInfoModel;
 use crate::search::files::model::FileSearchModel;
-use crate::server::ids::ClientId;
+use objects::ids::ClientId;
 use crate::terminal::cli_agent_sessions::CLIAgentSessionsModel;
 use crate::terminal::input::slash_command_model::SlashCommandEntryState;
 use crate::terminal::input::slash_commands::SlashCommandsEvent;
@@ -31,7 +32,7 @@ use repo_metadata::watcher::DirectoryWatcher;
 use repo_metadata::RepoMetadataModel;
 use watcher::HomeDirectoryWatcher;
 
-use crate::cloud_object::update_manager::UpdateManager;
+use crate::objects::object_store::ObjectStore;
 use crate::editor::{EditorAction, TextStyleOperation};
 use crate::input_suggestions::{HistoryOrder, Item};
 use crate::network::NetworkStatus;
@@ -51,13 +52,14 @@ use crate::workspaces::user_workspaces::UserWorkspaces;
 
 use crate::terminal::block_list_viewport::ScrollPosition;
 use crate::terminal::local_tty::shell::ShellStarter;
-use crate::terminal::model::ansi::{Handler, PrecmdValue};
-use crate::terminal::model::block::SerializedBlock;
-use crate::terminal::model::blocks::{insert_block, BlockListPoint};
-use crate::terminal::model::grid::Dimensions as _;
-use crate::terminal::model::index::Side;
+use terminal_grid_model::ansi::{Handler, PrecmdValue};
+use terminal_grid_model::block::SerializedBlock;
+use terminal_grid_model::block::blocks::BlockListPoint;
+use crate::terminal::model::blocks::insert_block;
+use warp_terminal::model::grid::Dimensions as _;
+use terminal_model::index::Side;
 use crate::terminal::model::session::{BootstrapSessionType, SessionInfo};
-use crate::terminal::model::terminal_model::BlockIndex;
+use terminal_grid_model::block_index::BlockIndex;
 
 use chrono::Local;
 use warpui::text::SelectionType;
@@ -67,7 +69,7 @@ use crate::terminal::shared_session::protocol::Role;
 use crate::terminal::shell::ShellType;
 use crate::test_util::settings::initialize_settings_for_tests;
 use crate::themes::theme::AnsiColorIdentifier;
-use crate::workspace::{ActiveSession, OneTimeModalModel, ToastStack, WorkspaceRegistry};
+use crate::workspace::{ActiveSession, ToastStack, WorkspaceRegistry};
 use crate::{
     editor::{DisplayPoint, Point},
     terminal::TerminalView,
@@ -82,8 +84,6 @@ use warp_completer::meta::Span;
 
 use unindent::Unindent;
 
-#[cfg(feature = "voice_input")]
-use voice_input::VoiceInputToggledFrom;
 use warpui::platform::WindowStyle;
 use warpui::{App, ReadModel, UpdateView, WindowId};
 
@@ -101,9 +101,21 @@ use crate::terminal::resizable_data::ResizableData;
 use crate::terminal::view::inline_banner::ByoLlmAuthBannerSessionState;
 use crate::terminal::writeable_pty::command_history::update_command_history;
 use crate::workspaces::user_profiles::UserProfiles;
-use crate::{GlobalResourceHandles, GlobalResourceHandlesProvider};
+use crate::{
+    GlobalResourceHandles,
+    GlobalResourceHandlesProvider,
+};
 
 pub fn initialize_app(app: &mut App) {
+    // R9 测试装配: completions_v2 下 SessionContext::new 需要 PluginHost 单例
+    // (IPC 惰性连接,无插件进程时补全走内建路径);i18n init 使 t! 断言拿到
+    // 真实文案(幂等,同 notebooks/editor 先例)。
+    crate::i18n::init(Some("en"));
+    crate::i18n::set_locale("en");
+    crate::test_util::initialize_command_signatures_for_tests();
+    app.add_singleton_model(|ctx| {
+        crate::plugin::PluginHost::new(ctx).expect("PluginHost IPC server should start in tests")
+    });
     initialize_settings_for_tests(app);
 
     // Make sure we set up all necessary custom action bindings.
@@ -118,11 +130,11 @@ pub fn initialize_app(app: &mut App) {
     app.add_singleton_model(|_| Prompt::mock());
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(
-        |_| crate::cloud_object::model::actions::ObjectActions::new(Vec::new()),
+        |_| objects::ObjectActions::new(Vec::new()),
     );
     app.add_singleton_model(ImportedConfigModel::new);
     app.add_singleton_model(UserWorkspaces::default_mock);
-    app.add_singleton_model(UpdateManager::mock);
+    app.add_singleton_model(ObjectStore::mock);
     app.add_singleton_model(MCPGalleryManager::new);
     app.add_singleton_model(|_| Appearance::mock());
     app.add_singleton_model(PrivacySettings::mock);
@@ -144,14 +156,13 @@ pub fn initialize_app(app: &mut App) {
     app.add_singleton_model(crate::ai::agent_providers::AgentProviderSecrets::new);
     app.add_singleton_model(LLMPreferences::new);
     app.add_singleton_model(DirectoryWatcher::new);
+    app.add_singleton_model(crate::terminal::terminal_activity::TerminalActivityModel::new);
     app.add_singleton_model(|_| DetectedRepositories::default());
     app.add_singleton_model(|_| UserProfiles::new(Vec::new()));
     app.add_singleton_model(|_| crate::code_review::git_status_update::GitStatusUpdateModel::new());
     app.add_singleton_model(RepoMetadataModel::new);
     app.add_singleton_model(FileSearchModel::new);
     // Dais:RepoOutlines 已删除,不再注册。
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
 
     app.add_singleton_model(|_| IgnoredSuggestionsModel::new(vec![]));
     app.add_singleton_model(|_| TemplatableMCPServerManager::default());
@@ -186,7 +197,6 @@ pub fn initialize_app(app: &mut App) {
     app.update(experiments::init);
     AltScreenReporting::register(app);
     app.add_singleton_model(|_| RestoredAgentConversations::default());
-    app.add_singleton_model(OneTimeModalModel::new);
     app.add_singleton_model(|_| WorkspaceRegistry::new());
     app.add_singleton_model(|_| ToastStack);
     app.add_singleton_model(|_| PricingInfoModel::new());
@@ -343,10 +353,15 @@ pub async fn add_window_with_bootstrapped_terminal_and_window_id(
         .expect("Could not create a shell starter source");
     let shell_type = shell_starter_source.shell_type();
 
-    let session_info = session_info
-        .unwrap_or_else(SessionInfo::new_for_test)
-        .with_session_type(BootstrapSessionType::Local)
-        .with_shell_type(shell_type);
+    // R9 修复: 调用方显式传入 session_info 时, 其 shell_type/options 不被
+    // 环境默认覆写(histignorespace 测试的 Zsh 曾被覆写为 Bash);
+    // 仅在未提供时应用环境 shell_type。
+    let session_info = match session_info {
+        Some(info) => info.with_session_type(BootstrapSessionType::Local),
+        None => SessionInfo::new_for_test()
+            .with_session_type(BootstrapSessionType::Local)
+            .with_shell_type(shell_type),
+    };
     let history_file_commands = history_file_commands.unwrap_or_default();
 
     let (window_id, terminal) = app.add_window(WindowStyle::NotStealFocus, move |ctx| {
@@ -5425,101 +5440,6 @@ fn test_vim_escape_with_completions() {
     });
 }
 
-#[test]
-#[cfg(feature = "voice_input")]
-fn test_voice_input_toggle_preserves_lock_state() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let terminal = add_window_with_bootstrapped_terminal(
-            &mut app, None, /* history_file_commands */
-            None,
-        )
-        .await;
-        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
-
-        // Start in shell mode with input locked
-        input.update(&mut app, |input, ctx| {
-            input.ai_input_model().update(ctx, |ai_input, ctx| {
-                ai_input.set_input_config(
-                    InputConfig {
-                        input_type: InputType::Shell,
-                        is_locked: true,
-                    },
-                    true, /* is_input_buffer_empty */
-                    ctx,
-                );
-            });
-        });
-
-        // Verify we're in locked shell mode
-        let initial_config = input.read(&app, |input, _| {
-            app.read_model(input.ai_input_model(), |ai_input, _| {
-                ai_input.input_config()
-            })
-        });
-        assert_eq!(initial_config.input_type, InputType::Shell);
-        assert!(initial_config.is_locked);
-
-        // Toggle voice input (should switch to AI mode but preserve lock state)
-        input.update(&mut app, |input, ctx| {
-            input.handle_universal_developer_input_button_bar_event(
-                &UniversalDeveloperInputButtonBarEvent::ToggleVoiceInput(
-                    VoiceInputToggledFrom::Button,
-                ),
-                ctx,
-            );
-        });
-
-        // Verify we're now in AI mode but still locked
-        let after_voice_config = input.read(&app, |input, _| {
-            app.read_model(input.ai_input_model(), |ai_input, _| {
-                ai_input.input_config()
-            })
-        });
-        assert_eq!(after_voice_config.input_type, InputType::AI);
-        assert!(
-            after_voice_config.is_locked,
-            "Input mode lock state should be preserved when toggling voice input"
-        );
-
-        // Test the reverse: start unlocked and ensure it stays unlocked
-        input.update(&mut app, |input, ctx| {
-            input.ai_input_model().update(ctx, |ai_input, ctx| {
-                ai_input.set_input_config(
-                    InputConfig {
-                        input_type: InputType::Shell,
-                        is_locked: false, // Unlocked (auto-detection enabled)
-                    },
-                    true, /* is_input_buffer_empty */
-                    ctx,
-                );
-            });
-        });
-
-        // Toggle voice input again
-        input.update(&mut app, |input, ctx| {
-            input.handle_universal_developer_input_button_bar_event(
-                &UniversalDeveloperInputButtonBarEvent::ToggleVoiceInput(
-                    VoiceInputToggledFrom::Button,
-                ),
-                ctx,
-            );
-        });
-
-        // Verify we're in AI mode but still unlocked
-        let final_config = input.read(&app, |input, _| {
-            app.read_model(input.ai_input_model(), |ai_input, _| {
-                ai_input.input_config()
-            })
-        });
-        assert_eq!(final_config.input_type, InputType::AI);
-        assert!(
-            !final_config.is_locked,
-            "Input mode should remain unlocked (auto-detection) when toggling voice input"
-        );
-    });
-}
 
 #[test]
 fn test_input_type_button_explicit_lock() {
@@ -6408,86 +6328,6 @@ fn test_ai_context_menu_reuses_reference_after_deleted_text() {
     });
 }
 
-#[test]
-#[cfg(feature = "voice_input")]
-fn test_input_config_transitions() {
-    App::test((), |mut app| async move {
-        initialize_app(&mut app);
-
-        let terminal = add_window_with_bootstrapped_terminal(
-            &mut app, None, /* history_file_commands */
-            None,
-        )
-        .await;
-        let input = terminal.read(&app, |terminal, _| terminal.input().clone());
-
-        // Test sequence: Shell(locked) -> VoiceInput -> AutoDetection -> AgentMode(locked)
-
-        // Start in locked Shell mode
-        input.update(&mut app, |input, ctx| {
-            input.ai_input_model().update(ctx, |ai_input, ctx| {
-                ai_input.set_input_config(
-                    InputConfig {
-                        input_type: InputType::Shell,
-                        is_locked: true,
-                    },
-                    true, /* is_input_buffer_empty */
-                    ctx,
-                );
-            });
-        });
-
-        // Toggle voice input (should go to AI mode, preserve lock)
-        input.update(&mut app, |input, ctx| {
-            input.handle_universal_developer_input_button_bar_event(
-                &UniversalDeveloperInputButtonBarEvent::ToggleVoiceInput(
-                    VoiceInputToggledFrom::Button,
-                ),
-                ctx,
-            );
-        });
-
-        let config_after_voice = input.read(&app, |input, _| {
-            app.read_model(input.ai_input_model(), |ai_input, _| {
-                ai_input.input_config()
-            })
-        });
-        assert_eq!(config_after_voice.input_type, InputType::AI);
-        assert!(config_after_voice.is_locked);
-
-        // Toggle auto-detection (should unlock and switch to Shell mode for empty buffer)
-        input.update(&mut app, |input, ctx| {
-            input.handle_universal_developer_input_button_bar_event(
-                &UniversalDeveloperInputButtonBarEvent::EnableAutoDetection,
-                ctx,
-            );
-        });
-
-        let config_after_auto = input.read(&app, |input, _| {
-            app.read_model(input.ai_input_model(), |ai_input, _| {
-                ai_input.input_config()
-            })
-        });
-        assert_eq!(config_after_auto.input_type, InputType::Shell);
-        assert!(!config_after_auto.is_locked);
-
-        // Explicitly click AgentMode button (should lock in AI mode)
-        input.update(&mut app, |input, ctx| {
-            input.handle_universal_developer_input_button_bar_event(
-                &UniversalDeveloperInputButtonBarEvent::InputTypeSelected(InputType::AI),
-                ctx,
-            );
-        });
-
-        let final_config = input.read(&app, |input, _| {
-            app.read_model(input.ai_input_model(), |ai_input, _| {
-                ai_input.input_config()
-            })
-        });
-        assert_eq!(final_config.input_type, InputType::AI);
-        assert!(final_config.is_locked);
-    });
-}
 
 #[test]
 fn test_should_show_completions_in_ai_input() {

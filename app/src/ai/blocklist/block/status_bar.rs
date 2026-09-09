@@ -1,3 +1,4 @@
+use terminal_grid_model::block::LONG_RUNNING_COMMAND_DURATION_MS;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use super::{
@@ -9,52 +10,23 @@ use super::{
         WarpingIndicatorProps, WarpingProps, LOAD_OUTPUT_MESSAGE, WAITING_FOR_USER_INPUT_MESSAGE,
     },
 };
-use crate::{ai::agent_tips::AITipModel, terminal::input::buffer_model::InputBufferUpdateEvent};
 use crate::{
-    ai::blocklist::agent_view::{
-        agent_view_bg_fill, child_agent_status_card::ChildAgentStatusCard, AgentMessageBar,
-        AgentViewController, EphemeralMessageModel,
-    },
-    terminal::input::{
-        buffer_model::InputBufferModel, slash_command_model::SlashCommandModel,
-        suggestions_mode_model::InputSuggestionsModeModel,
-    },
+    ai::agent_tips::AITipModel,
+    terminal::input::buffer_model::InputBufferUpdateEvent,
+};
+use crate::{
+    ai::blocklist::agent_view::{ agent_view_bg_fill, child_agent_status_card::ChildAgentStatusCard, AgentMessageBar, AgentViewController, EphemeralMessageModel, },
+    terminal::input::{ buffer_model::InputBufferModel, slash_command_model::SlashCommandModel, suggestions_mode_model::InputSuggestionsModeModel, },
 };
 use warp_multi_agent_api as api;
 
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversationId, icons, AIAgentExchangeId, AIAgentOutput,
-            AIAgentOutputMessageType, CancellationReason, SummarizationType,
-        },
-        blocklist::{
-            agent_view::shortcuts::AgentShortcutViewModel,
-            ai_brand_color,
-            model::AIBlockModelHelper,
-            summarization_cancel_dialog::{
-                self, SummarizationCancelDialog, SummarizationCancelDialogEvent,
-            },
-            BlocklistAIActionEvent, BlocklistAIActionModel, BlocklistAIContextEvent,
-            BlocklistAIContextModel, BlocklistAIController, BlocklistAIHistoryEvent,
-            BlocklistAIInputEvent, BlocklistAIInputModel, ResponseStreamId,
-        },
-        llms::LLMPreferences,
-        AgentTip,
-    },
+    ai::{ agent::{ conversation::AIConversationId, icons, AIAgentExchangeId, AIAgentOutput, AIAgentOutputMessageType, CancellationReason, SummarizationType, }, blocklist::{ agent_view::shortcuts::AgentShortcutViewModel, ai_brand_color, model::AIBlockModelHelper, summarization_cancel_dialog::{ self, SummarizationCancelDialog, SummarizationCancelDialogEvent, }, BlocklistAIActionEvent, BlocklistAIActionModel, BlocklistAIContextEvent, BlocklistAIContextModel, BlocklistAIController, BlocklistAIHistoryEvent, BlocklistAIInputEvent, BlocklistAIInputModel, ResponseStreamId, }, llms::LLMPreferences, AgentTip, },
     send_telemetry_from_app_ctx,
     server::telemetry::TelemetryEvent,
     settings::{InputModeSettings, InputSettings},
     settings_view::keybindings::KeybindingChangedNotifier,
-    terminal::{
-        input::SET_INPUT_MODE_TERMINAL_ACTION_NAME,
-        model::block::LONG_RUNNING_COMMAND_DURATION_MS,
-        model_events::{ModelEvent, ModelEventDispatcher},
-        view::ambient_agent::{AmbientAgentViewModel, AmbientAgentViewModelEvent},
-        warpify::render::LEFT_STRIPE_WIDTH,
-        TerminalModel, CANCEL_COMMAND_KEYBINDING, TOGGLE_AUTOEXECUTE_MODE_KEYBINDING,
-        TOGGLE_HIDE_CLI_RESPONSES_KEYBINDING, TOGGLE_QUEUE_NEXT_PROMPT_KEYBINDING,
-    },
+    terminal::{ input::SET_INPUT_MODE_TERMINAL_ACTION_NAME, model_events::{ModelEvent, ModelEventDispatcher}, view::ambient_agent::{AmbientAgentViewModel, AmbientAgentViewModelEvent}, warpify::render::LEFT_STRIPE_WIDTH, TerminalModel, CANCEL_COMMAND_KEYBINDING, TOGGLE_AUTOEXECUTE_MODE_KEYBINDING, TOGGLE_HIDE_CLI_RESPONSES_KEYBINDING, TOGGLE_QUEUE_NEXT_PROMPT_KEYBINDING, },
     util::bindings::keybinding_name_to_keystroke,
     BlocklistAIHistoryModel,
 };
@@ -1190,7 +1162,7 @@ pub enum BlocklistAIStatusBarAction {
     /// immediately with a fresh snapshot, bypassing its agent-set timer. Dispatched
     /// by the inline `Check now` affordance in the warping indicator.
     ForceRefreshAgentView {
-        block_id: crate::terminal::model::block::BlockId,
+        block_id: terminal_grid_model::block::BlockId,
     },
 }
 

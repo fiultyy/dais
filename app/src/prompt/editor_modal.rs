@@ -13,6 +13,7 @@ use warpui::{
 };
 
 use crate::chip_configurator::{ChipConfigurator, ChipConfiguratorAction, ChipConfiguratorLayout};
+use crate::context_chips::ContextChipKindExt as _;
 use crate::context_chips::prompt::{Prompt, PromptConfiguration, PromptSelection};
 use crate::context_chips::renderer::Renderer as ContextChipRenderer;
 use crate::context_chips::{
@@ -25,12 +26,15 @@ use crate::terminal::blockgrid_element::BlockGridElement;
 use crate::terminal::SizeInfo;
 use settings::Setting as _;
 
-use crate::terminal::model::blockgrid::BlockGrid;
+use terminal_grid_model::grid::blockgrid::BlockGrid;
 use crate::terminal::model::ObfuscateSecrets;
 use crate::terminal::session_settings::SessionSettings;
 use crate::view_components::{Dropdown, DropdownItem};
 use crate::Appearance;
-use crate::{report_if_error, send_telemetry_from_ctx};
+use crate::{
+    report_if_error,
+    send_telemetry_from_ctx,
+};
 use warpui::elements::{
     Align, Border, ChildAnchor, ChildView, Clipped, ConstrainedBox, Container, CornerRadius,
     CrossAxisAlignment, Empty, Flex, Hoverable, MainAxisAlignment, MainAxisSize, MouseStateHandle,

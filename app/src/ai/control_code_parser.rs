@@ -2,7 +2,7 @@ use regex::Regex;
 use std::ops::Range;
 use warpui::keymap::Keystroke;
 
-use crate::terminal::model::escape_sequences::C0;
+use warp_terminal::model::escape_sequences::C0;
 
 lazy_static::lazy_static! {
     /// Matches control code values specified in hex format delimited by angle brackets, e.g. <0x1B>.

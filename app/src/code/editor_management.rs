@@ -1,3 +1,4 @@
+use crate::objects_display::StoredObjectHostExt;
 use std::{
     collections::{hash_map::Entry, HashMap},
     path::PathBuf,

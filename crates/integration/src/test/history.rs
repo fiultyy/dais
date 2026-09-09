@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::Builder;
 use settings::Setting as _;
-use warp::{
+use dais::{
     integration_testing::{
         self,
         command_search::{assert_command_search_is_open, assert_history_filter_is_active},

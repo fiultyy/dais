@@ -6,31 +6,19 @@ mod files;
 pub mod mixer;
 mod notebooks;
 mod rules;
-pub mod search;
 #[cfg(not(target_family = "wasm"))]
 mod skills;
-mod styles;
 pub mod view;
 mod workflows;
 
-/// Safely truncate a string at the given byte index, ensuring we don't split UTF-8 characters
-pub fn safe_truncate(s: &mut String, new_len: usize) {
-    if new_len >= s.len() {
-        return;
-    }
-    let safe_len = floor_char_boundary(s, new_len);
-    s.truncate(safe_len);
+// R5 路径兼容 shim:is_valid_search_query 纯启发式 / styles 常量 /
+// safe_truncate / floor_char_boundary 工具已下沉 crates/search_ui;
+// view.rs 及各 data_source/search_item(appearance/t!/terminal/
+// workspace 等宿主依赖)留守本目录。
+pub mod search {
+    pub use search_ui::ai_context_menu::search::*;
 }
-
-/// Find the largest valid character boundary at or before the given byte index
-pub fn floor_char_boundary(original_string: &str, idx: usize) -> usize {
-    if idx >= original_string.len() {
-        original_string.len()
-    } else {
-        let mut curr = idx;
-        while curr > 0 && !original_string.is_char_boundary(curr) {
-            curr -= 1;
-        }
-        curr
-    }
+mod styles {
+    pub use search_ui::ai_context_menu::styles::*;
 }
+pub use search_ui::ai_context_menu::{floor_char_boundary, safe_truncate};

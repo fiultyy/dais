@@ -16,6 +16,7 @@ use warpui::{
 };
 
 use crate::appearance::Appearance;
+use crate::context_chips::ContextChipKindExt as _;
 use crate::ui_components::icons;
 
 use super::context_chip::ContextChip;

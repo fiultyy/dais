@@ -10,15 +10,12 @@ use warp_multi_agent_api::response_event;
 use warpui::{Entity, ModelContext};
 
 use crate::{
-    ai::agent::{
-        api::{self, ConvertToAPITypeError},
-        conversation::AIConversationId,
-        AIAgentInput, AIIdentifiers, CancellationReason,
-    },
+    ai::agent::{ api::{self, ConvertToAPITypeError}, conversation::AIConversationId, AIAgentInput, AIIdentifiers, CancellationReason, },
     ai::blocklist::BlocklistAIHistoryModel,
     ai::byop_readiness::BlockedByopReadinessError,
     network::NetworkStatus,
-    report_error, send_telemetry_from_ctx,
+    report_error,
+    send_telemetry_from_ctx,
 };
 use warpui::SingletonEntity;
 

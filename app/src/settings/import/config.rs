@@ -17,10 +17,7 @@ use crate::{
     root_view::QuakeModePinPosition,
     settings::ExtraMetaKeys,
     terminal::session_settings::{StartupShell, WorkingDirectoryConfig},
-    themes::theme_creator::pick_accent_color_from_options,
 };
-#[cfg(feature = "local_fs")]
-use crate::{themes::theme_creator_body::ThemeCreatorBody, user_config};
 
 use super::{alacritty_parser::AlacrittyConfig, model::TerminalType};
 
@@ -178,61 +175,6 @@ impl Config {
         (Ok(configs), timer)
     }
 
-    pub(super) fn write_theme(&self) -> Option<ThemeType> {
-        #[cfg(feature = "local_fs")]
-        {
-            if !self.theme.should_import {
-                return None;
-            }
-
-            let Ok(theme) = self.theme.value() else {
-                return None;
-            };
-
-            let dir = user_config::themes_dir();
-
-            match theme {
-                ThemeType::LightAndDark { light, dark } => {
-                    let light_theme_yaml_file_name =
-                        format!("{}_light_theme.yaml", self.terminal_name);
-                    let light_written = ThemeCreatorBody::write_theme(
-                        light,
-                        dir.clone(),
-                        light_theme_yaml_file_name,
-                        None,
-                        |_| light.clone(),
-                    );
-
-                    let dark_theme_yaml_file_name =
-                        format!("{}_dark_theme.yaml", self.terminal_name);
-                    let dark_written = ThemeCreatorBody::write_theme(
-                        dark,
-                        dir,
-                        dark_theme_yaml_file_name,
-                        None,
-                        |_| dark.clone(),
-                    );
-
-                    if let (Some(light), Some(dark)) = (light_written, dark_written) {
-                        Some(ThemeType::LightAndDark { light, dark })
-                    } else {
-                        None
-                    }
-                }
-                ThemeType::Single(normal) => {
-                    let theme_yaml_file_name = format!("{}_theme.yaml", self.terminal_name);
-                    ThemeCreatorBody::write_theme(normal, dir, theme_yaml_file_name, None, |_| {
-                        ThemeType::Single(normal.clone())
-                    })
-                }
-            }
-        }
-        #[cfg(not(feature = "local_fs"))]
-        {
-            log::warn!("Tried to save theme without a local filesystem.");
-            None
-        }
-    }
 
     /// Generates a Config from the given TerminalType.
     pub async fn create_from_terminal_type(
@@ -430,22 +372,60 @@ pub fn calculate_accent_color(
     cursor_color: impl Into<ColorU>,
     bright: AnsiColors,
 ) -> ColorU {
+    use deltae::*;
+    use palette::{FromColor, Lab, Srgb};
+
+    /// Convert a [`ColorU`] to a CIELAB value (原 themes/theme_creator.rs 内联).
+    fn lab_from_coloru(color: ColorU) -> LabValue {
+        let palette = Lab::from_color(Srgb::from_components((
+            color.r as f32 / 255.0,
+            color.g as f32 / 255.0,
+            color.b as f32 / 255.0,
+        )));
+        LabValue {
+            l: palette.l,
+            a: palette.a,
+            b: palette.b,
+        }
+    }
+
     let cursor_color = cursor_color.into();
     let foreground = foreground.into();
-    if cursor_color == foreground {
-        pick_accent_color_from_options(
-            &[background.into(), foreground],
-            // Exclude white and black so that we don't choose either.
-            &[
-                bright.red.into(),
-                bright.green.into(),
-                bright.yellow.into(),
-                bright.magenta.into(),
-                bright.cyan.into(),
-                bright.blue.into(),
-            ],
-        )
-    } else {
-        cursor_color
+    if cursor_color != foreground {
+        return cursor_color;
     }
+
+    let known_colors = [background.into(), foreground];
+    // Exclude white and black so that we don't choose either.
+    let accent_options = [
+        bright.red.into(),
+        bright.green.into(),
+        bright.yellow.into(),
+        bright.magenta.into(),
+        bright.cyan.into(),
+        bright.blue.into(),
+    ];
+
+    accent_options
+        .iter()
+        .max_by_key(|accent| {
+            let accent_lab = lab_from_coloru(**accent);
+            // Convert DeltaE to i64 to avoid floating point comparison issues.
+            // 4 decimal places is enough, per DeltaE lib code.
+            (known_colors
+                .iter()
+                .map(|known| {
+                    let known_lab = lab_from_coloru(*known);
+                    DeltaE::new(accent_lab, known_lab, DE2000)
+                        .round_to(4)
+                        .value()
+                        * 10000.0
+                })
+                .sum::<f32>()) as i64
+        })
+        .copied()
+        .unwrap_or_else(|| {
+            log::warn!("At least one accent color should be provided.");
+            ColorU::white()
+        })
 }

@@ -23,10 +23,7 @@ use warpui::{
 
 use crate::{
     appearance::Appearance,
-    code_review::{
-        diff_menu::{CodeReviewDiffMenu, CodeReviewDiffMenuEvent},
-        diff_state::DiffMode,
-    },
+    code_review::{ diff_menu::{CodeReviewDiffMenu, CodeReviewDiffMenuEvent}, diff_state::DiffMode, },
     ui_components::icons::Icon,
 };
 

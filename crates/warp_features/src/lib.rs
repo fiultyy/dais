@@ -196,9 +196,6 @@ pub enum FeatureFlag {
     /// Enables using `esc` to clear autosuggestions.
     ClearAutosuggestionOnEscape,
 
-    /// If enabled, the default theme is set to Adeberry for new users.
-    DefaultAdeberryTheme,
-
     /// New, less intrusive autoupdate UI.
     AutoupdateUIRevamp,
 
@@ -231,9 +228,6 @@ pub enum FeatureFlag {
 
     /// Enables prediction of Agent Mode queries.
     PredictAMQueries,
-
-    /// If enabled, command palette searches will use Tantivy search instead of the default fuzzy search.
-    UseTantivySearch,
 
     /// Allows AI to call the grep tool.
     GrepTool,
@@ -339,10 +333,8 @@ pub enum FeatureFlag {
 
     /// An entrypoint pane type to launch other pane types from a search palette. The default view
     /// when creating a tab.
-    WelcomeTab,
 
     /// A new first-time user experience which prioritizes choosing a coding repository.
-    GetStartedTab,
 
     /// Enables Projects and Project management
     Projects,
@@ -652,7 +644,6 @@ pub enum FeatureFlag {
 
     /// Guided onboarding flow for existing users introducing HOA features
     /// (vertical tabs, agent inbox, tab configs).
-    HOAOnboardingFlow,
 
     /// Enables commit, push, and create-PR actions in the code review panel.
     GitOperationsInCodeReview,

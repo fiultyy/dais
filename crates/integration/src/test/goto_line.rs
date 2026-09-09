@@ -1,7 +1,7 @@
 use super::{new_builder, Builder};
 use regex::Regex;
 
-use warp::{
+use dais::{
     integration_testing::{
         goto_line::{
             assert_cursor_at_line, assert_cursor_at_line_and_column,

@@ -18,10 +18,7 @@ use crate::{
     persistence::{BlockCompleted, ModelEvent},
     session_management::SessionNavigationData,
     terminal::cli_agent_sessions::CLIAgentSessionsModel,
-    terminal::{
-        general_settings::GeneralSettings, shared_session::SharedSessionStatus, view::Event,
-        TerminalManager, TerminalView,
-    },
+    terminal::{ general_settings::GeneralSettings, shared_session::SharedSessionStatus, view::Event, TerminalManager, TerminalView, },
     view_components::ToastFlavor,
     workspace::{sync_inputs::SyncedInputState, PaneViewLocator},
     AIExecutionProfilesModel,
@@ -723,19 +720,6 @@ fn handle_terminal_view_event(
             Event::DaisDriveObjectInPane(uid) => {
                 ctx.emit(pane_group::Event::DaisDriveObjectInPane(uid.clone()));
             }
-            Event::OpenSuggestedAgentModeWorkflowModal { workflow_and_id } => {
-                ctx.emit(pane_group::Event::OpenSuggestedAgentModeWorkflowModal {
-                    workflow_and_id: workflow_and_id.clone(),
-                });
-            }
-            Event::OpenSuggestedRuleDialog { rule_and_id } => {
-                ctx.emit(pane_group::Event::OpenSuggestedRuleModal {
-                    rule_and_id: rule_and_id.clone(),
-                });
-            }
-            Event::OpenAIFactCollection { sync_id } => {
-                ctx.emit(pane_group::Event::OpenAIFactCollection { sync_id: *sync_id });
-            }
             Event::SummarizationCancelDialogToggled { is_open } => {
                 group.terminal_with_open_summarization_dialog = is_open.then_some(terminal_pane_id);
                 ctx.notify();
@@ -840,9 +824,6 @@ fn handle_terminal_view_event(
             }
             Event::OpenAddRulePane => {
                 ctx.emit(crate::pane_group::Event::OpenAddRulePane);
-            }
-            Event::OpenRulesPane => {
-                ctx.emit(crate::pane_group::Event::OpenAIFactCollection { sync_id: None });
             }
             Event::OpenAddPromptPane { initial_content } => {
                 ctx.emit(crate::pane_group::Event::OpenAddPromptPane {

@@ -2,9 +2,7 @@ use settings::{Setting, ToggleableSetting};
 use warpui::{async_assert, integration::TestStep, windowing::WindowManager, SingletonEntity};
 
 use crate::{
-    integration_testing::{
-        step::new_step_with_default_assertions, view_getters::theme_chooser_view,
-    },
+    integration_testing::step::new_step_with_default_assertions,
     settings_view::SettingsAction,
     terminal::safe_mode_settings::SafeModeSettings,
     window_settings::WindowSettings,
@@ -50,26 +48,6 @@ pub fn toggle_hide_secrets_in_block_list_setting() -> TestStep {
                     .hide_secrets_in_block_list
                     .toggle_and_save_value(ctx);
             });
-        },
-    )
-}
-
-pub fn assert_theme_chooser_contains(theme_name: &'static str, count: usize) -> TestStep {
-    TestStep::new("Assert the theme chooser contents match our expectations").add_named_assertion(
-        format!("The theme chooser contains {count} theme(s) named \"{theme_name}\""),
-        move |app, window_id| {
-            let theme_chooser = theme_chooser_view(app, window_id);
-
-            let result: usize = theme_chooser.read(app, |theme_chooser, _| {
-                theme_chooser
-                    .themes()
-                    .filter(|theme| theme.matches(theme_name))
-                    .count()
-            });
-            async_assert!(
-                result == count,
-                "Should have exactly {count} theme(s) named test theme. Instead had {result}"
-            )
         },
     )
 }

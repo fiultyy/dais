@@ -2084,9 +2084,7 @@ impl AISettings {
     }
 
     pub fn is_voice_input_enabled(&self, app: &warpui::AppContext) -> bool {
-        // Voice input is conditionally-compiled because it requires additional dependencies on some platforms.
-        cfg!(feature = "voice_input")
-            && self.is_any_ai_enabled(app)
+        self.is_any_ai_enabled(app)
             && *self.voice_input_enabled_internal
     }
 

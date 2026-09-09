@@ -8,7 +8,7 @@ use warpui::{
     elements::{
         Align, Border, ClippedScrollStateHandle, ClippedScrollable, ConstrainedBox, Container,
         CrossAxisAlignment, Element, Fill, Flex, MainAxisSize, MouseStateHandle, ParentElement,
-        Radius, Shrinkable,
+        Radius, ScrollbarWidth, Shrinkable,
     },
     keymap::{DescriptionContext, Keystroke},
     ui_components::components::{Coords, UiComponent, UiComponentStyles},
@@ -20,7 +20,6 @@ use crate::workspace::tab_settings::TabSettings;
 use crate::{
     appearance::Appearance,
     command_palette::PRIORITIZED_KEYBINDINGS,
-    search_bar::SearchBar,
     settings_view::keybindings::{KeybindingChangedEvent, KeybindingChangedNotifier},
     util::bindings::filter_bindings_including_keystroke,
     workspace::WorkspaceAction,
@@ -28,20 +27,19 @@ use crate::{
 use warpui::ModelHandle;
 
 use crate::{
-    editor::{
-        EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions,
-        TextOptions,
-    },
+    editor::{ EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions, TextOptions, },
     util::bindings::CommandBinding,
 };
 
-use super::{
-    section_views::{
-        DESCRIPTION_FONT_SIZE, ITEM_PADDING_BOTTOM, SCROLLBAR_OFFSET, SCROLLBAR_WIDTH,
-        SECTION_HEADER_FONT_SIZE, SECTION_SPACING,
-    },
-    utils::{get_additional_keybindings, FUNDAMENTALS_KEYBINDINGS},
-};
+use super::utils::{get_additional_keybindings, FUNDAMENTALS_KEYBINDINGS};
+
+// 原 section_views 常量,随模块删除后本地化(仅保留本文件用到的)。
+const DESCRIPTION_FONT_SIZE: f32 = 14.;
+const ITEM_PADDING_BOTTOM: f32 = 6.;
+const SCROLLBAR_OFFSET: f32 = 7.;
+const SCROLLBAR_WIDTH: ScrollbarWidth = ScrollbarWidth::Auto;
+const SECTION_HEADER_FONT_SIZE: f32 = 16.;
+const SECTION_SPACING: f32 = 12.;
 
 use super::utils::{BLOCKS_KEYBINDINGS, INPUT_EDITOR_KEYBINDINGS, TERMINAL_KEYBINDINGS};
 
@@ -60,7 +58,6 @@ pub struct KeybindingsView {
     binding_results: Option<Vec<CommandBinding>>,
     clipped_scroll_state: ClippedScrollStateHandle,
     mouse_state_handles: MouseStateHandles,
-    search_bar: ViewHandle<SearchBar>,
     search_editor: ViewHandle<EditorView>,
 }
 
@@ -102,24 +99,6 @@ impl KeybindingsView {
             editor.set_placeholder_text(settings_view::keybindings::SEARCH_PLACEHOLDER, ctx);
         });
 
-        let search_bar = {
-            let style = UiComponentStyles {
-                border_radius: Some(CornerRadius::with_all(Radius::Percentage(20.))),
-                margin: Some(Coords {
-                    top: SECTION_SPACING,
-                    bottom: SECTION_SPACING,
-                    left: SECTION_SPACING + SCROLLBAR_OFFSET,
-                    right: SECTION_SPACING + SCROLLBAR_OFFSET,
-                }),
-                ..Default::default()
-            };
-            ctx.add_typed_action_view(|_| {
-                let mut search_bar = SearchBar::new(search_editor.clone());
-                search_bar.with_style(style);
-                search_bar
-            })
-        };
-
         let bindings_notifier = KeybindingChangedNotifier::handle(ctx);
         ctx.subscribe_to_model(&bindings_notifier, |me, _, event, ctx| {
             me.handle_keybinding_changed(event, ctx);
@@ -137,7 +116,6 @@ impl KeybindingsView {
             binding_results: bindings,
             clipped_scroll_state: Default::default(),
             mouse_state_handles: Default::default(),
-            search_bar,
             search_editor,
         }
     }
@@ -550,7 +528,13 @@ impl View for KeybindingsView {
 
     fn render(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
-        let search_bar = ChildView::new(&self.search_bar).finish();
+        let search_bar = Container::new(ChildView::new(&self.search_editor).finish())
+            .with_corner_radius(CornerRadius::with_all(Radius::Percentage(20.)))
+            .with_margin_top(SECTION_SPACING)
+            .with_margin_bottom(SECTION_SPACING)
+            .with_margin_left(SECTION_SPACING + SCROLLBAR_OFFSET)
+            .with_margin_right(SECTION_SPACING + SCROLLBAR_OFFSET)
+            .finish();
         let subheader = self.render_subheader(appearance);
         let body = self.render_body(appearance);
 

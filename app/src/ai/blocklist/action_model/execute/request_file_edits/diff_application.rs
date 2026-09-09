@@ -16,13 +16,11 @@ use vec1::Vec1;
 use warpui::r#async::executor::Background;
 
 use crate::{
-    ai::{
-        agent::{AIIdentifiers, FileEdit},
-        blocklist::SessionContext,
-        paths::host_native_absolute_path,
-    },
+    ai::{ agent::{AIIdentifiers, FileEdit}, blocklist::SessionContext, paths::host_native_absolute_path, },
     auth::AuthState,
-    safe_debug, safe_warn, send_telemetry_on_executor,
+    safe_debug,
+    safe_warn,
+    send_telemetry_on_executor,
 };
 
 use super::telemetry::{

@@ -3,14 +3,11 @@ use warpui::{elements::MouseStateHandle, AppContext, Element};
 
 use crate::{
     appearance::Appearance,
-    cloud_object::StoredObjectMetadata,
-    drive::{
-        cloud_object_styling::warp_drive_icon_color, folders::FolderObject,
-        index::DriveIndexAction, DriveObjectType, ObjectTypeAndId,
-    },
+    drive::{ objects_styling::warp_drive_icon_color, folders::FolderObject, DriveObjectType, ObjectTypeAndId, },
     themes::theme::Fill,
     ui_components::icons::Icon,
 };
+use objects::StoredObjectMetadata;
 
 use super::{WarpDriveItem, WarpDriveItemId};
 
@@ -63,9 +60,6 @@ impl WarpDriveItem for WarpDriveFolder {
         Some(self.folder.model().is_open)
     }
 
-    fn click_action(&self) -> Option<DriveIndexAction> {
-        Some(DriveIndexAction::ToggleFolderOpen(self.folder.id))
-    }
 
     fn preview(&self, _: &Appearance) -> Option<Box<dyn Element>> {
         None
@@ -77,15 +71,11 @@ impl WarpDriveItem for WarpDriveFolder {
 
     fn sync_status_icon(
         &self,
-        sync_queue_is_dequeueing: bool,
-        hover_state: MouseStateHandle,
-        appearance: &Appearance,
+        _sync_queue_is_dequeueing: bool,
+        _hover_state: MouseStateHandle,
+        _appearance: &Appearance,
     ) -> Option<Box<dyn Element>> {
-        self.folder.metadata.pending_changes_statuses.render_icon(
-            sync_queue_is_dequeueing,
-            hover_state,
-            appearance,
-        )
+        None
     }
 
     fn action_summary(&self, _app: &AppContext) -> Option<String> {

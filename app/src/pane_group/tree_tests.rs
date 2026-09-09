@@ -1,4 +1,8 @@
 use super::*;
+use crate::pane_group::tree::PaneDataHost;
+use pathfinder_geometry::rect::RectF;
+use pathfinder_geometry::vector::Vector2F;
+use std::collections::HashSet;
 
 #[test]
 fn test_split_pane_layout() {

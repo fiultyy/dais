@@ -4,13 +4,13 @@ use warpui::{platform::WindowStyle, App, ViewHandle};
 use super::WorkflowModal;
 use crate::auth::AuthStateProvider;
 use crate::{
-    cloud_object::model::persistence::ObjectStoreModel,
     editor::PlainTextEditorViewAction as EditorAction,
     settings_view::keybindings::KeybindingChangedNotifier,
     test_util::settings::initialize_settings_for_tests,
     workflows::workflow::{Argument, Workflow},
     UserWorkspaces,
 };
+use crate::objects::model::persistence::ObjectStoreModel;
 
 fn initialize_app(app: &mut App) {
     initialize_settings_for_tests(app);
@@ -19,9 +19,6 @@ fn initialize_app(app: &mut App) {
     app.add_singleton_model(ObjectStoreModel::mock);
     app.add_singleton_model(|_| KeybindingChangedNotifier::mock());
     app.add_singleton_model(|_| AuthStateProvider::new_for_test());
-
-    #[cfg(feature = "voice_input")]
-    app.add_singleton_model(voice_input::VoiceInput::new);
 
     app.add_singleton_model(|ctx| UserWorkspaces::mock(vec![], ctx));
 }

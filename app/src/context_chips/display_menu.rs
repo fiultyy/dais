@@ -7,15 +7,9 @@ use instant::Instant;
 use pathfinder_geometry::vector::vec2f;
 
 use crate::{
-    editor::{
-        EditorOptions, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys,
-        TextOptions,
-    },
+    editor::{ EditorOptions, EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, TextOptions, },
     ui_components::icons::Icon,
-    view_components::copyable_text_field::{
-        render_copyable_text_field, CopyButtonPlacement, CopyableTextFieldConfig,
-        COPY_FEEDBACK_DURATION,
-    },
+    view_components::copyable_text_field::{ render_copyable_text_field, CopyButtonPlacement, CopyableTextFieldConfig, COPY_FEEDBACK_DURATION, },
 };
 use fuzzy_match::{match_indices_case_insensitive, FuzzyMatchResult};
 use warp_core::ui::theme::color::internal_colors;

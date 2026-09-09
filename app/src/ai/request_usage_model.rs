@@ -18,7 +18,10 @@
 //!   不在本任务写入域内 → 必须在 stub 内继续保留这些类型定义与等价构造能力,
 //!   只剥离 RPC / 缓存 / 计量等业务逻辑。
 
-use crate::{server_time::ServerTimestamp, workspaces::workspace::WorkspaceUid};
+use crate::{
+    server_time::ServerTimestamp,
+    workspaces::workspace::WorkspaceUid,
+};
 use chrono::{DateTime, Utc};
 use instant::Instant;
 use serde::{Deserialize, Serialize};

@@ -1,7 +1,7 @@
 use crate::terminal::color::List;
 use crate::terminal::event::UserBlockCompleted;
 use crate::terminal::event_listener::ChannelEventListener;
-use crate::terminal::model::block::{BlockSize, SerializedBlock};
+use terminal_grid_model::block::{BlockSize, SerializedBlock};
 use crate::terminal::shell::ShellType;
 use crate::terminal::BlockPadding;
 use crate::theme::WarpTheme;

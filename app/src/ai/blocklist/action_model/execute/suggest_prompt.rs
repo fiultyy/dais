@@ -2,15 +2,7 @@ use futures::{channel::oneshot, future::BoxFuture, FutureExt};
 use warpui::{Entity, ModelContext};
 
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversationId, AIAgentAction, AIAgentActionId, AIAgentActionType,
-            SuggestPromptRequest, SuggestPromptResult,
-        },
-        blocklist::action_model::execute::{
-            ActionExecution, AnyActionExecution, ExecuteActionInput, PreprocessActionInput,
-        },
-    },
+    ai::{ agent::{ conversation::AIConversationId, AIAgentAction, AIAgentActionId, AIAgentActionType, SuggestPromptRequest, SuggestPromptResult, }, blocklist::action_model::execute::{ ActionExecution, AnyActionExecution, ExecuteActionInput, PreprocessActionInput, }, },
     AIAgentActionResultType,
 };
 

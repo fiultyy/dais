@@ -3,13 +3,14 @@ mod cell_type;
 
 use crate::appearance::Appearance;
 use crate::terminal::grid_size_util::calculate_grid_baseline_position;
-use crate::terminal::model::ansi::{Color, CursorShape, CursorStyle};
-use crate::terminal::model::cell::{Cell, Flags};
+use crate::terminal::blockgrid_renderer::BlockGridRenderExt as _;
+use terminal_grid_model::ansi::{Color, CursorShape, CursorStyle};
+use warp_terminal::model::grid::cell::{Cell, Flags};
 use crate::terminal::{color, SizeInfo};
 
-use crate::terminal::model::grid::Dimensions;
-use crate::terminal::model::index::Point;
-use crate::terminal::model::selection::SelectionPoint;
+use warp_terminal::model::grid::Dimensions;
+use terminal_model::index::Point;
+use terminal_grid_model::grid::selection::SelectionPoint;
 use crate::terminal::model::{ObfuscateSecrets, SecretHandle};
 
 use crate::themes::theme::WarpTheme;
@@ -40,10 +41,10 @@ use self::cell_type::{CellType, IsFocused, Secret};
 
 use super::block_filter::{BLOCK_FILTER_DOTTED_LINE_DASH, BLOCK_FILTER_DOTTED_LINE_WIDTH};
 use super::blockgrid_renderer::GridRenderParams;
-use super::model::char_or_str::CharOrStr;
-use super::model::grid::grid_handler::{ContainsPoint, GridHandler, Link};
-use super::model::grid::RespectDisplayedOutput;
-use super::model::image_map::{ImagePlacementData, StoredImageMetadata};
+use warp_terminal::model::char_or_str::CharOrStr;
+use terminal_grid_model::grid::grid_handler::{ContainsPoint, GridHandler, Link};
+use terminal_grid_model::grid::RespectDisplayedOutput;
+use terminal_grid_model::image_map::{ImagePlacementData, StoredImageMetadata};
 use super::model::terminal_model::RangeInModel;
 use crate::settings::EnforceMinimumContrast;
 
@@ -57,52 +58,8 @@ const UNDERLINE_THICKNESS_SCALE_FACTOR: f32 = 0.15;
 const SELECTION_CURSOR_TOP_DIAMETER: f32 = 5.;
 
 /// Stores count of occurrences of distinct colors as a grid is rendered, which we can use to
-/// compute the most common background color of a grid and color-match other UI elements against
-/// it.
-#[derive(Debug, Default)]
-pub struct ColorSampler {
-    counts: HashMap<ColorU, usize>,
-    total_samples: usize,
-}
-
-impl ColorSampler {
-    pub fn new() -> Self {
-        Self {
-            counts: HashMap::new(),
-            total_samples: 0,
-        }
-    }
-
-    pub fn sample(&mut self, color: ColorU) {
-        self.total_samples += 1;
-        // Sample every 8th color (cell).
-        if !self.total_samples.is_multiple_of(8) {
-            return;
-        }
-
-        let color = if color.is_fully_transparent() {
-            // Sample all fully transparent colors as the same color even if they have differing
-            // rgb values, cause that makes no difference in the rendered "color".
-            ColorU::transparent_black()
-        } else {
-            color
-        };
-
-        *self.counts.entry(color).or_default() += 1;
-    }
-
-    pub fn most_common(&self) -> Option<ColorU> {
-        self.counts
-            .iter()
-            .max_by_key(|(_, &count)| count)
-            .map(|(&color, _)| color)
-    }
-
-    pub fn reset(&mut self) {
-        self.counts.clear();
-        self.total_samples = 0;
-    }
-}
+// R13: ColorSampler 下沉 terminal_grid_model,旧路径保持兼容。
+pub use terminal_grid_model::grid::color_sampler::ColorSampler;
 
 lazy_static! {
     pub static ref MATCH_COLOR: ColorU = ColorU::new(255, 254, 61, 255);

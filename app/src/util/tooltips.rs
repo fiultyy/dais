@@ -1,6 +1,7 @@
 //! Shared tooltip UI components for file path and link tooltips
 
 #[cfg(feature = "local_fs")]
+use terminal_grid_model::secrets::SecretLevel;
 use std::path::Path;
 
 use warpui::{
@@ -11,10 +12,7 @@ use warpui::{
     AppContext, Element, EventContext, SingletonEntity,
 };
 
-use crate::{
-    appearance::Appearance, settings::PrivacySettings, terminal::model::secrets::SecretLevel,
-    ui_components::blended_colors,
-};
+use crate::{appearance::Appearance, settings::PrivacySettings, ui_components::blended_colors};
 
 /// A link to be shown in a tooltip
 pub struct TooltipLink<OnClick> {
@@ -245,10 +243,10 @@ where
 #[cfg(feature = "local_fs")]
 pub fn should_show_open_in_warp_link(path: &Path, app: &AppContext) -> bool {
     use crate::{
-        code::view::is_binary_file,
-        notebooks::file::is_markdown_file,
-        util::file::external_editor::{settings::EditorChoice, EditorSettings},
-    };
+    code::view::is_binary_file,
+    notebooks::file::is_markdown_file,
+    util::file::external_editor::{settings::EditorChoice, EditorSettings},
+};
     use warpui::SingletonEntity;
 
     let settings = EditorSettings::as_ref(app);

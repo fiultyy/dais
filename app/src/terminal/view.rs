@@ -8,6 +8,7 @@ mod bookmarks;
 pub mod init;
 pub mod inline_banner;
 pub mod load_ai_conversation;
+use crate::objects_display::StoredObjectHostExt;
 use crate::ai::block_context::BlockContext;
 #[cfg(feature = "local_fs")]
 use crate::ai::skills::SkillOpenOrigin;
@@ -94,7 +95,7 @@ use crate::code_review::context::{
 };
 #[cfg(feature = "local_fs")]
 use crate::code_review::DiffSetScope;
-use crate::terminal::model::blocks::RemovableBlocklistItem;
+use terminal_grid_model::block::blocks::RemovableBlocklistItem;
 #[cfg(feature = "local_fs")]
 use crate::util::file::external_editor::{settings::EditorLayout, EditorSettings};
 use crate::util::truncation::truncate_from_end;
@@ -154,7 +155,8 @@ pub use action::{AgentOnboardingVersion, OnboardingIntention, OnboardingVersion,
 use ai::api_keys::{ApiKeyManager, AwsCredentialsState};
 
 use crate::terminal::shared_session::protocol::{SessionEndedReason, SessionSourceType};
-pub use block_banner::{WithinBlockBanner, BLOCK_BANNER_HEIGHT};
+pub use block_banner::BLOCK_BANNER_HEIGHT;
+use terminal_grid_model::banner_types::WithinBlockBannerKind;
 use block_onboarding::onboarding_agentic_suggestions_block::{
     OnboardingAgenticSuggestionsBlock, OnboardingAgenticSuggestionsBlockEvent, OnboardingChipType,
 };
@@ -182,8 +184,6 @@ use crate::ai::agent::{
     FinishedAIAgentOutput, RenderableAIError, StaticQueryType,
 };
 use crate::agent_input_footer::toolbar_item::AgentToolbarItemKind;
-use crate::ai::blocklist::suggested_agent_mode_workflow_modal::SuggestedAgentModeWorkflowAndId;
-use crate::ai::blocklist::suggested_rule_modal::SuggestedRuleAndId;
 use crate::ai::blocklist::{model::AIBlockModelImpl, ClientIdentifiers};
 use crate::ai::{
     agent::{
@@ -211,10 +211,10 @@ use crate::ai::{
 use crate::auth::AuthState;
 use crate::auth::AuthStateProvider;
 use crate::autoupdate::{self, get_update_state, AutoupdateStage};
-use crate::cloud_object::model::actions::ObjectActionType;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
-use crate::cloud_object::update_manager::UpdateManager;
-use crate::cloud_object::{GenericStringObjectFormat, JsonObjectType, StoredObject};
+use objects::ObjectActionType;
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::object_store::ObjectStore;
+use objects::{GenericStringObjectFormat, JsonObjectType, StoredObject};
 #[cfg(feature = "local_fs")]
 use crate::code::editor_management::CodeSource;
 use crate::context_chips::prompt::Prompt;
@@ -228,7 +228,7 @@ use crate::env_vars::{
 };
 use crate::pane_group::focus_state::PaneFocusHandle;
 use crate::persistence::{self, FinishedCommandMetadata};
-use crate::server::ids::{ObjectUid, SyncId};
+use objects::ids::{ObjectUid, SyncId};
 #[cfg(feature = "local_fs")]
 use crate::settings::import::model::ImportedConfigModel;
 use crate::settings::import::view::{SettingsImportEvent, SettingsImportView};
@@ -265,7 +265,7 @@ use crate::terminal::local_tty::get_shell_starter;
 use crate::terminal::local_tty::shell::ShellStarter;
 #[cfg(all(windows, feature = "local_tty"))]
 use crate::terminal::local_tty::windows::get_user_and_system_env_variable;
-use crate::terminal::model::blockgrid::BlockGrid;
+use terminal_grid_model::grid::blockgrid::BlockGrid;
 use crate::terminal::model::session::active_session::ActiveSession;
 use crate::terminal::model::session::{Session, SessionId};
 use crate::terminal::model::{ObfuscateSecrets, RespectObfuscatedSecrets, SecretHandle};
@@ -306,13 +306,19 @@ use crate::view_components::{DismissibleToast, ToastFlavor};
 use crate::workflows::workflow::Workflow;
 use crate::workflows::WorkflowSelectionSource;
 use crate::workspace::sync_inputs::SyncedInputState;
-use crate::workspace::{CommandSearchOptions, OneTimeModalModel, ToastStack, WorkspaceAction};
+use crate::workspace::{CommandSearchOptions, ToastStack, WorkspaceAction};
 use crate::workspace::{ForkAIConversationParams, ForkFromExchange, ForkedConversationDestination};
 use crate::workspaces::user_workspaces::UserWorkspaces;
 use crate::AIRequestUsageModel;
 use crate::ActiveSession as WindowActiveSession;
-use crate::{report_if_error, AIAgentActionResultType};
-use crate::{safe_error, safe_warn};
+use crate::{
+    report_if_error,
+    AIAgentActionResultType,
+};
+use crate::{
+    safe_error,
+    safe_warn,
+};
 
 use crate::terminal::shared_session::protocol::{
     ParticipantId, Role, WindowSize as SessionSharingWindowSize,
@@ -443,25 +449,24 @@ use crate::terminal::event::UserBlockCompleted;
 use crate::terminal::find::{BlockGridMatch, BlockListMatch, TerminalFindModel};
 use crate::terminal::input::{InputState, MenuPositioning, MenuPositioningProvider};
 use crate::terminal::keys::TerminalKeybindings;
-use crate::terminal::model::block::{AgentInteractionMetadata, BlockMetadata};
+use terminal_grid_model::block::{AgentInteractionMetadata, BlockMetadata};
 use crate::terminal::terminal_activity::{TerminalActivityEvent, TerminalActivityModel};
-use crate::terminal::model::block::{Block, BlockId};
-use crate::terminal::model::blocks::{BlockFilter, BlockList};
-use crate::terminal::model::blocks::{BlockHeight, BlockHeightItem, BlockHeightSummary, Gap};
-use crate::terminal::model::escape_sequences::{self, EscCodes, ToEscapeSequence, C1};
-use crate::terminal::model::grid::grid_handler::{FragmentBoundary, TermMode};
-use crate::terminal::model::index::{Point, Side};
-use crate::terminal::model::mouse::MouseState;
-use crate::terminal::model::selection::{SelectAction, SelectionDirection};
+use terminal_grid_model::block::{Block, BlockId, SerializedBlock};
+use terminal_grid_model::block::blocks::{BlockFilter, BlockList};
+use terminal_grid_model::block::blocks::{BlockHeight, BlockHeightItem, BlockHeightSummary, Gap};
+use warp_terminal::model::escape_sequences::{self, EscCodes, ToEscapeSequence, C1};
+use terminal_grid_model::grid::grid_handler::{FragmentBoundary, TermMode};
+use terminal_model::index::{Point, Side};
+use warp_terminal::model::mouse::MouseState;
+use terminal_grid_model::grid::selection::{SelectAction, SelectionDirection};
 use crate::terminal::model::session::{BootstrapSessionType, SessionType, Sessions, SessionsEvent};
-use crate::terminal::model::terminal_model::{BlockIndex, TerminalInputState};
+use terminal_grid_model::block_index::BlockIndex;
+use crate::terminal::model::terminal_model::TerminalInputState;
 use crate::terminal::model::terminal_model::{
     BlockSelectionCardinality, SelectedBlocks, WithinModel,
 };
-use crate::terminal::model::{
-    ansi::{ClearMode, Handler},
-    blocks::BlockListPoint,
-};
+use terminal_grid_model::ansi::{ClearMode, Handler};
+use terminal_grid_model::block::blocks::BlockListPoint;
 use crate::terminal::view::inline_banner::{
     render_agent_mode_setup_banner, AgentModeSetupSpeedbumpBannerAction,
     AgentModeSetupSpeedbumpBannerState, AliasExpansionBannerState,
@@ -475,7 +480,6 @@ use crate::terminal::{
     block_list_element::BlockHoverAction,
     // find::{Event as FindEvent, Find, FindDirection},
     input::{Event as InputEvent, Input, INPUT_A11Y_HELPER_KEY, INPUT_A11Y_LABEL_KEY},
-    model::block::SerializedBlock,
     shell::ShellType,
     terminal_size_element::TerminalSizeElement,
     TerminalModel,
@@ -491,26 +495,31 @@ use crate::menu::{Event as MenuEvent, Menu, MenuItem, MenuItemFields, MenuVarian
 use crate::server::telemetry::{BlockLatencyInfo, BootstrappingInfo};
 use crate::terminal::{block_list_element::BlockListMenuSource, prompt};
 use crate::terminal::{color, History, SizeInfo};
-use crate::terminal::{color::List, model::block::LONG_RUNNING_BOTTOM_PADDING_LINES};
+use crate::terminal::color::List;
+use terminal_grid_model::block::LONG_RUNNING_BOTTOM_PADDING_LINES;
 use crate::terminal::{event::AfterBlockCompletedEvent, event::BlockLatencyData, event::BlockType};
 use crate::throttle::throttle;
 use crate::util::color::darken;
-use crate::{send_telemetry_from_ctx, send_telemetry_on_executor, send_telemetry_sync_from_ctx};
+use crate::{
+    send_telemetry_from_ctx,
+    send_telemetry_on_executor,
+    send_telemetry_sync_from_ctx,
+};
 
 use self::link_detection::HighlightedLinkOption;
 use super::available_shells::AvailableShell;
 use super::block_list_viewport::FindMatchScrollLocation;
 use super::event::SshLoginStatus;
 use super::find::FindOptions;
-use super::model::ansi::{SystemDetails, WarpificationUnavailableReason};
-use super::model::block::{
+use terminal_grid_model::ansi::{SystemDetails, WarpificationUnavailableReason};
+use terminal_grid_model::block::{
     BlockSection, BlocklistEnvVarMetadata, LONG_RUNNING_COMMAND_DURATION_MS,
 };
-use super::model::blocks::RichContentItem;
-use super::model::completions::ShellCompletion;
-use super::model::rich_content::RichContentType;
-use super::model::secrets::RichContentSecretTooltipInfo;
-use super::model::selection::ExpandedSelectionRange;
+use terminal_grid_model::block::blocks::RichContentItem;
+use terminal_model::completions::ShellCompletion;
+use terminal_model::rich_content::RichContentType;
+use terminal_grid_model::secrets::RichContentSecretTooltipInfo;
+use terminal_grid_model::grid::selection::ExpandedSelectionRange;
 use super::model::session::SessionBootstrappedEvent;
 use super::settings::AltScreenPaddingMode;
 use super::ssh::error::{SshErrorBlock, SshErrorBlockEvent, SSH_ERROR_BLOCK_VISIBLE_KEY};
@@ -562,9 +571,7 @@ lazy_static! {
 
     // A regex to detect a class of error strings indicating the ControlMaster connection is
     // broken.
-    pub static ref CONTROL_MASTER_ERROR_REGEX: regex::Regex =
-        regex::Regex::new(r"(?m)^channel (\d)+: open failed:")
-        .expect("The regex should compile");
+
 
     /// A regex to detect Unix- or Windows-style line feeds in text.
     pub static ref LINEFEED_REGEX: Regex = Regex::new("\r?\n").expect("should not fail to compile regex");
@@ -994,66 +1001,10 @@ impl PromptSuggestion {
     }
 }
 
-/// A unique identifier for an inline banner.
-pub type InlineBannerId = usize;
-
-/// Type of inline banner - determines behavior like visibility in agent view.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub enum InlineBannerType {
-    NotificationsDiscovery,
-    NotificationsError,
-    Ssh,
-    PromptSuggestions,
-    AliasExpansion,
-    SharedSessionStart,
-    SharedSessionEnd,
-    ShellProcessTerminated,
-    OpenInWarp,
-    VimMode,
-    AgentModeSetup,
-    AwsBedrockLogin,
-    AwsCliNotInstalled,
-}
-
-impl InlineBannerType {
-    /// Returns whether this banner type should be visible when agent view is active.
-    /// Exhaustive match ensures new banner types must define their visibility.
-    pub fn is_visible_in_agent_view(&self) -> bool {
-        match self {
-            // Agent-related banners: visible in agent view
-            Self::PromptSuggestions
-            | Self::AgentModeSetup
-            | Self::AwsBedrockLogin
-            | Self::AwsCliNotInstalled => true,
-            // Terminal-context banners: hidden in agent view
-            Self::NotificationsDiscovery
-            | Self::NotificationsError
-            | Self::Ssh
-            | Self::AliasExpansion
-            | Self::SharedSessionStart
-            | Self::SharedSessionEnd
-            | Self::ShellProcessTerminated
-            | Self::OpenInWarp
-            | Self::VimMode => false,
-        }
-    }
-}
-
-/// An inline banner with its unique ID and type metadata.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub struct InlineBannerItem {
-    pub id: InlineBannerId,
-    pub banner_type: InlineBannerType,
-}
-
-impl InlineBannerItem {
-    pub fn new(id: InlineBannerId, banner_type: InlineBannerType) -> Self {
-        Self { id, banner_type }
-    }
-}
-
-/// A unique identifier for a subshell separator.
-pub type SeparatorId = usize;
+// R17: banner 轻件提升 terminal_grid_model::banner_types。
+pub use terminal_grid_model::banner_types::{
+    InlineBannerId, InlineBannerItem, InlineBannerType, SeparatorId,
+};
 
 #[derive(Default)]
 struct InlineBannersState {
@@ -1622,16 +1573,6 @@ pub enum Event {
     // Tell the pane group to open the workflow modal with an unsaved workflow.
     OpenWorkflowModalWithTemporary(Box<Workflow>),
     DaisDriveObjectInPane(ObjectUid),
-    OpenSuggestedAgentModeWorkflowModal {
-        workflow_and_id: SuggestedAgentModeWorkflowAndId,
-    },
-    OpenSuggestedRuleDialog {
-        rule_and_id: SuggestedRuleAndId,
-    },
-    OpenAIFactCollection {
-        /// If set, open the fact collection to the specific rule.
-        sync_id: Option<SyncId>,
-    },
     ToggleAIDocumentPane {
         document_id: AIDocumentId,
         document_version: AIDocumentVersion,
@@ -2572,6 +2513,8 @@ pub struct TerminalView {
     find_model: ModelHandle<TerminalFindModel>,
 
     warpify_state: WarpifyState,
+    /// R18/R19 锚2: warpify banner UI 状态(model 侧仅存 Kind 投影,presence 为 gate)。
+    active_warpify_banner: Option<WarpifyBannerState>,
 
     /// The keystroke bound to canceling a command.
     ///
@@ -3946,6 +3889,7 @@ impl TerminalView {
             input_hoverable_handle: Default::default(),
             find_model,
             warpify_state: Default::default(),
+            active_warpify_banner: None,
             cancel_command_keystroke: keybinding_name_to_keystroke(CANCEL_COMMAND_KEYBINDING, ctx),
             is_file_drop_target: false,
             is_ssh_file_uploader: false,
@@ -8354,6 +8298,8 @@ impl TerminalView {
             let mut model = self.model.lock();
             model.block_list_mut().set_active_block_banner(None);
         }
+        // R19 锚2: UI 状态与 model presence 双清。
+        self.active_warpify_banner = None;
 
         // Also clear the warpify footer so it doesn't linger after warpification
         // starts, fails, or is cancelled.
@@ -8411,11 +8357,15 @@ impl TerminalView {
             None => format!("You can Warpify this {lowercase_title} for more Dais features."),
         };
 
+        // R19 锚2: model 存 Kind 投影,完整 UI 状态存 view 侧(model presence 为渲染 gate)。
+        let kind = match &input {
+            WarpificationMode::Ssh { .. } => WithinBlockBannerKind::Ssh,
+            WarpificationMode::Subshell { .. } => WithinBlockBannerKind::Subshell,
+        };
+        self.active_warpify_banner = Some(WarpifyBannerState::new(input, warpify_keybinding));
         model
             .block_list_mut()
-            .set_active_block_banner(Some(WithinBlockBanner::WarpifyBanner(
-                WarpifyBannerState::new(input, warpify_keybinding),
-            )));
+            .set_active_block_banner(Some(kind));
 
         let a11y_content = AccessibilityContent::new(
             format!("{title} recognized."),
@@ -10271,8 +10221,8 @@ impl TerminalView {
                     // If the block was a cloud workflow, record the workflow execution as an object action.
                     if let Some(cloud_workflow_id) = cloud_workflow_id {
                         let id_and_type = ObjectTypeAndId::Workflow(*cloud_workflow_id);
-                        UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                            update_manager.record_object_action(
+                        ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                            object_store.record_object_action(
                                 id_and_type,
                                 ObjectActionType::Execute,
                                 Some(exit_code_data.clone()),
@@ -10289,8 +10239,8 @@ impl TerminalView {
 
                             id: *cloud_env_var_collection_id,
                         };
-                        UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                            update_manager.record_object_action(
+                        ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                            object_store.record_object_action(
                                 id_and_type,
                                 ObjectActionType::Execute,
                                 Some(exit_code_data.clone()),
@@ -10564,7 +10514,7 @@ impl TerminalView {
                     .session_id()
                     .and_then(|id| self.sessions.as_ref(ctx).get(id))
                 {
-                    let shell_host = ShellHost::from_session(session.as_ref());
+                    let shell_host = crate::terminal::history::shell_host_from_session(session.as_ref());
                     self.model
                         .lock()
                         .block_list_mut()
@@ -10585,12 +10535,13 @@ impl TerminalView {
             ModelEvent::TerminalModeSwapped(mode) => {
                 #[cfg(feature = "local_tty")]
                 {
-                    let active_command = self
-                        .model
-                        .lock()
-                        .block_list()
-                        .active_block()
-                        .top_level_command(self.sessions.as_ref(ctx));
+                    let active_command = {
+                        let model = self.model.lock();
+                        crate::terminal::model::session::top_level_command(
+                            model.block_list().active_block(),
+                            self.sessions.as_ref(ctx),
+                        )
+                    };
                     if FeatureFlag::RemoveAltScreenPadding.is_enabled()
                         // If we don't know what the top-level command is,
                         // we should still perform the redundant resize.
@@ -11579,8 +11530,6 @@ impl TerminalView {
         let should_show_onboarding = FeatureFlag::AgentOnboarding.is_enabled()
             && !is_onboarded
             && !is_anonymous_or_logged_out;
-        let is_launch_modal_open = OneTimeModalModel::as_ref(ctx).is_dais_launch_modal_open();
-
         let has_plugin_instructions_block = self.rich_content_views.iter().any(|rc| {
             matches!(
                 rc.metadata(),
@@ -11593,7 +11542,6 @@ impl TerminalView {
             && !self.model.lock().block_list().is_restored_session()
             && !should_show_onboarding
             && self.onboarding_callout_view.is_none()
-            && !is_launch_modal_open
             && !is_subshell_or_ssh
             && !has_plugin_instructions_block
         {
@@ -11773,10 +11721,6 @@ impl TerminalView {
             });
         }
 
-        #[cfg(feature = "voice_input")]
-        voice_input::VoiceInput::handle(ctx).update(ctx, |voice_input, _| {
-            voice_input.should_suppress_new_feature_popup = true;
-        });
     }
 
     #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
@@ -11817,10 +11761,6 @@ impl TerminalView {
             ctx,
         );
 
-        #[cfg(feature = "voice_input")]
-        voice_input::VoiceInput::handle(ctx).update(ctx, |voice_input, _| {
-            voice_input.should_suppress_new_feature_popup = true;
-        });
     }
 
     #[cfg_attr(not(feature = "local_fs"), allow(dead_code))]
@@ -11840,14 +11780,6 @@ impl TerminalView {
             ctx,
         );
 
-        if self.block_onboarding_active {
-            #[cfg(feature = "voice_input")]
-            {
-                voice_input::VoiceInput::handle(ctx).update(ctx, |voice_input, _| {
-                    voice_input.should_suppress_new_feature_popup = true;
-                });
-            }
-        }
     }
 
     fn handle_onboarding_agentic_suggestions_block_event(
@@ -12012,10 +11944,6 @@ impl TerminalView {
         self.settings_import_onboarding_block = None;
         self.onboarding_agentic_suggestions_block = None;
 
-        #[cfg(feature = "voice_input")]
-        voice_input::VoiceInput::handle(ctx).update(ctx, |voice_input, _| {
-            voice_input.should_suppress_new_feature_popup = false;
-        });
         let _ = ctx;
     }
 
@@ -12396,10 +12324,12 @@ impl TerminalView {
                 }
 
                 let correct_size_info = *view.size_info;
-                let active_command = model
-                    .block_list()
-                    .active_block()
-                    .top_level_command(view.sessions.as_ref(ctx));
+                let active_command = {
+                    crate::terminal::model::session::top_level_command(
+                        model.block_list().active_block(),
+                        view.sessions.as_ref(ctx),
+                    )
+                };
 
                 // Drop the lock since the resize methods will take an explicit lock.
                 drop(model);
@@ -15986,7 +15916,7 @@ impl TerminalView {
         let selected_block_ids = {
             let model = self.model.lock();
             self.selected_blocks
-                .to_block_ids(model.block_list())
+                .to_block_ids(|idx| model.block_list().block_at(idx).map(|b| b.id()))
                 .cloned()
                 .collect_vec()
         };
@@ -17558,11 +17488,14 @@ impl TerminalView {
             );
         }
 
-        let selected_block_ids = self
-            .selected_blocks
-            .to_block_ids(self.model.lock().block_list())
-            .cloned()
-            .collect_vec();
+        let selected_block_ids = {
+            let model_lock = self.model.lock();
+            let block_list = model_lock.block_list();
+            self.selected_blocks
+                .to_block_ids(|idx| block_list.block_at(idx).map(|b| b.id()))
+                .cloned()
+                .collect_vec()
+        };
 
         self.input().update(ctx, |input, ctx| {
             if let Some(initial_query) = initial_query {
@@ -18308,23 +18241,10 @@ impl TerminalView {
                     ctx.open_url(url);
                 }
             },
-            AIBlockEvent::OpenAIFactCollection { sync_id } => {
-                ctx.emit(Event::OpenAIFactCollection { sync_id: *sync_id });
-            }
             AIBlockEvent::OpenWorkflow { sync_id } => {
                 if let Some(object) = ObjectStoreModel::as_ref(ctx).get_workflow(sync_id) {
                     ctx.emit(Event::DaisDriveObjectInPane(object.uid()));
                 }
-            }
-            AIBlockEvent::OpenSuggestedAgentModeWorkflowModal { workflow_and_id } => {
-                ctx.emit(Event::OpenSuggestedAgentModeWorkflowModal {
-                    workflow_and_id: workflow_and_id.clone(),
-                });
-            }
-            AIBlockEvent::OpenSuggestedRuleDialog { rule_and_id } => {
-                ctx.emit(Event::OpenSuggestedRuleDialog {
-                    rule_and_id: rule_and_id.clone(),
-                });
             }
             AIBlockEvent::FocusTerminal => {
                 self.redetermine_global_focus(ctx);
@@ -18658,10 +18578,6 @@ impl TerminalView {
             // calls on_blur and closes the context menu when it is supposed
             // to open after closing the command palette
             // TODO: refactor in the future
-            return;
-        }
-
-        if OneTimeModalModel::as_ref(ctx).is_any_modal_open() {
             return;
         }
 
@@ -21290,17 +21206,6 @@ impl TerminalView {
         alt_screen_element =
             alt_screen_element.with_shared_session_presence(self.shared_session_presence_manager());
 
-        // Pass voice input toggle key if the CLI agent footer should be rendered
-        #[cfg(feature = "voice_input")]
-        if self.should_render_use_agent_footer(model, app)
-            && self.use_agent_footer.as_ref(app).has_cli_agent(app)
-        {
-            let voice_key = AISettings::as_ref(app)
-                .voice_input_toggle_key
-                .value()
-                .to_key_code();
-            alt_screen_element = alt_screen_element.with_voice_input_toggle_key(voice_key);
-        }
 
         let required_terminal_height = self.size_info.cell_height_px.as_f32() * (rows as f32)
             + 2. * self.size_info.padding_y_px().as_f32();
@@ -21418,15 +21323,19 @@ impl TerminalView {
         // Currently, it is assumed that only the active block can have a block banner, which
         // implies that there can only be one at a time. This assumption can be relaxed once we
         // have an actual use case for that.
-        let block_banner = model
+        // R19 锚2: model presence gate + view 侧完整状态(Block::finish 置 None 后不再读 UI 态)。
+        let block_banner = if model
             .block_list()
             .active_block()
             .block_banner()
-            .map(|banner| match banner {
-                WithinBlockBanner::WarpifyBanner(state) => {
-                    render_warpification_banner(state, appearance, app)
-                }
-            });
+            .is_some()
+        {
+            self.active_warpify_banner
+                .as_ref()
+                .map(|state| render_warpification_banner(state, appearance, app))
+        } else {
+            None
+        };
 
         let bookmarked_blocks: HashSet<_> = self.bookmarked_blocks.keys().copied().collect();
         let filtered_blocks: HashSet<_> = model.block_list().filtered_blocks();
@@ -21561,17 +21470,6 @@ impl TerminalView {
             element = element.with_hide_cursor_cell();
         }
 
-        // Pass voice input toggle key if the CLI agent footer should be rendered
-        #[cfg(feature = "voice_input")]
-        if self.should_render_use_agent_footer(model, app)
-            && self.use_agent_footer.as_ref(app).has_cli_agent(app)
-        {
-            let voice_key = AISettings::as_ref(app)
-                .voice_input_toggle_key
-                .value()
-                .to_key_code();
-            element = element.with_voice_input_toggle_key(voice_key);
-        }
 
         element = element.with_filtered_blocks(filtered_blocks);
 
@@ -22505,7 +22403,7 @@ impl TerminalView {
                 ctx.notify();
             }
             Configure => {
-                ctx.emit(Event::OpenSettings(SettingsSection::Features));
+                ctx.emit(Event::OpenSettings(SettingsSection::AI));
             }
             Close => {
                 // Update settings to mark notifications as dismissed to prevent banner from showing again
@@ -22551,7 +22449,7 @@ impl TerminalView {
                 if FeatureFlag::SSHTmuxWrapper.is_enabled() {
                     ctx.emit(Event::OpenSettings(SettingsSection::Warpify));
                 } else {
-                    ctx.emit(Event::OpenSettings(SettingsSection::Features));
+                    ctx.emit(Event::OpenSettings(SettingsSection::AI));
                 }
             }
         }
@@ -22724,8 +22622,8 @@ impl TerminalView {
                         },
                     }));
 
-                    UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-                        update_manager.record_object_action(
+                    ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+                        object_store.record_object_action(
                             object_type_and_id,
                             ObjectActionType::Execute,
                             None,
@@ -22875,7 +22773,7 @@ impl TerminalView {
                 env_var_collection
                     .vars
                     .iter()
-                    .map(|var| var.get_initialization_string(shell_type))
+                    .map(|var| var.get_initialization_string(shell_type.into()))
                     .collect_vec()
                     .join(" "),
                 session_id,
@@ -22933,8 +22831,8 @@ impl TerminalView {
         self.set_and_execute_subshell_command(&shell_path_string, shell_type, ctx);
 
         // Ok to update the execution record here because we auto-execute when in subshell
-        UpdateManager::handle(ctx).update(ctx, move |update_manager, ctx| {
-            update_manager.record_object_action(
+        ObjectStore::handle(ctx).update(ctx, move |object_store, ctx| {
+            object_store.record_object_action(
                 cloud_env_var_collection.object_type_and_id(),
                 ObjectActionType::Execute,
                 None,
@@ -23568,8 +23466,6 @@ impl TypedActionView for TerminalView {
                 "Use file picker to select a git repository".to_owned(),
                 WarpA11yRole::PopoverRole,
             )),
-            #[cfg(feature = "voice_input")]
-            ToggleCLIAgentVoiceInput(_) => Empty,
             // Below are actions that are most likely irrelevant to users or are very noisy and the
             // debug version shouldn't be announced.
             Scroll { .. }
@@ -24180,23 +24076,6 @@ impl TypedActionView for TerminalView {
                     });
                 }
                 ctx.notify();
-            }
-            #[cfg(feature = "voice_input")]
-            ToggleCLIAgentVoiceInput(source) => {
-                // For CLI agents, route through the footer's self-contained
-                // voice flow (records + writes transcription to PTY). For
-                // the regular editor, fall back to the editor-based flow.
-                let has_cli_agent = self.use_agent_footer.as_ref(ctx).has_cli_agent(ctx);
-                if has_cli_agent {
-                    let footer = self.input.as_ref(ctx).agent_input_footer().clone();
-                    footer.update(ctx, |footer, ctx| {
-                        footer.toggle_cli_voice_input(source, ctx);
-                    });
-                } else {
-                    self.input.update(ctx, |input, ctx| {
-                        input.toggle_voice_input(source, ctx);
-                    });
-                }
             }
             StartFileDropTarget => {
                 let Some(session) = self
@@ -25132,14 +25011,15 @@ impl View for TerminalView {
             context.set.insert(init::ROOT_AMBIENT_AGENT_PANE_KEY);
         }
 
-        if let Some(WithinBlockBanner::WarpifyBanner(state)) =
-            model_lock.block_list().active_block().block_banner()
-        {
-            if state.is_ssh() {
+        // R19 锚2: keymap 判别走 Kind 投影(无需 UI 状态)。
+        match model_lock.block_list().active_block().block_banner() {
+            Some(WithinBlockBannerKind::Ssh) => {
                 context.set.insert("SshWarpificationBanner");
-            } else {
+            }
+            Some(WithinBlockBannerKind::Subshell) => {
                 context.set.insert("SubshellBanner");
             }
+            None => {}
         }
 
         // Also set the warpify context when the footer (flag-gated replacement
@@ -25488,10 +25368,8 @@ pub fn create_size_info(
 ) -> SizeInfo {
     let cell_size_px =
         grid_cell_dimensions(font_cache, font_family_id, font_size, line_height_ratio);
-    let active_command = model
-        .block_list()
-        .active_block()
-        .top_level_command(sessions);
+    let active_command =
+        crate::terminal::model::session::top_level_command(model.block_list().active_block(), sessions);
 
     match *TerminalSettings::as_ref(ctx).alt_screen_padding {
         AltScreenPaddingMode::Custom { uniform_padding }

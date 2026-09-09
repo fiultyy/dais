@@ -21,41 +21,10 @@ use warpui::{
 };
 
 use crate::{
-    ai::{
-        agent::{
-            conversation::AIConversationId, icons::yellow_stop_icon, task::TaskId, AIAgentActionId,
-            AIAgentActionResult, AIAgentActionResultType,
-        },
-        blocklist::{
-            action_model::{AIActionStatus, BlocklistAIActionEvent, BlocklistAIActionModel},
-            block::{
-                compact_agent_input,
-                number_shortcut_buttons::{
-                    self, NumberShortcutButtonBuilder, NumberShortcutButtons,
-                    NumberShortcutButtonsConfig,
-                },
-                view_impl::{CONTENT_HORIZONTAL_PADDING, CONTENT_ITEM_VERTICAL_MARGIN},
-            },
-            inline_action::{
-                inline_action_header::{
-                    ExpandedConfig, HeaderConfig, InteractionMode,
-                    INLINE_ACTION_HEADER_VERTICAL_PADDING, INLINE_ACTION_HORIZONTAL_PADDING,
-                },
-                inline_action_icons::{self, icon_size},
-                requested_action::CTRL_C_KEYSTROKE,
-            },
-            BlocklistAIHistoryModel,
-        },
-    },
-    terminal::input::message_bar::{
-        common::{render_standard_message, standard_message_bar_height, styles},
-        Message, MessageItem,
-    },
+    ai::{ agent::{ conversation::AIConversationId, icons::yellow_stop_icon, task::TaskId, AIAgentActionId, AIAgentActionResult, AIAgentActionResultType, }, blocklist::{ action_model::{AIActionStatus, BlocklistAIActionEvent, BlocklistAIActionModel}, block::{ compact_agent_input, number_shortcut_buttons::{ self, NumberShortcutButtonBuilder, NumberShortcutButtons, NumberShortcutButtonsConfig, }, view_impl::{CONTENT_HORIZONTAL_PADDING, CONTENT_ITEM_VERTICAL_MARGIN}, }, inline_action::{ inline_action_header::{ ExpandedConfig, HeaderConfig, InteractionMode, INLINE_ACTION_HEADER_VERTICAL_PADDING, INLINE_ACTION_HORIZONTAL_PADDING, }, inline_action_icons::{self, icon_size}, requested_action::CTRL_C_KEYSTROKE, }, BlocklistAIHistoryModel, }, },
+    terminal::input::message_bar::{ common::{render_standard_message, standard_message_bar_height, styles}, Message, MessageItem, },
     ui_components::{blended_colors, icons::Icon},
-    view_components::{
-        action_button::{ButtonSize, KeystrokeSource, NakedTheme, PrimaryTheme},
-        compactible_action_button::CompactibleActionButton,
-    },
+    view_components::{ action_button::{ButtonSize, KeystrokeSource, NakedTheme, PrimaryTheme}, compactible_action_button::CompactibleActionButton, },
     Appearance,
 };
 

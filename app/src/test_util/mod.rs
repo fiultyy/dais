@@ -29,3 +29,57 @@ macro_rules! assert_eventually {
     }};
 }
 pub(crate) use assert_eventually;
+
+/// R9 共享测试装配: completions_v2 下 CommandRegistry::global_instance() 为空,
+/// 单测注册断言涉及的命令签名(幂等 Once)。原 notebooks/editor 私有,提升共享。
+pub fn initialize_command_signatures_for_tests() {
+    use std::sync::Once;
+    use warp_completer::signatures::{Command, CommandRegistry, CommandSignature, Opt};
+
+    fn simple_command(name: &str) -> CommandSignature {
+        CommandSignature {
+            command: Command {
+                name: name.to_owned(),
+                description: Some(name.to_owned()),
+                ..Default::default()
+            },
+        }
+    }
+
+    fn command_with_subcommand(
+        name: &str,
+        subcommand: &str,
+        subcommand_options: Vec<Opt>,
+    ) -> CommandSignature {
+        CommandSignature {
+            command: Command {
+                name: name.to_owned(),
+                description: Some(name.to_owned()),
+                subcommands: vec![Command {
+                    name: subcommand.to_owned(),
+                    description: Some(subcommand.to_owned()),
+                    options: subcommand_options,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        }
+    }
+
+    static REGISTER: Once = Once::new();
+    REGISTER.call_once(|| {
+        let registry = CommandRegistry::global_instance();
+        registry.register_signature(simple_command("echo"));
+        registry.register_signature(simple_command("code"));
+        registry.register_signature(simple_command("command"));
+        registry.register_signature(command_with_subcommand(
+            "git",
+            "checkout",
+            vec![Opt {
+                name: vec!["-b".to_owned()],
+                ..Default::default()
+            }],
+        ));
+        registry.register_signature(command_with_subcommand("cargo", "run", vec![]));
+    });
+}

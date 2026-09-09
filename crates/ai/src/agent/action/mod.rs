@@ -6,7 +6,7 @@ use itertools::Itertools as _;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumDiscriminants;
 use uuid::Uuid;
-use warp_terminal::model::BlockId;
+use terminal_grid_model::block_id::BlockId;
 
 use crate::{
     agent::{

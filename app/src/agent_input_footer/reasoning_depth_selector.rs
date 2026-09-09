@@ -22,14 +22,9 @@ use warpui::{
 use std::sync::Arc;
 
 use crate::{
-    ai::{
-        agent_providers::reasoning::model_reasoning_variants,
-        llms::{LLMPreferences, LLMPreferencesEvent},
-    },
+    ai::{ agent_providers::reasoning::model_reasoning_variants, llms::{LLMPreferences, LLMPreferencesEvent}, },
     appearance::Appearance,
-    context_chips::display_menu::{
-        ChipMenuType, DisplayChipMenu, GenericMenuItem, PromptDisplayMenuEvent,
-    },
+    context_chips::display_menu::{ ChipMenuType, DisplayChipMenu, GenericMenuItem, PromptDisplayMenuEvent, },
     settings::{AgentProviderApiType, ReasoningEffortSetting},
     terminal::input::{MenuPositioning, MenuPositioningProvider},
     ui_components::icons::Icon,

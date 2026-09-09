@@ -1,6 +1,9 @@
 use byte_unit::Byte;
 
-use crate::{terminal::model::test_utils::TestBlockBuilder, test_util::mock_blockgrid};
+use crate::{
+    terminal::model::test_utils::TestBlockBuilder,
+    test_util::mock_blockgrid,
+};
 
 use super::*;
 

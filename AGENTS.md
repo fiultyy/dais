@@ -219,7 +219,7 @@ app/  (主二进制:装配、入口、平台粘合、持久化迁移、UI 视图
 - `settings/` (46), `settings_view/` (63)
 - `user_config/` (6), `themes/` (11), `appearance.rs`
 - `experiments/` (7), `tab_configs/` (15), `launch_configs/` (4)
-- `tips/`, `banner/` (3), `quit_warning/` (1), `wasm_nux_dialog.rs`, `referral_theme_status.rs`
+- `tips/`, `banner/` (3), `quit_warning/` (1), `referral_theme_status.rs`
 
 ### 4.8 认证 / 计费 / 使用量
 - `auth/` (22) — 登录、token、SSO。

@@ -402,7 +402,17 @@ impl SessionAgnosticContext {
 
 impl CompletionContext for SessionAgnosticContext {
     fn top_level_commands(&self) -> Box<dyn Iterator<Item = &str> + '_> {
-        Box::new(self.command_registry.registered_commands())
+        // memo_map 的 keys() 迭代器在整个迭代期间持有 registry 内部 Mutex;
+        // 下游 sorted_top_level_commands 迭代中会对命中项调
+        // command_suggestion→get_signature,重入同一把非重入锁→死锁
+        // (仅 token 命中已注册命令时触发;空注册表时表现为高亮无色)。
+        // 先 collect 快照释放锁,返回命令集不变。
+        Box::new(
+            self.command_registry
+                .registered_commands()
+                .collect::<Vec<_>>()
+                .into_iter(),
+        )
     }
 
     fn command_registry(&self) -> &CommandRegistry {

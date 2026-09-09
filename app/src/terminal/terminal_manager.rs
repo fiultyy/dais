@@ -1,3 +1,4 @@
+use terminal_grid_model::block::BlockSize;
 use parking_lot::FairMutex;
 use pathfinder_geometry::vector::Vector2F;
 use settings::Setting as _;
@@ -14,7 +15,6 @@ use crate::{
 use super::{
     color,
     event_listener::ChannelEventListener,
-    model::block::BlockSize,
     safe_mode_settings::get_secret_obfuscation_mode,
     session_settings::SessionSettings,
     settings::TerminalSettings,
@@ -109,7 +109,9 @@ pub(super) fn create_terminal_model(
         sizes,
         terminal_colors_list(ctx),
         channel_event_proxy,
-        ctx.background_executor().clone(),
+        std::sync::Arc::new(crate::terminal::event_listener::TokioBlockTimerHost(
+            ctx.background_executor().clone(),
+        )),
         should_show_bootstrap_block,
         should_show_in_band_command_blocks,
         show_memory_stats,

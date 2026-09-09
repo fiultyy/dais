@@ -1,4 +1,3 @@
-use super::directory_color_add_picker::{DirectoryColorAddPicker, DirectoryColorAddPickerEvent};
 use super::settings_page::{
     AdditionalInfo, Category, LocalOnlyIconState, MatchData, PageType, SettingsWidget,
 };
@@ -40,7 +39,7 @@ use crate::settings::{CursorDisplayType, GPUSettings, InputSettings, InputSettin
 use crate::terminal::block_list_viewport::InputMode;
 use crate::terminal::blockgrid_element::BlockGridElement;
 use crate::terminal::ligature_settings::{LigatureRenderingEnabled, LigatureSettings};
-use crate::terminal::model::blockgrid::BlockGrid;
+use terminal_grid_model::grid::blockgrid::BlockGrid;
 use crate::terminal::model::ObfuscateSecrets;
 use crate::terminal::session_settings::SessionSettings;
 use crate::terminal::settings::{
@@ -63,13 +62,23 @@ use crate::workspace::tab_settings::{
     UseVerticalTabs, WorkspaceDecorationVisibility,
 };
 use crate::workspace::WorkspaceAction;
-use crate::{editor::EditorView, themes::theme_chooser::ThemeChooserMode};
+use crate::{
+    editor::EditorView,
+    themes::theme_chooser::ThemeChooserMode,
+};
 use crate::{
     features::FeatureFlag,
     view_components::{Dropdown, DropdownItem, FilterableDropdown},
 };
-use crate::{report_error, report_if_error, themes};
-use crate::{send_telemetry_from_ctx, server::telemetry::TelemetryEvent};
+use crate::{
+    report_error,
+    report_if_error,
+    themes,
+};
+use crate::{
+    send_telemetry_from_ctx,
+    server::telemetry::TelemetryEvent,
+};
 use ::settings::{Setting, SettingSection, ToggleableSetting};
 use enum_iterator::all;
 use std::borrow::Cow;
@@ -84,7 +93,7 @@ use warpui::elements::{
 };
 use warpui::fonts::{FamilyId, FontInfo, Weight};
 use warpui::keymap::{ContextPredicate, FixedBinding};
-use warpui::platform::{Cursor, FilePickerConfiguration, GraphicsBackend};
+use warpui::platform::{Cursor, GraphicsBackend};
 use warpui::ui_components::button::ButtonVariant;
 use warpui::ui_components::components::{Coords, UiComponent, UiComponentStyles};
 use warpui::ui_components::radio_buttons::{
@@ -1422,7 +1431,6 @@ impl AppearanceSettingsPageView {
         let mut categories = vec![Category::new(
             Box::leak(crate::t!("settings-appearance-category-themes").into_boxed_str()),
             vec![
-                Box::new(CreateCustomThemeWidget::default()),
                 Box::new(ThemeSelectWidget::default()),
             ],
         )];
@@ -1591,13 +1599,6 @@ impl AppearanceSettingsPageView {
             }
         }
 
-        if FeatureFlag::DirectoryTabColors.is_enabled() {
-            let add_picker = ctx.add_typed_action_view(DirectoryColorAddPicker::new);
-            ctx.subscribe_to_view(&add_picker, |me, _, event, ctx| {
-                me.handle_directory_color_add_picker_event(event, ctx);
-            });
-            tab_settings_widgets.push(Box::new(DirectoryTabColorsWidget { add_picker }));
-        }
 
         categories.push(Category::new(
             Box::leak(crate::t!("settings-appearance-category-tabs").into_boxed_str()),
@@ -3007,21 +3008,6 @@ impl AppearanceSettingsPageView {
         })
     }
 
-    fn handle_directory_color_add_picker_event(
-        &mut self,
-        event: &DirectoryColorAddPickerEvent,
-        ctx: &mut ViewContext<Self>,
-    ) {
-        match event {
-            DirectoryColorAddPickerEvent::Selected(path) => {
-                add_directory_tab_color_path(path.clone(), ctx);
-            }
-            DirectoryColorAddPickerEvent::RequestAddFromFilePicker => {
-                open_directory_tab_color_folder_picker(ctx);
-            }
-        }
-    }
-
     fn handle_tab_settings_event(
         &mut self,
         event: &TabSettingsChangedEvent,
@@ -3126,43 +3112,6 @@ fn render_group(
     .with_margin_top(-4.)
     .with_margin_bottom(HEADER_PADDING)
     .finish()
-}
-
-#[derive(Default)]
-struct CreateCustomThemeWidget {
-    mouse_state: MouseStateHandle,
-}
-
-impl SettingsWidget for CreateCustomThemeWidget {
-    type View = AppearanceSettingsPageView;
-
-    fn search_terms(&self) -> &str {
-        "create theme create custom theme"
-    }
-
-    fn render(
-        &self,
-        _view: &Self::View,
-        appearance: &Appearance,
-        _app: &AppContext,
-    ) -> Box<dyn Element> {
-        Align::new(
-            appearance
-                .ui_builder()
-                .link(
-                    crate::t!("settings-appearance-theme-create-custom"),
-                    Some("".to_string()),
-                    None,
-                    self.mouse_state.clone(),
-                )
-                .soft_wrap(false)
-                .build()
-                .with_margin_bottom(10.)
-                .finish(),
-        )
-        .left()
-        .finish()
-    }
 }
 
 #[derive(Default)]
@@ -5636,36 +5585,6 @@ fn build_directory_delete_buttons(
         .collect()
 }
 
-fn add_directory_tab_color_path(path: PathBuf, ctx: &mut ViewContext<AppearanceSettingsPageView>) {
-    TabSettings::handle(ctx).update(ctx, |settings, ctx| {
-        let current = settings.directory_tab_colors.value();
-        let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
-        let key = canonical.to_string_lossy().to_string();
-        let dominated_by_existing = current
-            .0
-            .get(&key)
-            .is_some_and(|c| *c != DirectoryTabColor::Suppressed);
-        if !dominated_by_existing {
-            let new_value = current.with_color(&path, DirectoryTabColor::Unassigned);
-            let _ = settings.directory_tab_colors.set_value(new_value, ctx);
-        }
-    });
-}
-
-fn open_directory_tab_color_folder_picker(ctx: &mut ViewContext<AppearanceSettingsPageView>) {
-    let file_picker_config = FilePickerConfiguration::new().folders_only();
-    ctx.open_file_picker(
-        move |result, ctx| {
-            if let Ok(paths) = result {
-                if let Some(directory_path) = paths.first() {
-                    add_directory_tab_color_path(PathBuf::from(directory_path), ctx);
-                }
-            }
-        },
-        file_picker_config,
-    );
-}
-
 fn directory_tab_colors(app: &AppContext) -> Vec<(String, DirectoryTabColor)> {
     let configured = &TabSettings::as_ref(app).directory_tab_colors.value().0;
     let mut sorted: Vec<_> = configured
@@ -5677,9 +5596,7 @@ fn directory_tab_colors(app: &AppContext) -> Vec<(String, DirectoryTabColor)> {
     sorted
 }
 
-struct DirectoryTabColorsWidget {
-    add_picker: ViewHandle<DirectoryColorAddPicker>,
-}
+struct DirectoryTabColorsWidget;
 
 impl SettingsWidget for DirectoryTabColorsWidget {
     type View = AppearanceSettingsPageView;
@@ -5725,7 +5642,6 @@ impl SettingsWidget for DirectoryTabColorsWidget {
                 .with_cross_axis_alignment(CrossAxisAlignment::Start)
                 .with_main_axis_alignment(MainAxisAlignment::SpaceBetween)
                 .with_child(Shrinkable::new(1., header_text).finish())
-                .with_child(ChildView::new(&self.add_picker).finish())
                 .finish(),
         );
 

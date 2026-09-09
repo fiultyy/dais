@@ -1,22 +1,20 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::Error;
-use serde::{Deserialize, Serialize};
-use settings_value::SettingsValue;
 use warp_core::{
     define_settings_group,
     settings::{RespectUserSyncSetting, Setting, SupportedPlatforms, SyncToCloud},
 };
 use warpui::{AppContext, ModelContext, SingletonEntity};
 
-use crate::{
-    cloud_object::{
-        model::persistence::{ObjectStoreEvent, ObjectStoreModel},
-        StoredObject as _,
-    },
-    drive::ObjectTypeAndId,
-    server::ids::SyncId,
-};
+use crate::drive::ObjectTypeAndId;
+use objects::{StoredObject as _, ids::SyncId};
+use crate::objects::model::persistence::ObjectStoreModel;
+use crate::objects::model::persistence::{ObjectStoreEvent};
+
+// R2-b:WorkflowAlias POD 数据形态已下沉 workflows_ui,此处保持
+// `crate::workflows::aliases::WorkflowAlias` 旧路径可用。
+pub use workflows_ui::WorkflowAlias;
 
 define_settings_group!(WorkflowAliases, settings: [
     aliases: Aliases {
@@ -29,21 +27,8 @@ define_settings_group!(WorkflowAliases, settings: [
     }
 ]);
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, schemars::JsonSchema, SettingsValue)]
-#[schemars(description = "A shortcut alias for a Dais Drive workflow.")]
-pub struct WorkflowAlias {
-    #[schemars(description = "The alias text that triggers this workflow.")]
-    pub alias: String,
-    #[schemars(description = "The identifier of the linked workflow.")]
-    pub workflow_id: SyncId,
-    #[schemars(description = "Pre-filled argument values for the workflow.")]
-    pub arguments: Option<HashMap<String, String>>,
-    #[schemars(description = "The identifier of the environment variable collection to use.")]
-    pub env_vars: Option<SyncId>,
-}
-
 impl WorkflowAliases {
-    /// Call once to subscribe to UpdateManager notifications that a workflow has been deleted.
+    /// Call once to subscribe to ObjectStore notifications that a workflow has been deleted.
     pub fn connect(&self, ctx: &mut ModelContext<Self>) {
         ctx.subscribe_to_model(&ObjectStoreModel::handle(ctx), |me, event, ctx| {
             let result = match event {
@@ -70,8 +55,7 @@ impl WorkflowAliases {
         let mut alias_data = HashMap::with_capacity(self.aliases.len());
         for alias in self.aliases.iter() {
             if let Some(backing_workflow) = object_store_model.get_workflow(&alias.workflow_id) {
-                alias_data.insert(alias.alias.clone(), backing_workflow.display_name());
-            }
+                alias_data.insert(alias.alias.clone(), backing_workflow.display_name());}
         }
         alias_data
     }
@@ -129,8 +113,7 @@ impl WorkflowAliases {
         let mut aliases = self.aliases.clone();
         for alias in aliases.iter_mut() {
             if alias.workflow_id == old_workflow_id {
-                alias.workflow_id = new_workflow_id;
-            }
+                alias.workflow_id = new_workflow_id}
         }
         self.aliases.set_value(aliases, ctx)
     }

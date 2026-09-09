@@ -1,4 +1,6 @@
-use crate::terminal::model::{blocks::BlockList, index::Point, terminal_model::WithinBlock};
+use crate::terminal::model::terminal_model::WithinBlock;
+use terminal_model::index::Point;
+use terminal_grid_model::block::blocks::BlockList;
 use crate::terminal::shared_session::protocol::{BlockPoint, Point as SessionSharingPoint};
 
 fn point_from_session_sharing(point: SessionSharingPoint) -> Point {
@@ -15,14 +17,26 @@ pub(crate) fn point_to_session_sharing(point: Point) -> SessionSharingPoint {
     }
 }
 
-impl WithinBlock<Point> {
+/// R14: WithinBlock 下沉后 session-sharing 转换以 app 扩展 trait 承载(依赖 app BlockList)。
+pub(crate) trait WithinBlockSessionSharing {
+    fn from_session_sharing_block_point(
+        point: BlockPoint,
+        block_list: &BlockList,
+    ) -> Option<Self>
+    where
+        Self: Sized;
+
+    fn to_session_sharing_block_point(self, block_list: &BlockList) -> Option<BlockPoint>;
+}
+
+impl WithinBlockSessionSharing for WithinBlock<Point> {
     /// Converts an un-transformed block point
     /// to a transformed [`WithinBlock<Point>`].
     ///
     /// We make the following transformations:
     /// 1. ensure the point fits our grid,
     /// 2. turn the grid-compatible point into a displayed point so that it respects filters
-    pub fn from_session_sharing_block_point(
+    fn from_session_sharing_block_point(
         point: BlockPoint,
         block_list: &BlockList,
     ) -> Option<Self> {
@@ -51,7 +65,7 @@ impl WithinBlock<Point> {
     /// to a view-agnostic [`BlockPoint`].
     ///
     /// This should be the inverse of [`WithinBlock<Point>::from_session_sharing_block_point`].
-    pub fn to_session_sharing_block_point(self, block_list: &BlockList) -> Option<BlockPoint> {
+    fn to_session_sharing_block_point(self, block_list: &BlockList) -> Option<BlockPoint> {
         let block_id = block_list.block_at(self.block_index)?.id();
         let grid = block_list.grid_at_location(&self).grid_handler();
 
@@ -65,6 +79,7 @@ impl WithinBlock<Point> {
         })
     }
 }
+
 
 #[cfg(test)]
 #[path = "selections_test.rs"]

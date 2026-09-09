@@ -1,3 +1,4 @@
+use terminal_grid_model::grid::blockgrid::BlockGrid;
 use crate::ai::blocklist::BlocklistAIInputModel;
 use crate::context_chips::display::PromptDisplay;
 use crate::context_chips::spacing;
@@ -7,7 +8,10 @@ use crate::terminal::grid_size_util::grid_compute_baseline_position_fn;
 use crate::terminal::ligature_settings::should_use_ligature_rendering;
 use crate::terminal::view::TerminalAction;
 use crate::themes::theme::PromptColors;
-use crate::{appearance::Appearance, terminal::model::blockgrid::BlockGrid};
+use crate::{
+    appearance::Appearance,
+
+};
 use settings::Setting as _;
 
 use std::fmt;
@@ -23,12 +27,12 @@ use warpui::{
 };
 
 use super::input::InputRenderStateModel;
-use super::model::block::Block;
+use terminal_grid_model::block::Block;
 use super::shell::ShellType;
 use crate::settings::FontSettings;
 use crate::terminal::input::get_input_box_top_border_width;
 
-use super::model::blocks::CachedPromptData;
+use terminal_grid_model::block::blocks::CachedPromptData;
 use super::safe_mode_settings::get_secret_obfuscation_mode;
 use super::session_settings::SessionSettings;
 use super::settings::TerminalSettings;

@@ -4,6 +4,7 @@ members = [
   "app",
 ]
 resolver = "2"
+exclude = ["crates/vendor"]
 
 # Include all members except serve-wasm (since it's a helper helper for serving
 # wasm binaries and not something we want to regularly compile or run
@@ -21,6 +22,7 @@ default-members = [
   "crates/warp_util",
 ]
 
+
 [workspace.package]
 authors = ["Warp Team <dev@warp.dev>"]
 license = "AGPL-3.0-only"
@@ -34,7 +36,25 @@ asset_cache = { path = "crates/asset_cache" }
 asset_macro = { path = "crates/asset_macro" }
 channel_versions = { path = "crates/channel_versions", default-features = false }
 cockpit_model = { path = "crates/cockpit_model" }
+tantivy = "0.26.0"
+byte-unit = "5.1.4"
+flate2 = "1.0.17"
+regex-automata = "0.4.6"
 nav = { path = "crates/nav" }
+drive_ui = { path = "crates/drive_ui" }
+notebooks_model = { path = "crates/notebooks_model" }
+ssh_manager_ui = { path = "crates/ssh_manager_ui" }
+sftp_manager_ui = { path = "crates/sftp_manager_ui" }
+code_review_model = { path = "crates/code_review_model" }
+workspace_model = { path = "crates/workspace_model" }
+terminal_grid_model = { path = "crates/terminal_grid_model" }
+terminal_model = { path = "crates/terminal_model" }
+code_model = { path = "crates/code_model" }
+context_chips_ui = { path = "crates/context_chips_ui" }
+search_ui = { path = "crates/search_ui" }
+workflows_ui = { path = "crates/workflows_ui" }
+env_vars_ui = { path = "crates/env_vars_ui" }
+objects = { path = "crates/objects" }
 pane_tree = { path = "crates/pane_tree" }
 command = { path = "crates/command" }
 command-signatures-v2 = { path = "crates/command-signatures-v2" }
@@ -70,8 +90,7 @@ syntax_tree = { path = "crates/syntax_tree" }
 ui_components = { path = "crates/ui_components" }
 vim = { path = "crates/vim" }
 virtual-fs = { path = "crates/virtual_fs" }
-voice_input = { path = "crates/voice_input" }
-warp = { path = "app" }
+dais = { path = "app" }
 warp_cli = { path = "crates/warp_cli" }
 warp_completer = { path = "crates/warp_completer" }
 warp_core = { path = "crates/warp_core" }
@@ -87,7 +106,6 @@ warp_ripgrep = { path = "crates/warp_ripgrep" }
 warp_ssh_manager = { path = "crates/warp_ssh_manager" }
 warp_terminal = { path = "crates/warp_terminal" }
 warp_util = { path = "crates/warp_util" }
-dais_sync = { path = "crates/dais_sync" }
 warp_web_event_bus = { path = "crates/warp_web_event_bus" }
 warpui = { path = "crates/warpui" }
 warpui_core = { path = "crates/warpui_core" }
@@ -99,6 +117,8 @@ websocket = { path = "crates/websocket" }
 # here to copying-and-pasting versions.
 axum = "0.8.4"
 anyhow = "1.0"
+bimap = "0.6.2"
+bounded-vec-deque = "0.1"
 arboard = { version = "3.6.1", default-features = false }
 arrayvec = "0.7.4"
 async-broadcast = "0.7.2"
@@ -545,6 +565,10 @@ core-foundation-sys = { git = "https://github.com/servo/core-foundation-rs", rev
 core-graphics = { git = "https://github.com/servo/core-foundation-rs", rev = "6f844cf1a1a18e25b70fcdf1bcdc458555bd2eff" }
 core-text = { git = "https://github.com/servo/core-foundation-rs", rev = "6f844cf1a1a18e25b70fcdf1bcdc458555bd2eff" }
 objc = { git = "https://github.com/warpdotdev/rust-objc.git", rev = "5b656827fa9f863ef0eb22e444a3fedac009e78a" }
+# fontconfig 0.8.0 UB 修复: FontSet::iter 在 nfont==0 时 from_raw_parts 空指针触发
+# rustc 1.88+ debug precondition panic(Linux debug 构建/example 全崩)。上游 0.9 已修,
+# 但与 font-kit fork 钉的 yeslogic-fontconfig-sys 5.0 links 冲突不可升,故 vendor 补丁。
+fontconfig = { path = "crates/vendor/fontconfig" }
 pathfinder_simd = { git = "https://github.com/warpdotdev/pathfinder.git", rev = "34128a129ca6aee168fbc5060a4f21b4f7e486a9" }
 yaml-rust = { git = "https://github.com/warpdotdev/yaml-rust.git", rev = "51684719d0102ca85ff4b21cec39877a0c669e19" }
 

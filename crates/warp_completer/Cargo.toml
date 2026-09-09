@@ -53,6 +53,8 @@ command = { path = "../command", features = ["test-util"] }
 anyhow.workspace = true
 # Enable the `test-util` feature for our own package when running tests.
 warp_completer = { path = ".", features = ["test-util"] }
+# R9: 测试装配——禁用 FeatureFlag 未初始化断言(同 self test-util 先例)
+warp_features = { path = "../warp_features", features = ["test-util"] }
 
 [features]
 # Enables the completions-on-js implementation of the completion engine.

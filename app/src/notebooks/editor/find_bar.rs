@@ -29,10 +29,7 @@ use crate::{
     debounce::debounce,
     editor::{EditorView, Event as EditorEvent, SingleLineEditorOptions, TextOptions},
     ui_components::icons::Icon,
-    view_components::find::{
-        CASE_SENSITIVE_LABEL, CASE_SENSITIVE_TOOLTIP, FIND_BAR_WIDTH, REGEX_TOGGLE_LABEL,
-        REGEX_TOGGLE_TOOLTIP,
-    },
+    view_components::find::{ CASE_SENSITIVE_LABEL, CASE_SENSITIVE_TOOLTIP, FIND_BAR_WIDTH, REGEX_TOGGLE_LABEL, REGEX_TOGGLE_TOOLTIP, },
 };
 
 use super::{

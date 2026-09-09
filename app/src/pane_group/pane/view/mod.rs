@@ -1,5 +1,5 @@
 pub mod header;
-pub mod header_content;
+pub use pane_tree::header_content;
 
 use crate::pane_group::pane::ActionOrigin;
 use crate::{

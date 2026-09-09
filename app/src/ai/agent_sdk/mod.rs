@@ -13,7 +13,7 @@ use crate::ai::agent_sdk::mcp_config::build_mcp_servers_from_specs;
 use crate::ai::aws_credentials::refresh_aws_credentials;
 use crate::ai::llms::LLMId;
 use crate::auth::OwnerType;
-use crate::cloud_object::model::persistence::ObjectStoreModel;
+use crate::objects::model::persistence::ObjectStoreModel;
 use crate::workflows::workflow::Workflow;
 use ai::api_keys::{ApiKeyManager, AwsCredentialsRefreshStrategy};
 use anyhow::Context;
@@ -30,7 +30,8 @@ use warpui::ModelSpawner;
 use warpui::{platform::TerminationMode, AppContext, SingletonEntity};
 
 use crate::{
-    ai::ambient_agents::task::HarnessConfig, ai::ambient_agents::AgentConfigSnapshot,
+    ai::ambient_agents::task::HarnessConfig,
+    ai::ambient_agents::AgentConfigSnapshot,
     auth::AuthStateProvider,
 };
 use driver::AgentDriverError;

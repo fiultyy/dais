@@ -46,7 +46,7 @@ struct ThemeOption {
 
 pub struct ThemePickerSlide {
     onboarding_state: ModelHandle<OnboardingStateModel>,
-    theme_options: [ThemeOption; 4],
+    theme_options: [ThemeOption; 2],
     selected_theme_index: usize,
     sync_with_os: bool,
     sync_with_os_mouse: MouseStateHandle,
@@ -57,7 +57,7 @@ pub struct ThemePickerSlide {
 
 impl ThemePickerSlide {
     pub(crate) fn new(
-        themes: [WarpTheme; 4],
+        themes: [WarpTheme; 2],
         onboarding_state: ModelHandle<OnboardingStateModel>,
         ctx: &mut ViewContext<Self>,
     ) -> Self {

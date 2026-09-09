@@ -19,13 +19,18 @@ use warpui::{
 
 use super::{
     keybindings_page::KeybindingsEvent,
-    section_views::{
-        FOOTER_ICON_SIZE, HEADER_FONT_SIZE, ICON_PADDING, KEYBOARD_ICON_SIZE, SCROLLBAR_OFFSET,
-        SECTION_SPACING,
-    },
     KeybindingsView, ResourceCenterMainEvent, ResourceCenterMainView, TipsCompleted,
 };
 use crate::ui_components::{buttons::icon_button, window_focus_dimming::WindowFocusDimming};
+
+// 原 section_views 常量,随模块删除后本地化(仅保留本文件用到的)。
+const FOOTER_ICON_SIZE: f32 = 15.;
+const HEADER_FONT_SIZE: f32 = 16.;
+const ICON_PADDING: f32 = 3.;
+const KEYBOARD_ICON_SIZE: f32 = 30.;
+const SCROLLBAR_OFFSET: f32 = 7.;
+const SECTION_SPACING: f32 = 12.;
+
 use crate::{
     appearance::Appearance,
     changelog_model::ChangelogModel,
