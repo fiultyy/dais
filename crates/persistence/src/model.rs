@@ -742,13 +742,6 @@ pub struct AgentConversationData {
     /// delivery without re-delivering already-processed events.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_event_sequence: Option<i64>,
-    /// Serialized `CompactionState` JSON for BYOP local compaction (head trimming).
-    /// `None` means no compaction has occurred.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub compaction_state_json: Option<String>,
-    /// Opaque serialized BYOP repair sidecar. The app layer owns validation semantics.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub byop_repair_state_json: Option<String>,
     /// CLI subagent 终端 block 快照 sidecar。具体 JSON schema 由 app 层负责。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cli_subagent_block_snapshots_json: Option<String>,
@@ -1064,8 +1057,6 @@ mod tests {
             run_id: None,
             autoexecute_override: None,
             last_event_sequence: Some(42),
-            compaction_state_json: None,
-            byop_repair_state_json: None,
             cli_subagent_block_snapshots_json: None,
         };
         let json = serde_json::to_string(&data).expect("serialize");
@@ -1081,7 +1072,6 @@ mod tests {
         let data: AgentConversationData =
             serde_json::from_str(legacy_json).expect("legacy rows must deserialize");
         assert_eq!(data.last_event_sequence, None);
-        assert_eq!(data.byop_repair_state_json, None);
         assert_eq!(data.cli_subagent_block_snapshots_json, None);
     }
 
@@ -1099,8 +1089,6 @@ mod tests {
             run_id: None,
             autoexecute_override: None,
             last_event_sequence: None,
-            compaction_state_json: None,
-            byop_repair_state_json: None,
             cli_subagent_block_snapshots_json: None,
         };
         let json = serde_json::to_string(&data).expect("serialize");
@@ -1111,34 +1099,6 @@ mod tests {
         assert!(
             !json.contains("cli_subagent_block_snapshots_json"),
             "None should be skipped in serialized output: {json}"
-        );
-    }
-
-    #[test]
-    fn agent_conversation_data_roundtrips_byop_repair_sidecar() {
-        let data = AgentConversationData {
-            server_conversation_token: None,
-            conversation_usage_metadata: None,
-            reverted_action_ids: None,
-            forked_from_server_conversation_token: None,
-            artifacts_json: None,
-            parent_agent_id: None,
-            agent_name: None,
-            parent_conversation_id: None,
-            run_id: None,
-            autoexecute_override: None,
-            last_event_sequence: None,
-            compaction_state_json: None,
-            byop_repair_state_json: Some(r#"{"version":1,"records":[]}"#.to_string()),
-            cli_subagent_block_snapshots_json: None,
-        };
-
-        let json = serde_json::to_string(&data).expect("serialize");
-        let roundtripped: AgentConversationData = serde_json::from_str(&json).expect("deserialize");
-
-        assert_eq!(
-            roundtripped.byop_repair_state_json.as_deref(),
-            Some(r#"{"version":1,"records":[]}"#)
         );
     }
 
@@ -1156,8 +1116,6 @@ mod tests {
             run_id: None,
             autoexecute_override: None,
             last_event_sequence: None,
-            compaction_state_json: None,
-            byop_repair_state_json: None,
             cli_subagent_block_snapshots_json: Some(
                 r#"[{"task_id":"cli-task","block_id":"cli-block","block":{}}]"#.to_string(),
             ),

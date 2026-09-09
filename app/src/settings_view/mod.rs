@@ -56,7 +56,6 @@ use warpui::{
 };
 
 mod about_page;
-mod agent_providers_widget;
 mod ai_page;
 mod appearance_page;
 mod code_page;
@@ -143,8 +142,6 @@ pub enum SettingsSection {
     WarpAgent,
     AgentProfiles,
     AgentMCPServers,
-    /// 自定义 AI 提供商配置(BYOP),Agents 二级菜单的 Providers 子页。
-    AgentProviders,
     Knowledge,
     ThirdPartyCLIAgents,
     /// 全局 HTTP 代理设置页。受 `FeatureFlag::HttpProxySettings` 门控。
@@ -175,7 +172,6 @@ impl Display for SettingsSection {
             SettingsSection::WarpAgent => crate::t!("settings-section-warp-agent"),
             SettingsSection::AgentProfiles => crate::t!("settings-section-agent-profiles"),
             SettingsSection::AgentMCPServers => crate::t!("settings-section-agent-mcp-servers"),
-            SettingsSection::AgentProviders => crate::t!("settings-section-agent-providers"),
             SettingsSection::Knowledge => crate::t!("settings-section-knowledge"),
             SettingsSection::ThirdPartyCLIAgents => {
                 crate::t!("settings-section-third-party-cli-agents")
@@ -205,7 +201,6 @@ impl SettingsSection {
             Self::WarpAgent
                 | Self::AgentProfiles
                 | Self::AgentMCPServers
-                | Self::AgentProviders
                 | Self::Knowledge
                 | Self::ThirdPartyCLIAgents
         )
@@ -232,7 +227,6 @@ impl SettingsSection {
         &[
             Self::WarpAgent,
             Self::AgentProfiles,
-            Self::AgentProviders,
             Self::AgentMCPServers,
             Self::Knowledge,
             Self::ThirdPartyCLIAgents,
@@ -254,7 +248,6 @@ impl FromStr for SettingsSection {
             // This page was called "Oz" at one point, keep for backward compatibility.
             "Profiles" | "AgentProfiles" => Ok(Self::AgentProfiles),
             "MCP servers" | "AgentMCPServers" => Ok(Self::AgentMCPServers),
-            "Providers" | "AgentProviders" => Ok(Self::AgentProviders),
             "Knowledge" => Ok(Self::Knowledge),
             "Third party CLI agents" | "ThirdPartyCLIAgents" => Ok(Self::ThirdPartyCLIAgents),
             "Editor and Code Review" | "EditorAndCodeReview" => Ok(Self::EditorAndCodeReview),
@@ -1307,9 +1300,8 @@ impl SettingsView {
         });
 
         let mut items = Vec::new();
-        // Password fields (e.g. BYOP API keys) never expose Cut/Copy: `EditorView::cut`/
-        // `EditorView::copy` are silent no-ops for them, so keep the menu consistent and only
-        // offer Paste.
+        // 密码字段(如自定义 API 密钥)不提供剪切/复制:`EditorView::cut`/
+        // `EditorView::copy` 对它们是静默无操作,为保持菜单一致仅提供粘贴。
         if has_selection && can_edit && !is_password {
             items.push(
                 MenuItemFields::new(crate::t!("common-cut"))

@@ -253,13 +253,13 @@ fn test_read_skill_executor_fallback_returns_error_when_file_missing() {
     });
 }
 
-/// BYOP `read_skill` 工具用 name 调用时:
+/// `read_skill` 工具用 name 调用时:
 /// `from_args` 把 name 装进 `SkillReference::SkillPath(name)`,
 /// executor 端 cache miss 后按 name 反查命中并 Sync Success 返回。
 #[test]
 fn test_read_skill_executor_resolves_by_name() {
     let temp_dir = TempDir::new().unwrap();
-    let skill_path = create_test_skill_file(&temp_dir, "byop-named-skill", "Lookup by name");
+    let skill_path = create_test_skill_file(&temp_dir, "lookup-named-skill", "Lookup by name");
 
     App::test((), |mut app| async move {
         initialize_app(&mut app);
@@ -271,11 +271,11 @@ fn test_read_skill_executor_resolves_by_name() {
 
         let executor_handle = app.add_model(|_| ReadSkillExecutor::new());
 
-        // 模拟 BYOP from_args:把 name 当作 path 传入。
+        // 模拟 name 调用路径:把 name 当作 path 传入。
         let action = AIAgentAction {
             id: AIAgentActionId::from("name-lookup-action".to_string()),
             action: AIAgentActionType::ReadSkill(ReadSkillRequest {
-                skill: SkillReference::Path(std::path::PathBuf::from("byop-named-skill")),
+                skill: SkillReference::Path(std::path::PathBuf::from("lookup-named-skill")),
             }),
             task_id: TaskId::new("name-lookup-task".to_string()),
             requires_result: false,

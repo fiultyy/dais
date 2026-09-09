@@ -1352,10 +1352,6 @@ fn initialize_app(
         manager
     });
 
-    // 自定义 Agent Provider 的 API key 由独立单例存到 secure storage,
-    // 与 ApiKeyManager (BYOK 转发给 warp-server) 解耦。
-    ctx.add_singleton_model(crate::ai::agent_providers::AgentProviderSecrets::new);
-
     // Issue #72: 全局 HTTP 代理的 Basic Auth 密码走 OS 密钥库。
     // 注册后立即 reapply,让 settings::init 阶段以空串占位的全局 slot 被真实密码覆盖。
     ctx.add_singleton_model(crate::settings::network_secrets::ProxyCredentials::new);
@@ -1528,7 +1524,7 @@ fn initialize_app(
         // If the app was opened while logged out, record an event for measuring new users.
         // This is sent immediately in case they quit the app on the signup screen.
         send_telemetry_sync_from_app_ctx!(TelemetryEvent::LoggedOutStartup, ctx);
-        // 未登录用户也需要能查看启动时序(BYOP 场景占多数),在首帧后
+        // 未登录用户也需要能查看启动时序,在首帧后
         // 打一次 WARP_STARTUP_TRACE 表。不发任何遥测,不影响逻辑。
         ctx.on_first_frame_drawn(move |ctx| {
             IntervalTimer::handle(ctx).update(ctx, |timer, _| {
@@ -2621,6 +2617,7 @@ pub fn enabled_features() -> HashSet<FeatureFlag> {
         FeatureFlag::ServerFileBrowser,
         #[cfg(feature = "allow_ignoring_input_suggestions")]
         FeatureFlag::AllowIgnoringInputSuggestions,
+
         #[cfg(feature = "api_key_authentication")]
         FeatureFlag::APIKeyAuthentication,
         #[cfg(feature = "api_key_management")]

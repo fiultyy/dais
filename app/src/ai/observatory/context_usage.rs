@@ -4,15 +4,11 @@
 //! - 占用量 = 最近一次带非零 usage 的响应块的
 //!   `usage.input_tokens + output_tokens`（T6 双向解析落进块 metadata）。
 //!   聊天形 API 每个请求都携带全部历史，故最后一次响应的 prompt+completion
-//!   即会话当前上下文占用 — 与 app 自有会话的 chat_stream
-//!   `context_window_usage` 折算同语义。
-//! - 窗口 = 分层只读映射：① harness 自己的模型配置（omp `models.yml` /
+//!   即会话当前上下文占用 — 与 app 自有会话的窗口占用折算同语义。
+//! - 窗口 = harness 自己的模型配置（omp `models.yml` /
 //!   pi `models.json` 的 `contextWindow`，即该 harness UI 自身使用的分母，
-//!   编排侧文件，dais 只读不写）② models.dev catalog（同名模型在多个
-//!   provider 下窗口一致才采信，歧义/未命中 = 未知）。dais/* 别名模型通常(zap/* 兼容期同)
-//!   无注册表条目，未知时 UI 只显示 tokens 不显示百分比。
-
-use crate::ai::agent_providers::models_dev;
+//!   编排侧文件，dais 只读不写）。dais/* 别名模型通常(zap/* 兼容期同)
+//!   无配置条目，未知时 UI 只显示 tokens 不显示百分比。
 
 /// 选中 session 的上下文占用摘要（观测台 Blocks 侧栏展示）。
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -55,7 +51,6 @@ fn harness_from_session(session_id: &str, harness_type: &str) -> Option<External
 pub fn derive_session_context(
     conn: &rusqlite::Connection,
     session_id: &str,
-    catalog: Option<&models_dev::Catalog>,
 ) -> Option<SessionContextInfo> {
     let mut stmt = conn
         .prepare(
@@ -140,7 +135,7 @@ pub fn derive_session_context(
         });
     }
     let models = [model.as_str(), request_model.as_deref().unwrap_or("")];
-    let window_tokens = resolve_context_window(harness, &models, catalog);
+    let window_tokens = resolve_context_window(harness, &models);
     Some(SessionContextInfo {
         used_tokens: tokens,
         window_tokens,
@@ -148,11 +143,10 @@ pub fn derive_session_context(
     })
 }
 
-/// 分层窗口映射：harness 配置 → models.dev（一致才采信）。
+/// 窗口映射：读 harness 自己的模型配置。
 fn resolve_context_window(
     harness: Option<ExternalHarness>,
     models: &[&str],
-    catalog: Option<&models_dev::Catalog>,
 ) -> Option<u64> {
     for m in models.iter().filter(|m| !m.is_empty()) {
         match harness {
@@ -167,9 +161,6 @@ fn resolve_context_window(
                 }
             }
             _ => {}
-        }
-        if let Some(w) = catalog.and_then(|c| window_from_catalog(c, m)) {
-            return Some(w);
         }
     }
     None
@@ -237,27 +228,6 @@ fn window_from_pi_config(path: &std::path::Path, model: &str) -> Option<u64> {
         }
     }
     None
-}
-
-/// models.dev catalog：所有 provider 下同名模型的 `limit.context` 一致才采信
-/// （同名模型散布在多个聚合 provider 且窗口各异时视为不可判定）。
-fn window_from_catalog(catalog: &models_dev::Catalog, model: &str) -> Option<u64> {
-    let mut found: Option<u64> = None;
-    for provider in catalog.values() {
-        for (mid, m) in &provider.models {
-            if model_id_matches(mid, model) || format!("{}/{}", provider.id, mid) == model {
-                let w = u64::from(m.limit.context);
-                if w == 0 {
-                    continue;
-                }
-                match found {
-                    Some(prev) if prev != w => return None, // 歧义
-                    _ => found = Some(w),
-                }
-            }
-        }
-    }
-    found
 }
 
 #[cfg(test)]
@@ -348,10 +318,10 @@ mod tests {
             }),
         );
 
-        let info = derive_session_context(&db.conn, "external-omp", None).unwrap();
+        let info = derive_session_context(&db.conn, "external-omp").unwrap();
         assert_eq!(info.used_tokens, 22228);
         assert_eq!(info.model, "glm-5.3");
-        assert_eq!(info.window_tokens, None); // 无 catalog，HOME 配置不保证存在
+        assert_eq!(info.window_tokens, None); // HOME 配置不保证存在
     }
 
     #[test]
@@ -391,7 +361,7 @@ mod tests {
             json!({"model": "glm-5.2"}),
         );
 
-        let info = derive_session_context(&db.conn, "external-omp", None).unwrap();
+        let info = derive_session_context(&db.conn, "external-omp").unwrap();
         assert_eq!(info.used_tokens, 105);
         assert_eq!(info.model, "glm-5.2"); // 响应侧空 → 请求侧回落
     }
@@ -407,7 +377,7 @@ mod tests {
             1_700_000_000_000,
             json!({"model": "glm-5.2"}),
         );
-        assert!(derive_session_context(&db.conn, "external-omp", None).is_none());
+        assert!(derive_session_context(&db.conn, "external-omp").is_none());
     }
 
     #[test]
@@ -444,45 +414,6 @@ mod tests {
         assert_eq!(window_from_pi_config(&cfg, "glm-5.2"), Some(1_000_000));
         assert_eq!(window_from_pi_config(&cfg, "dais/glm-5.2"), Some(1_000_000));
         assert_eq!(window_from_pi_config(&cfg, "nope"), None);
-    }
-
-    #[test]
-    fn catalog_window_requires_unanimity() {
-        let mut catalog = models_dev::Catalog::new();
-        let mut provider_a = models_dev::Provider::default();
-        provider_a.id = "alpha".into();
-        provider_a.models.insert(
-            "glm-5.2".into(),
-            models_dev::Model {
-                limit: models_dev::ModelLimit {
-                    context: 131072,
-                    output: 0,
-                },
-                ..Default::default()
-            },
-        );
-        catalog.insert("alpha".into(), provider_a);
-        // 一致 → 采信
-        assert_eq!(window_from_catalog(&catalog, "glm-5.2"), Some(131072));
-        // provider/model 全名匹配
-        assert_eq!(window_from_catalog(&catalog, "alpha/glm-5.2"), Some(131072));
-        // 第二个 provider 同名不同窗口 → 歧义 None
-        let mut provider_b = models_dev::Provider::default();
-        provider_b.id = "beta".into();
-        provider_b.models.insert(
-            "glm-5.2".into(),
-            models_dev::Model {
-                limit: models_dev::ModelLimit {
-                    context: 1_000_000,
-                    output: 0,
-                },
-                ..Default::default()
-            },
-        );
-        catalog.insert("beta".into(), provider_b);
-        assert_eq!(window_from_catalog(&catalog, "glm-5.2"), None);
-        // 未命中 → None
-        assert_eq!(window_from_catalog(&catalog, "glm-9.9"), None);
     }
 
     #[test]

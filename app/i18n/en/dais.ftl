@@ -418,7 +418,6 @@ settings-section-ai = AI
 settings-section-warp-agent = Dais Agent
 settings-section-agent-profiles = Profiles
 settings-section-agent-mcp-servers = MCP servers
-settings-section-agent-providers = Providers
 settings-section-knowledge = Knowledge
 settings-section-third-party-cli-agents = Third party CLI agents
 settings-section-code = Code

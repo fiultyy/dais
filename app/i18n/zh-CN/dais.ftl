@@ -407,7 +407,6 @@ settings-section-ai = AI
 settings-section-warp-agent = Dais 智能体
 settings-section-agent-profiles = 配置
 settings-section-agent-mcp-servers = MCP 服务器
-settings-section-agent-providers = 提供商
 settings-section-knowledge = Rules
 settings-section-third-party-cli-agents = 第三方 CLI 智能体
 settings-section-code = 代码

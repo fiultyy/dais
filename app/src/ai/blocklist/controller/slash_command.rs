@@ -27,10 +27,9 @@ pub enum SlashCommandRequest {
     },
     Summarize {
         prompt: Option<String>,
-        /// Dais BYOP 本地会话压缩:本次摘要是否由 token-overflow 自动触发。
-        /// chat_stream::SummarizeConversation 分支据此决定 follow-up 文案
-        /// (overflow 路径会拼一段 "previous request exceeded ..." 解释)。
-        /// /compact /compact-and 手动触发时为 false;auto-trigger 路径为 true。
+        /// 本次摘要是否由 token-overflow 自动触发。
+        /// overflow 路径会拼一段 "previous request exceeded ..." 解释;
+        /// /compact /compact-and 手动触发时为 false,auto-trigger 路径为 true。
         overflow: bool,
     },
     FetchReviewComments {
@@ -205,17 +204,25 @@ impl SlashCommandRequest {
                     context,
                 }]
             }
-            SlashCommandRequest::InitProjectRules { arguments } => vec![AIAgentInput::UserQuery {
-                query: crate::ai::agent_providers::prompt_renderer::render_init_project_command(
-                    arguments.as_deref(),
-                ),
-                context,
-                static_query_type: None,
-                referenced_attachments: HashMap::<String, AIAgentAttachment>::new(),
-                user_query_mode: UserQueryMode::Normal,
-                running_command: None,
-                intended_agent: None,
-            }],
+            SlashCommandRequest::InitProjectRules { arguments } => {
+                let arguments = arguments
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|arguments| !arguments.is_empty())
+                    .unwrap_or("(none)");
+                vec![AIAgentInput::UserQuery {
+                    query: format!(
+                        "Create or update `AGENTS.md` for this repository.\n\n\
+                         User-provided focus or constraints (honor these):\n{arguments}"
+                    ),
+                    context,
+                    static_query_type: None,
+                    referenced_attachments: HashMap::<String, AIAgentAttachment>::new(),
+                    user_query_mode: UserQueryMode::Normal,
+                    running_command: None,
+                    intended_agent: None,
+                }]
+            }
             SlashCommandRequest::Summarize { prompt, overflow } => {
                 vec![AIAgentInput::SummarizeConversation { prompt, overflow }]
             }

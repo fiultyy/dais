@@ -222,8 +222,6 @@ fn empty_agent_conversation_data_for_test() -> AgentConversationData {
         run_id: None,
         autoexecute_override: None,
         last_event_sequence: None,
-        compaction_state_json: None,
-        byop_repair_state_json: None,
         cli_subagent_block_snapshots_json: None,
     }
 }

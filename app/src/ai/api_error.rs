@@ -1,4 +1,3 @@
-use crate::ai::byop_readiness::BlockedByopReadinessError;
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use warp_core::errors::{AnyhowErrorExt, ErrorExt};
@@ -163,24 +162,8 @@ impl AIApiError {
             | AIApiError::Deserialization(_)
             | AIApiError::NoContextFound
             | AIApiError::Stream { .. } => true,
-            AIApiError::Other(error) => error.downcast_ref::<BlockedByopReadinessError>().is_none(),
+            AIApiError::Other(_) => true,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ai::byop_readiness::{BlockedByopReadinessError, ReadinessCategory};
-
-    #[test]
-    fn byop_blocked_readiness_error_is_not_retryable() {
-        let error = AIApiError::Other(
-            BlockedByopReadinessError::new(ReadinessCategory::MissingResultWithoutRepairSource)
-                .into(),
-        );
-
-        assert!(!error.is_retryable());
     }
 }
 

@@ -29,7 +29,6 @@ use crate::terminal::model::terminal_model::TerminalModel;
 use crate::terminal::model_events::{ModelEvent, ModelEventDispatcher};
 use crate::terminal::view::{AgentModePromptSuggestion, PromptSuggestion};
 use crate::workspaces::user_workspaces::UserWorkspaces;
-use chrono::Utc;
 use parking_lot::FairMutex;
 use serde_json::json;
 use warp_core::features::FeatureFlag;
@@ -234,7 +233,6 @@ impl PassiveSuggestionsModel {
     ) {
         let block_id = block_completed.serialized_block.id.clone();
         let command = block_completed.command.clone();
-        let start_ts_ms = Utc::now().timestamp_millis();
 
         if let Some(suggestion) = fetch_static_prompt_suggestion(&block_completed) {
             ctx.emit(PassiveSuggestionsEvent::PromptSuggestionsGenerated {
@@ -247,48 +245,7 @@ impl PassiveSuggestionsModel {
             return;
         }
 
-        let Some(execution_context) = self
-            .active_session
-            .as_ref(ctx)
-            .ai_execution_environment(ctx)
-        else {
-            return;
-        };
-
-        // BYOP 路径:把 ServerApi 调用替换为 BYOP one-shot completion。
-        // Dais 已剥离 Dais Inc 云端,无 BYOP 配置时静默 no-op。
-        let Some(rendered) = build_prompt_suggestions_byop_request(
-            &block_completed,
-            execution_context,
-            &self.terminal_model,
-            self.terminal_view_id,
-            ctx,
-        ) else {
-            return;
-        };
-
-        let request_future = async move {
-            crate::ai::agent_providers::active_ai::prompt_suggestions::run(rendered).await
-        };
-
-        self.prompt_suggestions_future_handle =
-            Some(ctx.spawn(request_future, move |me, result, ctx| {
-                me.prompt_suggestions_future_handle = None;
-                let end_ts_ms = Utc::now().timestamp_millis();
-                let request_duration_ms = end_ts_ms.saturating_sub(start_ts_ms) as u64;
-                let prompt_suggestion = match result {
-                    Some(response) => map_prompt_suggestions_response(response),
-                    None => AgentModePromptSuggestion::Error,
-                };
-
-                ctx.emit(PassiveSuggestionsEvent::PromptSuggestionsGenerated {
-                    prompt_suggestion: prompt_suggestion.clone(),
-                    block_id: block_id.clone(),
-                    command,
-                    request_duration_ms,
-                });
-                me.maybe_generate_passive_code_diff(prompt_suggestion, block_id, ctx);
-            }));
+        // 无 oneshot AI 源:静态建议未命中时不再发起 AI 建议,静默跳过。
     }
 
     fn generate_unit_test_suggestion(
@@ -628,57 +585,7 @@ fn build_prompt_suggestions_request(
     })
 }
 
-/// BYOP 路径的 prompt_suggestions 请求构造:抽出 block 信息 + 系统上下文,
-/// 委托给 `active_ai::prompt_suggestions::dispatch` 渲染 prompt 并解 BYOP 配置。
-/// 返回 `None` 表示没有 BYOP 配置或 block 内容丢失,调用方静默 no-op。
-fn build_prompt_suggestions_byop_request(
-    block: &UserBlockCompleted,
-    execution_context: WarpAiExecutionContext,
-    terminal_model: &Arc<FairMutex<TerminalModel>>,
-    terminal_view_id: EntityId,
-    ctx: &warpui::AppContext,
-) -> Option<crate::ai::agent_providers::active_ai::RenderedRequest> {
-    use crate::ai::agent_providers::active_ai::{prompt_suggestions, BlockSnippet};
-
-    let exit_code = block.serialized_block.exit_code;
-    let working_dir = block
-        .serialized_block
-        .pwd
-        .as_ref()
-        .cloned()
-        .unwrap_or_default();
-
-    let (processed_input, processed_output) = {
-        let model = terminal_model.lock();
-        let terminal_width = model.block_list().size().columns();
-        let current_block = model
-            .block_list()
-            .block_with_id(&block.serialized_block.id)?;
-        current_block.get_block_content_summary(
-            terminal_width,
-            NUM_TOP_BLOCK_LINES,
-            NUM_BOTTOM_BLOCK_LINES,
-        )
-    };
-
-    let snippet = BlockSnippet {
-        command: processed_input,
-        output_summary: processed_output,
-        exit_code: exit_code.value(),
-        pwd: working_dir,
-    };
-
-    prompt_suggestions::dispatch(
-        ctx,
-        Some(terminal_view_id),
-        prompt_suggestions::Input {
-            recent_blocks: vec![snippet],
-            system_context: execution_context.to_json_string(),
-            last_exit_code: exit_code.value(),
-        },
-    )
-}
-
+#[allow(dead_code)]
 fn map_prompt_suggestions_response(
     response: GenerateAMQuerySuggestionsResponse,
 ) -> AgentModePromptSuggestion {

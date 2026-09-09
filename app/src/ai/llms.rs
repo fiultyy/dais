@@ -1,6 +1,5 @@
 use parking_lot::FairMutex;
 use serde::{de, Deserialize, Serialize};
-use settings::Setting as _;
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, OnceLock},
@@ -520,39 +519,14 @@ pub struct LLMPreferences {
     // from the base LLM for the active profile. This means that if the user selects the
     // profile's default model and changes their profile, the model will update to that profile's default.
     base_llm_for_terminal_view: HashMap<EntityId, LLMId>,
-    /// Per-terminal reasoning effort 选择(由输入框 picker 驱动)。
-    /// session-only,不写 settings.toml。键缺失时用 `last_used_reasoning` 兜底,
-    /// 再缺失则用 `default_reasoning_for(api_type, model_id)`。
-    reasoning_effort_per_terminal: HashMap<EntityId, crate::settings::ReasoningEffortSetting>,
-    /// 记忆"上次某 (api_type, model) 用过的档位",做 UX 软记忆。
-    /// session-only。
-    last_used_reasoning: HashMap<
-        (crate::settings::AgentProviderApiType, String),
-        crate::settings::ReasoningEffortSetting,
-    >,
 }
 
 impl LLMPreferences {
-    pub fn new(ctx: &mut ModelContext<Self>) -> Self {
-        // BYOP-only 模式: picker 完全由用户配置的 agent_providers 填充,
-        // 完全不再消费上游云端模型列表。
-        // 缓存(MODELS_BY_FEATURE_CACHE_KEY)也跳过 — 启动时直接从 settings 重建。
-        let models_by_feature = crate::ai::agent_providers::build_byop_models_by_feature(&*ctx);
 
-        // 监听 settings.agent_providers 变更 → 重建 byop 模型列表。
-        ctx.subscribe_to_model(
-            &crate::settings::AISettings::handle(ctx),
-            |me, _event, ctx| {
-                me.refresh_byop_models(ctx);
-            },
-        );
-        // 监听 secrets 变更(API key 增删) → 重建,因为合法性依赖 api_key 是否存在。
-        ctx.subscribe_to_model(
-            &crate::ai::agent_providers::AgentProviderSecrets::handle(ctx),
-            |me, _event, ctx| {
-                me.refresh_byop_models(ctx);
-            },
-        );
+    pub fn new(ctx: &mut ModelContext<Self>) -> Self {
+        // Oz BYOP 剥离后无任何模型来源:picker 仅保留一个灰显占位条目
+        // (`AvailableLLMs::new` 拒绝空列表)。
+        let models_by_feature = Self::placeholder_models_by_feature();
 
         ctx.subscribe_to_model(&NetworkStatus::handle(ctx), |me, event, ctx| {
             if let NetworkStatusEvent::NetworkStatusChanged {
@@ -581,40 +555,45 @@ impl LLMPreferences {
 
         let base_llm_for_terminal_view = HashMap::new();
 
-        // Hydrate `last_used_reasoning` from persisted BYOP settings so picker
-        // remembers per-(api_type, model) effort across restarts and new tabs.
-        let last_used_reasoning = {
-            use crate::settings::AISettings;
-            let s = AISettings::as_ref(&*ctx);
-            let mut map = HashMap::new();
-            for (key, effort) in s.byop_last_used_reasoning.iter() {
-                if let Some((api_type_str, model_id)) = key.split_once(':') {
-                    if let Some(api_type) =
-                        crate::settings::AgentProviderApiType::from_debug_str(api_type_str)
-                    {
-                        map.insert((api_type, model_id.to_owned()), *effort);
-                    }
-                }
-            }
-            map
-        };
-
         let me = Self {
             models_by_feature,
             last_update: None,
             base_llm_for_terminal_view,
-            reasoning_effort_per_terminal: HashMap::new(),
-            last_used_reasoning,
         };
 
-        // In agent mode eval builds, eagerly kick off a fetch of the model list from the server
-        // so that it's available by the time test steps like `set_preferred_agent_mode_llm` run.
-        // In production, this is handled reactively (on auth complete, network online, etc.)
-        // to avoid duplicate requests at startup.
-        #[cfg(feature = "agent_mode_evals")]
-        me.refresh_available_models(ctx);
-
         me
+    }
+
+    /// Oz BYOP 剥离后的占位模型集合:单一灰显条目,选不动。
+    fn placeholder_models_by_feature() -> ModelsByFeature {
+        let choices = vec![LLMInfo {
+            display_name: "未配置自定义提供商 — 请到 设置 → AI 添加".to_owned(),
+            base_model_name: "未配置".to_owned(),
+            id: LLMId::from("placeholder"),
+            reasoning_level: None,
+            usage_metadata: LLMUsageMetadata {
+                request_multiplier: 1,
+                credit_multiplier: None,
+            },
+            description: None,
+            disable_reason: Some(DisableReason::Unavailable),
+            vision_supported: false,
+            spec: None,
+            provider: LLMProvider::Unknown,
+            host_configs: HashMap::new(),
+            discount_percentage: None,
+            context_window: LLMContextWindow::default(),
+        }];
+        let make = || {
+            AvailableLLMs::new(choices[0].id.clone(), choices.clone(), None)
+                .expect("choices is non-empty by construction")
+        };
+        ModelsByFeature {
+            agent_mode: make(),
+            coding: make(),
+            cli_agent: Some(make()),
+            computer_use: Some(make()),
+        }
     }
 
     /// Returns the `LLMInfo` for the base LLM to be used for an Agent Mode request.
@@ -628,9 +607,7 @@ impl LLMPreferences {
 
     /// Returns `LLMInfo` for the currently selected LLM to be used for Agent Mode.
     ///
-    /// 优先级:terminal-view override > AISettings.byop_last_used_model_id(全局
-    /// 最近使用 — picker 切换后立即写入,新 tab/重启沿用)> profile.base_model >
-    /// default_llm_info()。
+    /// 优先级:terminal-view override > profile.base_model > default_llm_info()。
     fn get_preferred_base_model(
         &self,
         app: &AppContext,
@@ -642,17 +619,6 @@ impl LLMPreferences {
                 if let Some(llm_info) = self.models_by_feature.agent_mode.info_for_id(llm_id) {
                     return llm_info;
                 }
-            }
-        }
-
-        // BYOP picker last_used 比 profile 默认更贴近用户最新意图。
-        let last_used = crate::settings::AISettings::as_ref(app)
-            .byop_last_used_model_id
-            .to_string();
-        if !last_used.is_empty() {
-            let llm_id: LLMId = last_used.into();
-            if let Some(llm_info) = self.models_by_feature.agent_mode.info_for_id(&llm_id) {
-                return llm_info;
             }
         }
 
@@ -933,15 +899,6 @@ impl LLMPreferences {
             ctx.emit(LLMPreferencesEvent::UpdatedActiveAgentModeLLM);
         }
 
-        // 始终写 byop_last_used_model_id(即便 changed=false 也覆盖一遍,统一新 tab 行为)。
-        // picker 显式切换 = 用户最强意图,新 tab/重启都应沿用。
-        use warp_core::errors::report_if_error;
-        let llm_id_str = preferred_llm_id.as_str().to_owned();
-        crate::settings::AISettings::handle(ctx).update(ctx, |settings, ctx| {
-            if settings.byop_last_used_model_id.to_string() != llm_id_str {
-                report_if_error!(settings.byop_last_used_model_id.set_value(llm_id_str, ctx));
-            }
-        });
     }
 
     /// Triggers a snapshot save to persist LLM override changes.
@@ -1029,14 +986,6 @@ impl LLMPreferences {
 
     fn refresh_public_models(&self, _ctx: &mut ModelContext<Self>) {}
 
-    /// 从 settings.agent_providers + AgentProviderSecrets 重建 `models_by_feature`,
-    /// 在 settings 或 secrets 变化时调用。
-    pub fn refresh_byop_models(&mut self, ctx: &mut ModelContext<Self>) {
-        let new = crate::ai::agent_providers::build_byop_models_by_feature(&*ctx);
-        if new != self.models_by_feature {
-            self.on_server_update(new, ctx);
-        }
-    }
 
     pub fn refresh_available_models(&self, ctx: &mut ModelContext<Self>) {
         if AuthStateProvider::as_ref(ctx).get().is_logged_in() {
@@ -1186,58 +1135,6 @@ impl LLMPreferences {
         }
     }
 
-    /// 获取指定 terminal-view 当前的 reasoning effort 选择。
-    /// 优先级: per-terminal 选择 > last-used (api_type, model) > variants 表的默认档 > Auto。
-    pub fn get_reasoning_effort(
-        &self,
-        terminal_view_id: Option<EntityId>,
-        api_type: crate::settings::AgentProviderApiType,
-        model_id: &str,
-    ) -> crate::settings::ReasoningEffortSetting {
-        if let Some(tv) = terminal_view_id {
-            if let Some(eff) = self.reasoning_effort_per_terminal.get(&tv) {
-                return *eff;
-            }
-        }
-        if let Some(eff) = self
-            .last_used_reasoning
-            .get(&(api_type, model_id.to_owned()))
-        {
-            return *eff;
-        }
-        crate::ai::agent_providers::reasoning::default_reasoning_for(api_type, model_id)
-            .unwrap_or(crate::settings::ReasoningEffortSetting::Auto)
-    }
-
-    /// 设置指定 terminal-view 的 reasoning effort,同时更新 last-used 记忆,
-    /// 并把 (api_type, model) → effort 映射立即写入 AISettings 持久化层
-    /// (新 tab / 重启都会读到最新值)。
-    pub fn set_reasoning_effort(
-        &mut self,
-        terminal_view_id: EntityId,
-        api_type: crate::settings::AgentProviderApiType,
-        model_id: &str,
-        effort: crate::settings::ReasoningEffortSetting,
-        ctx: &mut ModelContext<Self>,
-    ) {
-        self.reasoning_effort_per_terminal
-            .insert(terminal_view_id, effort);
-        self.last_used_reasoning
-            .insert((api_type, model_id.to_owned()), effort);
-
-        // 同步写 AISettings.byop_last_used_reasoning(per-(api_type, model))。
-        use warp_core::errors::report_if_error;
-        let key = crate::settings::BYOPLastUsedReasoningMap::make_key(api_type, model_id);
-        crate::settings::AISettings::handle(ctx).update(ctx, |settings, ctx| {
-            let mut map = settings.byop_last_used_reasoning.value().0.clone();
-            map.insert(key, effort);
-            report_if_error!(settings
-                .byop_last_used_reasoning
-                .set_value(crate::settings::BYOPLastUsedReasoningMap::new(map), ctx));
-        });
-
-        ctx.emit(LLMPreferencesEvent::UpdatedReasoningEffort);
-    }
 }
 
 #[derive(Clone, Debug)]
